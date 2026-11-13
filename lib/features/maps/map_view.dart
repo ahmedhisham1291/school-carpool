@@ -43,7 +43,7 @@ class MapArea {
 
 /// Moves the map and remembers where it is.
 class MapCameraController extends ChangeNotifier {
-  MapCameraController({required GeoPin center, double zoom = AppMapTokens.cityZoom}) : _center = center, _zoom = zoom;
+  MapCameraController({required this._center, this._zoom = AppMapTokens.cityZoom});
 
   GeoPin _center;
   double _zoom;

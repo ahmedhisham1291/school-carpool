@@ -40,7 +40,8 @@ workflows:
         distribution_type: app_store
         bundle_identifier: org.schoolcarpool.app.stg
       groups:
-        # SENTRY_DSN_APP_STAGING, RECAPTCHA_SITE_KEY (web, later)
+        # SENTRY_DSN_APP_STAGING, RECAPTCHA_SITE_KEY (web, later),
+        # MAPS_API_KEY_IOS (Prompt 5; the staging project's iOS Maps key)
         - staging_defines
       vars:
         APP_STORE_APPLE_ID: "0000000000"
@@ -70,6 +71,7 @@ workflows:
             --build-number=$((LATEST + 1)) \
             --export-options-plist=/Users/builder/export_options.plist \
             --dart-define=SENTRY_DSN="${SENTRY_DSN_APP_STAGING:-}" \
+            --dart-define=MAPS_ENABLED="${MAPS_API_KEY_IOS:+true}" \
             --dart-define=SENTRY_SAMPLE_RATE=1.0
     artifacts:
       - build/ios/ipa/*.ipa
@@ -95,7 +97,7 @@ workflows:
         distribution_type: app_store
         bundle_identifier: org.schoolcarpool.app.dev
       groups:
-        # SENTRY_DSN_APP_DEV
+        # SENTRY_DSN_APP_DEV, MAPS_API_KEY_IOS (Prompt 5; the dev project's key)
         - dev_defines
       vars:
         APP_STORE_APPLE_ID: "0000000000"
@@ -114,6 +116,7 @@ workflows:
             --export-options-plist=/Users/builder/export_options.plist \
             --dart-define=USE_EMULATORS=false \
             --dart-define=SENTRY_DSN="${SENTRY_DSN_APP_DEV:-}" \
+            --dart-define=MAPS_ENABLED="${MAPS_API_KEY_IOS:+true}" \
             --dart-define=SENTRY_SAMPLE_RATE=1.0
     artifacts:
       - build/ios/ipa/*.ipa

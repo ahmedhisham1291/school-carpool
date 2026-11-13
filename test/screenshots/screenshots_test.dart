@@ -3,7 +3,8 @@
 // Renders the tab shell, the sign-up screens (Prompt 2), the verification
 // screens (Prompt 3), the admin web panel (Prompt 4) and the component
 // gallery in Arabic and English, light and dark (gallery also in design
-// directions A and B), the schools picker and About (Prompt 4B) with the
+// directions A and B), the schools picker and About (Prompt 4B), the maps
+// screens (Prompt 5: nearby parents, home picker, driving schools) with the
 // real bundled fonts, and writes PNGs to
 // test/screenshots/goldens/. The shell, the sign-up and the verification
 // screens are also rendered on a small 320 dp phone, at normal and at 200
@@ -31,6 +32,8 @@ import 'package:school_carpool/features/about/about_screen.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
+import 'package:school_carpool/features/maps/map_models.dart';
+import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
 import 'package:school_carpool/features/schools/school_picker_screen.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
@@ -42,6 +45,7 @@ import 'package:school_carpool/settings/settings_store.dart';
 
 import '../helpers/admin_fakes.dart';
 import '../helpers/fonts.dart';
+import '../helpers/map_fakes.dart';
 import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
 import '../helpers/verification_fakes.dart';
@@ -57,6 +61,7 @@ Future<void> _pumpScreen(
   SessionState session = testVerifiedSession,
   double textScale = 1,
   List<Override> extraOverrides = const <Override>[],
+  MapRepository? maps,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -80,7 +85,7 @@ Future<void> _pumpScreen(
           }),
         ),
         routerProvider.overrideWithValue(router),
-        ...authOverrides(session: session),
+        ...authOverrides(session: session, maps: maps),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
         ...extraOverrides,
       ],
@@ -394,6 +399,51 @@ void main() {
             await tester.enterText(find.byKey(const Key('school.search')), query);
             await tester.pump(const Duration(milliseconds: 400));
           }
+          await tester.pump(const Duration(milliseconds: 400));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Maps (Prompt 5): nearby parents, the home picker and driving schools,
+  // with a saved fake home and a child at a fake school. The maps are drawn
+  // by the sketch (no Google key in CI).
+  const Map<String, String> mapScreens = <String, String>{
+    'nearby': HomeRoutes.nearby,
+    'home_location': ProfileRoutes.homeLocation,
+    'driving_schools': ProfileRoutes.drivingSchools,
+  };
+  for (final MapEntry<String, String> screen in mapScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'maps_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: screen.value,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            maps: FakeMapRepository(home: const HomeLocation(location: testHome, label: 'Road 9, Maadi (test)')),
+            extraOverrides: verificationOverrides(
+              repository: FakeVerificationRepository(),
+              children: const <ChildRecord>[
+                ChildRecord(
+                  id: 'c1',
+                  firstName: 'Adam',
+                  age: 8,
+                  grade: Grade.g3,
+                  schoolName: 'Nile International School',
+                  status: ReviewStatus.approved,
+                  schoolId: 'nile',
+                ),
+              ],
+            ),
+          );
+          // The nearby search runs after the first frame.
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
         });

@@ -18,12 +18,15 @@ const List<NearbyParent> testNearbyParents = <NearbyParent>[
 
 /// Records calls; answers from its fields; fails with [failure] while set.
 class FakeMapRepository implements MapRepository {
-  FakeMapRepository({HomeLocation? home, this.parents = testNearbyParents}) : _home = home;
+  FakeMapRepository({this._home, this.parents = testNearbyParents});
 
   HomeLocation? _home;
   List<NearbyParent> parents;
   MapFailure? failure;
   MapFailure? nearbyFailure;
+
+  /// When set, the home stream fails with it (error and offline states).
+  Object? homeError;
   final List<String> calls = <String>[];
   final List<(String, int)> searches = <(String, int)>[];
   GeoPin? savedHome;
@@ -44,6 +47,10 @@ class FakeMapRepository implements MapRepository {
 
   @override
   Stream<HomeLocation?> watchHome(String uid) async* {
+    final Object? error = homeError;
+    if (error != null) {
+      throw error;
+    }
     yield _home;
     yield* _changes.stream;
   }
