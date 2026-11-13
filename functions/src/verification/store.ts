@@ -81,29 +81,38 @@ export class FirestoreVerificationStore implements VerificationStore {
     return snap.docs.map((doc) => ({ id: doc.id, ownerUid: uid, status: doc.get("status") }));
   }
 
-  claimNationalId(hash: string, uid: string): Promise<"ok" | "duplicate" | "banned"> {
-    return this.db.runTransaction(async (tx) => {
-      const banned = await tx.get(this.db.collection(BANNED_IDS).doc(hash));
-      if (banned.exists) return "banned";
-      const ref = this.db.collection(NATIONAL_IDS).doc(hash);
-      const claim = await tx.get(ref);
-      if (claim.exists && claim.get("uid") !== uid) return "duplicate";
-      // An earlier, different ID of the same parent (a typo fixed on resubmit) is released.
-      const mine = await tx.get(this.db.collection(NATIONAL_IDS).where("uid", "==", uid));
-      for (const doc of mine.docs) if (doc.id !== hash) tx.delete(doc.ref);
-      if (!claim.exists) tx.set(ref, { uid, createdAt: FieldValue.serverTimestamp() });
-      return "ok";
-    });
+  async checkNationalId(hash: string, uid: string): Promise<"ok" | "duplicate" | "banned"> {
+    if ((await this.db.collection(BANNED_IDS).doc(hash).get()).exists) return "banned";
+    const claim = await this.db.collection(NATIONAL_IDS).doc(hash).get();
+    return claim.exists && claim.get("uid") !== uid ? "duplicate" : "ok";
   }
 
-  async saveSubmission(write: SubmissionWrite): Promise<void> {
+  saveSubmission(write: SubmissionWrite): Promise<void> {
     const c = write.caseRecord;
     const now = FieldValue.serverTimestamp();
     const submittedAt = Timestamp.fromMillis(c.submittedAtMs);
-    const batch = this.db.batch();
-    for (const id of write.replaceChildIds) batch.delete(this.db.collection(CHILDREN).doc(id));
+    return this.db.runTransaction(async (tx) => {
+    // Reads first (Firestore transactions), then every write.
+    const userRef = this.db.collection(USERS).doc(c.uid);
+    const user = await tx.get(userRef);
+    const verification = user.get("verification") as { status?: unknown } | null | undefined;
+    if (!user.exists || user.get("status") === "pending" || verification?.status === "pending") {
+      throw new VerificationError("case-open");
+    }
+    if (c.nationalIdHash) {
+      const hash = c.nationalIdHash;
+      if ((await tx.get(this.db.collection(BANNED_IDS).doc(hash))).exists) throw new VerificationError("banned-id");
+      const claimRef = this.db.collection(NATIONAL_IDS).doc(hash);
+      const claim = await tx.get(claimRef);
+      if (claim.exists && claim.get("uid") !== c.uid) throw new VerificationError("duplicate-id");
+      // An earlier, different ID of the same parent (a typo fixed on resubmit) is released.
+      const mine = await tx.get(this.db.collection(NATIONAL_IDS).where("uid", "==", c.uid));
+      for (const doc of mine.docs) if (doc.id !== hash) tx.delete(doc.ref);
+      tx.set(claimRef, { uid: c.uid, caseId: c.id, createdAt: FieldValue.serverTimestamp() });
+    }
+    for (const id of write.replaceChildIds) tx.delete(this.db.collection(CHILDREN).doc(id));
 
-    batch.create(this.db.collection(VERIFICATIONS).doc(c.id), {
+    tx.create(this.db.collection(VERIFICATIONS).doc(c.id), {
       uid: c.uid,
       scope: c.scope,
       status: c.status,
@@ -135,12 +144,12 @@ export class FirestoreVerificationStore implements VerificationStore {
         updatedAt: now,
       };
       const ref = this.db.collection(CHILDREN).doc(child.childId);
-      if (child.isNew) batch.set(ref, { ownerUid: c.uid, schoolId: null, createdAt: now, ...fields });
-      else batch.update(ref, fields);
+      if (child.isNew) tx.set(ref, { ownerUid: c.uid, schoolId: null, createdAt: now, ...fields });
+      else tx.update(ref, fields);
     }
 
     if (c.driver) {
-      batch.set(this.db.collection(VEHICLES).doc(c.uid), {
+      tx.set(this.db.collection(VEHICLES).doc(c.uid), {
         driverUid: c.uid,
         ...c.driver,
         status: "pending",
@@ -150,7 +159,6 @@ export class FirestoreVerificationStore implements VerificationStore {
       });
     }
 
-    const userRef = this.db.collection(USERS).doc(c.uid);
     const userUpdate: DocumentData = {
       verification: { caseId: c.id, scope: c.scope, status: "pending", reasonCode: null, note: null, submittedAt, decidedAt: null },
       updatedAt: now,
@@ -163,10 +171,10 @@ export class FirestoreVerificationStore implements VerificationStore {
       // Admin search by name (F14): normalized full name and its words.
       Object.assign(userUpdate, nameSearchFields(c.identity.firstName, c.identity.lastName));
     }
-    batch.update(userRef, userUpdate);
+    tx.update(userRef, userUpdate);
 
     for (const type of write.consents) {
-      batch.create(userRef.collection("consents").doc(), {
+      tx.create(userRef.collection("consents").doc(), {
         type,
         version: VERIFICATION_CONSENT_VERSIONS[type],
         acceptedAt: now,
@@ -174,7 +182,48 @@ export class FirestoreVerificationStore implements VerificationStore {
         source: "verification",
       });
     }
-    await batch.commit();
+    });
+  }
+
+  withdrawCase(uid: string, caseId: string, nowMs: number): Promise<void> {
+    return this.db.runTransaction(async (tx) => {
+      const caseRef = this.db.collection(VERIFICATIONS).doc(caseId);
+      const snap = await tx.get(caseRef);
+      if (!snap.exists || snap.get("uid") !== uid) throw new VerificationError("not-found");
+      if (snap.get("status") !== "awaiting_review") throw new VerificationError("already-decided");
+      const record = caseFromDoc(caseId, snap.data() ?? {});
+      const claimRef = record.nationalIdHash ? this.db.collection(NATIONAL_IDS).doc(record.nationalIdHash) : null;
+      const claim = claimRef ? await tx.get(claimRef) : null;
+      const childRefs = record.children.map((child) => this.db.collection(CHILDREN).doc(child.childId));
+      const children = await Promise.all(childRefs.map((ref) => tx.get(ref)));
+      const vehicleRef = this.db.collection(VEHICLES).doc(uid);
+      const vehicle = record.driver ? await tx.get(vehicleRef) : null;
+
+      const decidedAt = Timestamp.fromMillis(nowMs);
+      tx.update(caseRef, { status: "withdrawn", decidedAt, purgeAt: decidedAt });
+      const userUpdate: DocumentData = {
+        "verification.status": "withdrawn",
+        "verification.decidedAt": decidedAt,
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      if (record.scope === "identity") userUpdate.status = "unverified";
+      tx.update(this.db.collection(USERS).doc(uid), userUpdate);
+      children.forEach((child, i) => {
+        if (!child.exists || child.get("caseId") !== caseId) return;
+        // New children of a withdrawn case go; edited ones go back to how a reviewer left them.
+        if (record.children[i].isNew) tx.delete(childRefs[i]);
+        else tx.update(childRefs[i], { status: "rejected", reasonCode: null, updatedAt: FieldValue.serverTimestamp() });
+      });
+      if (vehicle?.exists && vehicle.get("caseId") === caseId) tx.delete(vehicleRef);
+      if (claimRef && claim?.exists && claim.get("uid") === uid) tx.delete(claimRef);
+      tx.create(this.db.collection(AUDIT_LOG).doc(), {
+        actorUid: uid,
+        action: "verification.withdraw",
+        target: `${VERIFICATIONS}/${caseId}`,
+        ip: null,
+        time: FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   async getCase(caseId: string): Promise<CaseRecord | undefined> {
@@ -215,6 +264,9 @@ export class FirestoreVerificationStore implements VerificationStore {
       };
       if (w.userStatus) userUpdate.status = w.userStatus;
       if (w.userStatus === "verified") userUpdate.verifiedAt = decidedAt;
+      // Written after the claim was set (decideVerification): the app
+      // refreshes its ID token when this changes.
+      if (w.claimsChanged) userUpdate.claimsUpdatedAt = FieldValue.serverTimestamp();
       tx.update(this.db.collection(USERS).doc(w.uid), userUpdate);
 
       children.forEach((snap, i) => {

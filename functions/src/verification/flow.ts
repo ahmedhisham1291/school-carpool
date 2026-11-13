@@ -26,7 +26,7 @@ import {
  */
 
 export type AccountStatus = "unverified" | "pending" | "verified" | "rejected" | "suspended";
-export type CaseStatus = "awaiting_review" | "approved" | "rejected";
+export type CaseStatus = "awaiting_review" | "approved" | "rejected" | "withdrawn";
 export type CaseScope = "identity" | "update";
 
 export interface UserSnapshot {
@@ -77,7 +77,7 @@ export interface DecisionWrite {
   caseId: string;
   uid: string;
   scope: CaseScope;
-  status: Exclude<CaseStatus, "awaiting_review">;
+  status: "approved" | "rejected";
   reviewerUid: string;
   reasonCode: RejectionReason | null;
   note: string | null;
@@ -94,6 +94,8 @@ export interface DecisionWrite {
   releaseNationalIdHash: string | null;
   /** National ID to add to the ban list. */
   banNationalIdHash: string | null;
+  /** The "verified" claim was changed before this write (identity cases). */
+  claimsChanged: boolean;
   ip: string | null;
 }
 
@@ -110,11 +112,23 @@ export interface VerificationStore {
   newId(): string;
   getUser(uid: string): Promise<UserSnapshot | undefined>;
   listChildren(uid: string): Promise<ChildSnapshot[]>;
-  /** Claims the hash for uid in a transaction: refused when banned or held by another account. */
-  claimNationalId(hash: string, uid: string): Promise<"ok" | "duplicate" | "banned">;
+  /** Read-only early check, so a refused ID costs no uploads copy or KYC call. */
+  checkNationalId(hash: string, uid: string): Promise<"ok" | "duplicate" | "banned">;
+  /**
+   * Writes the case, children, car, user and consents, and claims the
+   * national ID hash (if any) in ONE transaction: a claim never exists
+   * without its case. Throws duplicate-id / banned-id / case-open when the
+   * check fails at commit time; then nothing is written.
+   */
   saveSubmission(write: SubmissionWrite): Promise<void>;
+  /** Parent withdraws a case still waiting for review; releases its ID claim. */
+  withdrawCase(uid: string, caseId: string, nowMs: number): Promise<void>;
   getCase(caseId: string): Promise<CaseRecord | undefined>;
-  /** Fails with already-decided when the case left the queue meanwhile. */
+  /**
+   * Fails with already-decided when the case left the queue meanwhile.
+   * Writes users/{uid}.claimsUpdatedAt when [write.claimsChanged]: the app
+   * refreshes its ID token when that marker changes.
+   */
   saveDecision(write: DecisionWrite): Promise<void>;
   queue(limit: number): Promise<QueueEntry[]>;
   removeChild(uid: string, childId: string): Promise<void>;
@@ -188,9 +202,10 @@ export async function submitVerification(deps: VerificationDeps, uid: string, da
   let hash: string | null = null;
   if (submission.identity) {
     hash = nationalIdHash(deps.nationalIdKey, submission.identity.nationalId);
-    const claim = await deps.store.claimNationalId(hash, uid);
-    if (claim === "banned") throw new VerificationError("banned-id");
-    if (claim === "duplicate") throw new VerificationError("duplicate-id");
+    // Early, read-only: nothing is claimed until the case itself is saved.
+    const check = await deps.store.checkNationalId(hash, uid);
+    if (check === "banned") throw new VerificationError("banned-id");
+    if (check === "duplicate") throw new VerificationError("duplicate-id");
   }
 
   const existing = await deps.store.listChildren(uid);
@@ -234,7 +249,7 @@ export async function submitVerification(deps: VerificationDeps, uid: string, da
     file: `${prefix}school_id_${child.ref}.jpg`,
   }));
 
-  await deps.store.saveSubmission({
+  const save = deps.store.saveSubmission({
     caseRecord: {
       id: caseId,
       uid,
@@ -259,6 +274,18 @@ export async function submitVerification(deps: VerificationDeps, uid: string, da
     replaceChildIds: verified ? [] : existing.map((c) => c.id),
     consents: submission.consents,
   });
+  try {
+    await save;
+  } catch (error) {
+    // Refused at commit (for example another account claimed the ID a
+    // moment ago): drop the copies now; the daily job would too.
+    try {
+      await deps.files.deletePrefix(prefix);
+    } catch (cleanup) {
+      deps.reportError(cleanup);
+    }
+    throw error;
+  }
 
   // The pending copies are no longer needed. A failure here is cleaned up by the daily job.
   for (const name of names) {
@@ -300,6 +327,7 @@ export function planDecision(
     // A rejected ID is released so its real owner can still register.
     releaseNationalIdHash: identity && !decision.approve && !decision.ban ? record.nationalIdHash : null,
     banNationalIdHash: decision.ban ? record.nationalIdHash : null,
+    claimsChanged: userStatus !== null,
     ip,
   };
 }
@@ -323,9 +351,23 @@ export async function decideVerification(
   }
 
   const write = planDecision(record, decision, reviewerUid, deps.now(), ip);
-  await deps.store.saveDecision(write);
-  if (write.userStatus === "verified") await deps.claims.setVerified(record.uid, true);
-  if (write.userStatus === "rejected" || write.userStatus === "suspended") await deps.claims.setVerified(record.uid, false);
+  // The claim is set BEFORE the status and the claimsUpdatedAt marker are
+  // written: when the app sees the marker and refreshes its token, the new
+  // token already carries the claim.
+  if (write.claimsChanged) await deps.claims.setVerified(record.uid, write.userStatus === "verified");
+  try {
+    await deps.store.saveDecision(write);
+  } catch (error) {
+    // The case was decided by someone else meanwhile: put the claim back.
+    if (write.claimsChanged && write.userStatus === "verified") {
+      try {
+        await deps.claims.setVerified(record.uid, false);
+      } catch (revert) {
+        deps.reportError(revert);
+      }
+    }
+    throw error;
+  }
   if (decision.ban) await deps.claims.revokeSessions(record.uid);
   return { status: write.status };
 }
@@ -417,6 +459,21 @@ export async function purgeVerificationImages(
     }
   }
   return { cases, files };
+}
+
+/**
+ * Parent withdraws the case waiting for review (for example to fix a
+ * typo). The ID claim is released, the images are deleted by the next
+ * daily run, and a parent who was not verified goes back to "unverified".
+ */
+export async function withdrawVerification(
+  deps: Pick<VerificationDeps, "store" | "now">,
+  uid: string,
+  data: unknown,
+): Promise<void> {
+  const caseId = typeof data === "object" && data !== null ? (data as { caseId?: unknown }).caseId : undefined;
+  if (typeof caseId !== "string" || !/^[A-Za-z0-9]{1,40}$/.test(caseId)) throw new VerificationError("invalid-request");
+  await deps.store.withdrawCase(uid, caseId, deps.now());
 }
 
 /** Removes a child (F3). Not while the child waits for review. */

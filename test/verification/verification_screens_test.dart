@@ -11,7 +11,6 @@ import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
-import 'package:school_carpool/features/verification/capture_screen.dart';
 import 'package:school_carpool/features/verification/verification_draft.dart';
 import 'package:school_carpool/features/verification/verification_failure.dart';
 import 'package:school_carpool/features/verification/verification_flow_screen.dart';
@@ -233,6 +232,10 @@ void main() {
         account: _account(AccountStatus.unverified),
         repository: repository,
       );
+      // A tall screen (600 x 4000) so the whole review step, and the message
+      // under it, is built without scrolling the lazy list.
+      tester.view.physicalSize = const Size(1200, 8000);
+      await tester.pumpAndSettle();
       final ProviderContainer container = ProviderScope.containerOf(tester.element(find.byType(VerificationFlowScreen)));
       container.read(verificationDraftProvider.notifier).update(
         (VerificationDraft d) => d.copyWith(
@@ -250,10 +253,14 @@ void main() {
           consent: true,
         ),
       );
+      // Rebuild first: until then the button still has the disabled state of
+      // the empty draft, and the first tap would be lost (one step short).
+      await tester.pumpAndSettle();
       for (int i = 0; i < VerificationStep.values.length - 1; i++) {
         await tester.tap(find.byKey(const Key('verify.next')));
         await tester.pumpAndSettle();
       }
+      expect(find.text('Check and send'), findsOneWidget, reason: 'on the review step');
       await tester.tap(find.byKey(const Key('verify.next')));
       await tester.pumpAndSettle();
       expect(find.textContaining('already used by another account'), findsOneWidget);

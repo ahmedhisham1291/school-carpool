@@ -107,7 +107,11 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
   }
 
   Future<void> _addOrEditChild([ChildDraft? existing]) async {
-    final ChildDraft initial = existing ?? ChildDraft(ref: _draft.newChildRef());
+    final String? ref = existing?.ref ?? _draft.newChildRef();
+    if (ref == null) {
+      return;
+    }
+    final ChildDraft initial = existing ?? ChildDraft(ref: ref);
     final ChildDraft? child = await openChildForm(context, initial);
     if (child != null && mounted) {
       _draft.saveChild(child);
@@ -267,7 +271,9 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
           icon: Icons.add_rounded,
           variant: AppButtonVariant.secondary,
           expand: true,
-          onPressed: () => unawaited(_addOrEditChild()),
+          onPressed: draft.children.length >= VerificationDraftController.maxChildren
+              ? null
+              : () => unawaited(_addOrEditChild()),
         ),
       ],
       VerificationStep.driving => <Widget>[

@@ -218,3 +218,42 @@ emulators, builds. Expect small analyzer fixes on the first CI run.
 - F2 and F3 app code landed in one commit (the steps share the draft).
 - Merge note: Prompt 2's branch is changing ARB files, `profile_screen.dart`
   and `gallery_screen.dart`; expect small conflicts there.
+
+## Review round 1 fixes (docs/reviews/prompt-03-review.md)
+
+Blocking:
+1. **Analyzer (12 issues):** `return await` in the capture try block;
+   null-aware map entries (`key: ?value`) in `VerificationDraft.files`;
+   positional initializing formals in `FirebaseVerificationRepository`;
+   `const` test maps; unused test import removed.
+2. **ID squatting:** `submitVerification` now only *checks* the ID early
+   (read-only). The hash is claimed inside the same Firestore transaction
+   that creates the case (`saveSubmission`), after uploads, children and
+   KYC are done, so a refused submission claims nothing. If another
+   account claims the ID in between, the commit fails with `duplicate-id`
+   and the copied images are removed. New `withdrawVerification`
+   (callable + "Withdraw" button with confirmation on the pending screen)
+   releases the claim, resets the account to unverified and schedules the
+   images for deletion. Rejection still releases the claim. Tests: missing
+   uploads claim nothing and a second account can then use the ID; claim
+   at commit; withdraw releases and lets another account use the ID.
+3. **Token refresh race:** `decideVerification` sets or clears the
+   `verified` claim *before* writing the status, and the same write sets
+   `users/{uid}.claimsUpdatedAt`. If the decision write fails, an approval's
+   claim is put back. The app refreshes its ID token when that marker
+   changes (`tokenRefreshFor` in session.dart), and on the first record of
+   a verified account whose cached token lacks the claim. Tests: event
+   order claim, then status, then marker; Dart tests for `tokenRefreshFor`.
+
+Non-blocking, done: school ID slots capped to `c1`..`c10` (storage.rules,
+server `REF`, app; add button off at 10); the two checkbox labels are one
+line now ("I agree to the ID check", "I will drive"), detail moved to the
+helper text; prod sets `KYC_PROVIDER=valify`, and a fake in prod logs a
+CONFIGURATION ERROR at every instance start (`onInit`) and reports to
+Sentry, with submissions answering `failed-precondition`; SETUP.md 12.6
+turns off GCS soft delete; compression failure on the phone is now a
+capture error (comment corrected: the *shorter* side is scaled);
+review script uses `.firebasestorage.app` for cloud projects.
+
+Run here: 49 verification/KYC/national ID Functions tests pass. Dart and
+rules tests: written, not run here.

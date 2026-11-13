@@ -12,6 +12,7 @@ import {
   purgeVerificationImages,
   removeChild,
   submitVerification,
+  withdrawVerification,
   type VerificationDeps,
 } from "../src/verification/flow";
 import { FakeKycProvider, type KycResult } from "../src/verification/kyc";
@@ -79,7 +80,7 @@ beforeEach(() => {
   clock = NOW;
   store = new MemoryVerificationStore();
   files = new MemoryFiles(() => clock);
-  claims = new MemoryClaims();
+  claims = new MemoryClaims(store.events);
   kycSetting = "match";
   errors = [];
   deps = {
@@ -131,7 +132,7 @@ describe("parseSubmission", () => {
 
   it("checks children: age, grade, refs, count", () => {
     const child = { ref: "c1", firstName: "Omar", age: 8, grade: "g3", schoolName: "Nile School" };
-    for (const bad of [{ age: 1 }, { age: 20 }, { age: 7.5 }, { grade: "g13" }, { ref: "C 1" }, { schoolName: "x" }, { childId: "a/b" }]) {
+    for (const bad of [{ age: 1 }, { age: 20 }, { age: 7.5 }, { grade: "g13" }, { ref: "C 1" }, { ref: "c11" }, { ref: "c0" }, { schoolName: "x" }, { childId: "a/b" }]) {
       assert.throws(() => parseSubmission(submission({ children: [{ ...child, ...bad }] }), { today, verified: false }), expectReason("invalid-child"));
     }
     assert.throws(() => parseSubmission(submission({ children: [child, child] }), { today, verified: false }), expectReason("invalid-child"));
@@ -422,5 +423,94 @@ describe("purgeVerificationImages (retention job)", () => {
     assert.equal(await files.exists(pendingPath("bob", "selfie.jpg")), true);
     assert.equal(await files.exists(pendingPath("bob", "id_front.jpg")), false);
     assert.equal(await files.exists("verification/bob/cases/ghost/id_front.jpg"), false);
+  });
+});
+
+describe("no ID squatting (review fix)", () => {
+  it("a submission refused for missing uploads claims nothing; another account can then use the ID", async () => {
+    // A squatter sends a real number with no images.
+    await assert.rejects(submitVerification(deps, "bob", submission()), expectReason("missing-upload"));
+    assert.equal(store.nationalIds.size, 0);
+    uploadAll("alice");
+    await submitVerification(deps, "alice", submission());
+    assert.equal(store.nationalIds.get(nationalIdHash(KEY, NID)), "alice");
+  });
+
+  it("refusals for bad children or a pending case claim nothing either", async () => {
+    uploadAll("bob");
+    await assert.rejects(
+      submitVerification(deps, "bob", submission({ children: [{ ref: "c1", firstName: "O", age: 8, grade: "g3", schoolName: "x" }] })),
+      expectReason("invalid-child"),
+    );
+    assert.equal(store.nationalIds.size, 0);
+  });
+
+  it("the ID is claimed in the same commit as the case: a claim made meanwhile wins, and the copies are removed", async () => {
+    uploadAll("alice");
+    store.beforeCommit = () => store.nationalIds.set(nationalIdHash(KEY, NID), "bob");
+    await assert.rejects(submitVerification(deps, "alice", submission()), expectReason("duplicate-id"));
+    assert.equal(store.cases.size, 0);
+    assert.equal((await files.list("verification/alice/cases/")).length, 0);
+    assert.equal(store.users.get("alice")?.status, "unverified");
+  });
+
+  it("withdrawing a case releases the ID, resets the status and lets the job delete the images", async () => {
+    uploadAll("alice");
+    const { caseId } = await submitVerification(deps, "alice", submission());
+    await assert.rejects(withdrawVerification(deps, "bob", { caseId }), expectReason("not-found"));
+    await withdrawVerification(deps, "alice", { caseId });
+    assert.equal(store.nationalIds.has(nationalIdHash(KEY, NID)), false);
+    assert.equal(store.users.get("alice")?.status, "unverified");
+    assert.equal([...store.children.values()].filter((c) => c.ownerUid === "alice").length, 0);
+    await assert.rejects(withdrawVerification(deps, "alice", { caseId }), expectReason("already-decided"));
+    await purgeVerificationImages(deps);
+    assert.equal((await files.list(casePrefix("alice", caseId))).length, 0);
+
+    uploadAll("bob");
+    await submitVerification(deps, "bob", submission());
+    assert.equal(store.nationalIds.get(nationalIdHash(KEY, NID)), "bob");
+  });
+});
+
+describe("claim before status (review fix)", () => {
+  async function submitted(uid = "alice"): Promise<string> {
+    uploadAll(uid);
+    return (await submitVerification(deps, uid, submission())).caseId;
+  }
+
+  it("approve: the verified claim is set before the status and the claimsUpdatedAt marker", async () => {
+    const caseId = await submitted();
+    await decideVerification(deps, "admin1", { caseId, decision: "approve" });
+    assert.deepEqual(store.events, ["claim:true", "status:verified", "marker:claimsUpdatedAt"]);
+  });
+
+  it("reject: the claim is cleared first too", async () => {
+    const caseId = await submitted();
+    await decideVerification(deps, "admin1", { caseId, decision: "reject", reasonCode: "photo_unclear" });
+    assert.deepEqual(store.events, ["claim:false", "status:rejected", "marker:claimsUpdatedAt"]);
+  });
+
+  it("an update case of a verified parent changes no claim and writes no marker", async () => {
+    const caseId = await submitted();
+    await decideVerification(deps, "admin1", { caseId, decision: "approve" });
+    store.events.length = 0;
+    files.put(pendingPath("alice", "school_id_c2.jpg"));
+    const update = await submitVerification(deps, "alice", {
+      children: [{ ref: "c2", firstName: "Laila", age: 5, grade: "kg2", schoolName: "Nile School" }],
+      consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
+    });
+    await decideVerification(deps, "admin1", { caseId: update.caseId, decision: "approve" });
+    assert.deepEqual(store.events, ["status:unchanged"]);
+  });
+
+  it("if the case was decided meanwhile, an approval's claim is put back", async () => {
+    const caseId = await submitted();
+    const save = store.saveDecision.bind(store);
+    store.saveDecision = async () => {
+      throw new VerificationError("already-decided");
+    };
+    await assert.rejects(decideVerification(deps, "admin1", { caseId, decision: "approve" }), expectReason("already-decided"));
+    assert.equal(claims.verified.get("alice"), false);
+    store.saveDecision = save;
   });
 });

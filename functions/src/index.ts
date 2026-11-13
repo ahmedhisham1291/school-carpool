@@ -36,6 +36,7 @@ export {
   purgeVerificationImagesDaily,
   removeChild,
   submitVerification,
+  withdrawVerification,
 } from "./verification/callables";
 
 // Admin web panel (Prompt 4: F14). Verification review uses the functions above.

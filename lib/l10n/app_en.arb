@@ -219,8 +219,8 @@
   "verifyChildrenEmpty": "No children added yet. Add at least one.",
   "verifyDrivingTitle": "Driving",
   "verifyDrivingBody": "Only parents who will drive need this. You can add it later from your profile.",
-  "verifyDrivesLabel": "I will drive children in carpools",
-  "verifyDrivesHelper": "You need a valid driver's license and car license.",
+  "verifyDrivesLabel": "I will drive",
+  "verifyDrivesHelper": "Drive children in carpools. You need a valid driver's license and car license.",
   "verifyReviewTitle": "Check and send",
   "verifyReviewBody": "Make sure everything is right before sending it for review.",
   "verifyReviewName": "Name",
@@ -228,8 +228,8 @@
   "verifyReviewPhotosCount": "{count, plural, =1{1 photo} other{{count} photos}}",
   "verifyReviewDrives": "Yes, with license and car details",
   "verifyReviewNoDriving": "No",
-  "verifyConsentLabel": "I agree that my ID, my face photos and my children's details are used to verify my account",
-  "verifyConsentHelper": "Images are deleted within 7 days of the decision. You can withdraw consent from your profile.",
+  "verifyConsentLabel": "I agree to the ID check",
+  "verifyConsentHelper": "Your ID, face photos and children's details are used only to verify you. Images are deleted within 7 days of the decision. You can withdraw consent from your profile.",
   "verifySubmit": "Send for review",
   "verifyUploading": "Sending your documents... {percent}%",
   "verifyStepIncomplete": "Fill in everything on this step to continue.",
@@ -586,5 +586,9 @@
   "adminGovSharqia": "Sharqia",
   "adminGovSohag": "Sohag",
   "adminGovSouthSinai": "South Sinai",
-  "adminGovSuez": "Suez"
+  "adminGovSuez": "Suez",
+  "verifyWithdraw": "Withdraw",
+  "verifyWithdrawTitle": "Withdraw your documents?",
+  "verifyWithdrawBody": "They leave the review and are deleted. You can send them again.",
+  "verifyWithdrawn": "Withdrawn."
 }

@@ -65,7 +65,8 @@ Stream<SessionState> sessionStates(FirebaseAuth auth, FirebaseFirestore db) {
           return;
         }
         controller.add(const SessionLoading());
-        AccountStatus? lastStatus;
+        bool first = true;
+        int? lastMarker;
         accountSubscription = db
             .collection('users')
             .doc(user.uid)
@@ -73,13 +74,18 @@ Stream<SessionState> sessionStates(FirebaseAuth auth, FirebaseFirestore db) {
             .listen((DocumentSnapshot<Map<String, dynamic>> snapshot) {
               final Map<String, dynamic>? data = snapshot.data();
               final Account? account = data == null ? null : Account.fromMap(data);
-              final AccountStatus? status = account?.status;
-              if (status != null && lastStatus != null && status != lastStatus) {
-                // An admin decision changed the "verified" claim: fetch a
-                // fresh ID token so rules and functions see it now.
-                unawaited(refreshIdToken(user));
+              switch (tokenRefreshFor(first: first, previousMarker: lastMarker, account: account)) {
+                case TokenRefresh.force:
+                  unawaited(refreshIdToken(user));
+                case TokenRefresh.ifClaimMissing:
+                  unawaited(refreshIfNotVerifiedClaim(user));
+                case TokenRefresh.none:
+                  break;
               }
-              lastStatus = status;
+              if (account != null) {
+                first = false;
+                lastMarker = account.claimsUpdatedAtMs;
+              }
               controller.add(SessionSignedIn(uid: user.uid, account: account));
             }, onError: fail);
       }, onError: fail);
@@ -91,6 +97,36 @@ Stream<SessionState> sessionStates(FirebaseAuth auth, FirebaseFirestore db) {
     },
   );
   return controller.stream;
+}
+
+enum TokenRefresh { none, force, ifClaimMissing }
+
+/// When the app must fetch a fresh ID token so rules and functions see the
+/// latest custom claims. Cloud Functions set the claim first and then write
+/// `claimsUpdatedAt`, so a refresh triggered by that marker always gets the
+/// new claim. On the first record of a session, a verified account whose
+/// cached token lacks the claim refreshes too.
+TokenRefresh tokenRefreshFor({required bool first, required int? previousMarker, required Account? account}) {
+  if (account == null) {
+    return TokenRefresh.none;
+  }
+  if (first) {
+    return account.status == AccountStatus.verified ? TokenRefresh.ifClaimMissing : TokenRefresh.none;
+  }
+  final int? marker = account.claimsUpdatedAtMs;
+  return marker != null && marker != previousMarker ? TokenRefresh.force : TokenRefresh.none;
+}
+
+/// Refreshes the token only when the cached one lacks the "verified" claim.
+Future<void> refreshIfNotVerifiedClaim(User user) async {
+  try {
+    final IdTokenResult result = await user.getIdTokenResult();
+    if (result.claims?['verified'] != true) {
+      await user.getIdToken(true);
+    }
+  } on Object catch (error) {
+    debugPrint('session: token check failed ($error)');
+  }
 }
 
 /// Forces a new ID token with the latest custom claims. Failures are

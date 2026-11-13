@@ -24,19 +24,16 @@ abstract interface class VerificationRepository {
 
   Future<void> removeChild(String childId);
 
+  /// Takes a case out of the review queue (releases the ID claim on the server).
+  Future<void> withdraw(String caseId);
+
   Stream<List<ChildRecord>> children(String uid);
 
   Stream<VehicleRecord?> vehicle(String uid);
 }
 
 class FirebaseVerificationRepository implements VerificationRepository {
-  FirebaseVerificationRepository({
-    required FirebaseStorage storage,
-    required FirebaseFunctions functions,
-    required FirebaseFirestore db,
-  }) : _storage = storage,
-       _functions = functions,
-       _db = db;
+  FirebaseVerificationRepository(this._storage, this._functions, this._db);
 
   final FirebaseStorage _storage;
   final FirebaseFunctions _functions;
@@ -93,6 +90,15 @@ class FirebaseVerificationRepository implements VerificationRepository {
   }
 
   @override
+  Future<void> withdraw(String caseId) async {
+    try {
+      await _functions.httpsCallable('withdrawVerification').call<Object?>(<String, Object?>{'caseId': caseId});
+    } on Object catch (error, stackTrace) {
+      Error.throwWithStackTrace(VerificationFailure.from(error), stackTrace);
+    }
+  }
+
+  @override
   Stream<List<ChildRecord>> children(String uid) => _db
       .collection('children')
       .where('ownerUid', isEqualTo: uid)
@@ -115,9 +121,9 @@ class FirebaseVerificationRepository implements VerificationRepository {
 
 final Provider<VerificationRepository> verificationRepositoryProvider = Provider<VerificationRepository>(
   (Ref ref) => FirebaseVerificationRepository(
-    storage: FirebaseStorage.instance,
-    functions: functionsClient(),
-    db: ref.watch(firestoreProvider),
+    FirebaseStorage.instance,
+    functionsClient(),
+    ref.watch(firestoreProvider),
   ),
 );
 

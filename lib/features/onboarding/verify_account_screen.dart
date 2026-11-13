@@ -9,8 +9,10 @@ import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/onboarding/account_status_badge.dart';
 import 'package:school_carpool/features/onboarding/sign_out.dart';
+import 'package:school_carpool/features/verification/verification_failure.dart';
 import 'package:school_carpool/features/verification/verification_labels.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
+import 'package:school_carpool/features/verification/verification_repository.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
@@ -132,6 +134,16 @@ class VerifyAccountScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
+                  if (account.status == AccountStatus.pending && summary != null) ...<Widget>[
+                    AppButton(
+                      key: const Key('verify.withdraw'),
+                      label: l10n.verifyWithdraw,
+                      variant: AppButtonVariant.secondary,
+                      expand: true,
+                      onPressed: () => unawaited(_withdraw(context, ref, summary.caseId)),
+                    ),
+                    const SizedBox(height: AppSpacing.s8),
+                  ],
                   if (canSubmit) ...<Widget>[
                     AppButton(
                       key: const Key('verify.start'),
@@ -155,5 +167,29 @@ class VerifyAccountScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+/// Takes the documents out of review after a confirmation (they are
+/// deleted and the parent can send them again).
+Future<void> _withdraw(BuildContext context, WidgetRef ref, String caseId) async {
+  final AppLocalizations l10n = context.l10n;
+  final VerificationRepository repository = ref.read(verificationRepositoryProvider);
+  final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+  final bool ok = await showConfirmDialog(
+    context: context,
+    title: l10n.verifyWithdrawTitle,
+    body: l10n.verifyWithdrawBody,
+    confirmLabel: l10n.verifyWithdraw,
+    destructive: true,
+  );
+  if (!ok) {
+    return;
+  }
+  try {
+    await repository.withdraw(caseId);
+    messenger.showSnackBar(SnackBar(content: Text(l10n.verifyWithdrawn)));
+  } on VerificationFailure catch (failure) {
+    messenger.showSnackBar(SnackBar(content: Text(failure.message(l10n))));
   }
 }

@@ -74,7 +74,7 @@ describe("storage: verification uploads", () => {
     "license.jpg",
     "car_license.jpg",
     "school_id_c1.jpg",
-    "school_id_abc123.jpg",
+    "school_id_c10.jpg",
   ];
   for (const name of names) {
     it(`the owner can upload ${name} to their own pending folder`, async () => {
@@ -104,6 +104,9 @@ describe("storage: verification uploads", () => {
     await assertFails(upload(asAlice(), "verification/alice/pending/selfie.png"));
     await assertFails(upload(asAlice(), "verification/alice/pending/school_id_C1.jpg"));
     await assertFails(upload(asAlice(), "verification/alice/pending/school_id_.jpg"));
+    await assertFails(upload(asAlice(), "verification/alice/pending/school_id_c11.jpg"));
+    await assertFails(upload(asAlice(), "verification/alice/pending/school_id_c0.jpg"));
+    await assertFails(upload(asAlice(), "verification/alice/pending/school_id_abc123.jpg"));
     await assertFails(upload(asAlice(), "verification/alice/pending/selfie.jpg", bytes(1024), { contentType: "image/png" }));
     await assertFails(upload(asAlice(), "verification/alice/pending/selfie.jpg", bytes(1024), {}));
     await assertFails(upload(asAlice(), "verification/alice/pending/selfie.jpg", bytes(0)));
@@ -173,6 +176,7 @@ describe("firestore: users verification fields", () => {
     idExpiry: "2099-01-01",
     verification: { status: "approved" },
     verifiedAt: new Date(),
+    claimsUpdatedAt: new Date(),
   })) {
     it(`the owner cannot set ${field}`, async () => {
       await assertFails(asAlice().firestore().doc("users/alice").update({ [field]: value }));

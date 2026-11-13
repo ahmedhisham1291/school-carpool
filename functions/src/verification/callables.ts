@@ -1,4 +1,5 @@
 import * as logger from "firebase-functions/logger";
+import { onInit } from "firebase-functions/v2";
 import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminAuth, adminDb, adminStorage } from "../admin";
@@ -21,10 +22,11 @@ import {
   openVerificationCase as openFlow,
   purgeVerificationImages,
   removeChild as removeChildFlow,
+  withdrawVerification as withdrawFlow,
   submitVerification as submitFlow,
   type VerificationDeps,
 } from "./flow";
-import { createKycProvider, type KycProvider } from "./kyc";
+import { createKycProvider, kycConfigProblem, type KycProvider } from "./kyc";
 import { CloudStorageFiles, FirebaseClaimsService, FirestoreVerificationStore, readFakeKycSetting } from "./store";
 import { VerificationError, type VerificationErrorReason } from "./submission";
 
@@ -72,6 +74,17 @@ export function toVerificationHttpsError(error: unknown): HttpsError {
   return new HttpsError("internal", "Something went wrong.");
 }
 
+// Loud at instance start: a prod deploy with the fake ID check logs an
+// error and reports to Sentry on every cold start, and submissions answer
+// "failed-precondition" instead of a generic error.
+onInit(async () => {
+  const problem = kycConfigProblem(KYC_PROVIDER.value(), process.env.APP_ENV ?? "dev");
+  if (problem) {
+    logger.error(`CONFIGURATION ERROR: ${problem}`);
+    await reportError(new Error(problem));
+  }
+});
+
 function nationalIdKey(): string {
   const key = NATIONAL_ID_HMAC_KEY.value();
   if (key) return key;
@@ -92,13 +105,23 @@ const NO_KYC: KycProvider = {
   check: () => Promise.reject(new Error("No KYC check outside submitVerification.")),
 };
 
+/** Like createKycProvider, but a bad setting answers "failed-precondition" (logged at startup too). */
+function kycProvider(options: Parameters<typeof createKycProvider>[0]): KycProvider {
+  try {
+    return createKycProvider(options);
+  } catch (error) {
+    logger.error("KYC provider is misconfigured", { message: error instanceof Error ? error.message : "unknown" });
+    throw new HttpsError("failed-precondition", "The ID check is not configured.", { reason: "kyc-misconfigured" });
+  }
+}
+
 /** [forSubmit]: also the ID hash key and the KYC provider. */
 function deps(forSubmit: boolean): VerificationDeps {
   const db = adminDb();
   return {
     store: new FirestoreVerificationStore(db),
     files: new CloudStorageFiles(adminStorage().bucket()),
-    kyc: !forSubmit ? NO_KYC : createKycProvider({
+    kyc: !forSubmit ? NO_KYC : kycProvider({
       provider: KYC_PROVIDER.value(),
       appEnv: process.env.APP_ENV ?? "dev",
       fakeSetting: () => readFakeKycSetting(db),
@@ -161,6 +184,14 @@ export const submitVerification = onCall(options, (request) =>
 export const removeChild = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("removeChild", async () => {
     await removeChildFlow(deps(false), requireUid(request), request.data);
+    return { ok: true };
+  }),
+);
+
+/** Parent: withdraw the case waiting for review (releases the ID claim). { caseId } -> { ok } */
+export const withdrawVerification = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+  run("withdrawVerification", async () => {
+    await withdrawFlow(deps(false), requireUid(request), request.data);
     return { ok: true };
   }),
 );

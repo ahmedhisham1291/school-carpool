@@ -944,11 +944,11 @@
   "@verifyDrivingBody": {
     "description": "Step body"
   },
-  "verifyDrivesLabel": "سأقود الأطفال في المشاوير",
+  "verifyDrivesLabel": "سأقود",
   "@verifyDrivesLabel": {
     "description": "Checkbox"
   },
-  "verifyDrivesHelper": "تحتاج إلى رخصة قيادة ورخصة سيارة ساريتين.",
+  "verifyDrivesHelper": "لقيادة الأطفال في المشاوير. تحتاج إلى رخصة قيادة ورخصة سيارة ساريتين.",
   "@verifyDrivesHelper": {
     "description": "Checkbox helper"
   },
@@ -985,11 +985,11 @@
   "@verifyReviewNoDriving": {
     "description": "Summary"
   },
-  "verifyConsentLabel": "أوافق على استخدام بطاقتي وصور وجهي وبيانات أطفالي للتحقق من حسابي",
+  "verifyConsentLabel": "أوافق على التحقق",
   "@verifyConsentLabel": {
     "description": "Consent checkbox"
   },
-  "verifyConsentHelper": "تُحذف الصور خلال ٧ أيام من القرار. يمكنك سحب موافقتك من حسابك.",
+  "verifyConsentHelper": "تُستخدم بطاقتك وصور وجهك وبيانات أطفالك للتحقق منك فقط. تُحذف الصور خلال ٧ أيام من القرار. يمكنك سحب موافقتك من حسابك.",
   "@verifyConsentHelper": {
     "description": "Consent helper"
   },
@@ -2470,5 +2470,21 @@
   "adminGovSuez": "السويس",
   "@adminGovSuez": {
     "description": "Admin panel: governorate name"
+  },
+  "verifyWithdraw": "اسحب الطلب",
+  "@verifyWithdraw": {
+    "description": "Button: take documents out of review"
+  },
+  "verifyWithdrawTitle": "سحب المستندات؟",
+  "@verifyWithdrawTitle": {
+    "description": "Confirm title"
+  },
+  "verifyWithdrawBody": "ستُسحب من المراجعة وتُحذف. يمكنك إرسالها مرة أخرى.",
+  "@verifyWithdrawBody": {
+    "description": "Confirm body"
+  },
+  "verifyWithdrawn": "تم السحب.",
+  "@verifyWithdrawn": {
+    "description": "Snackbar"
   }
 }

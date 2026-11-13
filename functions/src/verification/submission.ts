@@ -124,7 +124,8 @@ export function requiredFiles(submission: Submission): string[] {
 // Letters of any script, spaces, apostrophes, dots and hyphens.
 const NAME = /^[\p{L}\p{M}][\p{L}\p{M} .'’-]{0,38}[\p{L}\p{M}.]$/u;
 const FREE_TEXT = /^[\p{L}\p{M}\p{N} .,'()&’/-]+$/u;
-const REF = /^[a-z0-9]{1,20}$/;
+/** Child slots c1 to c10 (MAX_CHILDREN); storage.rules allows the same names. */
+const REF = /^c([1-9]|10)$/;
 const DOC_ID = /^[A-Za-z0-9]{1,40}$/;
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
