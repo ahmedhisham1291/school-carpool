@@ -90,6 +90,8 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
     final AppLocalizations l10n = context.l10n;
     final AsyncValue<Carpool?> carpool = ref.watch(_carpoolProvider(_id));
     final AsyncValue<Membership?> membership = ref.watch(_myMembershipProvider(_id));
+    // The parent's children, for the join sheet (kept loaded while open).
+    ref.watch(childrenProvider);
     void reload() {
       ref
         ..invalidate(_carpoolProvider(_id))
@@ -248,15 +250,8 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
   }
 
   Future<void> _join(Carpool c) async {
-    List<ChildRecord> children;
-    try {
-      children = await ref.read(childrenProvider.future);
-    } on Object {
-      children = const <ChildRecord>[];
-    }
-    if (!mounted) {
-      return;
-    }
+    // Watched in build, so the children are already loaded here.
+    final List<ChildRecord> children = ref.read(childrenProvider).value ?? const <ChildRecord>[];
     final List<ChildRecord> eligible = <ChildRecord>[
       for (final ChildRecord child in children)
         if (child.status == ReviewStatus.approved && (c.kind == CarpoolKind.activity || child.schoolId == c.schoolId)) child,

@@ -366,6 +366,7 @@ void main() {
       expect(find.text('Members'), findsNothing);
 
       await _tapVisible(tester, 'detail.join');
+      expect(find.byKey(const Key('join.noChildren')), findsNothing);
       await tester.tap(find.byKey(const Key('join.child.c1')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('join.rules')));
@@ -408,6 +409,7 @@ void main() {
         overrides: _overrides(carpools: FakeCarpoolRepository(carpools: <Carpool>[tight]), children: const <ChildRecord>[_adam, _jana]),
       );
       await _tapVisible(tester, 'detail.join');
+      expect(find.byKey(const Key('join.noChildren')), findsNothing);
       await tester.tap(find.byKey(const Key('join.child.c1')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('join.child.c2')));
