@@ -82,3 +82,18 @@ in the build workspace): CI runs `flutter analyze` and `flutter test`.
 - Not changed: the camera shutter icon (40, off the AppIconSize steps; the
   camera screen cannot be rendered in tests); children rows inside the
   steps sit in a padded list, so they get the gutter twice (48 dp).
+
+## Follow-ups (design-followups-01, review of the integration)
+
+- Sign-out and withdraw errors say why again, in one short line: "No
+  connection. Try again." (new `errorOfflineShort`) when offline, else
+  "Couldn't sign out" / "Couldn't withdraw".
+- 200 percent tests: button labels may shrink at most 25 percent (0.75,
+  as in the design test). Wording shortened to fit: EN "Send link",
+  "Accept all", "Get verified", "Verify account"; AR "سجّل الدخول مجددًا".
+- Step subtitles read on their own: "A photo of their school ID card" /
+  "صورة بطاقة المدرسة", "Only if you drive, with car details" / "فقط إذا
+  كنت ستقود، مع بيانات السيارة".
+- Camera shutter icon on the icon-size scale (`AppIconSize.lg`).
+- `AppListRow(inset: false)` for rows inside a padded list; the children
+  rows in the verification steps use it (no double gutter).

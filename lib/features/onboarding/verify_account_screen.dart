@@ -19,7 +19,7 @@ import 'package:school_carpool/router/session_redirect.dart';
 
 /// Where an account that is not verified yet lands (spec section 10,
 /// screen 9), and the verification status screen (Prompt 3, F2):
-/// - unverified: why and what it takes, "Start verification";
+/// - unverified: why and what it takes, "Get verified";
 /// - pending: "Under review" and what happens next;
 /// - rejected: the reason (and the reviewer's note) with "Fix and resubmit";
 /// - suspended: no access, sign out only.
@@ -218,7 +218,8 @@ Future<void> _withdraw(BuildContext context, WidgetRef ref, String caseId) async
   try {
     await repository.withdraw(caseId);
     showAppSnackBarOn(messenger, l10n.verifyWithdrawn);
-  } on VerificationFailure {
-    showAppSnackBarOn(messenger, l10n.verifyWithdrawFailed);
+  } on VerificationFailure catch (failure) {
+    // Short and one line, but still says why: offline or something else.
+    showAppSnackBarOn(messenger, failure.isOffline ? l10n.errorOfflineShort : l10n.verifyWithdrawFailed);
   }
 }

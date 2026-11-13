@@ -176,7 +176,7 @@ firestore:rules,functions --project dev`). Or use a Mac with the emulators
    "This code has expired". Wait for the countdown, tap **Send new
    code**, read the new code.
 7. Type the right code. The app moves to **email**.
-8. Type your email, tap **Send confirmation link**, open the email on the
+8. Type your email, tap **Send link**, open the email on the
    phone and tap the link. Back in the app tap **I confirmed
    it** (or just return to the app; it checks by itself). You go on to
    the terms. **Please report** if instead you see "Your session ended":
@@ -184,7 +184,7 @@ firestore:rules,functions --project dev`). Or use a Mac with the emulators
    terms directly (this is the path for a session ended by the email
    change).
 9. **Terms:** tap **Read** on each, tick the three boxes (WhatsApp is
-   optional), tap **Accept and continue**.
+   optional), tap **Accept all**.
 10. You land on **Verify your account** with the status "Not verified".
     Home, Carpools, Chats and Notifications send you back here.
 11. Tap **Open my profile**: your **parent ID** (8 characters, no 0, O, 1
