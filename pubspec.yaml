@@ -52,6 +52,7 @@ dev_dependencies:
 
 flutter:
   generate: true
+  uses-material-design: true
 
   # Fonts are bundled, not fetched at runtime (see docs/progress/prompt-01.md).
   fonts:
