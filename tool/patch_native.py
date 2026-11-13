@@ -154,6 +154,39 @@ def patch_android(application_id: str) -> None:
 
     patch_text(gradle, kts)
 
+    # Plugins written in Kotlin that rely on AGP 9 built-in Kotlin (for example
+    # screen_protector) skip the Kotlin plugin, while Flutter still ships with
+    # android.builtInKotlin=false. Apply the Kotlin plugin to those modules so
+    # their Kotlin sources compile. Remove once the app moves to built-in Kotlin.
+    root_gradle = ROOT / "android" / "build.gradle.kts"
+    if root_gradle.exists():
+        def root_kts(text: str) -> str:
+            if KOTLIN_FIX_MARKER in text:
+                return text
+            # Before the template's first subprojects block, whose
+            # evaluationDependsOn(":app") can evaluate plugin modules early.
+            index = text.find("subprojects {")
+            if index == -1:
+                return text.rstrip("\n") + "\n\n" + KOTLIN_FIX_BLOCK
+            return text[:index] + KOTLIN_FIX_BLOCK + "\n" + text[index:]
+        patch_text(root_gradle, root_kts)
+
+
+KOTLIN_FIX_MARKER = "// school-carpool: kotlin for built-in-kotlin plugins"
+KOTLIN_FIX_PLUGINS = ("screen_protector",)
+KOTLIN_FIX_BLOCK = (
+    KOTLIN_FIX_MARKER + "\n"
+    "subprojects {\n"
+    "    if (name in setOf(" + ", ".join(f'"{p}"' for p in KOTLIN_FIX_PLUGINS) + ")) {\n"
+    "        pluginManager.withPlugin(\"com.android.library\") {\n"
+    "            if (!pluginManager.hasPlugin(\"org.jetbrains.kotlin.android\")) {\n"
+    "                pluginManager.apply(\"org.jetbrains.kotlin.android\")\n"
+    "            }\n"
+    "        }\n"
+    "    }\n"
+    "}\n"
+)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
