@@ -17,6 +17,10 @@
 #   MAPS_API_KEY_WEB      written into the generated native folders only,
 #                         never into the repository (SETUP.md section 15).
 #                         Build with --dart-define=MAPS_ENABLED=true when set.
+#   INVITE_LINK_DOMAIN    Host of the invite-links Hosting site for this flavor
+#                         (Prompt 6, universal links), e.g. <project>-links.web.app.
+#                         Adds the Associated Domains entitlement; leave empty
+#                         until the App ID has that capability (SETUP.md 16).
 #
 # Native folders (ios/, android/, web/) are NOT committed: this script
 # recreates them, so every change we need in them lives in tool/ and is

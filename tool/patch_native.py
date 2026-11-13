@@ -18,6 +18,13 @@ What it changes
            MAPS_API_KEY_WEB to a script tag in web/index.html. Location
            permissions for Android. Empty keys are fine: the app then shows
            no Google map (MAPS_ENABLED=false). See SETUP.md section 15.
+  Links    (Prompt 6) Universal links for carpool invites: when
+           INVITE_LINK_DOMAIN is set (for example
+           <project>-links.web.app), the Associated Domains entitlement
+           applinks:<domain> is added. Left out when empty, because signing
+           fails unless the App ID has the Associated Domains capability
+           (SETUP.md section 16). Flutter deep linking is switched on in
+           Info.plist so go_router gets the /c/<code> path.
 """
 
 from __future__ import annotations
@@ -120,14 +127,19 @@ def patch_ios(bundle_id: str, display_name: str) -> None:
     info["UIBackgroundModes"] = modes
     # Prompt 5: the Maps key comes from ios/Flutter/Maps.xcconfig (patch_maps_ios).
     info["GMSApiKey"] = "$(MAPS_API_KEY)"
+    # Prompt 6: universal links (invite links) reach go_router.
+    info["FlutterDeepLinkingEnabled"] = True
 
     if info != before:
         with info_path.open("wb") as f:
             plistlib.dump(info, f, sort_keys=False)
         log("updated ios/Runner/Info.plist")
 
-    # Entitlements: push notifications and App Attest.
-    shutil.copyfile(IOS_OVERRIDES / "Runner.entitlements", ios / "Runner" / "Runner.entitlements")
+    # Entitlements: push notifications and App Attest, plus Associated
+    # Domains when INVITE_LINK_DOMAIN is set (Prompt 6).
+    entitlements = ios / "Runner" / "Runner.entitlements"
+    shutil.copyfile(IOS_OVERRIDES / "Runner.entitlements", entitlements)
+    patch_associated_domains(entitlements)
 
     # Localized permission texts and display name.
     for lang in ("ar", "en"):
@@ -137,6 +149,26 @@ def patch_ios(bundle_id: str, display_name: str) -> None:
         strings = target / "InfoPlist.strings"
         patch_text(strings, lambda t: re.sub(r'"CFBundleDisplayName" = "[^"]*";',
                                              f'"CFBundleDisplayName" = "{display_name_for(lang, display_name)}";', t))
+
+
+_DOMAIN = re.compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$")
+
+
+def patch_associated_domains(entitlements: Path) -> None:
+    """Adds applinks:<INVITE_LINK_DOMAIN> (universal links, F31) when set."""
+    domain = os.environ.get("INVITE_LINK_DOMAIN", "").strip().lower()
+    with entitlements.open("rb") as f:
+        data = plistlib.load(f)
+    key = "com.apple.developer.associated-domains"
+    if not domain:
+        data.pop(key, None)
+    else:
+        if not _DOMAIN.match(domain):
+            raise SystemExit("patch_native: INVITE_LINK_DOMAIN must be a host name like <project>-links.web.app")
+        data[key] = [f"applinks:{domain}"]
+    with entitlements.open("wb") as f:
+        plistlib.dump(data, f, sort_keys=False)
+    log("associated domains: " + (f"applinks:{domain}" if domain else "none (INVITE_LINK_DOMAIN not set)"))
 
 
 def display_name_for(lang: str, english_name: str) -> str:
