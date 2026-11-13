@@ -6,6 +6,9 @@ import 'package:school_carpool/admin/data/admin_models.dart' show kGovernorates;
 import 'package:school_carpool/admin/widgets/admin_labels.dart' show governorateLabel;
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/maps/geo.dart';
+import 'package:school_carpool/features/maps/map_repository.dart';
+import 'package:school_carpool/features/maps/map_view.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
 import 'package:school_carpool/features/schools/school_repository.dart';
@@ -23,9 +26,13 @@ Future<SchoolOption?> openSchoolPicker(BuildContext context) => Navigator.of(con
 /// schools awaiting review come first. "Other" is always the last row:
 /// the parent adds a missing school and carries on.
 ///
-/// States: before typing (own pending schools and a hint), loading
-/// (skeleton rows), results, no results (empty view), error and offline
-/// (with retry). "Other" stays available in every state.
+/// Once the parent's home is set (Prompt 5, F40), the schools nearest to it
+/// come first before typing, with their distance, and a map view shows
+/// the home and the school pins: tap a pin, then "Choose school".
+///
+/// States: before typing (own pending schools, nearest schools or a hint),
+/// loading (skeleton rows), results, no results (empty view), error and
+/// offline (with retry). "Other" stays available in every state.
 class SchoolPickerScreen extends ConsumerStatefulWidget {
   const SchoolPickerScreen({super.key});
 
@@ -71,11 +78,38 @@ class _SchoolPickerScreenState extends ConsumerState<SchoolPickerScreen> {
   _Results _results = const _Idle();
   int _request = 0;
 
+  /// Schools nearest to the home, loaded once (one search on the free plan).
+  List<SchoolOption> _nearest = const <SchoolOption>[];
+  GeoPin? _nearestFor;
+  bool _showMap = false;
+  SchoolOption? _mapChoice;
+  MapCameraController? _camera;
+
   @override
   void dispose() {
     _timer?.cancel();
     _query.dispose();
+    _camera?.dispose();
     super.dispose();
+  }
+
+  void _loadNearest(GeoPin home) {
+    if (Geo.same(_nearestFor, home)) {
+      return;
+    }
+    _nearestFor = home;
+    WidgetsBinding.instance.addPostFrameCallback((Duration _) => unawaited(_fetchNearest(home)));
+  }
+
+  Future<void> _fetchNearest(GeoPin home) async {
+    try {
+      final List<SchoolOption> found = await ref.read(schoolSearchProvider).nearest(home);
+      if (mounted) {
+        setState(() => _nearest = found);
+      }
+    } on Object {
+      // The search still works; the nearest list is a shortcut only.
+    }
   }
 
   void _onChanged(String _) {
@@ -169,12 +203,19 @@ class _SchoolPickerScreenState extends ConsumerState<SchoolPickerScreen> {
         ? pending
         : SchoolMatcher(pending).search(query, governorate: _governorate);
     final String? gov = _governorate;
+    final GeoPin? home = ref.watch(myHomeProvider).value?.location;
+    if (home != null) {
+      _loadNearest(home);
+    }
 
     Widget row(SchoolOption school) {
       final String place = school.place(language);
-      final String where = place.isEmpty
-          ? governorateLabel(l10n, school.governorate)
-          : '$place · ${governorateLabel(l10n, school.governorate)}';
+      final GeoPin? at = school.location;
+      final String where = <String>[
+        if (home != null && at != null) l10n.schoolDistanceKm(Geo.distanceKm(home, at).toStringAsFixed(1)),
+        if (place.isNotEmpty) place,
+        governorateLabel(l10n, school.governorate),
+      ].join(' · ');
       return AppListRow(
         key: Key('school.result.${school.id}'),
         title: school.name(language),
@@ -187,6 +228,11 @@ class _SchoolPickerScreenState extends ConsumerState<SchoolPickerScreen> {
     final List<Widget> body = <Widget>[
       for (final SchoolOption s in myMatches) row(s),
       ...switch (_results) {
+        _Idle() when _nearest.isNotEmpty => <Widget>[
+          AppSectionHeader(l10n.schoolNearestSection),
+          for (final SchoolOption s in _nearest)
+            if (!myMatches.any((SchoolOption m) => m.id == s.id)) row(s),
+        ],
         _Idle() => <Widget>[
           if (myMatches.isEmpty)
             Padding(
@@ -236,8 +282,23 @@ class _SchoolPickerScreenState extends ConsumerState<SchoolPickerScreen> {
       ),
     ];
 
+    final List<SchoolOption> onMap = switch (_results) {
+      _Found(schools: final List<SchoolOption> schools) => schools,
+      _ => _nearest,
+    };
+
     return Scaffold(
-      appBar: AppBar(title: AppBarTitle(l10n.schoolPickerTitle)),
+      appBar: AppBar(
+        title: AppBarTitle(l10n.schoolPickerTitle),
+        actions: <Widget>[
+          IconButton(
+            key: const Key('school.mapToggle'),
+            tooltip: _showMap ? l10n.nearbyShowList : l10n.schoolShowMap,
+            icon: Icon(_showMap ? Icons.view_list_outlined : Icons.map_outlined),
+            onPressed: () => setState(() => _showMap = !_showMap),
+          ),
+        ],
+      ),
       body: SafeArea(
         top: false,
         child: Column(
@@ -276,15 +337,76 @@ class _SchoolPickerScreenState extends ConsumerState<SchoolPickerScreen> {
               ),
             ),
             Expanded(
-              child: ListView(
-                key: const Key('school.results'),
-                padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),
-                children: body,
-              ),
+              child: _showMap
+                  ? _mapView(context, home, onMap)
+                  : ListView(
+                      key: const Key('school.results'),
+                      padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),
+                      children: body,
+                    ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// F40: the home and the school pins; tap a pin, then "Choose school".
+  Widget _mapView(BuildContext context, GeoPin? home, List<SchoolOption> schools) {
+    final AppLocalizations l10n = context.l10n;
+    final String language = Localizations.localeOf(context).languageCode;
+    final SchoolOption? choice = _mapChoice;
+    final GeoPin? first = schools.map((SchoolOption s) => s.location).whereType<GeoPin>().firstOrNull;
+    final MapCameraController camera = _camera ??= MapCameraController(
+      center: home ?? first ?? Geo.cairo,
+      zoom: home != null || first != null ? AppMapTokens.areaZoom : AppMapTokens.cityZoom,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Expanded(
+          child: AppMapView(
+            config: MapViewConfig(
+              camera: camera,
+              semanticLabel: l10n.schoolMapLabel,
+              markers: <MapMarker>[
+                if (home != null) MapMarker(id: 'home', at: home, kind: MapMarkerKind.home, label: l10n.homePinLabel),
+                for (final SchoolOption s in schools)
+                  if (s.location case final GeoPin at)
+                    MapMarker(
+                      id: s.id,
+                      at: at,
+                      kind: s.id == choice?.id ? MapMarkerKind.selectedSchool : MapMarkerKind.school,
+                      label: s.name(language),
+                      onTap: () => setState(() => _mapChoice = s),
+                    ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: AppSpacing.screenPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              OneLineText(
+                choice == null ? l10n.schoolMapHint : choice.name(language),
+                key: const Key('school.mapChoice'),
+                style: choice == null
+                    ? context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)
+                    : context.text.titleSmall,
+              ),
+              const SizedBox(height: AppSpacing.s16),
+              AppButton(
+                key: const Key('school.mapChoose'),
+                label: l10n.schoolChoose,
+                expand: true,
+                onPressed: choice == null ? null : () => Navigator.of(context).pop(choice),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

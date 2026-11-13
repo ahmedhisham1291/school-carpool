@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/maps/geo.dart';
+import 'package:school_carpool/features/maps/map_view.dart';
 import 'package:school_carpool/features/shell/home_shell.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/settings/app_settings.dart';
@@ -110,6 +112,9 @@ class GalleryScreen extends ConsumerWidget {
             onTap: () => _done(context),
           ),
           AppListRow(title: l10n.sampleListTitle, subtitle: l10n.sampleListSubtitle),
+          const _SwitchSample(),
+          AppSectionHeader(l10n.gallerySectionMaps),
+          const SizedBox(height: AppMapTokens.mapHeight, child: _MapSample()),
           AppSectionHeader(l10n.gallerySectionSheets),
           const _Padded(child: _SheetSamples()),
           AppSectionHeader(l10n.gallerySectionSkeleton),
@@ -635,6 +640,65 @@ class _VerificationSamplesState extends State<_VerificationSamples> {
           onTap: () => setState(() => _school = _school == null ? l10n.gallerySampleSchool : null),
         ),
       ],
+    );
+  }
+}
+/// AppSwitchRow (Prompt 5): a setting that is on or off.
+class _SwitchSample extends StatefulWidget {
+  const _SwitchSample();
+
+  @override
+  State<_SwitchSample> createState() => _SwitchSampleState();
+}
+
+class _SwitchSampleState extends State<_SwitchSample> {
+  bool _on = true;
+
+  @override
+  Widget build(BuildContext context) => AppSwitchRow(
+    title: context.l10n.settingsShowOnMap,
+    subtitle: _on ? context.l10n.settingsShowOnMapOn : context.l10n.settingsShowOnMapOff,
+    leadingIcon: Icons.visibility_outlined,
+    value: _on,
+    onChanged: (bool v) => setState(() => _on = v),
+  );
+}
+
+/// The map building blocks (Prompt 5), drawn by the sketch: the home pin,
+/// a school pin, blurred discs for other parents and the radius ring.
+class _MapSample extends StatefulWidget {
+  const _MapSample();
+
+  @override
+  State<_MapSample> createState() => _MapSampleState();
+}
+
+class _MapSampleState extends State<_MapSample> {
+  final MapCameraController _camera = MapCameraController(center: const GeoPin(29.9612, 31.2567), zoom: AppMapTokens.areaZoom);
+
+  @override
+  void dispose() {
+    _camera.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    return SketchMapView(
+      config: MapViewConfig(
+        camera: _camera,
+        semanticLabel: l10n.nearbyMapLabel(2),
+        radiusKm: 3,
+        markers: <MapMarker>[
+          MapMarker(id: 'home', at: const GeoPin(29.9612, 31.2567), kind: MapMarkerKind.home, label: l10n.homePinLabel),
+          MapMarker(id: 'school', at: const GeoPin(29.9702, 31.2489), kind: MapMarkerKind.school, label: l10n.sampleListTitle),
+        ],
+        areas: <MapArea>[
+          MapArea(id: 'a', center: const GeoPin(29.9671, 31.2620), label: l10n.nearbyAreaLabel('Hoda')),
+          MapArea(id: 'b', center: const GeoPin(29.9528, 31.2502), label: l10n.nearbyAreaLabel('Tarek')),
+        ],
+      ),
     );
   }
 }
