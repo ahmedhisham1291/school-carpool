@@ -75,7 +75,16 @@ npm install --prefix tests/rules
 firebase emulators:exec --only firestore,storage --project demo-school-carpool "npm --prefix tests/rules test"
 ```
 
-CI runs all of these on Codemagic (`codemagic.yaml`).
+Screenshots of the tab shell and the gallery (Arabic/English, light/dark,
+directions A/B) are written to `test/screenshots/goldens/`:
+
+```sh
+flutter test test/screenshots --update-goldens
+```
+
+CI: GitHub Actions (`.github/workflows/checks.yml`) runs all of the above on
+every push and publishes the screenshots as the `screenshots` artifact.
+Codemagic (`codemagic.yaml`) builds the iPhone app for TestFlight.
 
 ## Layout
 

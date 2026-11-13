@@ -9,7 +9,7 @@ Placeholders used in the code that you will replace with your own values:
 
 | Placeholder | Where | What to put |
 | --- | --- | --- |
-| `org.schoolcarpool.app` | `tool/bootstrap.sh` (`BUNDLE_ID_BASE`), `codemagic.yaml` | Your reverse domain, for example `com.yourdomain.schoolcarpool`. Apps get `.dev` and `.stg` suffixes; prod has none |
+| `org.schoolcarpool.app` | `tool/bootstrap.sh` (`BUNDLE_ID_BASE`), `codemagic.yaml` | **Decided:** this is the bundle id base. Apps get `.dev` and `.stg` suffixes; prod has none |
 | `REPLACE-school-carpool-dev` / `-staging` / `-prod` | `.firebaserc` | Your three Firebase project ids |
 | `CodemagicASC` | `codemagic.yaml` | Name you give the App Store Connect key in Codemagic |
 | `APP_STORE_APPLE_ID: 0000000000` | `codemagic.yaml` | Numeric Apple ID of the dev and staging apps |
@@ -104,6 +104,32 @@ and staging, ever.
    App Check and the rules protect the backend). If flutterfire offers to
    write `GoogleService-Info.plist` or `google-services.json`, decline: the
    app configures Firebase from Dart.
+
+   **No computer with Flutter?** Fill the file by hand instead. In the
+   Firebase console > Project settings > General > Your apps, add an iOS
+   app (bundle id `org.schoolcarpool.app.dev`), an Android app and a web
+   app. Each shows its config values. Edit
+   `lib/firebase/firebase_options_dev.dart` on GitHub (pencil icon) and
+   replace the `throw` with values like this, one block per platform:
+
+   ```dart
+   static FirebaseOptions get currentPlatform {
+     if (kIsWeb) return web;
+     return defaultTargetPlatform == TargetPlatform.android ? android : ios;
+   }
+   static const FirebaseOptions ios = FirebaseOptions(
+     apiKey: '<API_KEY from the iOS app>',
+     appId: '<GOOGLE_APP_ID, 1:...:ios:...>',
+     messagingSenderId: '<GCM_SENDER_ID>',
+     projectId: '<project id>',
+     storageBucket: '<project id>.firebasestorage.app',
+     iosBundleId: 'org.schoolcarpool.app.dev',
+   );
+   // android and web: same fields from their app cards.
+   ```
+
+   Add `import 'package:flutter/foundation.dart';` at the top. Or ask the
+   coding agent to do it from the values you paste.
 10. **Deploy rules and functions** (dev first):
 
     ```sh
@@ -112,7 +138,7 @@ and staging, ever.
     firebase deploy --only firestore:rules,firestore:indexes,storage,functions --project dev
     ```
 
-## 4. Budget alerts and quotas (each project)
+## 4. Budget alerts, quotas and key restrictions (each project)
 
 1. console.cloud.google.com > **Billing > Budgets & alerts > Create budget**.
    Scope: one project. Amount: USD 20. Alerts at 5 percent (USD 1), 25
@@ -122,6 +148,20 @@ and staging, ever.
    Places and Routes to stay inside the free allowance).
 3. Cloud Functions cannot scale past 10 instances (set in code). Warm
    instances are off (`MIN_INSTANCES=0` in `functions/.env.*`).
+4. **Restrict the API keys** Firebase created (APIs & Services >
+   Credentials). They are not secret, but restricted keys cannot be reused
+   by others:
+   - "iOS key": Application restrictions > iOS apps > add
+     `org.schoolcarpool.app.dev` (or `.stg`, or the prod id for that
+     project).
+   - "Android key": Android apps > package name plus the SHA-1 of the
+     signing key (Stage 3).
+   - "Browser key": Websites > the hosting domains (Stage 2) and, in dev,
+     `localhost`.
+   - API restrictions on each: only the Firebase APIs it uses (Identity
+     Toolkit, Token Service, Firestore, Cloud Storage for Firebase, Firebase
+     Installations, FCM, App Check). The Maps keys get the same treatment in
+     Prompt 5.
 
 ## 5. Firestore point-in-time recovery and daily backups
 
@@ -171,7 +211,18 @@ COST MODE: point-in-time recovery (PITR) **off** for now; daily backups
      `functions/.env.staging` (and `.env.local` to test in the emulator).
 6. Alerts: Alerts > Create alert > "A new issue is created" > email you.
 
-## 7. Codemagic
+## 7. GitHub Actions (checks and screenshots)
+
+1. The repository already has `.github/workflows/checks.yml`. On GitHub >
+   the repository > **Actions**, allow workflows if GitHub asks.
+2. Every push runs three jobs: Flutter (analyze, tests, screenshots),
+   web/Android compile, and backend (Functions tests, rules tests on the
+   emulators). A green check mark next to the commit means all passed.
+3. **Screenshots without a Mac:** open a run > scroll to **Artifacts** >
+   download **screenshots** (a zip of PNGs: tab shell and gallery in Arabic
+   and English, light and dark, design A and B).
+
+## 8. Codemagic (iPhone builds)
 
 1. codemagic.io > sign up with GitHub (free personal plan: 500 macOS
    minutes a month).
@@ -180,16 +231,17 @@ COST MODE: point-in-time recovery (PITR) **off** for now; daily backups
 3. App settings > **Environment variables**: create the groups
    `dev_defines` and `staging_defines` with the Sentry DSNs (mark them
    **Secret**).
-4. The `checks` workflow runs on every push; `ios-staging` on pushes to
-   `main` and tags `v*`; `ios-dev` only when you press **Start new build**.
-   Note: the `checks` workflow is set to a Linux machine, which Codemagic
-   bills per minute (no free Linux minutes). See docs/COSTS.md.
+4. Codemagic only builds the iPhone app: `ios-staging` on pushes to `main`
+   and tags `v*`, `ios-dev` only when you press **Start new build**. Until
+   steps 1 to 3 are done for staging, a push to `main` gives a failed or
+   error-screen staging build; you can switch off automatic builds for
+   `ios-staging` in Codemagic until then.
 
-## 8. Get the app on your iPhone
+## 9. Get the app on your iPhone
 
 **A. Without a Mac (TestFlight)**
 
-1. Finish steps 1, 2, 3 (dev project, including "Connect the app") and 7.
+1. Finish steps 1, 2, 3 (dev project, including "Connect the app") and 8.
 2. Codemagic > the app > **Start new build** > workflow **iOS dev to
    TestFlight (manual)**. About 20 minutes.
 3. On the iPhone install **TestFlight** from the App Store and sign in with
@@ -215,7 +267,7 @@ COST MODE: point-in-time recovery (PITR) **off** for now; daily backups
    `flutter run -t lib/main_dev.dart --dart-define=EMULATOR_HOST=<mac-ip>`.
    Allow "Local Network" when the phone asks.
 
-## 9. Xcode by hand (only if bootstrap printed a warning)
+## 10. Xcode by hand (only if bootstrap printed a warning)
 
 `tool/bootstrap.sh` sets these with `tool/ios/configure_xcode.rb` when the
 `xcodeproj` gem is installed. If it was not:
