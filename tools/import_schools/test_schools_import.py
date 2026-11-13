@@ -19,8 +19,11 @@ from schools_import import (  # noqa: E402
     clean,
     doc_id,
     find_duplicates,
+    compare,
     governorate_code,
+    is_contained,
     match_tokens,
+    name_tags,
     nearest_town,
     normalize_text,
     read_csv,
@@ -64,16 +67,32 @@ class NormalizeTest(unittest.TestCase):
 class MatchTest(unittest.TestCase):
     def test_generic_words_dropped(self):
         self.assertEqual(match_tokens("مدرسة النيل الدولية"), ("نيل", "دوليه"))
+        # Stage and gender words are compared separately (name_tags).
+        self.assertEqual(match_tokens("مدرسة النصر الابتدائية بنات"), ("نصر",))
+        self.assertEqual(name_tags("مدرسة النصر الابتدائية بنات"), (frozenset({"primary"}), frozenset({"girls"})))
+        self.assertEqual(name_tags("Nasr Secondary School for Boys"), (frozenset({"secondary"}), frozenset({"boys"})))
+        # Person names are marked: no spelling slip in them.
+        self.assertEqual(match_tokens("مدرسة الشهيد أحمد زويل"), ("شهيد", "~احمد", "~زويل"))
         self.assertEqual(match_tokens("Nile Intl School"), ("nile", "international"))
         self.assertEqual(match_tokens("مدرسة"), ())
         self.assertEqual(match_tokens("School"), ())
 
     def test_similarity(self):
         self.assertEqual(token_similarity(("victoria", "college"), ("victoria", "collage")), 1.0)
-        self.assertGreaterEqual(token_similarity(("alsson",), ("alsson", "british", "american")), 0.85)
+        # Containment is not a match: a third of the words.
+        self.assertAlmostEqual(token_similarity(("alsson",), ("alsson", "british", "american")), 1 / 3)
+        self.assertTrue(is_contained(("alsson",), ("alsson", "british", "american")))
+        self.assertFalse(is_contained(("alsson", "x"), ("alsson", "british")))
         self.assertEqual(token_similarity(("بورسعيد", "تجريبيه"), ("بورسعيد", "بالزمالك")), 0.5)
         self.assertEqual(token_similarity((), ("x",)), 0.0)
         self.assertLess(token_similarity(("nile",), ("pyramids",)), 0.5)
+
+    def test_spelling_slip_only_in_long_words_and_never_in_names(self):
+        self.assertEqual(token_similarity(("فكتوريا",), ("فيكتوريا",)), 1.0)  # 7 and 8 letters
+        self.assertEqual(token_similarity(("nile",), ("nila",)), 0.0)  # too short for a slip
+        self.assertEqual(token_similarity(match_tokens("مدرسة الشهيد أحمد"), match_tokens("مدرسة الشهيد محمد")), 0.5)
+        self.assertLess(token_similarity(match_tokens("مدرسة الشهيد محمد علي"), match_tokens("مدرسة الشهيد محمود علي")), 1.0)
+        self.assertLess(token_similarity(match_tokens("Ibrahim School"), match_tokens("Ibraheem School")), 1.0)
 
 
 class PlacesTest(unittest.TestCase):
@@ -172,6 +191,68 @@ class DuplicatesTest(unittest.TestCase):
         self.assertEqual((kept.lat, kept.name_en), (30.03, "Orman School"))
 
 
+class SameSchoolOrNotTest(unittest.TestCase):
+    """Cases from the Prompt 4B review: these must never be merged."""
+
+    def school(self, name: str, sid: str, lat: float = 30.0, lng: float = 31.2, kind: str = "school"):
+        return clean([entry(source_id=sid, name=name, kind=kind, lat=lat, lng=lng)], Boundaries())[0][0]
+
+    def verdict(self, a: str, b: str) -> str:
+        return compare(self.school(a, "n1"), self.school(b, "n2"))[0]
+
+    def test_different_stage_or_gender_never_merges(self):
+        self.assertEqual(self.verdict("مدرسة النصر الابتدائية", "مدرسة النصر الإعدادية"), "different")
+        self.assertEqual(self.verdict("Nasr Primary School", "Nasr Secondary School"), "different")
+        self.assertEqual(self.verdict("مدرسة سعد زغلول الابتدائية", "مدرسة سعد زغلول الثانوية بنات"), "different")
+        self.assertEqual(self.verdict("مدرسة النصر بنين", "مدرسة النصر بنات"), "different")
+        self.assertEqual(self.verdict("Nasr Boys School", "Nasr Girls School"), "different")
+        kg = self.school("Nasr", "n3", kind="kindergarten")
+        self.assertEqual(compare(kg, self.school("Nasr", "n4"))[0], "different")
+
+    def test_only_one_side_says_the_stage_is_reported(self):
+        self.assertEqual(self.verdict("مدرسة النصر", "مدرسة النصر الابتدائية"), "report")
+        self.assertEqual(self.verdict("مدرسة النصر", "مدرسة النصر بنات"), "report")
+
+    def test_different_people_are_reported_not_merged(self):
+        self.assertEqual(self.verdict("مدرسة الشهيد أحمد", "مدرسة الشهيد محمد"), "report")
+        self.assertEqual(self.verdict("مدرسة الشهيد محمد علي", "مدرسة الشهيد محمود علي"), "report")
+
+    def test_one_name_inside_the_other_is_reported(self):
+        self.assertEqual(self.verdict("El Alsson School", "El Alsson British and American International School"), "report")
+
+    def test_same_name_merges(self):
+        self.assertEqual(self.verdict("مدرسة النصر الابتدائية", "مدرسه النصر الابتدائيه"), "merge")
+        self.assertEqual(self.verdict("Victoria College", "Victoria Collage"), "merge")
+
+    def test_merge_pipeline_keeps_stages_apart(self):
+        entries = [
+            entry(source_id="n1", name="مدرسة النصر الابتدائية", lat=30.0, lng=31.2),
+            entry(source_id="n2", name="مدرسة النصر الإعدادية", lat=30.0005, lng=31.2),
+            entry(source_id="n3", name="مدرسة النصر الثانوية بنات", lat=30.001, lng=31.2),
+            entry(source_id="n4", name="مدرسة النصر", lat=30.0007, lng=31.2),
+        ]
+        merged, groups, likely = find_duplicates(clean(entries, Boundaries())[0])
+        self.assertEqual(len(merged), 4)
+        self.assertEqual(groups, [])
+        # The one without a stage is listed against each one with a stage.
+        self.assertEqual(sorted(p.b.id if p.a.id == "osm-n4" else p.a.id for p in likely), ["osm-n1", "osm-n2", "osm-n3"])
+
+    def test_no_chains(self):
+        # A~B and B~C (one slip each) but A and C differ by two letters.
+        entries = [
+            entry(source_id="n1", name="Montessoriana School", lat=30.0, lng=31.2),
+            entry(source_id="n2", name="Montessorian School", lat=30.0005, lng=31.2),
+            entry(source_id="n3", name="Montessoria School", lat=30.001, lng=31.2),
+        ]
+        schools = clean(entries, Boundaries())[0]
+        self.assertEqual(compare(schools[0], schools[2])[0], "different")
+        merged, groups, likely = find_duplicates(schools)
+        for group in groups:
+            ids = {s.id for s in group}
+            self.assertFalse({"osm-n1", "osm-n3"} <= ids, "n1 and n3 must not end up in one group")
+        self.assertGreaterEqual(len(merged), 2)
+
+
 class ReadersTest(unittest.TestCase):
     def test_list_csv_with_arabic_headers(self):
         data = "كود المدرسة,اسم المدرسة,المحافظة,الإدارة,خط العرض,خط الطول,ملاحظات\nA1,مدرسة النيل,القاهرة,المعادي,٢٩٫٩٦,31.25,x\n".encode()
@@ -179,6 +260,42 @@ class ReadersTest(unittest.TestCase):
         self.assertEqual(ignored, ["ملاحظات"])
         e = entries[0]
         self.assertEqual((e.source, e.source_id, e.name_ar, e.governorate_text, e.city_text, e.lat, e.lng), ("list_moe", "A1", "مدرسة النيل", "القاهرة", "المعادي", 29.96, 31.25))
+
+    def test_excel_exports_bom_utf16_cp1256_and_semicolons(self):
+        text = "اسم المدرسة;المحافظة;الإدارة\nمدرسة النيل;القاهرة;المعادي\n"
+        for data in (
+            b"\xef\xbb\xbf" + text.encode("utf-8"),
+            text.encode("utf-16"),
+            text.encode("cp1256"),
+            text.replace(";", ",").encode("utf-8"),
+            text.replace(";", "\t").encode("utf-8"),
+        ):
+            entries, _ = read_csv(data, "moe.csv", "moe")
+            self.assertEqual([(e.name_ar, e.governorate_text, e.city_text) for e in entries], [("مدرسة النيل", "القاهرة", "المعادي")])
+
+    def test_unreadable_file_is_reported_not_a_crash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "bad.csv").write_bytes(bytes([0x81, 0x8D, 0x8F, 0x90, 0x9D]) * 10 + b"\x00\xff")
+            (folder / "bad.geojson").write_text("{not json", encoding="utf-8")
+            (folder / "ok.csv").write_text("name_ar,governorate\nمدرسة النيل,القاهرة\n", encoding="utf-8")
+            result = run(folder)
+        self.assertEqual(len(result.schools), 1)
+        self.assertTrue(any("bad.geojson" in p for p in result.problems))
+
+    def test_list_ids_do_not_shift_when_rows_move(self):
+        a = "name_ar,governorate,city\nمدرسة النيل,القاهرة,المعادي\nمدرسة الأهرام,الجيزة,الهرم\n"
+        b = "name_ar,governorate,city\nمدرسة جديدة,الجيزة,الدقي\nمدرسة الأهرام,الجيزة,الهرم\nمدرسة النيل,القاهرة,المعادي\n"
+        ids_a = {e.name_ar: e.source_id for e in read_csv(a.encode(), "moe.csv", "moe")[0]}
+        ids_b = {e.name_ar: e.source_id for e in read_csv(b.encode(), "moe.csv", "moe")[0]}
+        self.assertEqual(ids_a["مدرسة النيل"], ids_b["مدرسة النيل"])
+        self.assertEqual(ids_a["مدرسة الأهرام"], ids_b["مدرسة الأهرام"])
+        self.assertNotEqual(ids_a["مدرسة النيل"], ids_a["مدرسة الأهرام"])
+
+    def test_osm_types_keep_their_prefix(self):
+        for osm_type, expected in (("node", "n5"), ("nodes", "n5"), ("ways_poly", "w5"), ("way", "w5"), ("relation", "r5"), ("", "5")):
+            e = read_csv(f"osm_id,osm_type,name,amenity\n5,{osm_type},Nile School,school\n".encode(), "x.csv", "x")[0][0]
+            self.assertEqual(e.source_id, expected, osm_type)
 
     def test_osm_csv_and_zip(self):
         csv_text = "osm_id,osm_type,name,name:en,amenity,geometry\n42,node,مدرسة النيل,Nile School,school,POINT (31.25 29.96)\n"
@@ -202,8 +319,8 @@ class SampleRunTest(unittest.TestCase):
         self.assertEqual(govs, {"cairo", "giza", "alexandria"})
         reasons = {d.reason for d in result.dropped}
         self.assertTrue({"no_name", "generic_name", "not_school_university", "outside_egypt"} <= reasons)
-        self.assertEqual(len(result.merged_groups), 5)
-        self.assertEqual(len(result.likely), 2)
+        self.assertEqual(len(result.merged_groups), 4)
+        self.assertEqual(len(result.likely), 3)
         report = report_markdown(result, "T")
         for heading in ("## Schools per governorate", "## Dropped, and why", "## Likely duplicates to check"):
             self.assertIn(heading, report)

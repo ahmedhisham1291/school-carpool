@@ -126,6 +126,11 @@ service cloud.firestore {
       allow list: if signedIn() && request.query.limit <= 200 && schoolVisible();
       allow create, update, delete: if false;
     }
+    // Prompt 4B (F4): school search keys issued per parent per day.
+    // Cloud Functions only.
+    match /searchKeyLimits/{uid} {
+      allow read, write: if false;
+    }
     // Areas stay admin-only until carpools use them (Prompt 6).
     match /areas/{id} {
       allow read, write: if false;

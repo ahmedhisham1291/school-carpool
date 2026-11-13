@@ -10,6 +10,7 @@ import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
+import 'package:school_carpool/features/schools/text_normalize.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
 /// School search (F4) as the parent types, in Arabic or English, spelling
@@ -165,7 +166,10 @@ Future<Map<String, Object?>> httpAlgoliaTransport(Uri url, Map<String, String> h
 }
 
 /// Algolia search with a secured key (names and places come back, nothing
-/// else). The key is fetched again shortly before it expires.
+/// else). The key is fetched again shortly before it expires. The query is
+/// normalized like the index's `searchKeys`, and recent answers are kept
+/// for a few minutes, so typing back and forth costs no extra requests
+/// (COST MODE: Algolia's free plan counts every request).
 class AlgoliaSchoolSearch implements SchoolSearch {
   AlgoliaSchoolSearch({
     required this._fetchKey,
@@ -178,6 +182,11 @@ class AlgoliaSchoolSearch implements SchoolSearch {
   final DateTime Function() _now;
   SearchKey? _key;
 
+  /// Most recent answers, oldest first (a small LRU).
+  final Map<String, (DateTime, List<SchoolOption>)> _cache = <String, (DateTime, List<SchoolOption>)>{};
+  static const int cacheSize = 50;
+  static const Duration cacheAge = Duration(minutes: 10);
+
   Future<SearchKey> _validKey() async {
     final SearchKey? key = _key;
     final DateTime? until = key?.validUntil;
@@ -188,23 +197,41 @@ class AlgoliaSchoolSearch implements SchoolSearch {
   }
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) => _query(<String, String>{
-    'query': query.trim(),
-    'hitsPerPage': '$kMaxSchoolResults',
-    if (governorate != null) 'filters': 'governorate:$governorate',
-  });
+  Future<List<SchoolOption>> search(String query, {String? governorate}) {
+    final String normalized = normalizeText(query);
+    return _cached('$normalized|${governorate ?? ''}', <String, String>{
+      'query': normalized,
+      'hitsPerPage': '$kMaxSchoolResults',
+      if (governorate != null) 'filters': 'governorate:$governorate',
+    });
+  }
 
   /// One search with no text, ranked by distance (Algolia's geo ranking on
-  /// `_geoloc`). The picker asks once per opening (free plan, COSTS.md).
+  /// `_geoloc`), with the same per-parent key and cache as [search]. The
+  /// picker asks once per opening (free plan, COSTS.md).
   @override
-  Future<List<SchoolOption>> nearest(GeoPin around) => _query(<String, String>{
+  Future<List<SchoolOption>> nearest(GeoPin around) => _cached('@${around.lat},${around.lng}', <String, String>{
     'query': '',
     'hitsPerPage': '$kMaxSchoolResults',
     'aroundLatLng': '${around.lat},${around.lng}',
     'aroundRadius': 'all',
   });
 
-  Future<List<SchoolOption>> _query(Map<String, String> query) async {
+  Future<List<SchoolOption>> _cached(String cacheKey, Map<String, String> query) async {
+    final (DateTime, List<SchoolOption>)? cached = _cache.remove(cacheKey);
+    if (cached != null && _now().difference(cached.$1) < cacheAge) {
+      _cache[cacheKey] = cached;
+      return cached.$2;
+    }
+    final List<SchoolOption> found = await _ask(query);
+    _cache[cacheKey] = (_now(), found);
+    if (_cache.length > cacheSize) {
+      _cache.remove(_cache.keys.first);
+    }
+    return found;
+  }
+
+  Future<List<SchoolOption>> _ask(Map<String, String> query) async {
     final SearchKey key = await _validKey();
     final Uri url = Uri.https('${key.appId}-dsn.algolia.net', '/1/indexes/${key.indexName}/query');
     final String params = Uri(queryParameters: query).query;
@@ -223,6 +250,21 @@ class AlgoliaSchoolSearch implements SchoolSearch {
           SchoolOption.fromMap(hit['objectID'] as String, <String, Object?>{...hit, 'status': 'active'}),
     ];
   }
+}
+
+/// Prod never falls back to the fake search (it would quietly search only
+/// the first 200 schools): it says search is unavailable instead. The
+/// server refuses and reports the fake search in prod too.
+class UnavailableSchoolSearch implements SchoolSearch {
+  const UnavailableSchoolSearch();
+
+  @override
+  Future<List<SchoolOption>> search(String query, {String? governorate}) =>
+      Future<List<SchoolOption>>.error(const SchoolSearchFailure(SchoolSearchFailureKind.unavailable));
+
+  @override
+  Future<List<SchoolOption>> nearest(GeoPin around) =>
+      Future<List<SchoolOption>>.error(const SchoolSearchFailure(SchoolSearchFailureKind.unavailable));
 }
 
 /// Outside the emulators: asks the server which search to use once
@@ -302,5 +344,8 @@ final Provider<SchoolSearch> schoolSearchProvider = Provider<SchoolSearch>((Ref 
     return fake;
   }
   final FirebaseFunctions functions = functionsClient();
-  return ServerSelectedSchoolSearch(fetchKey: () => fetchSearchKey(functions), fallback: fake);
+  return ServerSelectedSchoolSearch(
+    fetchKey: () => fetchSearchKey(functions),
+    fallback: ref.watch(flavorConfigProvider).isProd ? const UnavailableSchoolSearch() : fake,
+  );
 });

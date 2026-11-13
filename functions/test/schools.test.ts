@@ -1,7 +1,18 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { describe, it } from "node:test";
-import { AlgoliaRestClient, SCHOOL_INDEX_SETTINGS, securedSearchKey } from "../src/schools/algolia";
+import {
+  AlgoliaRestClient,
+  MAX_SEARCH_KEYS_PER_DAY,
+  nextKeyQuota,
+  SCHOOL_INDEX_SETTINGS,
+  SEARCH_KEY_LIMITS,
+  searchConfigProblem,
+  searchUserToken,
+  securedSearchKey,
+  type KeyQuota,
+} from "../src/schools/algolia";
+import { issueSearchKey, SearchKeyError, type SearchKeyDeps } from "../src/schools/search_key";
 import {
   parseImportedSchool,
   planImport,
@@ -183,13 +194,74 @@ describe("search index records and sync", () => {
 });
 
 describe("Algolia", () => {
-  it("secured key: HMAC of the parameters with the parent key, limited to the index and an expiry", () => {
-    const key = securedSearchKey("parent-search-key", "schools_dev", 1_900_000_000);
+  it("secured key: HMAC of the parameters with the parent key, limited to the index, an expiry and the user", () => {
+    const token = searchUserToken("uid-alice");
+    const key = securedSearchKey("parent-search-key", "schools_dev", 1_900_000_000, token);
     const decoded = Buffer.from(key, "base64").toString();
-    const params = "restrictIndices=schools_dev&validUntil=1900000000";
+    const params = `restrictIndices=schools_dev&validUntil=1900000000&userToken=${token}`;
     assert.equal(decoded.slice(64), params);
     assert.equal(decoded.slice(0, 64), createHmac("sha256", "parent-search-key").update(params).digest("hex"));
     assert.ok(!decoded.includes("parent-search-key"));
+    // The user token is a stable hash, never the uid itself.
+    assert.match(token, /^[0-9a-f]{32}$/);
+    assert.equal(token, searchUserToken("uid-alice"));
+    assert.notEqual(token, searchUserToken("uid-bob"));
+    assert.ok(!decoded.includes("uid-alice"));
+    // Per-user limits fit the free month: 100 an hour, 6 keys a day.
+    assert.ok(SEARCH_KEY_LIMITS.maxQueriesPerIPPerHour <= 200);
+    assert.ok(SEARCH_KEY_LIMITS.maxQueriesPerIPPerHour * MAX_SEARCH_KEYS_PER_DAY <= 1000);
+  });
+
+  it("daily key quota per parent", () => {
+    assert.deepEqual(nextKeyQuota(null, "2026-11-13"), { day: "2026-11-13", count: 1 });
+    assert.deepEqual(nextKeyQuota({ day: "2026-11-13", count: 5 }, "2026-11-13"), { day: "2026-11-13", count: 6 });
+    assert.equal(nextKeyQuota({ day: "2026-11-13", count: 6 }, "2026-11-13"), null);
+    assert.deepEqual(nextKeyQuota({ day: "2026-11-12", count: 6 }, "2026-11-13"), { day: "2026-11-13", count: 1 });
+  });
+
+  it("issues keys tied to the parent, refuses over the daily cap, and refuses the fake search in prod", async () => {
+    const quota = new Map<string, KeyQuota>();
+    const problems: string[] = [];
+    const deps = (over: Partial<SearchKeyDeps> = {}): SearchKeyDeps => ({
+      provider: "algolia",
+      appEnv: "staging",
+      appId: "APP",
+      parentSearchKey: "parent",
+      indexName: "schools_staging",
+      nowMs: Date.UTC(2026, 10, 13, 10),
+      consumeQuota: async (uid, today) => {
+        const next = nextKeyQuota(quota.get(uid) ?? null, today);
+        if (!next) return false;
+        quota.set(uid, next);
+        return true;
+      },
+      reportProblem: async (p) => {
+        problems.push(p);
+      },
+      ...over,
+    });
+    const first = await issueSearchKey(deps(), "alice");
+    assert.equal(first.provider, "algolia");
+    if (first.provider !== "algolia") return;
+    assert.ok(Buffer.from(first.key, "base64").toString().includes(`userToken=${searchUserToken("alice")}`));
+    assert.equal(first.validUntil, Date.UTC(2026, 10, 13, 10) / 1000 + 3600);
+    for (let i = 1; i < MAX_SEARCH_KEYS_PER_DAY; i++) await issueSearchKey(deps(), "alice");
+    await assert.rejects(issueSearchKey(deps(), "alice"), (e: unknown) => e instanceof SearchKeyError && e.reason === "search-limit");
+    // Another parent is not affected; the next Cairo day starts again.
+    assert.equal((await issueSearchKey(deps(), "bob")).provider, "algolia");
+    assert.equal((await issueSearchKey(deps({ nowMs: Date.UTC(2026, 10, 14, 10) }), "alice")).provider, "algolia");
+
+    assert.deepEqual(await issueSearchKey(deps({ provider: "fake", appEnv: "dev" }), "alice"), { provider: "fake" });
+    assert.deepEqual(await issueSearchKey(deps({ provider: "fake", appEnv: "staging" }), "alice"), { provider: "fake" });
+    await assert.rejects(
+      issueSearchKey(deps({ provider: "fake", appEnv: "prod" }), "alice"),
+      (e: unknown) => e instanceof SearchKeyError && e.reason === "search-misconfigured",
+    );
+    await assert.rejects(issueSearchKey(deps({ parentSearchKey: "" }), "alice"), (e: unknown) => e instanceof SearchKeyError);
+    await assert.rejects(issueSearchKey(deps({ provider: "elastic" }), "alice"), (e: unknown) => e instanceof SearchKeyError);
+    assert.equal(problems.length, 3);
+    assert.match(problems[0], /not allowed in prod/);
+    assert.equal(searchConfigProblem("algolia", "prod"), null);
   });
 
   it("REST calls carry the keys in headers and only the record", async () => {
