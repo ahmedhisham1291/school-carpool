@@ -171,3 +171,84 @@ Run `43459827052` (push, head `f514ee7`): **success**.
 | Find a school by part of its name in Arabic and English on iPhone | Widget tests in CI (AR/EN, typo, governorate filter); the owner still has to check on the iPhone |
 | "Other" → approve in the panel → a second parent finds it | Covered by Functions tests (approve clears `addedBy`, sync upserts), rules tests and the dev fake's 1-minute refresh; the owner still has to check on the iPhone |
 | OSM credit on About | Present (ODbL text and a link to `openstreetmap.org/copyright`), with a widget test |
+
+## Re-review (13 Nov 2026, head `e47a7db`)
+
+Fix commits: `63914df` (import), `6c61607` (search key, admin uid),
+`e47a7db` (app search, docs).
+
+### Verdict
+
+**CHANGES NEEDED, only because CI did not finish.** Both blocking findings
+and the quick fixes are resolved in the code. A green rerun of the Android
+build turns this into **PASS** with no code change.
+
+### CI
+
+Run `43507132693` (head `e47a7db`): **failure**.
+
+| Job | Result |
+| --- | --- |
+| Flutter analyze, tests and screenshots | **passed** |
+| Cloud Functions tests, rules tests and Python import (emulators) | **passed** |
+| Web, admin panel and Android compile (staging) | Web and admin panel **passed**. **Build Android APK was cancelled** at 21:12:47: "The runner has received a shutdown signal … The operation was canceled." There is no compiler error in the log. |
+
+The cancellation came from the runner, not from the code, but any CI
+failure blocks a merge. Re-run the job (`gh run rerun 43507132693 --failed`)
+and merge only when it is green.
+
+### Blocking 1 (merge joins different schools): resolved
+
+- I ran the Python tests here: **30 pass** (up from 18).
+- The sample still merges the real spelling duplicates (Victoria
+  Collage/College and the rest).
+- My own probe placed 19 pairs 250 m apart, with names I wrote, and ran
+  the full import on them:
+  - **Kept apart, not even reported** (correct): روضة النور / مدرسة النور
+    (KG and school); النصر الابتدائية / الإعدادية (different stage); سعد
+    زغلول الابتدائية / الثانوية بنات; الصناعية بنين / التجارية بنين.
+  - **Sent to the report, not merged** (correct): نور الإسلام / نور
+    الإيمان; الشهيد أحمد / الشهيد محمد; الشهيد محمد علي / محمود علي;
+    الفاروق عمر / عمرو; الشهيدة سارة / سارا; 6 / 7 أكتوبر; الحرية / الحرية
+    الرسمية للغات; الشروق / الشروق 2; المستقبل الابتدائية المشتركة /
+    المستقبل الابتدائية; العاشر من رمضان / … الثانوية الفنية; طه حسين / طه
+    حسين الإعدادية (only one of the two says the stage).
+  - **Merged** (correct, same school): الزهراء بنات / للبنات; الأمل
+    الخاصة / الخاصه; النصر الابتدائية / الابتدائيه; عين شمس / عين الشمس.
+- Chained merges are gone. A school joins a group only if it matches the
+  group's main entry.
+
+### Blocking 2 (search rate limit): resolved
+
+- The secured key now carries `userToken`, a SHA-256 hash of the uid, so
+  Algolia never sees our user IDs. The parent key's limit is now 100 an
+  hour per user (`algolia.ts`).
+- `getSchoolSearchKey` issues at most 6 keys per parent per Cairo day. The
+  count is kept in a transaction in `searchKeyLimits/{uid}`, which the rules
+  close to the app and `deny_all.test.ts` covers. Too many requests return
+  `resource-exhausted`.
+- Worst case for one account is about 600 searches a day, against the old
+  48,000. SETUP 14.4 and COSTS.md are updated.
+
+### Quick fixes: verified
+
+- **CSV files:** a Windows-1256 file, a semicolon-separated file and the
+  `nodes`/`ways_poly` ID collision, each re-run here, now import correctly.
+  A bad file is reported and skipped instead of crashing the run.
+- **List rows without an ID** get a stable hash of name, governorate and
+  city.
+- **Admin-created schools** carry `addedBy: null`.
+- **Search box:** pressing Enter cancels the pending debounce, so a query
+  is sent once.
+- **Algolia cost:** the app normalizes the query and keeps a cache of 50
+  answers for 10 minutes.
+- **No fake search in prod:** the server refuses the fake provider when
+  `APP_ENV=prod` and reports it to Sentry; the prod app shows "unavailable"
+  instead of falling back.
+
+### Still open (non-blocking, unchanged)
+
+The remaining non-blocking items from the first review are not part of
+this fix round: the Dart normalizer has no NFKC step, picker titles are
+one line, state views have a fixed height, `addOtherSchool` can create
+twice, and pending schools cannot be rejected.
