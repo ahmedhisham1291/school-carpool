@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
+import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
 import 'package:school_carpool/features/placeholder/placeholder_tab_screen.dart';
@@ -47,9 +48,9 @@ void main() {
 
   testWidgets('shows the five tabs from spec section 10, Home first', (WidgetTester tester) async {
     final GoRouter router = await pumpRouter(tester, config: testDevConfig);
-    expect(find.byType(NavigationDestination), findsNWidgets(5));
+    expect(find.byType(AppNavigationBarItem), findsNWidgets(5));
     expect(currentPath(router), AppTab.home.path);
-    for (final String label in <String>['Home', 'Carpools', 'Chats', 'Notifications', 'Profile']) {
+    for (final String label in <String>['Home', 'Carpools', 'Chats', 'Alerts', 'Profile']) {
       expect(find.text(label), findsWidgets);
     }
   });
