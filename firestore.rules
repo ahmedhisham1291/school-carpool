@@ -233,6 +233,34 @@ service cloud.firestore {
             && approvedMember(carpoolId, uid));
         allow list, create, update, delete: if false;
       }
+
+      // Prompt 7 (F7, F11, F27, F28, F30, F37): the schedule. Runs with
+      // their driver and pickup list (children's first names only), swap
+      // requests, no-school days and time changes, and the term's drive
+      // balance. Approved members of that carpool read them; only Cloud
+      // Functions write them (the app never writes schedule ownership).
+      match /schedule/{runId} {
+        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow create, update, delete: if false;
+      }
+      match /swaps/{swapId} {
+        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow create, update, delete: if false;
+      }
+      match /exceptions/{exceptionId} {
+        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow create, update, delete: if false;
+      }
+      match /balances/{termId} {
+        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow create, update, delete: if false;
+      }
+    }
+
+    // Schedule alert events for the notification sender (Prompt 8):
+    // Cloud Functions only.
+    match /scheduleEvents/{id} {
+      allow read, write: if false;
     }
 
     // Invite codes (F31) and carpool rate limits: Cloud Functions only.

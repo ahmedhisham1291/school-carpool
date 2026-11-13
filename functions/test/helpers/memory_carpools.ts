@@ -1,4 +1,5 @@
-import type { AccountInfo, AreaInfo, CarpoolLimitKind, CarpoolStore, CarpoolTx, ChildInfo, PickupPoint, SchoolInfo } from "../../src/carpools/flow";
+import type { AccountInfo, AreaInfo, CarpoolLimitKind, CarpoolStore, CarpoolTx, ChildInfo, PickupPoint, RunRef, SchoolInfo } from "../../src/carpools/flow";
+import type { BalanceRecord, ExceptionRecord, RunRecord, ScheduleEvent, SwapRecord } from "../../src/schedule/model";
 import {
   consentId,
   membershipId,
@@ -34,6 +35,12 @@ export class MemoryCarpoolStore implements CarpoolStore {
   invites = new Map<string, InviteRecord>();
   wanteds = new Map<string, WantedRecord>();
   limits = new Map<string, WindowCounter>();
+  /** carpoolId -> runId -> run (Prompt 7). */
+  runs = new Map<string, Map<string, RunRecord>>();
+  swaps = new Map<string, Map<string, SwapRecord>>();
+  exceptionsBy = new Map<string, Map<string, ExceptionRecord>>();
+  balances = new Map<string, Map<string, BalanceRecord>>();
+  events: ScheduleEvent[] = [];
   private nextId = 1;
   private chain: Promise<unknown> = Promise.resolve();
 
@@ -67,6 +74,18 @@ export class MemoryCarpoolStore implements CarpoolStore {
             if (p) this.sub(this.pickups, c).set(u, clone(p));
             else this.sub(this.pickups, c).delete(u);
           }),
+        runs: async (c, from, to) =>
+          clone([...this.sub(this.runs, c).values()].filter((r) => r.date >= from && r.date <= to).sort((a, b) => a.id.localeCompare(b.id))),
+        run: async (c, id) => clone(this.sub(this.runs, c).get(id) ?? null),
+        exceptions: async (c) => clone([...this.sub(this.exceptionsBy, c).values()]),
+        swap: async (c, id) => clone(this.sub(this.swaps, c).get(id) ?? null),
+        balance: async (c, t) => clone(this.sub(this.balances, c).get(t) ?? null),
+        putRun: (r) => writes.push(() => this.sub(this.runs, r.carpoolId).set(r.id, clone(r))),
+        putSwap: (x) => writes.push(() => this.sub(this.swaps, x.carpoolId).set(x.id, clone(x))),
+        putException: (e) => writes.push(() => this.sub(this.exceptionsBy, e.carpoolId).set(e.id, clone(e))),
+        deleteException: (c, id) => writes.push(() => this.sub(this.exceptionsBy, c).delete(id)),
+        putBalance: (b) => writes.push(() => this.sub(this.balances, b.carpoolId).set(b.termId, clone(b))),
+        addEvent: (e) => writes.push(() => this.events.push(clone(e))),
       };
       const result = await fn(tx);
       for (const w of writes) w();
@@ -160,5 +179,25 @@ export class MemoryCarpoolStore implements CarpoolStore {
 
   async wantedForSchool(schoolId: string, limit: number) {
     return clone([...this.wanteds.values()].filter((w) => w.schoolId === schoolId).slice(0, limit));
+  }
+
+  newId(): string {
+    return `x${this.nextId++}`;
+  }
+
+  async dueRuns(nowMs: number, limit: number): Promise<RunRef[]> {
+    const out: RunRef[] = [];
+    for (const [carpoolId, runs] of this.runs) {
+      for (const r of runs.values()) if ((r.status === "planned" || r.status === "open") && r.confirmByMs <= nowMs) out.push({ carpoolId, runId: r.id });
+    }
+    return out.slice(0, limit);
+  }
+
+  async finishedRuns(nowMs: number, limit: number): Promise<RunRef[]> {
+    const out: RunRef[] = [];
+    for (const [carpoolId, runs] of this.runs) {
+      for (const r of runs.values()) if (r.status === "confirmed" && r.startMs <= nowMs) out.push({ carpoolId, runId: r.id });
+    }
+    return out.slice(0, limit);
   }
 }

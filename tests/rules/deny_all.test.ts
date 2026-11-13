@@ -71,6 +71,12 @@ const paths = [
   "mapLimits/alice",
   "placeCache/ar_x",
   "carpools/k1/pickupPoints/bob",
+  // Prompt 7 (schedule.test.ts): approved members read these; nobody else.
+  "carpools/k1/schedule/2026-11-15_am",
+  "carpools/k1/swaps/s1",
+  "carpools/k1/exceptions/x1",
+  "carpools/k1/balances/2026-t1",
+  "scheduleEvents/e1",
   "scheduleEntries/e1",
   "wallets/alice",
   "transfers/t1",

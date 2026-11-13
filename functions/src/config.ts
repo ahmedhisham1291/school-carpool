@@ -146,3 +146,14 @@ export const CARPOOL_WANTED_LISTS_PER_HOUR = defineInt("CARPOOL_WANTED_LISTS_PER
  * Set per project in functions/.env.<alias> (SETUP.md section 16).
  */
 export const INVITE_LINK_BASE = defineString("INVITE_LINK_BASE", { default: "https://demo-school-carpool-links.web.app" });
+
+/**
+ * Schedule (Prompt 7: F7, F11, F27, F28, F30). Drivers confirm each run by
+ * this Cairo time on the evening before (F28); a run planned or released
+ * after that gets SCHEDULE_LATE_LEAD_MIN minutes before it starts. With no
+ * confirmed driver by then every parent is alerted (spec section 6).
+ */
+export const SCHEDULE_CONFIRM_BY = defineString("SCHEDULE_CONFIRM_BY", { default: "21:00" });
+export const SCHEDULE_LATE_LEAD_MIN = defineInt("SCHEDULE_LATE_LEAD_MIN", { default: 60 });
+export const SCHEDULE_PLANS_PER_DAY = defineInt("SCHEDULE_PLANS_PER_DAY", { default: 20 });
+export const SCHEDULE_CHANGES_PER_DAY = defineInt("SCHEDULE_CHANGES_PER_DAY", { default: 100 });

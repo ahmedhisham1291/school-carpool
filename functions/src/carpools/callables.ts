@@ -12,7 +12,12 @@ import {
   CARPOOL_WANTED_SAVES_PER_DAY,
   ENFORCE_APP_CHECK,
   INVITE_LINK_BASE,
+  SCHEDULE_CHANGES_PER_DAY,
+  SCHEDULE_CONFIRM_BY,
+  SCHEDULE_LATE_LEAD_MIN,
+  SCHEDULE_PLANS_PER_DAY,
 } from "../config";
+import { DEFAULT_DEADLINES, type DeadlineSettings } from "../schedule/model";
 import { PARENT_ID_ALPHABET } from "../auth/parent_id";
 import { reportError } from "../sentry";
 import {
@@ -49,7 +54,15 @@ export function newInviteCode(): string {
   return code;
 }
 
-function deps(): CarpoolDeps {
+/** Confirm-by settings from params; a bad value falls back to the default (21:00, 60 minutes). */
+export function deadlineSettings(confirmBy: string, lateLeadMin: number): DeadlineSettings {
+  return {
+    confirmBy: /^([01]\d|2[0-3]):[0-5]\d$/.test(confirmBy) ? confirmBy : DEFAULT_DEADLINES.confirmBy,
+    lateLeadMin: Number.isInteger(lateLeadMin) && lateLeadMin >= 15 && lateLeadMin <= 240 ? lateLeadMin : DEFAULT_DEADLINES.lateLeadMin,
+  };
+}
+
+export function deps(): CarpoolDeps {
   return {
     store: new FirestoreCarpoolStore(adminDb()),
     now: () => Date.now(),
@@ -61,19 +74,22 @@ function deps(): CarpoolDeps {
       inviteOpensPerHour: CARPOOL_INVITE_OPENS_PER_HOUR.value(),
       wantedSavesPerDay: CARPOOL_WANTED_SAVES_PER_DAY.value(),
       wantedListsPerHour: CARPOOL_WANTED_LISTS_PER_HOUR.value(),
+      plansPerDay: SCHEDULE_PLANS_PER_DAY.value(),
+      scheduleChangesPerDay: SCHEDULE_CHANGES_PER_DAY.value(),
     },
     newCode: newInviteCode,
     linkBase: INVITE_LINK_BASE.value(),
+    deadlines: deadlineSettings(SCHEDULE_CONFIRM_BY.value(), SCHEDULE_LATE_LEAD_MIN.value()),
   };
 }
 
-function caller(request: CallableRequest): Caller {
+export function caller(request: CallableRequest): Caller {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
   return { uid, verifiedClaim: request.auth?.token?.verified === true };
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+export async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
   try {
     return await body();
   } catch (error) {
@@ -90,7 +106,7 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
   }
 }
 
-const opts = { enforceAppCheck: ENFORCE_APP_CHECK };
+export const opts = { enforceAppCheck: ENFORCE_APP_CHECK };
 
 /** F5, F25, F36, F39: { kind, schoolId|activity, areaId?, morning?, afternoon?, days, driveDays, seats, childIds, rules, contribution? } -> { carpoolId } */
 export const createCarpool = onCall(opts, (r) => run("createCarpool", () => createFlow(deps(), caller(r), r.data)));

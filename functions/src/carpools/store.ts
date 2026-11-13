@@ -5,7 +5,24 @@ import { takeFromWindow, type WindowCounter } from "../maps/limits";
 import { HOMES } from "../maps/store";
 import { CHILDREN, VEHICLES } from "../verification/store";
 import type { LatLng } from "../maps/geo";
-import type { AccountInfo, AreaInfo, CarpoolLimitKind, CarpoolStore, CarpoolTx, ChildInfo, PickupPoint, SchoolInfo } from "./flow";
+import type { AccountInfo, AreaInfo, CarpoolLimitKind, CarpoolStore, CarpoolTx, ChildInfo, PickupPoint, RunRef, SchoolInfo } from "./flow";
+import type { BalanceRecord, ExceptionRecord, RunRecord, ScheduleEvent, SwapRecord } from "../schedule/model";
+import {
+  BALANCES,
+  balanceFromDoc,
+  balanceToDoc,
+  eventToDoc,
+  EXCEPTIONS,
+  exceptionFromDoc,
+  exceptionToDoc,
+  runFromDoc,
+  runToDoc,
+  SCHEDULE,
+  SCHEDULE_EVENTS,
+  swapFromDoc,
+  SWAPS,
+  swapToDoc,
+} from "../schedule/store";
 import {
   CARPOOL_RULES,
   consentId,
@@ -376,6 +393,60 @@ class FirestoreCarpoolTx implements CarpoolTx {
     });
   }
 
+  // --- schedule (Prompt 7) ---
+
+  async runs(carpoolId: string, fromDate: string, toDate: string): Promise<RunRecord[]> {
+    const snap = await this.tx.get(
+      this.carpoolRef(carpoolId).collection(SCHEDULE).where("date", ">=", fromDate).where("date", "<=", toDate).limit(200),
+    );
+    return snap.docs.map((d) => runFromDoc(carpoolId, d.id, d.data()));
+  }
+
+  async run(carpoolId: string, runId: string): Promise<RunRecord | null> {
+    const snap = await this.tx.get(this.carpoolRef(carpoolId).collection(SCHEDULE).doc(runId));
+    return snap.exists ? runFromDoc(carpoolId, runId, snap.data() ?? {}) : null;
+  }
+
+  async exceptions(carpoolId: string): Promise<ExceptionRecord[]> {
+    const snap = await this.tx.get(this.carpoolRef(carpoolId).collection(EXCEPTIONS).limit(100));
+    return snap.docs.map((d) => exceptionFromDoc(carpoolId, d.id, d.data()));
+  }
+
+  async swap(carpoolId: string, swapId: string): Promise<SwapRecord | null> {
+    const snap = await this.tx.get(this.carpoolRef(carpoolId).collection(SWAPS).doc(swapId));
+    return snap.exists ? swapFromDoc(carpoolId, swapId, snap.data() ?? {}) : null;
+  }
+
+  async balance(carpoolId: string, termId: string): Promise<BalanceRecord | null> {
+    const snap = await this.tx.get(this.carpoolRef(carpoolId).collection(BALANCES).doc(termId));
+    return snap.exists ? balanceFromDoc(carpoolId, termId, snap.data() ?? {}) : null;
+  }
+
+  putRun(r: RunRecord): void {
+    this.writes.push((tx) => tx.set(this.carpoolRef(r.carpoolId).collection(SCHEDULE).doc(r.id), runToDoc(r)));
+  }
+
+  putSwap(sw: SwapRecord): void {
+    this.writes.push((tx) => tx.set(this.carpoolRef(sw.carpoolId).collection(SWAPS).doc(sw.id), swapToDoc(sw)));
+  }
+
+  putException(e: ExceptionRecord): void {
+    this.writes.push((tx) => tx.set(this.carpoolRef(e.carpoolId).collection(EXCEPTIONS).doc(e.id), exceptionToDoc(e)));
+  }
+
+  deleteException(carpoolId: string, id: string): void {
+    this.writes.push((tx) => tx.delete(this.carpoolRef(carpoolId).collection(EXCEPTIONS).doc(id)));
+  }
+
+  putBalance(b: BalanceRecord): void {
+    this.writes.push((tx) => tx.set(this.carpoolRef(b.carpoolId).collection(BALANCES).doc(b.termId), balanceToDoc(b)));
+  }
+
+  addEvent(e: ScheduleEvent): void {
+    const ref = this.db.collection(SCHEDULE_EVENTS).doc();
+    this.writes.push((tx) => tx.set(ref, eventToDoc(e)));
+  }
+
   commit(): void {
     for (const w of this.writes) w(this.tx);
   }
@@ -537,5 +608,26 @@ export class FirestoreCarpoolStore implements CarpoolStore {
   async wantedForSchool(schoolId: string, limit: number): Promise<WantedRecord[]> {
     const snap = await this.db.collection(CARPOOL_WANTED).where("schoolId", "==", schoolId).limit(limit).get();
     return snap.docs.map((d) => wantedFromDoc(d.id, d.data()));
+  }
+
+  newId(): string {
+    return this.db.collection(SCHEDULE_EVENTS).doc().id;
+  }
+
+  /** Index: firestore.indexes.json, collection group "schedule" (status, confirmBy). */
+  async dueRuns(nowMs: number, limit: number): Promise<RunRef[]> {
+    const snap = await this.db
+      .collectionGroup(SCHEDULE)
+      .where("status", "in", ["planned", "open"])
+      .where("confirmBy", "<=", ts(nowMs))
+      .limit(limit)
+      .get();
+    return snap.docs.map((d) => ({ carpoolId: text(d.get("carpoolId")), runId: d.id }));
+  }
+
+  /** Index: firestore.indexes.json, collection group "schedule" (status, startAt). */
+  async finishedRuns(nowMs: number, limit: number): Promise<RunRef[]> {
+    const snap = await this.db.collectionGroup(SCHEDULE).where("status", "==", "confirmed").where("startAt", "<=", ts(nowMs)).limit(limit).get();
+    return snap.docs.map((d) => ({ carpoolId: text(d.get("carpoolId")), runId: d.id }));
   }
 }

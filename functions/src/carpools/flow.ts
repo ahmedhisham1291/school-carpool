@@ -37,6 +37,8 @@ import {
   type WantedRecord,
   type WantedSuggestion,
 } from "./model";
+import { DEFAULT_DEADLINES, type BalanceRecord, type DeadlineSettings, type ExceptionRecord, type RunRecord, type ScheduleEvent, type SwapRecord } from "../schedule/model";
+import { releaseAfterLeave, releaseAfterWithdraw } from "../schedule/release";
 
 /**
  * Carpool flows (F5, F6, F25, F26, F31, F32, F36, F39) over a [CarpoolStore].
@@ -96,9 +98,37 @@ export interface CarpoolTx {
   deleteConsent(carpoolId: string, id: string): void;
   /** null deletes the member's pickup point. */
   putPickupPoint(carpoolId: string, uid: string, point: PickupPoint | null): void;
+
+  // Schedule (Prompt 7). Runs between two Cairo dates, inclusive.
+  runs(carpoolId: string, fromDate: string, toDate: string): Promise<RunRecord[]>;
+  run(carpoolId: string, runId: string): Promise<RunRecord | null>;
+  exceptions(carpoolId: string): Promise<ExceptionRecord[]>;
+  swap(carpoolId: string, swapId: string): Promise<SwapRecord | null>;
+  balance(carpoolId: string, termId: string): Promise<BalanceRecord | null>;
+  putRun(run: RunRecord): void;
+  putSwap(swap: SwapRecord): void;
+  putException(e: ExceptionRecord): void;
+  deleteException(carpoolId: string, id: string): void;
+  putBalance(b: BalanceRecord): void;
+  addEvent(e: ScheduleEvent): void;
 }
 
-export type CarpoolLimitKind = "creates" | "searches" | "joinRequests" | "invites" | "inviteOpens" | "wantedSaves" | "wantedLists";
+/** A run found by the schedule tick. */
+export interface RunRef {
+  carpoolId: string;
+  runId: string;
+}
+
+export type CarpoolLimitKind =
+  | "creates"
+  | "searches"
+  | "joinRequests"
+  | "invites"
+  | "inviteOpens"
+  | "wantedSaves"
+  | "wantedLists"
+  | "plans"
+  | "scheduleChanges";
 
 export interface CarpoolStore {
   transact<T>(fn: (tx: CarpoolTx) => Promise<T>): Promise<T>;
@@ -126,6 +156,12 @@ export interface CarpoolStore {
   wanted(uid: string): Promise<WantedRecord | null>;
   putWanted(uid: string, w: WantedRecord | null): Promise<void>;
   wantedForSchool(schoolId: string, limit: number): Promise<WantedRecord[]>;
+  /** A new random document ID (swaps, exceptions). */
+  newId(): string;
+  /** Planned or open runs whose confirm-by time has passed (any carpool). */
+  dueRuns(nowMs: number, limit: number): Promise<RunRef[]>;
+  /** Confirmed runs whose start time has passed (any carpool). */
+  finishedRuns(nowMs: number, limit: number): Promise<RunRef[]>;
 }
 
 export interface CarpoolLimits {
@@ -136,6 +172,9 @@ export interface CarpoolLimits {
   inviteOpensPerHour: number;
   wantedSavesPerDay: number;
   wantedListsPerHour: number;
+  /** Prompt 7: weeks planned per parent a day, and other schedule changes. */
+  plansPerDay: number;
+  scheduleChangesPerDay: number;
 }
 
 export const DEFAULT_CARPOOL_LIMITS: CarpoolLimits = {
@@ -146,6 +185,8 @@ export const DEFAULT_CARPOOL_LIMITS: CarpoolLimits = {
   inviteOpensPerHour: 20,
   wantedSavesPerDay: 5,
   wantedListsPerHour: 30,
+  plansPerDay: 20,
+  scheduleChangesPerDay: 100,
 };
 
 const HOUR = 3_600_000;
@@ -159,6 +200,8 @@ export interface CarpoolDeps {
   newCode: () => string;
   /** Start of invite links, for example https://links.example (no slash at the end). */
   linkBase: string;
+  /** Prompt 7: confirm-by settings (F28); defaults to DEFAULT_DEADLINES. */
+  deadlines?: DeadlineSettings;
 }
 
 export interface Caller {
@@ -173,7 +216,7 @@ const SEARCH_QUERY_LIMIT = 100;
 // Helpers
 // --------------------------------------------------------------------------
 
-async function requireVerified(deps: CarpoolDeps, caller: Caller): Promise<AccountInfo> {
+export async function requireVerified(deps: CarpoolDeps, caller: Caller): Promise<AccountInfo> {
   if (!caller.verifiedClaim) throw new CarpoolError("not-verified");
   const account = await deps.store.account(caller.uid);
   if (!account) throw new CarpoolError("no-account");
@@ -182,7 +225,7 @@ async function requireVerified(deps: CarpoolDeps, caller: Caller): Promise<Accou
   return account;
 }
 
-async function take(deps: CarpoolDeps, uid: string, kind: CarpoolLimitKind, windowMs: number, max: number): Promise<void> {
+export async function take(deps: CarpoolDeps, uid: string, kind: CarpoolLimitKind, windowMs: number, max: number): Promise<void> {
   const r = await deps.store.takeLimit(uid, kind, deps.now(), { windowMs, max });
   if (!r.allowed) throw new CarpoolError("rate-limited", r.retryAfterMs);
 }
@@ -225,14 +268,14 @@ function activeMembership(m: MembershipRecord | null): boolean {
   return m !== null && (m.status === "approved" || m.status === "requested");
 }
 
-async function requireActiveCarpool(tx: CarpoolTx, carpoolId: string): Promise<CarpoolRecord> {
+export async function requireActiveCarpool(tx: CarpoolTx, carpoolId: string): Promise<CarpoolRecord> {
   const c = await tx.carpool(carpoolId);
   if (!c) throw new CarpoolError("not-found");
   if (c.status !== "active") throw new CarpoolError("closed");
   return c;
 }
 
-async function requireApproved(tx: CarpoolTx, carpoolId: string, uid: string): Promise<MembershipRecord> {
+export async function requireApproved(tx: CarpoolTx, carpoolId: string, uid: string): Promise<MembershipRecord> {
   const m = await tx.membership(carpoolId, uid);
   if (!m || m.status !== "approved") throw new CarpoolError("not-member");
   return m;
@@ -656,8 +699,11 @@ export async function leaveCarpool(deps: CarpoolDeps, caller: Caller, data: unkn
     if (!carpool) throw new CarpoolError("not-found");
     const m = await requireApproved(tx, carpoolId, caller.uid);
     const consents = await tx.consents(carpoolId);
+    const members = await tx.members(carpoolId);
     if (m.role === "admin" && carpool.memberCount > 1) throw new CarpoolError("admin-must-stay");
     const nowMs = deps.now();
+    // Prompt 7: their children leave future pickup lists; runs they drove lose their driver.
+    await releaseAfterLeave(tx, carpoolId, caller.uid, members, cairoDate(nowMs), nowMs, deps.deadlines ?? DEFAULT_DEADLINES);
     tx.putMembership({ ...m, status: "left", updatedAtMs: nowMs });
     tx.deleteMember(carpoolId, caller.uid);
     tx.putPickupPoint(carpoolId, caller.uid, null);
@@ -712,6 +758,11 @@ export async function setDriverConsent(deps: CarpoolDeps, caller: Caller, data: 
           updatedAtMs: nowMs,
         };
     tx.putConsent(next);
+    if (!accept) {
+      // Prompt 7: that driver no longer drives this parent's children on any future run.
+      const members = await tx.members(carpoolId);
+      await releaseAfterWithdraw(tx, carpoolId, caller.uid, driverUid, members, cairoDate(nowMs), nowMs, deps.deadlines ?? DEFAULT_DEADLINES);
+    }
     return next;
   });
 }
