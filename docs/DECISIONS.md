@@ -24,7 +24,10 @@ check with the lawyer again.
 - Design: direction A (teal), refreshed; every label, button, tab, chip and title on one line.
 - CI checks on GitHub Actions; Codemagic only for iPhone builds.
 - Bundle ID base `org.schoolcarpool.app`; Firebase region `europe-west1`.
-- Free tier first for every service; upgrade when the usage limit is reached.
+- Always choose the best service or technology for each job, even when it is paid. Never
+  swap a chosen service for a cheaper or free alternative to save money (14 Nov 2026).
+- Plans: start each chosen service on its free plan and move to the paid plan when usage
+  reaches the free limit.
 - `shared_preferences` approved.
 - Algolia (14 Nov 2026): stay on the free plan while usage fits, then switch to the
   pay-as-you-go Grow plan ($0.50 per extra 1,000 searches). The free plan's limit is
