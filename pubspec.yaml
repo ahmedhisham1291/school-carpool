@@ -51,6 +51,15 @@ dependencies:
   # FLAG_SECURE on Android, the secure text field layer on iOS.
   screen_protector: ^1.5.3
 
+  # Maps (Prompt 5, justified in docs/progress/prompt-05.md). Official
+  # Flutter plugin: Google Maps SDK on iPhone (CocoaPods) and Android, Maps
+  # JavaScript on the web (google_maps_flutter_web, endorsed).
+  google_maps_flutter: ^2.17.0
+  # One-shot "use my current location" for the home pin, while the app is
+  # in use only. Live location during runs stays with
+  # flutter_background_geolocation (Prompt 13).
+  geolocator: ^14.0.2
+
   # Persists the language, theme mode and dev design direction on the phone.
   # Official Flutter plugin; flagged to the owner in docs/progress/prompt-01.md.
   shared_preferences: ^2.5.3
