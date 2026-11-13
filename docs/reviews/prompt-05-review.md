@@ -148,3 +148,30 @@ Run 43513076585 on `6a62d73`: **success**.
 Owner check still to do: the iPhone run in the progress note, with a real
 iOS maps key (SETUP 15). The iOS build with the GoogleMaps pod has not run
 on Codemagic yet.
+
+## Re-review (14 Nov 2026)
+
+Head `3ca83cf`: fix commit `dfa3f33`, plus main docs merged in.
+
+**Verdict: PASS.**
+
+**CI:** run 43515712771 on `3ca83cf` passed all three jobs: Flutter analyze, tests and screenshots; Functions and rules tests; and the web, admin and Android builds.
+
+**Blocking 1 is fixed.** `placeDetails` now calls `checkPlaceAccount`, which refuses missing, suspended and banned accounts. Unverified accounts are still allowed, so a parent can pick an address while registering. Before every cache miss it calls `takePlaceDetails`, which gives each parent 20 billed lookups an hour (`MAP_PLACE_DETAILS_PER_HOUR`). Unknown or made-up place IDs also count, because the limit is taken before Google is called. Cached places are free and are not counted. The new unit test (`functions/test/maps.test.ts`) covers:
+
+- refused accounts,
+- that cache hits are not counted,
+- that misses are counted,
+- that one parent's limit does not affect another parent.
+
+**Non-blocking items:**
+
+- **Item 1, the offset can be removed (accepted).** The decision is recorded in the progress note. Rounding stays the protection.
+- **Item 2, the ring (fixed).** The ring is now centred on `Geo.roundToGrid(home)`. This matches the server's 0.005° grid and is used only for drawing. The map also follows a home saved while it is open.
+- **Item 3, the school pin (fixed).** The nearby map shows the selected school's pin through `schoolPin`, which reads the `schools` collection under its existing rules.
+- **Item 4, sweeping by driving schools (narrowed).** Changes are now 3 a day, with at most 5 schools. A cap on distinct schools searched waits for the owner's answer to question 3.
+- **Item 5, deleting the exact home (deferred).** This moves to Prompt 12. The progress note lists `homes`, `mapLimits` and `newParentEvents` as records to delete.
+- **Item 7, the school chip (fixed).** The one-line test now covers it.
+- **Items 6 and 8:** unchanged and still non-blocking.
+
+**Still to do:** the owner's iPhone check with a real iOS maps key (SETUP 15).
