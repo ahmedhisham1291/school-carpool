@@ -26,3 +26,7 @@ check with the lawyer again.
 - Bundle ID base `org.schoolcarpool.app`; Firebase region `europe-west1`.
 - Free tier first for every service; upgrade when the usage limit is reached.
 - `shared_preferences` approved.
+- Algolia (14 Nov 2026): stay on the free plan while usage fits, then switch to the
+  pay-as-you-go Grow plan ($0.50 per extra 1,000 searches). The free plan's limit is
+  10,000 searches a month (not users), so watch the monthly search count in COSTS.md
+  and switch when it nears the limit.
