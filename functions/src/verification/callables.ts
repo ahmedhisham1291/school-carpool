@@ -2,8 +2,9 @@ import * as logger from "firebase-functions/logger";
 import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminAuth, adminDb, adminStorage } from "../admin";
-import { clientIp } from "../auth/callables";
+import { clientIp } from "../auth/client_ip";
 import {
+  CLIENT_IP_HOP,
   ENFORCE_APP_CHECK,
   KYC_PROVIDER,
   NATIONAL_ID_HMAC_KEY,
@@ -144,7 +145,7 @@ export function requireAdmin(request: CallableRequest): string {
 }
 
 function ipOf(request: CallableRequest): string {
-  return clientIp(request.rawRequest.headers, request.rawRequest.ip);
+  return clientIp(request.rawRequest.headers, request.rawRequest.ip, CLIENT_IP_HOP.value());
 }
 
 const options = { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [NATIONAL_ID_HMAC_KEY], timeoutSeconds: 120 };
