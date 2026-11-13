@@ -22,6 +22,9 @@ import 'package:school_carpool/features/auth/signup_flow.dart';
 import 'package:school_carpool/features/onboarding/account_status_badge.dart';
 import 'package:school_carpool/features/onboarding/onboarding_layout.dart';
 import 'package:school_carpool/features/shell/home_shell.dart';
+import 'package:school_carpool/features/verification/verification_draft.dart';
+import 'package:school_carpool/features/verification/verification_flow_screen.dart';
+import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
@@ -30,6 +33,7 @@ import 'package:school_carpool/settings/settings_store.dart';
 
 import '../helpers/fonts.dart';
 import '../helpers/test_app.dart';
+import '../helpers/verification_fakes.dart';
 
 const double _narrowWidth = 320;
 
@@ -114,15 +118,62 @@ class _CodeSentFlow extends SignupFlowController {
   );
 }
 
-/// Sign-up screens (Prompt 2) and Profile, each with the session the router
-/// lets onto it.
-const Map<String, (String, SessionState)> _signupScreens = <String, (String, SessionState)>{
-  'welcome': (AuthRoutes.welcome, SessionSignedOut()),
-  'phone': (AuthRoutes.phone, SessionSignedOut()),
-  'code': (AuthRoutes.code, SessionSignedOut()),
+/// A signed-in parent with [status] and a verification case. Fake data.
+SessionState _withStatus(AccountStatus status, VerificationSummary summary) => SessionSignedIn(
+  uid: 'uid-1',
+  account: Account(
+    parentId: 'ABCD2345',
+    status: status,
+    phone: '+201000000001',
+    email: 'parent@example.com',
+    emailVerified: true,
+    termsAccepted: true,
+    language: 'ar',
+    verification: summary,
+  ),
+);
+
+/// Children for the Prompt 3 screens. Fake data.
+const List<ChildRecord> _kids = <ChildRecord>[
+  ChildRecord(id: 'k1', firstName: 'Omar', age: 8, grade: Grade.g3, schoolName: 'Nile School', status: ReviewStatus.approved),
+  ChildRecord(
+    id: 'k2',
+    firstName: 'Laila',
+    age: 5,
+    grade: Grade.kg2,
+    schoolName: 'Nile School',
+    status: ReviewStatus.rejected,
+    reason: RejectionReason.schoolIdUnclear,
+  ),
+];
+
+/// Sign-up (Prompt 2) and verification (Prompt 3) screens and Profile,
+/// each with the session the router lets onto it.
+final Map<String, (String, SessionState)> _screens = <String, (String, SessionState)>{
+  'welcome': (AuthRoutes.welcome, const SessionSignedOut()),
+  'phone': (AuthRoutes.phone, const SessionSignedOut()),
+  'code': (AuthRoutes.code, const SessionSignedOut()),
   'email': (AuthRoutes.email, testEmailStageSession),
   'terms': (AuthRoutes.terms, testTermsStageSession),
   'verify account': (AuthRoutes.verifyAccount, testUnverifiedSession),
+  'verify pending': (
+    AuthRoutes.verifyAccount,
+    _withStatus(AccountStatus.pending, const VerificationSummary(caseId: 'c1', status: ReviewStatus.pending)),
+  ),
+  'verify rejected': (
+    AuthRoutes.verifyAccount,
+    _withStatus(
+      AccountStatus.rejected,
+      const VerificationSummary(
+        caseId: 'c1',
+        status: ReviewStatus.rejected,
+        reason: RejectionReason.selfieMismatch,
+        note: 'Please remove your sunglasses.',
+      ),
+    ),
+  ),
+  'children': (ProfileRoutes.children, testVerifiedSession),
+  'driving': (ProfileRoutes.driving, testVerifiedSession),
   'profile': ('/profile', testUnverifiedSession),
 };
 
@@ -143,6 +194,7 @@ Future<void> _pumpRoute(
         settingsStoreProvider.overrideWithValue(InMemorySettingsStore()),
         ...authOverrides(session: session),
         signupFlowProvider.overrideWith(_CodeSentFlow.new),
+        ...verificationOverrides(repository: FakeVerificationRepository(), children: _kids),
       ],
       child: MaterialApp.router(
         routerConfig: router,
@@ -475,8 +527,9 @@ void main() {
       );
     });
 
-    // Prompt 2: every sign-up screen and Profile, as the router shows them.
-    for (final MapEntry<String, (String, SessionState)> screen in _signupScreens.entries) {
+    // Prompts 2 and 3: every sign-up and verification screen and Profile,
+    // as the router shows them.
+    for (final MapEntry<String, (String, SessionState)> screen in _screens.entries) {
       final (String location, SessionState session) = screen.value;
       for (final double textScale in <double>[1, 2]) {
         testWidgets('[$lang] ${screen.key} screen fits one line at 320 dp, text x$textScale', (
@@ -496,11 +549,9 @@ void main() {
             '${screen.key}: buttons',
           );
           _expectOneLineIfShown(find.byType(AppBarTitle), '${screen.key}: app bar title');
-          final Finder stepTitle = find.descendant(
-            of: find.byType(OnboardingLayout),
-            matching: find.byWidgetPredicate(
-              (Widget widget) => widget is OneLineText && widget.scaleDown,
-            ),
+          // Step titles, app bar titles and button labels.
+          final Finder stepTitle = find.byWidgetPredicate(
+            (Widget widget) => widget is OneLineText && widget.scaleDown,
           );
           _expectOneLineIfShown(stepTitle, '${screen.key}: title and buttons');
           if (textScale == 1) {
@@ -733,6 +784,182 @@ void main() {
       _expectOneLine(
         find.descendant(of: find.byType(AlertDialog), matching: find.text(confirmTitle)),
         'sign-out dialog title x2',
+      );
+    });
+
+    // Prompt 3: each verification step, walked with a complete draft.
+    for (final double textScale in <double>[1, 2]) {
+      testWidgets('[$lang] verification steps fit one line at 320 dp, text x$textScale', (
+        WidgetTester tester,
+      ) async {
+        _useNarrowPhone(tester, height: 2400, textScale: textScale);
+        await _pumpRoute(
+          tester,
+          locale: locale,
+          location: AuthRoutes.verifySubmit,
+          session: testUnverifiedSession,
+        );
+        final ProviderContainer container = ProviderScope.containerOf(
+          tester.element(find.byType(VerificationFlowScreen)),
+        );
+        container.read(verificationDraftProvider.notifier).update(
+          (VerificationDraft d) => d.copyWith(
+            firstName: 'Mona',
+            lastName: 'Hassan',
+            nationalId: '29001150123456',
+            idExpiry: DateTime(DateTime.now().year + 2),
+            idFront: fakePhoto,
+            idBack: fakePhoto,
+            selfie: fakePhoto,
+            selfieTurn: fakePhoto,
+            children: <ChildDraft>[
+              ChildDraft(
+                ref: 'c1',
+                firstName: 'Omar',
+                age: 8,
+                grade: Grade.g3,
+                schoolName: 'Nile School',
+                schoolIdPhoto: fakePhoto,
+              ),
+            ],
+            consent: true,
+          ),
+        );
+        // Rebuild so the Continue button has the complete draft.
+        await tester.pumpAndSettle();
+        for (final VerificationStep step in VerificationStep.values) {
+          final String where = 'verification ${step.name}';
+          final Finder scaled = find.byWidgetPredicate(
+            (Widget widget) => widget is OneLineText && widget.scaleDown,
+          );
+          _expectOneLine(find.byType(AppButton), '$where: buttons');
+          _expectNotShrunk(find.byType(AppButton), textScale == 1 ? 0.9 : 0.5, '$where: buttons');
+          _expectOneLine(scaled, '$where: titles and buttons');
+          if (textScale == 1) {
+            _expectNotShrunk(scaled, 0.9, '$where: titles and buttons');
+            _expectOneLine(find.byType(OneLineText), '$where: labels');
+          }
+          if (step != VerificationStep.values.last) {
+            await tester.tap(find.byKey(const Key('verify.next')));
+            await tester.pumpAndSettle();
+          }
+        }
+      });
+    }
+
+    testWidgets('[$lang] verification labels in every state fit one line at 320 dp', (
+      WidgetTester tester,
+    ) async {
+      _useNarrowPhone(tester, height: 4000);
+      await _pumpContent(tester, locale, (BuildContext context) {
+        final AppLocalizations l10n = context.l10n;
+        // Buttons that the screens show only in some states.
+        final List<String> buttons = <String>[
+          l10n.verifyStart,
+          l10n.verifyResubmit,
+          l10n.verifyWithdraw,
+          l10n.verifyOpenStatus,
+          l10n.verifySubmit,
+          l10n.captureTake,
+          l10n.captureTakeSelfie,
+          l10n.captureRetake,
+          l10n.captureUse,
+          l10n.childAddTitle,
+          l10n.childSave,
+          l10n.childRemove,
+          l10n.drivingChange,
+        ];
+        final DateTime today = DateTime(2026, 11, 13);
+        return Scaffold(
+          appBar: AppBar(title: AppBarTitle(l10n.childEditTitle)),
+          body: SingleChildScrollView(
+            padding: AppSpacing.screenPadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (final String label in buttons) ...<Widget>[
+                  AppButton(label: label, expand: true, onPressed: () {}),
+                  const SizedBox(height: AppSpacing.s8),
+                ],
+                for (final String label in <String>[
+                  l10n.idExpiryLabel,
+                  l10n.driverLicenseExpiryLabel,
+                  l10n.driverCarLicenseExpiryLabel,
+                ]) ...<Widget>[
+                  AppDateField(
+                    label: label,
+                    value: null,
+                    firstDate: today,
+                    lastDate: DateTime(2036),
+                    onChanged: (DateTime value) {},
+                    placeholder: l10n.dateChoose,
+                  ),
+                  const SizedBox(height: AppSpacing.s16),
+                ],
+                AppSelectField<int>(
+                  label: l10n.childAgeLabel,
+                  options: <(int, String)>[(8, l10n.childAgeYears(8))],
+                  value: 8,
+                  onChanged: (int value) {},
+                ),
+                const SizedBox(height: AppSpacing.s16),
+                AppSelectField<int>(
+                  label: l10n.driverSeatsLabel,
+                  options: <(int, String)>[(4, l10n.driverSeatsCount(4))],
+                  value: 4,
+                  onChanged: (int value) {},
+                ),
+                const SizedBox(height: AppSpacing.s16),
+                for (final String title in <String>[
+                  l10n.verifyIdFront,
+                  l10n.verifyIdBack,
+                  l10n.verifySelfieTile,
+                  l10n.childSchoolIdTitle,
+                  l10n.driverLicensePhotoTitle,
+                  l10n.driverCarLicensePhotoTitle,
+                ]) ...<Widget>[
+                  AppCaptureTile(
+                    title: title,
+                    icon: Icons.badge_outlined,
+                    actionLabel: l10n.captureTake,
+                    onCapture: () {},
+                    doneLabel: l10n.captureDone,
+                    todoLabel: l10n.captureTodo,
+                  ),
+                  const SizedBox(height: AppSpacing.s16),
+                ],
+                AppCaptureTile(
+                  title: l10n.verifySelfieTile,
+                  icon: Icons.face_outlined,
+                  actionLabel: l10n.captureRetake,
+                  onCapture: () {},
+                  doneLabel: l10n.captureDone,
+                  todoLabel: l10n.captureTodo,
+                  image: fakePhoto,
+                ),
+              ],
+            ),
+          ),
+        );
+      });
+
+      _expectOneLine(find.byType(AppBarTitle), 'app bar title');
+      _expectOneLine(find.byType(AppButton), 'verification buttons');
+      _expectNotShrunk(find.byType(AppButton), 0.9, 'verification buttons');
+      _expectOneLine(
+        find.descendant(of: find.byType(AppDateField), matching: find.byType(OneLineText)),
+        'date fields',
+      );
+      _expectOneLine(
+        find.descendant(
+          of: find.byWidgetPredicate((Widget widget) => widget is AppSelectField<int>),
+          matching: find.byType(OneLineText),
+        ),
+        'select fields',
+      );
+      _expectOneLine(
+        find.descendant(of: find.byType(AppCaptureTile), matching: find.byType(OneLineText)),
+        'capture tiles',
       );
     });
   }

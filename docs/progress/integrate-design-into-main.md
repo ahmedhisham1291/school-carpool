@@ -54,3 +54,31 @@ in the build workspace): CI runs `flutter analyze` and `flutter test`.
   threshold, if CI shows a real overflow.
 - Regenerate all screenshots after this merge (visual changes listed in
   docs/reviews/design-refresh-01-review.md).
+
+## Second merge: main with Prompt 3 (ID verification)
+
+- Conflicts: verify-account (Prompt 3 status branches + short step titles),
+  ARB (per-key three-way merge, parity checked), screenshots (both
+  parameters; verification screens also at 320 dp, normal and 200%).
+- Design pass on Prompt 3: `AppBarTitle` on the steps, capture, child
+  form, children and driving screens; one-line step titles
+  (`headlineSmall`, scale down); `OneLineText` labels in `AppDateField`,
+  `AppSelectField` (label and options) and `AppCaptureTile`; car title and
+  the reason / reviewer-note labels one line; `showAppSnackBarOn` for every
+  snackbar (new short `verifyWithdrawFailed`); `AppIconSize`/`AppRadii`
+  tokens in the capture tile.
+- Pending "what happens next" rows: short titles (Review, Result, Your
+  photos) with the sentence as subtitle (three new keys).
+- Children list: review status leads the subtitle, status icon as the
+  leading icon (no trailing badge; the badge left about 40 dp for the name
+  at 320 dp).
+- Wording: EN `idNumberLabel` "National ID" (review row was ~5 dp from
+  cut at 320 dp), EN `captureTodo` "Not taken". The two checkbox labels
+  were already short ("I will drive", "I agree to the ID check").
+- Tests: verification screens (pending, rejected, children, driving) in
+  the real-router 320 dp test at normal and 200% text; a walk through all
+  six verification steps with a complete draft at both sizes; date,
+  select and capture-tile labels and Prompt 3 buttons in a content test.
+- Not changed: the camera shutter icon (40, off the AppIconSize steps; the
+  camera screen cannot be rendered in tests); children rows inside the
+  steps sit in a padded list, so they get the gutter twice (48 dp).
