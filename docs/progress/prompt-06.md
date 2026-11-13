@@ -212,3 +212,38 @@ Indexes: `carpools` (kind, schoolId, status) and (kind, status,
   re-verification prompt).
 - Not verified here: `flutter analyze`, `flutter test`, the rules tests,
   the iOS build with the Associated Domains entitlement.
+
+## Review fixes (docs/reviews/prompt-06-review.md)
+
+- **Blocking 1 fixed:** a parent may `get` their OWN membership ID
+  (`{carpoolId}_{uid}` ending in their uid) even when it does not exist,
+  so a non-member opening a carpool sees "Ask to join" instead of an error.
+  Another parent's ID, existing or missing, stays denied (rules tests
+  added, including IDs that only contain the uid elsewhere). The app
+  already treats a missing document as "not a member".
+- Non-blocking 3: the nearby Join filter no longer shows full carpools.
+- Non-blocking 5: when the admin closes a carpool (leaves last), open
+  requests are declined and removed.
+- Non-blocking 6 (part): approving a requester whose account is missing is
+  refused as not verified.
+- Non-blocking 9: "looking" posts are read newest first (index on
+  `carpoolWanted` schoolId, createdAt descending).
+- Non-blocking 10: the kept invite code is cleared on sign out.
+- Unit tests added for the above (274 Functions tests pass here).
+
+## For Prompt 7 (from the review)
+
+- Enforce `checkArrangement` **on the server**, inside the transaction that
+  gives anyone a driving day, for every driver **including the creator**
+  (the creator's `drivingDays` were saved before anyone consented).
+- Re-read the driver's vehicle and account there: `car` in `members` is a
+  copy taken at approval or creation.
+- Re-check the carpool's `seats` against each driver's car when a car is
+  re-verified with fewer seats (and lower or flag it).
+- Search and `listCarpoolWanted` still show carpools and posts of parents
+  who were later suspended; filter them (review item 6).
+- Membership-count checks in `createCarpool` and `requestToJoin` run
+  outside the transaction; move them in if it matters (item 8).
+- Owner questions still open: "looking" posts visibility (item 4, question
+  6) and the free-text activity label and contribution note (item 7,
+  report path in Prompt 11).

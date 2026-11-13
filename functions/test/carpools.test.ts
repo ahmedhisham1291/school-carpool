@@ -288,6 +288,11 @@ describe("search (F5, F6, F36, F39)", () => {
     await createCarpool(deps, as("bob"), schoolCarpool({ childIds: ["b1"], areaId: "sarayat" }));
     const { carpools } = await searchCarpools(deps, as("cara"), { kind: "school", schoolId: "nile", parentUid: "alice" });
     assert.deepEqual(carpools.map((c) => c.id), [id]);
+    // Full carpools stay hidden here too.
+    await join(deps, "bob", id, ["b1", "b2"]);
+    const fourth = await createCarpool(deps, as("alice"), schoolCarpool({ seats: 1 }));
+    const again = await searchCarpools(deps, as("cara"), { kind: "school", schoolId: "nile", parentUid: "alice" });
+    assert.equal(again.carpools.some((c) => c.id === fourth.carpoolId), false);
   });
 
   it("activity carpools are found by distance from the parent's rounded home", async () => {
@@ -512,6 +517,23 @@ describe("driver consent (F26) and seats", () => {
     await join(deps, "cara", id, ["c1"]);
     const members = [...(store.members.get(id)?.values() ?? [])];
     assert.deepEqual(driverStatus(members.find((m) => m.uid === "alice") as MemberRecord, members, [], today).waitingFor, ["cara"]);
+  });
+
+  it("closing the carpool declines its open requests", async () => {
+    const { deps, store } = setup();
+    const id = await aliceCarpool(deps);
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
+    await leaveCarpool(deps, as("alice"), { carpoolId: id });
+    assert.equal(store.memberships.get(`${id}_bob`)?.status, "declined");
+    assert.equal(store.requests.get(id)?.size ?? 0, 0);
+  });
+
+  it("a requester whose account is gone cannot be approved", async () => {
+    const { deps, store } = setup();
+    const id = await aliceCarpool(deps);
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
+    store.accounts.delete("bob");
+    await rejects(decideJoinRequest(deps, as("alice"), { carpoolId: id, uid: "bob", approve: true }), "not-verified");
   });
 
   it("the admin stays while others are members; leaving last closes the carpool", async () => {

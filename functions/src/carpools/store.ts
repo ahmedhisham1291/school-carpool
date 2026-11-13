@@ -329,6 +329,14 @@ class FirestoreCarpoolTx implements CarpoolTx {
     return snap.docs.map((d) => memberFromDoc(d.id, d.data()));
   }
 
+  async requests(carpoolId: string): Promise<RequestRecord[]> {
+    const snap = await this.tx.get(this.carpoolRef(carpoolId).collection(REQUESTS).limit(100));
+    return snap.docs.map((d) => {
+      const x = d.data();
+      return { uid: d.id, firstName: text(x.firstName), children: childRefs(x.children), car: car(x.car), requestedAtMs: ms(x.requestedAt) };
+    });
+  }
+
   async consents(carpoolId: string): Promise<ConsentRecord[]> {
     const snap = await this.tx.get(this.carpoolRef(carpoolId).collection(DRIVER_CONSENTS).limit(500));
     return snap.docs.map((d) => consentFromDoc(d.data()));
@@ -535,7 +543,8 @@ export class FirestoreCarpoolStore implements CarpoolStore {
   }
 
   async wantedForSchool(schoolId: string, limit: number): Promise<WantedRecord[]> {
-    const snap = await this.db.collection(CARPOOL_WANTED).where("schoolId", "==", schoolId).limit(limit).get();
+    // Index: firestore.indexes.json (schoolId, createdAt descending).
+    const snap = await this.db.collection(CARPOOL_WANTED).where("schoolId", "==", schoolId).orderBy("createdAt", "desc").limit(limit).get();
     return snap.docs.map((d) => wantedFromDoc(d.id, d.data()));
   }
 }

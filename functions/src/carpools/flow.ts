@@ -85,6 +85,8 @@ export interface CarpoolTx {
   /** Approved members (carpools/{id}/members). */
   members(carpoolId: string): Promise<MemberRecord[]>;
   consents(carpoolId: string): Promise<ConsentRecord[]>;
+  /** Open join requests (carpools/{id}/requests). */
+  requests(carpoolId: string): Promise<RequestRecord[]>;
 
   putCarpool(c: CarpoolRecord): void;
   putMembership(m: MembershipRecord): void;
@@ -522,8 +524,8 @@ export async function searchCarpools(deps: CarpoolDeps, caller: Caller, data: un
   const results = candidates
     .filter(({ c }) => c.status === "active" && timesMatch(c, input))
     .filter(({ c }) => (allowed ? allowed.has(c.id) : true))
-    // Full carpools are hidden unless the caller is in them or asked for one parent's carpools.
-    .filter(({ c }) => seatsLeft(c) > 0 || myStatus.has(c.id) || allowed !== null)
+    // Full carpools are hidden unless the caller is in them.
+    .filter(({ c }) => seatsLeft(c) > 0 || myStatus.has(c.id))
     .sort((a, b) => (a.km ?? 0) - (b.km ?? 0) || b.c.createdAtMs - a.c.createdAtMs)
     .slice(0, SEARCH_MAX_RESULTS);
   return { carpools: results.map(({ c, km }) => summaryOf(c, myStatus.get(c.id) ?? null, km)) };
@@ -627,7 +629,7 @@ export async function decideJoinRequest(deps: CarpoolDeps, caller: Caller, data:
       tx.putMembership({ ...m, status: "declined", decidedAtMs: nowMs, decidedBy: caller.uid, updatedAtMs: nowMs });
       return { status: "declined" as const };
     }
-    if (requester && requester.status !== "verified") throw new CarpoolError("not-verified");
+    if (!requester || requester.status !== "verified") throw new CarpoolError("not-verified");
     if (carpool.childrenCount + m.children.length > carpool.seats) throw new CarpoolError("no-seats");
     const approved: MembershipRecord = { ...m, status: "approved", car, decidedAtMs: nowMs, decidedBy: caller.uid, updatedAtMs: nowMs };
     tx.putMembership(approved);
@@ -657,7 +659,18 @@ export async function leaveCarpool(deps: CarpoolDeps, caller: Caller, data: unkn
     const m = await requireApproved(tx, carpoolId, caller.uid);
     const consents = await tx.consents(carpoolId);
     if (m.role === "admin" && carpool.memberCount > 1) throw new CarpoolError("admin-must-stay");
+    // Closing (the admin leaves last): open requests are declined, so they
+    // stop counting toward the requesters' membership limit.
+    const open = m.role === "admin" ? await tx.requests(carpoolId) : [];
+    const pending = await Promise.all(open.map((r) => tx.membership(carpoolId, r.uid)));
     const nowMs = deps.now();
+    open.forEach((r, i) => {
+      const p = pending[i];
+      if (p && p.status === "requested") {
+        tx.putMembership({ ...p, status: "declined", decidedAtMs: nowMs, decidedBy: caller.uid, updatedAtMs: nowMs });
+      }
+      tx.deleteRequest(carpoolId, r.uid);
+    });
     tx.putMembership({ ...m, status: "left", updatedAtMs: nowMs });
     tx.deleteMember(carpoolId, caller.uid);
     tx.putPickupPoint(carpoolId, caller.uid, null);

@@ -177,8 +177,14 @@ service cloud.firestore {
     // or left, and the role (admin or member). A parent reads only their
     // own (the app queries where('uid', '==', uid)). The rules below look
     // them up, checking that the fields match the document ID.
+    // A parent may also get their OWN membership ID when it does not exist
+    // (a carpool they are not in): the ID must end in "_<their uid>", so
+    // nobody learns whether another parent is a member.
     match /memberships/{id} {
-      allow get, list: if signedIn() && resource.data.uid == request.auth.uid;
+      allow get: if signedIn()
+        && id.matches('.+_' + request.auth.uid)
+        && (resource == null || resource.data.uid == request.auth.uid);
+      allow list: if signedIn() && resource.data.uid == request.auth.uid;
       allow create, update, delete: if false;
     }
     function approvedMember(carpoolId, uid) {
