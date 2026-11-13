@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/digits_input_formatter.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
 /// Entry for a one-time code: one large, centred, left-to-right field that
@@ -43,7 +44,11 @@ class AppCodeField extends StatelessWidget {
       textAlign: TextAlign.center,
       style: context.text.headlineMedium,
       inputFormatters: <TextInputFormatter>[DigitsInputFormatter(maxDigits: length)],
-      decoration: InputDecoration(labelText: label, helperText: helperText, errorText: errorText),
+      decoration: InputDecoration(
+        label: OneLineText(label),
+        helperText: helperText,
+        errorText: errorText,
+      ),
       onChanged: (String value) {
         if (value.length == length) {
           onCompleted?.call(value);

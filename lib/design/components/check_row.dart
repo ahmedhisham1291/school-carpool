@@ -1,9 +1,13 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
 /// A checkbox with a label that wraps, optional helper text and an optional
 /// link (for example "Read" to open a document). The whole row toggles the
 /// box and is at least 48 high.
+///
+/// The label is a short statement ("I accept the privacy policy") and may
+/// take two lines on a narrow phone; the link stays on one line.
 class AppCheckRow extends StatelessWidget {
   const AppCheckRow({
     required this.label,
@@ -33,7 +37,7 @@ class AppCheckRow extends StatelessWidget {
         Expanded(
           child: MergeSemantics(
             child: InkWell(
-              borderRadius: AppRadii.mdAll,
+              borderRadius: AppRadii.control,
               onTap: changed == null ? null : () => changed(!value),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: AppSpacing.minTouchTarget),
@@ -70,7 +74,7 @@ class AppCheckRow extends StatelessWidget {
           ),
         ),
         if (action != null && onAction != null)
-          TextButton(onPressed: onAction, child: Text(action)),
+          TextButton(onPressed: onAction, child: OneLineText(action)),
       ],
     );
   }

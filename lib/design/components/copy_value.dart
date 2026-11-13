@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/app_snack_bar.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -19,9 +21,9 @@ class AppCopyValue extends StatelessWidget {
     final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
     final String done = context.l10n.copiedToClipboard;
     await Clipboard.setData(ClipboardData(text: value));
-    messenger
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(done)));
+    if (messenger != null) {
+      showAppSnackBarOn(messenger, done);
+    }
   }
 
   @override
@@ -30,7 +32,10 @@ class AppCopyValue extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(label, style: context.text.labelLarge?.copyWith(color: context.colors.onSurfaceVariant)),
+        OneLineText(
+          label,
+          style: context.text.labelLarge?.copyWith(color: context.colors.onSurfaceVariant),
+        ),
         const SizedBox(height: AppSpacing.s4),
         Row(
           children: <Widget>[

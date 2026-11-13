@@ -105,9 +105,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
       final CodeRequest request = await repository.requestCode(phoneE164: phone, language: language);
       flow.codeSent(phone, request.resendAfter);
       _controller.clear();
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(sent)));
+      showAppSnackBarOn(messenger, sent);
     } on AuthFailure catch (failure) {
       if (mounted) {
         setState(() => _failure = failure);

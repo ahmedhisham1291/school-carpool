@@ -50,7 +50,7 @@ class ProfileScreen extends ConsumerWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Semantics(header: true, child: Text(l10n.tabProfile))),
+      appBar: AppBar(title: AppBarTitle(l10n.tabProfile)),
       body: ListView(
         padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),
         children: <Widget>[
@@ -78,6 +78,10 @@ class ProfileScreen extends ConsumerWidget {
   List<Widget> _accountSection(BuildContext context, Account account) {
     final AppLocalizations l10n = context.l10n;
     final String? email = account.email;
+    final (String statusLabel, _, IconData statusIcon) = AccountStatusBadge.describe(
+      account.status,
+      l10n,
+    );
     return <Widget>[
       if (account.status != AccountStatus.verified)
         Padding(
@@ -93,7 +97,11 @@ class ProfileScreen extends ConsumerWidget {
               children: <Widget>[
                 Expanded(child: Text(l10n.profileVerifyBanner, style: context.text.bodyMedium)),
                 const SizedBox(width: AppSpacing.s8),
-                Icon(Icons.chevron_right_rounded, color: context.colors.onSurfaceVariant),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: context.colors.onSurfaceVariant,
+                  size: AppIconSize.sm,
+                ),
               ],
             ),
           ),
@@ -110,10 +118,12 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
       AppSectionHeader(l10n.profileAccountSection),
+      // The status as the subtitle, not a trailing badge: the one-line
+      // title keeps its room at 320 dp and at 200 percent text.
       AppListRow(
         title: l10n.profileStatus,
-        leadingIcon: Icons.verified_user_outlined,
-        trailing: AccountStatusBadge(status: account.status),
+        subtitle: statusLabel,
+        leadingIcon: statusIcon,
       ),
       AppListRow(
         title: l10n.profilePhone,

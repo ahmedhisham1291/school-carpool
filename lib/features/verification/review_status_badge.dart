@@ -10,13 +10,24 @@ class ReviewStatusBadge extends StatelessWidget {
 
   final ReviewStatus status;
 
+  static AppBadgeTone _toneFor(ReviewStatus status) => switch (status) {
+    ReviewStatus.pending => AppBadgeTone.warning,
+    ReviewStatus.approved => AppBadgeTone.success,
+    ReviewStatus.rejected => AppBadgeTone.error,
+  };
+
+  /// The icon for [status], shared with list rows that show the status as
+  /// text.
+  static IconData iconFor(ReviewStatus status) => switch (status) {
+    ReviewStatus.pending => Icons.hourglass_top_rounded,
+    ReviewStatus.approved => Icons.verified_rounded,
+    ReviewStatus.rejected => Icons.error_outline_rounded,
+  };
+
   @override
-  Widget build(BuildContext context) {
-    final (AppBadgeTone tone, IconData icon) = switch (status) {
-      ReviewStatus.pending => (AppBadgeTone.warning, Icons.hourglass_top_rounded),
-      ReviewStatus.approved => (AppBadgeTone.success, Icons.verified_rounded),
-      ReviewStatus.rejected => (AppBadgeTone.error, Icons.error_outline_rounded),
-    };
-    return AppStatusBadge(label: reviewStatusLabel(context.l10n, status), tone: tone, icon: icon);
-  }
+  Widget build(BuildContext context) => AppStatusBadge(
+    label: reviewStatusLabel(context.l10n, status),
+    tone: _toneFor(status),
+    icon: iconFor(status),
+  );
 }

@@ -42,7 +42,7 @@ class AppInlineMessage extends StatelessWidget {
       liveRegion: true,
       container: true,
       child: DecoratedBox(
-        decoration: BoxDecoration(color: background, borderRadius: AppRadii.mdAll),
+        decoration: BoxDecoration(color: background, borderRadius: AppRadii.control),
         child: Padding(
           padding: AppSpacing.cardPadding,
           child: Row(

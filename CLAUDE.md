@@ -104,6 +104,11 @@ DESIGN (applies to every screen in every prompt)
   typing while a run is on.
 - Reuse components from the design system. A new component goes into the
   gallery screen first.
+- Every label, button, tab, chip and title fits on one line in Arabic and
+  English at 320 dp width; write short wording, never let text wrap in
+  these places (shared components enforce maxLines 1).
+- Elegant, refined look: restrained palette, hairline borders over heavy
+  shadows, generous white space, consistent radii; follow docs/DESIGN.md.
 
 PARENT ID
 Every parent gets a public parent ID when the account is created: 8

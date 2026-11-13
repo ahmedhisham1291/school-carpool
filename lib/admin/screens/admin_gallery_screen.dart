@@ -31,7 +31,7 @@ class AdminGalleryScreen extends StatelessWidget {
           const AppSectionHeader('OneLine'),
           SizedBox(
             width: AppSpacing.s64 * 3,
-            child: OneLine(l10n.adminNameCheckHelp, style: context.text.bodyMedium),
+            child: OneLineText(l10n.adminNameCheckHelp, style: context.text.bodyMedium),
           ),
           const SizedBox(height: AppSpacing.s24),
           const AppSectionHeader('AdminFact'),

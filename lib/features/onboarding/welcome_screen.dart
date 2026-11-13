@@ -48,20 +48,22 @@ class WelcomeScreen extends ConsumerWidget {
                               child: Icon(
                                 Icons.directions_car_rounded,
                                 color: colors.onPrimaryContainer,
-                                size: AppSpacing.s32,
+                                size: AppIconSize.lg,
                               ),
                             ),
                           ),
                         ),
                         const SizedBox(height: AppSpacing.s24),
-                        Text(
+                        OneLineText(
                           l10n.appTitle,
-                          style: context.text.titleMedium?.copyWith(color: colors.primary),
+                          style: context.text.titleSmall?.copyWith(color: colors.onSurfaceVariant),
                         ),
                         const SizedBox(height: AppSpacing.s8),
+                        // The one page hero of the app: a short sentence that
+                        // may take two lines on a narrow phone.
                         Semantics(
                           header: true,
-                          child: Text(l10n.welcomeTitle, style: context.text.headlineLarge),
+                          child: Text(l10n.welcomeTitle, style: context.text.headlineSmall),
                         ),
                         const SizedBox(height: AppSpacing.s16),
                         Text(
@@ -69,7 +71,7 @@ class WelcomeScreen extends ConsumerWidget {
                           style: context.text.bodyLarge?.copyWith(color: colors.onSurfaceVariant),
                         ),
                         const SizedBox(height: AppSpacing.s32),
-                        Text(l10n.settingsLanguage, style: context.text.labelLarge),
+                        OneLineText(l10n.settingsLanguage, style: context.text.labelLarge),
                         const SizedBox(height: AppSpacing.s8),
                         SegmentedButton<Locale>(
                           key: const Key('welcome.language'),
@@ -77,11 +79,11 @@ class WelcomeScreen extends ConsumerWidget {
                           segments: <ButtonSegment<Locale>>[
                             ButtonSegment<Locale>(
                               value: AppLocales.arabic,
-                              label: Text(l10n.languageArabic),
+                              label: OneLineText(l10n.languageArabic),
                             ),
                             ButtonSegment<Locale>(
                               value: AppLocales.english,
-                              label: Text(l10n.languageEnglish),
+                              label: OneLineText(l10n.languageEnglish),
                             ),
                           ],
                           selected: <Locale>{locale},

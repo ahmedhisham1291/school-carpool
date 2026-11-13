@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/app_button.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -38,13 +39,16 @@ class AppSheet extends StatelessWidget {
           AppSpacing.s24,
           0,
           AppSpacing.s24,
-          AppSpacing.s24,
+          AppSpacing.s32,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Semantics(header: true, child: Text(title, style: context.text.titleLarge)),
+            Semantics(
+              header: true,
+              child: OneLineText(title, style: context.text.titleLarge, scaleDown: true),
+            ),
             const SizedBox(height: AppSpacing.s8),
             DefaultTextStyle.merge(
               style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant),
@@ -59,6 +63,9 @@ class AppSheet extends StatelessWidget {
 }
 
 /// Asks before anything that cannot be undone. Returns true on confirm.
+///
+/// The title is one short question ("Leave the group?"); the body says
+/// what will happen.
 Future<bool> showConfirmDialog({
   required BuildContext context,
   required String title,
@@ -69,7 +76,7 @@ Future<bool> showConfirmDialog({
   final bool? confirmed = await showDialog<bool>(
     context: context,
     builder: (BuildContext dialogContext) => AlertDialog(
-      title: Semantics(header: true, child: Text(title)),
+      title: Semantics(header: true, child: OneLineText(title, scaleDown: true)),
       content: Text(body),
       actionsOverflowButtonSpacing: AppSpacing.s8,
       actions: <Widget>[

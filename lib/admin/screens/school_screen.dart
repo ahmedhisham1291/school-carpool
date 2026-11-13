@@ -157,14 +157,14 @@ class _SchoolFormState extends ConsumerState<_SchoolForm> {
     if (widget.reviewing) {
       await api.approveSchool(input);
       if (mounted) {
-        adminToast(context, l10n.adminSchoolApproved);
+        showAppSnackBar(context, l10n.adminSchoolApproved);
         context.go(AdminRoutes.otherSchools);
       }
       return;
     }
     final String id = await api.saveSchool(input);
     if (mounted) {
-      adminToast(context, l10n.adminSaved);
+      showAppSnackBar(context, l10n.adminSaved);
       if (widget.school == null) {
         context.go(AdminRoutes.school(id));
       }
@@ -199,7 +199,7 @@ class _SchoolFormState extends ConsumerState<_SchoolForm> {
     await _run(() async {
       await ref.read(adminApiProvider).mergeSchool(schoolId: school.id, intoId: into.id);
       if (mounted) {
-        adminToast(context, l10n.adminSchoolMerged);
+        showAppSnackBar(context, l10n.adminSchoolMerged);
         context.go(AdminRoutes.otherSchools);
       }
     });
@@ -217,7 +217,7 @@ class _SchoolFormState extends ConsumerState<_SchoolForm> {
       body: _AreaForm(schoolId: school.id, area: area),
     );
     if ((saved ?? false) && mounted) {
-      adminToast(context, l10n.adminSaved);
+      showAppSnackBar(context, l10n.adminSaved);
       ref.invalidate(_schoolProvider(school.id));
     }
   }
@@ -351,8 +351,8 @@ class _MapPlaceholder extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                OneLine(l10n.adminMapPlaceholder, style: context.text.titleSmall),
-                OneLine(
+                OneLineText(l10n.adminMapPlaceholder, style: context.text.titleSmall),
+                OneLineText(
                   p == null ? l10n.adminNoPin : ltrIsolate(formatPin(p)),
                   style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant),
                 ),

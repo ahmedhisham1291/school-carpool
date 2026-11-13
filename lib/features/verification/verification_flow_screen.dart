@@ -327,7 +327,7 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
               icon: const BackButtonIcon(),
               onPressed: _back,
             ),
-            title: Text(l10n.verifyTitle),
+            title: AppBarTitle(l10n.verifyTitle),
           ),
           body: SafeArea(
             top: false,
@@ -339,7 +339,10 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
                     children: <Widget>[
                       AppStepProgress(current: _step.index + 1, total: VerificationStep.values.length),
                       const SizedBox(height: AppSpacing.s24),
-                      Semantics(header: true, child: Text(title, style: context.text.headlineMedium)),
+                      Semantics(
+                        header: true,
+                        child: OneLineText(title, style: context.text.headlineSmall, scaleDown: true),
+                      ),
                       const SizedBox(height: AppSpacing.s8),
                       Text(
                         body,

@@ -106,7 +106,7 @@ class _CaseScreenState extends ConsumerState<CaseScreen> {
       await call();
       ref.invalidate(adminQueueProvider);
       if (mounted) {
-        adminToast(context, done);
+        showAppSnackBar(context, done);
         context.go(AdminRoutes.queue);
       }
     } on AdminFailure catch (failure) {
@@ -202,7 +202,7 @@ class _CaseScreenState extends ConsumerState<CaseScreen> {
               if (c.identity)
                 Row(
                   children: <Widget>[
-                    Flexible(child: OneLine(l10n.adminKycLabel)),
+                    Flexible(child: OneLineText(l10n.adminKycLabel)),
                     const SizedBox(width: AppSpacing.s8),
                     AppStatusBadge(label: kycLabel(l10n, c.kycResult), tone: kycTone(c.kycResult)),
                   ],
@@ -279,7 +279,7 @@ class _CaseScreenState extends ConsumerState<CaseScreen> {
           ],
           const SizedBox(height: AppSpacing.s24),
           if (!ready) ...<Widget>[
-            OneLine(l10n.adminTickAll, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
+            OneLineText(l10n.adminTickAll, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
             const SizedBox(height: AppSpacing.s8),
           ],
           AppButton(

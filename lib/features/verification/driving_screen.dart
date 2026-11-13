@@ -81,7 +81,7 @@ class _DrivingScreenState extends ConsumerState<DrivingScreen> {
           }
         },
       );
-      messenger.showSnackBar(SnackBar(content: Text(done)));
+      showAppSnackBarOn(messenger, done);
       if (mounted) {
         setState(() {
           _editing = false;
@@ -115,7 +115,7 @@ class _DrivingScreenState extends ConsumerState<DrivingScreen> {
 
     if (vehicle case AsyncError<VehicleRecord?>(:final Object error)) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.drivingTitle)),
+        appBar: AppBar(title: AppBarTitle(l10n.drivingTitle)),
         body: VerificationFailure.from(error).isOffline
             ? OfflineStateView(onRetry: retry)
             : ErrorStateView(onRetry: retry),
@@ -123,7 +123,7 @@ class _DrivingScreenState extends ConsumerState<DrivingScreen> {
     }
     if (vehicle is! AsyncData<VehicleRecord?>) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.drivingTitle)),
+        appBar: AppBar(title: AppBarTitle(l10n.drivingTitle)),
         body: const Skeleton(child: Column(children: <Widget>[SkeletonCard(), SkeletonListRow()])),
       );
     }
@@ -131,7 +131,7 @@ class _DrivingScreenState extends ConsumerState<DrivingScreen> {
     final bool showForm = verified && !locked && (_editing || car == null);
 
     final Widget screen = Scaffold(
-      appBar: AppBar(title: Semantics(header: true, child: Text(l10n.drivingTitle))),
+      appBar: AppBar(title: AppBarTitle(l10n.drivingTitle)),
       body: SafeArea(
         top: false,
         child: Column(
@@ -219,7 +219,7 @@ class _CarCard extends StatelessWidget {
         children: <Widget>[
           ReviewStatusBadge(status: car.status),
           const SizedBox(height: AppSpacing.s16),
-          Text('${car.model} · ${car.color}', style: context.text.titleMedium),
+          OneLineText('${car.model} · ${car.color}', style: context.text.titleMedium),
           const SizedBox(height: AppSpacing.s4),
           Text('${l10n.driverPlateLabel}: ${car.plate}', style: context.text.bodyLarge),
           Text(l10n.driverSeatsCount(car.seats), style: context.text.bodyLarge),

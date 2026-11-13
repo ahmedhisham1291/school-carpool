@@ -7,28 +7,10 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// Small building blocks of the admin panel, made only from the shared
-/// design system (tokens and components), so a design refresh flows into
-/// every panel screen. Shown in the admin gallery (dev).
-
-/// Owner rule: labels, buttons, tabs, chips, list titles and app bar titles
-/// fit on one line in Arabic and English. Long values are cut with "…".
-class OneLine extends StatelessWidget {
-  const OneLine(this.text, {super.key, this.style, this.semanticsLabel});
-
-  final String text;
-  final TextStyle? style;
-  final String? semanticsLabel;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: style,
-    maxLines: 1,
-    softWrap: false,
-    overflow: TextOverflow.ellipsis,
-    semanticsLabel: semanticsLabel,
-  );
-}
+/// design system (tokens and components, docs/DESIGN.md), so a design
+/// refresh flows into every panel screen. Shown in the admin gallery (dev).
+/// One-line text uses the shared OneLineText; app bar titles AppBarTitle;
+/// feedback showAppSnackBar.
 
 /// The widest the panel's content gets on a large screen.
 const double kAdminContentWidth = AppSpacing.maxContentWidth * 2;
@@ -45,7 +27,7 @@ class AdminPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Semantics(header: true, child: OneLine(title)),
+      title: AppBarTitle(title),
       actions: <Widget>[...actions, const SizedBox(width: AppSpacing.s8)],
     ),
     body: SafeArea(
@@ -120,7 +102,7 @@ class AdminFact extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        OneLine(label, style: context.text.labelMedium?.copyWith(color: context.colors.onSurfaceVariant)),
+        OneLineText(label, style: context.text.labelMedium?.copyWith(color: context.colors.onSurfaceVariant)),
         SelectionContainer.disabled(child: Text(value, style: context.text.bodyMedium)),
       ],
     ),
@@ -136,7 +118,3 @@ String adminDateTime(BuildContext context, DateTime? time) {
   return DateFormat.yMMMd(locale).add_Hm().format(time);
 }
 
-/// Shows a short confirmation at the bottom of the screen.
-void adminToast(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: OneLine(message)));
-}

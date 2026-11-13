@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
 /// A date chosen from the calendar (no typing), for expiry dates. Shows
@@ -64,13 +65,13 @@ class AppDateField extends StatelessWidget {
         child: InputDecorator(
           isEmpty: date == null && placeholder == null,
           decoration: InputDecoration(
-            labelText: label,
+            label: OneLineText(label),
             helperText: helperText,
             errorText: errorText,
             enabled: onChanged != null,
             prefixIcon: const Icon(Icons.event_outlined),
           ),
-          child: Text(
+          child: OneLineText(
             text,
             style: context.text.bodyLarge?.copyWith(
               color: date == null ? context.colors.onSurfaceVariant : null,

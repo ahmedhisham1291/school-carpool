@@ -173,12 +173,12 @@ firestore:rules,functions --project dev`). Or use a Mac with the emulators
 5. **Wrong code test:** type `000000`. You see "That code is wrong. 4
    tries left."
 6. **Expired code test (optional):** wait 5 minutes, type the real code:
-   "This code has expired". Wait for the countdown, tap **Send a new
+   "This code has expired". Wait for the countdown, tap **Send new
    code**, read the new code.
 7. Type the right code. The app moves to **email**.
 8. Type your email, tap **Send confirmation link**, open the email on the
-   phone and tap the link. Back in the app tap **I have confirmed my
-   email** (or just return to the app; it checks by itself). You go on to
+   phone and tap the link. Back in the app tap **I confirmed
+   it** (or just return to the app; it checks by itself). You go on to
    the terms. **Please report** if instead you see "Your session ended":
    tap **Sign in again**, enter the new code, and you should land on the
    terms directly (this is the path for a session ended by the email

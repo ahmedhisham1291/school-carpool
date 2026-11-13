@@ -80,7 +80,7 @@ class _UserScreenState extends ConsumerState<UserScreen> {
           .read(adminApiProvider)
           .moderate(uid: widget.uid, action: action, reason: choice.$1, note: choice.$2);
       if (mounted) {
-        adminToast(context, l10n.adminSaved);
+        showAppSnackBar(context, l10n.adminSaved);
       }
       _reload();
     } on AdminFailure catch (failure) {
@@ -115,7 +115,7 @@ class _UserScreenState extends ConsumerState<UserScreen> {
                   children: <Widget>[
                     Row(
                       children: <Widget>[
-                        Expanded(child: OneLine(u.fullName ?? l10n.adminNoName, style: context.text.titleLarge)),
+                        Expanded(child: OneLineText(u.fullName ?? l10n.adminNoName, style: context.text.titleLarge)),
                         AppStatusBadge(
                           label: accountStatusLabel(l10n, u.status, banned: u.banned),
                           tone: accountStatusTone(u.status, banned: u.banned),

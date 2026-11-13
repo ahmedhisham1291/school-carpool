@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -21,7 +22,7 @@ class AppStepProgress extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
+          OneLineText(
             label,
             style: context.text.labelLarge?.copyWith(color: context.colors.onSurfaceVariant),
           ),

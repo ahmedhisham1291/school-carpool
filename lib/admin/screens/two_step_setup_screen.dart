@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
-import 'package:school_carpool/admin/widgets/admin_widgets.dart';
 import 'package:school_carpool/design/bidi.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
@@ -115,7 +114,7 @@ class _TwoStepSetupScreenState extends ConsumerState<TwoStepSetupScreen> {
                   children: <Widget>[
                     Semantics(
                       header: true,
-                      child: OneLine(l10n.adminSetupTitle, style: context.text.headlineSmall),
+                      child: OneLineText(l10n.adminSetupTitle, style: context.text.headlineSmall, scaleDown: true),
                     ),
                     const SizedBox(height: AppSpacing.s8),
                     Text(

@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
-import 'package:school_carpool/admin/widgets/admin_widgets.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
@@ -96,7 +95,7 @@ class _Missing extends StatelessWidget {
         children: <Widget>[
           Icon(Icons.hide_image_outlined, color: context.colors.onSurfaceVariant),
           const SizedBox(height: AppSpacing.s8),
-          OneLine(text, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
+          OneLineText(text, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
         ],
       ),
     ),

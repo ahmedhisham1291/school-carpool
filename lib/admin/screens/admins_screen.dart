@@ -65,12 +65,12 @@ class AdminsScreen extends ConsumerWidget {
     try {
       await ref.read(adminApiProvider).setAdminDisabled(uid: a.uid, disabled: disable);
       if (context.mounted) {
-        adminToast(context, l10n.adminSaved);
+        showAppSnackBar(context, l10n.adminSaved);
       }
       ref.invalidate(adminAccountsProvider);
     } on AdminFailure catch (failure) {
       if (context.mounted) {
-        adminToast(context, failure.message(l10n));
+        showAppSnackBar(context, failure.message(l10n));
       }
     }
   }
