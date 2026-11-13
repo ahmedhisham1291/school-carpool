@@ -1,0 +1,31 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/components.dart';
+import 'package:school_carpool/features/auth/auth_failure.dart';
+import 'package:school_carpool/features/auth/auth_repository.dart';
+import 'package:school_carpool/features/auth/signup_flow.dart';
+import 'package:school_carpool/l10n/l10n.dart';
+
+/// Asks for confirmation, then signs out. The router then opens the
+/// welcome screen. Shows a snack bar if signing out fails.
+Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
+  final AppLocalizations l10n = context.l10n;
+  final AuthRepository repository = ref.read(authRepositoryProvider);
+  final SignupFlowController flow = ref.read(signupFlowProvider.notifier);
+  final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
+  final bool confirmed = await showConfirmDialog(
+    context: context,
+    title: l10n.profileSignOutConfirmTitle,
+    body: l10n.profileSignOutConfirmBody,
+    confirmLabel: l10n.profileSignOut,
+  );
+  if (!confirmed) {
+    return;
+  }
+  try {
+    flow.reset();
+    await repository.signOut();
+  } on AuthFailure catch (failure) {
+    messenger?.showSnackBar(SnackBar(content: Text(failure.message(l10n))));
+  }
+}

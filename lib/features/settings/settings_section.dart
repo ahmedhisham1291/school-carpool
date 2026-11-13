@@ -7,6 +7,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/auth/auth_repository.dart';
+import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/observability/sentry_setup.dart';
@@ -39,7 +41,7 @@ class SettingsSection extends ConsumerWidget {
             ],
             selected: <Locale>{locale},
             onSelectionChanged: (Set<Locale> selection) =>
-                unawaited(ref.read(localeProvider.notifier).setLocale(selection.first)),
+                unawaited(_setLanguage(ref, selection.first)),
           ),
         ),
         _LabeledControl(
@@ -60,6 +62,21 @@ class SettingsSection extends ConsumerWidget {
         if (config.showDevTools) const _DevTools(),
       ],
     );
+  }
+}
+
+/// Saves the language on the phone and, when signed in, on the account so
+/// WhatsApp messages and emails use it. The server copy is best effort.
+Future<void> _setLanguage(WidgetRef ref, Locale locale) async {
+  final LocaleController controller = ref.read(localeProvider.notifier);
+  final bool signedIn = ref.read(sessionProvider) is SessionSignedIn;
+  final AuthRepository? repository = signedIn ? ref.read(authRepositoryProvider) : null;
+  await controller.setLocale(locale);
+  try {
+    await repository?.updateLanguage(AppLocales.fromCode(locale.languageCode).languageCode);
+  } on Object {
+    // Offline or not allowed: the phone keeps the choice; the account keeps
+    // the previous language until the next change.
   }
 }
 
