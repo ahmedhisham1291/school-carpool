@@ -78,7 +78,7 @@ final List<UserSummary> sampleUsers = <UserSummary>[
     status: AccountStatus.verified,
     banned: false,
     maskedPhone: '+20********01',
-    createdAt: DateTime(2026, 11, 1),
+    createdAt: DateTime(2026, 11),
   ),
 ];
 

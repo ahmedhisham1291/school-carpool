@@ -273,7 +273,7 @@ class _ModerationFormState extends State<_ModerationForm> {
           variant: widget.action == ModerationAction.unsuspend ? AppButtonVariant.primary : AppButtonVariant.danger,
           expand: true,
           onPressed: valid
-              ? () => Navigator.of(context).pop<(ModerationReason, String?)>((reason!, note.isEmpty ? null : note))
+              ? () => Navigator.of(context).pop<(ModerationReason, String?)>((reason, note.isEmpty ? null : note))
               : null,
         ),
       ],

@@ -539,7 +539,7 @@ class _AreaFormState extends ConsumerState<_AreaForm> {
           label: l10n.adminSave,
           expand: true,
           loading: _busy,
-          onPressed: valid && pin != null && !_busy ? () => unawaited(_save(pin)) : null,
+          onPressed: valid && !_busy ? () => unawaited(_save(pin)) : null,
         ),
       ],
     );
