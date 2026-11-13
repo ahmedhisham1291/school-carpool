@@ -97,6 +97,9 @@ focused and hovered controls get a veil of their label color at
 - **Inputs** (`AppTextField`): white (raised) fill, `outline` border, 2 px
   teal focus ring, label above as one line, helper and error text one short
   sentence that says how to fix it.
+- **Picker fields** (`AppPickerField`): looks like an input (label above,
+  one-line value or a quieter placeholder, chevron) and opens a chooser
+  screen on tap, for choices from long lists (the child's school).
 - **Cards** (`AppCard`): raised surface, hairline border, radius 16, 16
   padding. Don't nest cards or add shadows to every card.
 - **List rows** (`AppListRow`): 24 side padding, neutral rounded icon tile,

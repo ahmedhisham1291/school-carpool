@@ -95,16 +95,20 @@ class _SchoolPickerScreenState extends ConsumerState<SchoolPickerScreen> {
     }
     final int request = ++_request;
     setState(() => _results = const _Loading());
-    _Results next;
-    try {
-      next = _Found(await ref.read(schoolSearchProvider).search(query, governorate: _governorate));
-    } on SchoolSearchFailure catch (failure) {
-      next = _Failed(offline: failure.isOffline);
-    } on Object {
-      next = const _Failed(offline: false);
-    }
+    final _Results next = await _run(query);
+    // A newer search (or a cleared field) wins over a slow answer.
     if (mounted && request == _request) {
       setState(() => _results = next);
+    }
+  }
+
+  Future<_Results> _run(String query) async {
+    try {
+      return _Found(await ref.read(schoolSearchProvider).search(query, governorate: _governorate));
+    } on SchoolSearchFailure catch (failure) {
+      return _Failed(offline: failure.isOffline);
+    } on Object {
+      return const _Failed(offline: false);
     }
   }
 
