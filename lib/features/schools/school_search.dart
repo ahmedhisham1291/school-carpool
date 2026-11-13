@@ -54,14 +54,19 @@ class InMemorySchoolSearch implements SchoolSearch {
 /// Firestore once (the emulator's seed and the sample import, at most
 /// [limit], as firestore.rules allow) and matches on the phone.
 class FirestoreSchoolSearch implements SchoolSearch {
-  FirestoreSchoolSearch(this._db);
+  FirestoreSchoolSearch(this._db, {DateTime Function() now = DateTime.now}) : _now = now;
 
   final FirebaseFirestore _db;
+  final DateTime Function() _now;
 
   /// The most a list query may read (firestore.rules).
   static const int limit = 200;
 
+  /// Read again after this long, so a school an admin just approved shows up.
+  static const Duration maxAge = Duration(minutes: 1);
+
   Future<SchoolMatcher>? _matcher;
+  DateTime? _loadedAt;
 
   Future<SchoolMatcher> _load() async {
     try {
@@ -82,6 +87,13 @@ class FirestoreSchoolSearch implements SchoolSearch {
 
   @override
   Future<List<SchoolOption>> search(String query, {String? governorate}) async {
+    final DateTime? loadedAt = _loadedAt;
+    if (loadedAt == null || _now().difference(loadedAt) > maxAge) {
+      _matcher = null;
+    }
+    if (_matcher == null) {
+      _loadedAt = _now();
+    }
     final Future<SchoolMatcher> loading = _matcher ??= _load();
     try {
       return (await loading).search(query, governorate: governorate);
