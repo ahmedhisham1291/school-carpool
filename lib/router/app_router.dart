@@ -15,6 +15,9 @@ import 'package:school_carpool/features/onboarding/welcome_screen.dart';
 import 'package:school_carpool/features/placeholder/placeholder_tab_screen.dart';
 import 'package:school_carpool/features/profile/profile_screen.dart';
 import 'package:school_carpool/features/shell/home_shell.dart';
+import 'package:school_carpool/features/verification/children_screen.dart';
+import 'package:school_carpool/features/verification/driving_screen.dart';
+import 'package:school_carpool/features/verification/verification_flow_screen.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 
 /// The five bottom tabs from spec section 10, in order.
@@ -28,6 +31,14 @@ enum AppTab {
   const AppTab(this.path);
 
   final String path;
+}
+
+/// Screens under the Profile tab (Prompt 3).
+abstract final class ProfileRoutes {
+  static const String childrenSegment = 'children';
+  static const String drivingSegment = 'driving';
+  static const String children = '/profile/$childrenSegment';
+  static const String driving = '/profile/$drivingSegment';
 }
 
 abstract final class AppRoutes {
@@ -84,6 +95,10 @@ GoRouter buildAppRouter({
         path: AuthRoutes.verifyAccount,
         builder: (BuildContext context, GoRouterState state) => const VerifyAccountScreen(),
       ),
+      GoRoute(
+        path: AuthRoutes.verifySubmit,
+        builder: (BuildContext context, GoRouterState state) => const VerificationFlowScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (BuildContext context, GoRouterState state, StatefulNavigationShell shell) =>
             HomeShell(navigationShell: shell),
@@ -95,6 +110,18 @@ GoRouter buildAppRouter({
                   path: tab.path,
                   builder: (BuildContext context, GoRouterState state) =>
                       tab == AppTab.profile ? const ProfileScreen() : PlaceholderTabScreen(tab: tab),
+                  routes: <RouteBase>[
+                    if (tab == AppTab.profile) ...<RouteBase>[
+                      GoRoute(
+                        path: ProfileRoutes.childrenSegment,
+                        builder: (BuildContext context, GoRouterState state) => const ChildrenScreen(),
+                      ),
+                      GoRoute(
+                        path: ProfileRoutes.drivingSegment,
+                        builder: (BuildContext context, GoRouterState state) => const DrivingScreen(),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

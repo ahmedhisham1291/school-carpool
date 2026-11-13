@@ -28,5 +28,16 @@ export const debugTestError = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, asy
 // Sign-up and sign-in with a WhatsApp code (Prompt 2: F1, F44).
 export { acceptConsents, confirmEmail, requestCode, verifyCode } from "./auth/callables";
 
+// Identity verification, children and the automated ID check (Prompt 3: F2, F3, F18).
+export {
+  decideVerification,
+  listVerificationQueue,
+  openVerificationCase,
+  purgeVerificationImagesDaily,
+  removeChild,
+  submitVerification,
+  withdrawVerification,
+} from "./verification/callables";
+
 // Only WhatsApp-code sign-in (custom token); no password or email-link sign-in.
 export { blockNonCodeSignIn, blockSignInEmails } from "./auth/blocking";

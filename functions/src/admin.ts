@@ -1,6 +1,7 @@
 import { getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { getStorage, type Storage } from "firebase-admin/storage";
 
 /** The Admin SDK app, created on first use (no work at import time). */
 export function adminApp(): App {
@@ -13,4 +14,8 @@ export function adminAuth(): Auth {
 
 export function adminDb(): Firestore {
   return getFirestore(adminApp());
+}
+
+export function adminStorage(): Storage {
+  return getStorage(adminApp());
 }
