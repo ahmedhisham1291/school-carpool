@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/carpools/carpool_models.dart';
+import 'package:school_carpool/features/carpools/carpool_widgets.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_view.dart';
 import 'package:school_carpool/features/shell/home_shell.dart';
@@ -115,6 +117,8 @@ class GalleryScreen extends ConsumerWidget {
           const _SwitchSample(),
           AppSectionHeader(l10n.gallerySectionMaps),
           const SizedBox(height: AppMapTokens.mapHeight, child: _MapSample()),
+          AppSectionHeader(l10n.gallerySectionCarpools),
+          const _Padded(child: _CarpoolSamples()),
           AppSectionHeader(l10n.gallerySectionSheets),
           const _Padded(child: _SheetSamples()),
           AppSectionHeader(l10n.gallerySectionSkeleton),
@@ -701,4 +705,57 @@ class _MapSampleState extends State<_MapSample> {
       ),
     );
   }
+}
+
+/// Carpool pieces (Prompt 6): the carpool card with rules and contribution,
+/// the days picker and a run time. Fake data only.
+class _CarpoolSamples extends StatefulWidget {
+  const _CarpoolSamples();
+
+  @override
+  State<_CarpoolSamples> createState() => _CarpoolSamplesState();
+}
+
+class _CarpoolSamplesState extends State<_CarpoolSamples> {
+  List<Weekday> _days = Weekday.schoolDays;
+  String? _time = RunTime.defaultMorning;
+
+  static const Carpool _sample = Carpool(
+    id: 'sample',
+    kind: CarpoolKind.school,
+    schoolId: 'sample',
+    schoolNameAr: 'مدرسة تجريبية',
+    schoolNameEn: 'Sample school',
+    areaNameAr: 'المعادي',
+    areaNameEn: 'Maadi',
+    activityName: '',
+    activityLabel: '',
+    morning: '07:30',
+    afternoon: '14:30',
+    days: Weekday.schoolDays,
+    seats: 4,
+    childrenCount: 2,
+    memberCount: 2,
+    rules: <CarpoolRule>[CarpoolRule.noSmoking, CarpoolRule.seatBelts, CarpoolRule.wait5Min],
+    contribution: Contribution(amount: 50, period: ContributionPeriod.week),
+    creatorFirstName: 'Hoda',
+  );
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      CarpoolCard(carpool: _sample, onTap: () => _done(context)),
+      const SizedBox(height: AppSpacing.s16),
+      DaysPicker(selected: _days, keyPrefix: 'gallery.day', onChanged: (List<Weekday> d) => setState(() => _days = d)),
+      const SizedBox(height: AppSpacing.s16),
+      RunTimeField(
+        title: context.l10n.carpoolMorningTitle,
+        subtitle: context.l10n.carpoolMorningHelper,
+        value: _time,
+        defaultTime: RunTime.defaultMorning,
+        onChanged: (String? t) => setState(() => _time = t),
+      ),
+    ],
+  );
 }

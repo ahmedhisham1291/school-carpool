@@ -22,7 +22,7 @@ import 'package:school_carpool/router/app_router.dart';
 /// discs (the server sends rounded, offset points only). Filter by school
 /// and radius (slider); a list view shows the same parents. Tapping a disc
 /// or a row opens the parent card: first name, Verified badge, school,
-/// Join and Message (placeholders until Prompts 6 and 9).
+/// Join (that parent's carpools, Prompt 6) and Message (Prompt 9).
 ///
 /// States: loading (skeleton), empty (no home yet, no school yet, or nobody
 /// nearby with a hint to widen the radius), error, offline and "too many
@@ -142,7 +142,13 @@ class _NearbyParentsScreenState extends ConsumerState<NearbyParentsScreen> {
             label: l10n.parentJoin,
             icon: Icons.group_add_outlined,
             expand: true,
-            onPressed: () => showAppSnackBar(context, l10n.parentJoinSoon),
+            // Prompt 6: that parent's carpools at this school (F22, F6).
+            onPressed: () {
+              Navigator.of(context).pop();
+              GoRouter.maybeOf(context)?.go(
+                CarpoolRoutes.searchParent(schoolId: parent.schoolId, parentUid: parent.id, parentName: parent.firstName),
+              );
+            },
           ),
           const SizedBox(height: AppSpacing.s8),
           AppButton(

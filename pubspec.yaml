@@ -60,6 +60,11 @@ dependencies:
   # flutter_background_geolocation (Prompt 13).
   geolocator: ^14.0.2
 
+  # Invite links (Prompt 6, F31; justified in docs/progress/prompt-06.md).
+  # Official flutter.dev plugin: opens https://wa.me so the parent shares a
+  # carpool link in WhatsApp. Java/Swift (no Kotlin fix needed).
+  url_launcher: ^6.3.1
+
   # Persists the language, theme mode and dev design direction on the phone.
   # Official Flutter plugin; flagged to the owner in docs/progress/prompt-01.md.
   shared_preferences: ^2.5.3

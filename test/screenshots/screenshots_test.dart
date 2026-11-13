@@ -4,7 +4,9 @@
 // screens (Prompt 3), the admin web panel (Prompt 4) and the component
 // gallery in Arabic and English, light and dark (gallery also in design
 // directions A and B), the schools picker and About (Prompt 4B), the maps
-// screens (Prompt 5: nearby parents, home picker, driving schools) with the
+// screens (Prompt 5: nearby parents, home picker, driving schools), the
+// carpool screens (Prompt 6: tab, search, create, detail as a member and
+// as a visitor, invite, looking for a carpool) with the
 // real bundled fonts, and writes PNGs to
 // test/screenshots/goldens/. The shell, the sign-up and the verification
 // screens are also rendered on a small 320 dp phone, at normal and at 200
@@ -32,6 +34,8 @@ import 'package:school_carpool/features/about/about_screen.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
+import 'package:school_carpool/features/carpools/carpool_models.dart';
+import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
@@ -44,6 +48,7 @@ import 'package:school_carpool/settings/app_settings.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
 import '../helpers/admin_fakes.dart';
+import '../helpers/carpool_fakes.dart';
 import '../helpers/fonts.dart';
 import '../helpers/map_fakes.dart';
 import '../helpers/school_fakes.dart';
@@ -62,6 +67,7 @@ Future<void> _pumpScreen(
   double textScale = 1,
   List<Override> extraOverrides = const <Override>[],
   MapRepository? maps,
+  CarpoolRepository? carpools,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -85,7 +91,7 @@ Future<void> _pumpScreen(
           }),
         ),
         routerProvider.overrideWithValue(router),
-        ...authOverrides(session: session, maps: maps),
+        ...authOverrides(session: session, maps: maps, carpools: carpools),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
         ...extraOverrides,
       ],
@@ -444,6 +450,87 @@ void main() {
             ),
           );
           // The nearby search runs after the first frame.
+          await tester.pump(const Duration(milliseconds: 400));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Carpools (Prompt 6): the tab, search, the first create step, a carpool
+  // as a member (members, consent, requests) and as a visitor, the invite
+  // link of an unverified parent, and "looking for a carpool" with a match.
+  const List<CarpoolMember> members = <CarpoolMember>[
+    CarpoolMember(
+      uid: 'p1',
+      firstName: 'Hoda',
+      isAdmin: true,
+      children: <CarpoolChild>[CarpoolChild(id: 'h1', firstName: 'Laila', grade: Grade.g2)],
+    ),
+    testMe,
+  ];
+  const WantedList wanted = WantedList(
+    posts: <WantedPost>[
+      WantedPost(id: 'uid-1', firstName: 'Mona', days: Weekday.schoolDays, childrenCount: 1, morning: '07:30', mine: true),
+      WantedPost(id: 'p1', firstName: 'Hoda', days: Weekday.schoolDays, childrenCount: 2, morning: '07:45', areaNameEn: 'Degla', areaNameAr: 'دجلة'),
+      WantedPost(id: 'p2', firstName: 'Tarek', days: <Weekday>[Weekday.sun, Weekday.tue], childrenCount: 1, morning: '07:15'),
+    ],
+    suggestion: WantedSuggestion(families: 3, days: Weekday.schoolDays, morning: '07:30'),
+  );
+  final Map<String, (String, SessionState, bool)> carpoolScreens = <String, (String, SessionState, bool)>{
+    'tab': (AppTab.carpools.path, testVerifiedSession, true),
+    'search': (CarpoolRoutes.search, testVerifiedSession, false),
+    'create': ('${CarpoolRoutes.create}?school=nile', testVerifiedSession, false),
+    'detail_member': ('/carpools/k1', testVerifiedSession, true),
+    'detail_visitor': ('/carpools/k1', testVerifiedSession, false),
+    'invite_unverified': (CarpoolRoutes.invite('ABCDEFGH23'), testUnverifiedSession, false),
+    'looking': (CarpoolRoutes.looking, testVerifiedSession, false),
+  };
+  for (final MapEntry<String, (String, SessionState, bool)> screen in carpoolScreens.entries) {
+    final (String location, SessionState session, bool member) = screen.value;
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'carpools_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: location,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            session: session,
+            carpools: FakeCarpoolRepository(
+              memberships: member
+                  ? const <Membership>[Membership(carpoolId: 'k1', status: MembershipStatus.approved, isAdmin: true)]
+                  : const <Membership>[],
+              members: members,
+              requests: const <JoinRequest>[
+                JoinRequest(
+                  uid: 'p2',
+                  firstName: 'Tarek',
+                  children: <CarpoolChild>[CarpoolChild(id: 't1', firstName: 'Omar', grade: Grade.kg2)],
+                ),
+              ],
+              wanted: wanted,
+            ),
+            extraOverrides: verificationOverrides(
+              repository: FakeVerificationRepository(),
+              children: const <ChildRecord>[
+                ChildRecord(
+                  id: 'c1',
+                  firstName: 'Adam',
+                  age: 8,
+                  grade: Grade.g3,
+                  schoolName: 'Nile International School',
+                  status: ReviewStatus.approved,
+                  schoolId: 'nile',
+                ),
+              ],
+            ),
+          );
+          // Searches and lists load after the first frame.
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
         });
