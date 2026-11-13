@@ -278,6 +278,13 @@ class FakeAdminApi implements AdminApi {
   Future<void> setAdminDisabled({required String uid, required bool disabled}) async {
     await _maybeFail('disable:$uid:$disabled');
   }
+
+  int pings = 0;
+
+  @override
+  Future<void> ping() async {
+    pings += 1;
+  }
 }
 
 /// Two-step sign-in without Firebase.

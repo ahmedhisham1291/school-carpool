@@ -50,6 +50,10 @@ abstract interface class AdminApi {
   /// Returns the one-time password setup link for the new admin.
   Future<String> createAdmin({required String email, required String displayName, required AdminRole role});
   Future<void> setAdminDisabled({required String uid, required bool disabled});
+
+  /// Tells the server the admin is active (the 15-minute idle limit is
+  /// also enforced there). Throws [AdminFailure] when the session ended.
+  Future<void> ping();
 }
 
 class FirebaseAdminApi implements AdminApi {
@@ -186,6 +190,11 @@ class FirebaseAdminApi implements AdminApi {
   @override
   Future<void> setAdminDisabled({required String uid, required bool disabled}) async {
     await _call('adminSetAdminDisabled', <String, Object?>{'uid': uid, 'disabled': disabled});
+  }
+
+  @override
+  Future<void> ping() async {
+    await _call('adminPing');
   }
 }
 

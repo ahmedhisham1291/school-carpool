@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/auth/idle_timeout.dart';
+import 'package:school_carpool/admin/data/admin_api.dart';
+import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/admin/widgets/admin_widgets.dart';
@@ -45,27 +47,59 @@ List<AdminSection> adminSections({required bool superAdmin}) => <AdminSection>[
 
 /// The panel frame: a navigation rail (sections, language, theme, sign
 /// out) and the current page. Signs out after 15 idle minutes.
-class AdminShell extends ConsumerWidget {
+class AdminShell extends ConsumerStatefulWidget {
   const AdminShell({required this.location, required this.child, super.key});
 
   final String location;
   final Widget child;
 
+  /// How often an active admin tells the server (15-minute idle limit there).
+  static const Duration pingEvery = Duration(minutes: 5);
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminShell> createState() => _AdminShellState();
+}
+
+class _AdminShellState extends ConsumerState<AdminShell> {
+  DateTime? _lastPing;
+
+  Future<void> _signOut(AdminSignOutReason? reason) async {
+    ref.read(adminSignOutReasonProvider.notifier).set(reason);
+    await ref.read(adminAuthRepositoryProvider).signOut();
+  }
+
+  void _activity() {
+    final DateTime now = DateTime.now();
+    final DateTime? last = _lastPing;
+    if (last != null && now.difference(last) < AdminShell.pingEvery) {
+      return;
+    }
+    _lastPing = now;
+    unawaited(_ping());
+  }
+
+  Future<void> _ping() async {
+    try {
+      await ref.read(adminApiProvider).ping();
+    } on AdminFailure catch (failure) {
+      if (failure.kind == AdminFailureKind.sessionExpired || failure.kind == AdminFailureKind.notAdmin) {
+        await _signOut(AdminSignOutReason.expired);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String location = widget.location;
     final AppLocalizations l10n = context.l10n;
     final AdminUser? user = adminUserOf(ref.watch(adminSessionProvider));
     final List<AdminSection> sections = adminSections(superAdmin: user?.isSuperAdmin ?? false);
     final int index = sections.indexWhere((AdminSection s) => location.startsWith(s.path));
 
-    Future<void> signOut(AdminSignOutReason? reason) async {
-      ref.read(adminSignOutReasonProvider.notifier).set(reason);
-      await ref.read(adminAuthRepositoryProvider).signOut();
-    }
-
     return IdleTimeout(
       timeout: kAdminIdleTimeout,
-      onTimeout: () => unawaited(signOut(AdminSignOutReason.idle)),
+      onTimeout: () => unawaited(_signOut(AdminSignOutReason.idle)),
+      onActivity: _activity,
       child: Scaffold(
         body: SafeArea(
           child: Row(
@@ -125,14 +159,14 @@ class AdminShell extends ConsumerWidget {
                         key: const Key('admin.signOut'),
                         tooltip: l10n.profileSignOut,
                         icon: const Icon(Icons.logout),
-                        onPressed: () => unawaited(signOut(null)),
+                        onPressed: () => unawaited(_signOut(null)),
                       ),
                     ],
                   ),
                 ),
               ),
               const VerticalDivider(),
-              Expanded(child: child),
+              Expanded(child: widget.child),
             ],
           ),
         ),

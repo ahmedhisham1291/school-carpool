@@ -4,12 +4,20 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Calls [onTimeout] after [timeout] without a pointer or keyboard event
-/// anywhere below it (short admin sessions, spec section 7).
+/// anywhere below it (short admin sessions, spec section 7), and
+/// [onActivity] on each event (the caller throttles it).
 class IdleTimeout extends StatefulWidget {
-  const IdleTimeout({required this.timeout, required this.onTimeout, required this.child, super.key});
+  const IdleTimeout({
+    required this.timeout,
+    required this.onTimeout,
+    required this.child,
+    super.key,
+    this.onActivity,
+  });
 
   final Duration timeout;
   final VoidCallback onTimeout;
+  final VoidCallback? onActivity;
   final Widget child;
 
   @override
@@ -47,6 +55,7 @@ class _IdleTimeoutState extends State<IdleTimeout> {
   }
 
   void _restart() {
+    widget.onActivity?.call();
     _timer?.cancel();
     _timer = Timer(widget.timeout, widget.onTimeout);
   }

@@ -420,6 +420,14 @@ without the claim.
    already on for the email confirmation link). Email link sign-in stays off.
 3. `gcloud auth application-default login`, then
    `ADMIN_PROJECT=<project id> npm --prefix functions run admins:cloud -- enable-totp`.
+4. **Check it:** `ADMIN_PROJECT=<project id> npm --prefix functions run admins:cloud -- check-totp`
+   must print "OK, TOTP is on". In the printed settings,
+   `multiFactorConfig.state` is `DISABLED`: that switch is for **SMS**
+   second factors (kept off; the Admin SDK requires the field, so it
+   cannot be left out), and the `providerConfigs` entry with
+   `totpProviderConfig` has state `ENABLED`. Also look in the Firebase
+   console: Authentication > Settings > Multi-factor authentication should
+   show TOTP on and SMS off.
 
 ### 13.2 The first super admin (each cloud project, once)
 
@@ -433,8 +441,10 @@ At first sign-in the panel asks the admin to add the authenticator app
 (Google or Microsoft Authenticator: type the setup key), then to sign in
 again with both steps.
 
-The old `review ... grant-admin <uid>` command (Prompt 3) only sets the
-claim and does not make a usable admin account; use the commands above.
+The old `review ... grant-admin <uid> --allow` command (Prompt 3) now
+refuses parent accounts (any account with a phone number), needs the
+`--allow` flag, writes the admin record and logs itself in the audit log.
+Prefer the commands above.
 
 ### 13.3 Hosting site for the panel (each cloud project, once)
 
@@ -478,11 +488,26 @@ claim and does not make a usable admin account; use the commands above.
    is skipped (in the panel and in the functions). Cloud projects always
    require it; there is no setting that turns it off.
 
-### 13.5 Sessions
+### 13.5 Sessions and access
 
 - The sign-in lasts only as long as the browser tab (session persistence).
-- 15 minutes without a click or key press: the panel signs out.
+- 15 minutes without a click, key press or scroll: the panel signs out.
+  The functions enforce the same limit on their side: every admin call
+  checks `admins/{uid}.lastActiveAt` (written at most once a minute) and
+  the sign-in time; while the admin is active the panel calls `adminPing`
+  at most every 5 minutes, so reading a long case is not idle.
 - The functions and the rules refuse a sign-in older than 8 hours.
+- Disabling an admin revokes their refresh tokens and sets
+  `admins/{uid}.revokedAt`; the functions and the rules refuse any token
+  issued before it, so access ends at once (not when the 1-hour ID token
+  expires). The rules do not check idle time (the panel never reads
+  Firestore directly; the functions do).
+- No account can be created from a client: the `blockClientSignUps`
+  blocking function (beforeUserCreated) refuses password sign-ups, email
+  links and every other provider. Parents and admins are created by our
+  functions with the Admin SDK. After deploying, check in Authentication >
+  Settings > Blocking functions that it is set for "Before account
+  creation".
 
 ### 13.6 Maps in the panel (later)
 

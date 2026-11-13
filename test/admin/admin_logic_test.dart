@@ -142,6 +142,8 @@ void main() {
     );
     expect(from('mfa-required').kind, AdminFailureKind.mfaRequired);
     expect(from('session-expired').kind, AdminFailureKind.sessionExpired);
+    expect(from('session-idle').kind, AdminFailureKind.sessionExpired);
+    expect(from('session-revoked').kind, AdminFailureKind.sessionExpired);
     expect(from('rate-limited', 'resource-exhausted').kind, AdminFailureKind.rateLimited);
     expect(from('name-check-missing', 'failed-precondition').kind, AdminFailureKind.nameCheckMissing);
     expect(AdminFailure.from(FirebaseFunctionsException(message: 'x', code: 'unavailable')).isOffline, isTrue);

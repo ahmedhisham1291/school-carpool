@@ -73,12 +73,39 @@ browser, which is why the watermark carries the reviewer's name. The
 links still appear in the browser's network tools for 5 minutes (see open
 question 3).
 
+## Hardening after the validator review (non-blocking items)
+
+1. **No client sign-ups:** `blockClientSignUps` (beforeUserCreated)
+   refuses every account a client tries to create (password sign-up,
+   email link, SMS, social providers). Parents and admins are created by
+   our functions with the Admin SDK, which carries no client credential
+   (and per Firebase, custom and anonymous auth skip blocking functions).
+   Policy `creationAllowed` unit-tested.
+2. **Access ends at once:** every admin call reads `admins/{uid}`: refused
+   when missing or disabled, or when the token was issued before
+   `revokedAt` (set when an admin is disabled, with refresh tokens
+   revoked). The audit log rule checks the same record.
+3. **Server-side idle limit:** admin calls refuse a session idle for 15
+   minutes (`lastActiveAt`, written at most once a minute, or the sign-in
+   time if later). The panel calls `adminPing` at most every 5 minutes
+   while the admin clicks, types or scrolls; a refused ping signs out.
+   The rules do not check idle time (the panel never reads Firestore
+   directly).
+4. **review.ts grant-admin** needs `--allow`, refuses accounts with a
+   phone number or no email, writes the admin record and an audit entry.
+5. **Audit:** listing admins (`admin.list`) and opening the audit log
+   (`audit.view`, first page only) are logged. A failed admin creation
+   deletes the half-made Auth account and record.
+6. **TOTP check:** `admins:cloud -- check-totp` and SETUP 13.1 step 4.
+   `multiFactorConfig.state` is required by the Admin SDK types (it is the
+   SMS switch, kept `DISABLED`), so it stays, without a cast.
+
 ## Data model
 
 | Where | What | App access |
 | --- | --- | --- |
 | `auditLog/{id}` | actorUid, action, target, reasonCode, details (counts and kinds only), ip, time. New actions: admin.signIn, admin.create/disable/enable, user.search/view/suspend/unsuspend/ban, school.create/update/approve/merge, area.create/update; verification decisions now carry `details.nameCheck` | **get/list for admins with two steps and a fresh session**; nobody creates, edits or deletes |
-| `admins/{uid}` | email, displayName, role, disabled, createdBy, createdAt | none |
+| `admins/{uid}` | email, displayName, role, disabled, revokedAt, lastActiveAt, createdBy, createdAt | none |
 | `adminLimits/{uid}` | search rate limit window and count | none |
 | `moderations/{id}` | uid, action, reasonCode, note (the parent never sees it), actorUid, time | none |
 | `users/{uid}` (new fields) | nameKey, nameTokens (normalized name for search; written on submission), banned, statusBeforeSuspension | owner read (unchanged) |
@@ -176,7 +203,7 @@ app, Prompt 3).
 | `functions/test/admin_panel.test.ts`: access (claim, second factor, 8 h, super admin), name normalization, search planning, masked phones and emails never logged in clear, rate limit, suspend/unsuspend/ban (claims, sessions, ban list), refusals, schools (validation, Egypt box, create/edit/areas, approve, merge with children), admin accounts (role, one-time link not stored), reports, audit log (IP for super admins only) | **Run here: pass** |
 | `functions/test/sign_in_policy.test.ts`: password only for admin accounts; parents, disabled admins, phone accounts refused | **Run here: pass** |
 | `functions/test/verification_flow.test.ts`: name check required to approve a case with children; decision parsing | **Run here: pass** |
-| All Functions unit tests | **Run here: 150 pass** (Node 22, `tsc` against stand-in type stubs, small runtime stubs for firebase-admin/functions) |
+| All Functions unit tests | **Run here: 168 pass** (Node 22, `tsc` against stand-in type stubs, small runtime stubs for firebase-admin/functions) |
 | `tests/rules/admin.test.ts`: audit log read by admins with two steps and a fresh session; no create/edit/delete by anyone; parents, admins without the second factor or with an old session refused; admins, adminLimits, moderations, reports, schools, areas closed; admins cannot read users or cases directly | Written, not run here |
 | `test/admin/admin_logic_test.dart`: session from the token, router gate, pin input, parsing, error mapping | Written, not run here |
 | `test/admin/admin_screens_test.dart`: two-step sign-in, parent refused, parents never reach a panel screen, setup screen, queue, approve with checks and name check, reject, user search with masked phone, rate limit, suspend, school form with pin check, merge, audit log, Admins for super admins only | Written, not run here |

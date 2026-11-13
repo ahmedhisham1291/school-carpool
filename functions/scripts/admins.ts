@@ -13,7 +13,10 @@
  * TOTP second factor (cloud only; the Auth emulator has no TOTP).
  *
  * enable-totp turns on TOTP multi-factor for the project (Identity
- * Platform). Run it once per cloud project.
+ * Platform). Run it once per cloud project; check-totp prints the setting.
+ * The top-level `state` of multiFactorConfig is required by the Admin SDK
+ * types and governs SMS second factors, which stay "DISABLED" (no SMS
+ * anywhere); TOTP is turned on by its own providerConfigs entry.
  *
  * For a production project set CONFIRM_PROD=yes as well.
  * Sign in with `gcloud auth application-default login` first.
@@ -96,6 +99,26 @@ async function enableTotp(): Promise<void> {
   console.log(`admins: TOTP two-step sign-in is on for ${projectId}`);
 }
 
+/**
+ * Prints the project's multi-factor settings. Expected after enable-totp:
+ * multiFactorConfig.state "DISABLED" (that is SMS second factors: off) and
+ * one providerConfigs entry with state "ENABLED" and totpProviderConfig.
+ */
+async function checkTotp(): Promise<void> {
+  if (onEmulator) refuse("the Auth emulator has no TOTP; run this against a cloud project");
+  const config = await auth.projectConfigManager().getProjectConfig();
+  const mfa = config.multiFactorConfig as
+    | { state?: string; providerConfigs?: Array<{ state?: string; totpProviderConfig?: unknown }> }
+    | undefined;
+  const totp = mfa?.providerConfigs?.find((p) => p.totpProviderConfig !== undefined);
+  console.log(JSON.stringify(mfa ?? null, null, 2));
+  if (totp?.state === "ENABLED") {
+    console.log(`admins: OK, TOTP is on for ${projectId} (SMS second factors: ${mfa?.state ?? "unset"})`);
+  } else {
+    refuse(`TOTP is NOT on for ${projectId}; run enable-totp`);
+  }
+}
+
 async function main(): Promise<void> {
   const [command, arg1, ...rest] = process.argv.slice(2);
   switch (command) {
@@ -103,8 +126,10 @@ async function main(): Promise<void> {
       return createSuperAdmin(arg1 ?? "", rest.join(" "));
     case "enable-totp":
       return enableTotp();
+    case "check-totp":
+      return checkTotp();
     default:
-      refuse('commands: create-super-admin <email> "<name>" | enable-totp');
+      refuse('commands: create-super-admin <email> "<name>" | enable-totp | check-totp');
   }
 }
 

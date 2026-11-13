@@ -45,7 +45,9 @@ class AdminFailure implements Exception {
       final AdminFailureKind kind = switch (reason) {
         'not-admin' || 'unauthenticated' => AdminFailureKind.notAdmin,
         'mfa-required' => AdminFailureKind.mfaRequired,
-        'session-expired' => AdminFailureKind.sessionExpired,
+        // Over 8 hours, idle for 15 minutes on the server, or the admin was
+        // disabled (tokens revoked): sign in again.
+        'session-expired' || 'session-idle' || 'session-revoked' => AdminFailureKind.sessionExpired,
         'not-super-admin' => AdminFailureKind.notSuperAdmin,
         'rate-limited' => AdminFailureKind.rateLimited,
         'invalid-request' || 'invalid-decision' => AdminFailureKind.invalid,

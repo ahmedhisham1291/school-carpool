@@ -236,6 +236,17 @@ void main() {
       expect(find.byIcon(Icons.delete_outline), findsNothing);
     });
 
+    testWidgets('activity tells the server, at most every 5 minutes', (WidgetTester tester) async {
+      final FakeAdminApi api = FakeAdminApi();
+      await pumpAdminPanel(tester, session: signedIn, location: AdminRoutes.queue, api: api, locale: 'en');
+      await settle(tester);
+      final int first = api.pings;
+      expect(first, 1, reason: 'one ping when the panel opens');
+      await tester.tap(find.byKey(const Key('queue.case1')), warnIfMissed: false);
+      await tester.pump();
+      expect(api.pings, first, reason: 'throttled');
+    });
+
     testWidgets('only super admins see Admins', (WidgetTester tester) async {
       await pumpAdminPanel(tester, session: signedIn, location: AdminRoutes.queue, locale: 'en');
       expect(find.text('Admins'), findsNothing);
