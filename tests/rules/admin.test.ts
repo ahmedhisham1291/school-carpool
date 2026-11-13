@@ -22,7 +22,7 @@ const nowSeconds = (): number => Math.floor(Date.now() / 1000);
 
 /** Identities. Created inside each test, after before() made `env`. */
 const withMfa = (extra: Record<string, unknown> = {}) => ({
-  firebase: { sign_in_provider: "password", sign_in_second_factor: "totp" },
+  firebase: { sign_in_provider: "password" as const, sign_in_second_factor: "totp" },
   auth_time: nowSeconds() - 60,
   ...extra,
 });
