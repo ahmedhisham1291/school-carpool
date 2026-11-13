@@ -254,6 +254,8 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
         for (final ChildDraft child in draft.children)
           AppListRow(
             key: Key('verify.child.${child.ref}'),
+            // The step list already has the screen gutter.
+            inset: false,
             title: child.firstName,
             subtitle: '${l10n.childAgeYears(child.age ?? 0)} · ${gradeLabel(l10n, child.grade ?? Grade.g1)} · ${child.schoolName}',
             leadingIcon: Icons.child_care_outlined,

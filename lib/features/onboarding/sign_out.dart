@@ -25,9 +25,10 @@ Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
   try {
     flow.reset();
     await repository.signOut();
-  } on AuthFailure {
+  } on AuthFailure catch (failure) {
     if (messenger != null) {
-      showAppSnackBarOn(messenger, l10n.signOutFailed);
+      // Short and one line, but still says why: offline or something else.
+      showAppSnackBarOn(messenger, failure.isOffline ? l10n.errorOfflineShort : l10n.signOutFailed);
     }
   }
 }

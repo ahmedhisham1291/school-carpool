@@ -463,6 +463,8 @@ void main() {
           l10n.emailLinkSent,
           l10n.copiedToClipboard,
           l10n.signOutFailed,
+          l10n.verifyWithdrawFailed,
+          l10n.errorOfflineShort,
         ];
         count = messages.length;
         return Scaffold(
@@ -480,7 +482,7 @@ void main() {
           ),
         );
       });
-      expect(count, 9);
+      expect(count, 11);
       for (int i = 0; i < count; i++) {
         await tester.tap(find.byKey(ValueKey<int>(i)));
         await tester.pump();
@@ -538,14 +540,14 @@ void main() {
           _useNarrowPhone(tester, height: 1600, textScale: textScale);
           await _pumpRoute(tester, locale: locale, location: location, session: session);
 
-          // Buttons and titles: one line at any text size, never shrunk to
-          // unreadable.
+          // Buttons and titles: one line at any text size; at 200 percent a
+          // button label shrinks at most 25 percent (as in the design test).
           // Profile builds its list lazily: the sign-out button may not be
           // built at 200 percent text.
           _expectOneLineIfShown(find.byType(AppButton), '${screen.key}: buttons');
           _expectNotShrunk(
             find.byType(AppButton),
-            textScale == 1 ? 0.9 : 0.5,
+            textScale == 1 ? 0.9 : 0.75,
             '${screen.key}: buttons',
           );
           _expectOneLineIfShown(find.byType(AppBarTitle), '${screen.key}: app bar title');
@@ -775,7 +777,7 @@ void main() {
 
       _expectOneLine(find.byType(AppBarTitle), 'app bar title x2');
       _expectOneLine(find.byType(AppButton), 'sign-up buttons x2');
-      _expectNotShrunk(find.byType(AppButton), 0.5, 'sign-up buttons x2');
+      _expectNotShrunk(find.byType(AppButton), 0.75, 'sign-up buttons x2');
 
       await tester.ensureVisible(find.byKey(const Key('openSignOut')));
       await tester.pumpAndSettle();
@@ -833,7 +835,7 @@ void main() {
             (Widget widget) => widget is OneLineText && widget.scaleDown,
           );
           _expectOneLine(find.byType(AppButton), '$where: buttons');
-          _expectNotShrunk(find.byType(AppButton), textScale == 1 ? 0.9 : 0.5, '$where: buttons');
+          _expectNotShrunk(find.byType(AppButton), textScale == 1 ? 0.9 : 0.75, '$where: buttons');
           _expectOneLine(scaled, '$where: titles and buttons');
           if (textScale == 1) {
             _expectNotShrunk(scaled, 0.9, '$where: titles and buttons');
