@@ -1,6 +1,6 @@
 # School Carpool App: rules for the coding agent
 
-Source of truth: docs/spec.md. Feature IDs (F1 to F44) are in section 4.
+Source of truth: docs/spec.md. Owner decisions (incl. legal answers): docs/DECISIONS.md. Feature IDs (F1 to F44) are in section 4.
 If the spec and a prompt disagree, stop and ask me.
 
 STACK (decided: the strongest option for each job, paid where that buys
