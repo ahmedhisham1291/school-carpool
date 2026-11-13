@@ -12,9 +12,10 @@ import {
   SCHOOL_SEARCH_PROVIDER,
 } from "../config";
 import { reportError } from "../sentry";
-import { AlgoliaRestClient, SECURED_KEY_TTL_SECONDS, securedSearchKey } from "./algolia";
+import { AlgoliaRestClient } from "./algolia";
 import { syncAction } from "./catalog";
 import { addOtherSchool as addOtherFlow, OTHER_SCHOOL_ERROR_CODES, OtherSchoolError } from "./other";
+import { consumeKeyQuotaFirestore, issueSearchKey, SEARCH_KEY_ERROR_CODES, SearchKeyError } from "./search_key";
 import { FirestoreOtherSchoolsStore } from "./store";
 
 /**
@@ -36,6 +37,9 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
     if (error instanceof OtherSchoolError) {
       throw new HttpsError(OTHER_SCHOOL_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
     }
+    if (error instanceof SearchKeyError) {
+      throw new HttpsError(SEARCH_KEY_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
+    }
     // Never the request data (a typed school name is harmless, but the rule is simple).
     logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
     await reportError(error);
@@ -54,24 +58,33 @@ export const addOtherSchool = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (re
 );
 
 /**
- * Parent: a one-hour Algolia key that can only search the schools index.
+ * Parent: which search to use and, for Algolia, a one-hour key that can
+ * only search the schools index and is rate limited per parent (at most
+ * MAX_SEARCH_KEYS_PER_DAY keys a day). The fake search is refused in prod.
  * {} -> { provider: "algolia", appId, indexName, key, validUntil } or { provider: "fake" }
  */
 export const getSchoolSearchKey = onCall(
   { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [ALGOLIA_SEARCH_KEY] },
   (request) =>
     run("getSchoolSearchKey", async () => {
-      requireUid(request);
-      if (SCHOOL_SEARCH_PROVIDER.value() !== "algolia") return { provider: "fake" };
-      const appId = ALGOLIA_APP_ID.value();
-      const parent = ALGOLIA_SEARCH_KEY.value();
-      if (!appId || !parent) {
-        logger.error("Algolia is selected but ALGOLIA_APP_ID or ALGOLIA_SEARCH_KEY is not set");
-        throw new HttpsError("failed-precondition", "School search is not configured.", { reason: "search-misconfigured" });
-      }
-      const indexName = ALGOLIA_INDEX.value();
-      const validUntil = Math.floor(Date.now() / 1000) + SECURED_KEY_TTL_SECONDS;
-      return { provider: "algolia", appId, indexName, key: securedSearchKey(parent, indexName, validUntil), validUntil };
+      const uid = requireUid(request);
+      const db = adminDb();
+      return issueSearchKey(
+        {
+          provider: SCHOOL_SEARCH_PROVIDER.value(),
+          appEnv: process.env.APP_ENV ?? "dev",
+          appId: ALGOLIA_APP_ID.value(),
+          parentSearchKey: ALGOLIA_SEARCH_KEY.value(),
+          indexName: ALGOLIA_INDEX.value(),
+          nowMs: Date.now(),
+          consumeQuota: (id, today) => consumeKeyQuotaFirestore(db, id, today),
+          reportProblem: async (problem) => {
+            logger.error(`CONFIGURATION ERROR: ${problem}`);
+            await reportError(new Error(problem));
+          },
+        },
+        uid,
+      );
     }),
 );
 

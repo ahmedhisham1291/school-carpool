@@ -118,7 +118,9 @@ export async function saveSchool(
     location: input.location,
     status: "active",
     source: existing?.source ?? "admin",
-    addedBy: existing?.addedBy ?? caller.uid,
+    // Active schools are readable by every parent (firestore.rules): no
+    // admin or parent uid on them. The audit entry records who did it.
+    addedBy: null,
     mergedInto: null,
     createdAtMs: existing?.createdAtMs ?? deps.now(),
   };
