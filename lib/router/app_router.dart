@@ -80,7 +80,7 @@ abstract final class CarpoolRoutes {
   static const String create = '/carpools/$createSegment';
   static const String looking = '/carpools/$lookingSegment';
 
-  /// Invite links: https://<links site>/c/<code> (universal links on iPhone).
+  /// Invite links: `https://<links site>/c/<code>` (universal links on iPhone).
   static const String invitePattern = '/c/:code';
 
   static String detail(String carpoolId) => '/carpools/$carpoolId';
