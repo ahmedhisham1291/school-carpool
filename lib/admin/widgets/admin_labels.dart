@@ -110,6 +110,7 @@ String auditActionLabel(AppLocalizations l10n, String action) => switch (action)
   'verification.approve' || 'verification.approved' => l10n.adminAuditApprove,
   'verification.reject' || 'verification.rejected' => l10n.adminAuditReject,
   'verification.ban' => l10n.adminAuditCaseBan,
+  'verification.withdraw' => l10n.adminWithdrawn,
   'user.search' => l10n.adminAuditUserSearch,
   'user.view' => l10n.adminAuditUserView,
   'user.suspend' => l10n.adminActionSuspend,

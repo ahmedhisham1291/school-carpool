@@ -167,6 +167,31 @@ describe("users", () => {
     assert.deepEqual(history.actions.map((a) => a.action), ["user.suspend", "user.unsuspend"]);
   });
 
+  it("changes the claim before the status, and puts it back if the write fails", async () => {
+    const order: string[] = [];
+    const setVerified = claims.setVerified.bind(claims);
+    claims.setVerified = async (uid, verified) => {
+      order.push(`claim:${verified}`);
+      await setVerified(uid, verified);
+    };
+    const apply = store.applyModeration.bind(store);
+    store.applyModeration = async (write, expected) => {
+      order.push(`status:${write.status}`);
+      await apply(write, expected);
+    };
+    await moderateUser(deps, ADMIN, { uid: "u1", action: "suspend", reasonCode: "reports" }, null);
+    assert.deepEqual(order, ["claim:false", "status:suspended"]);
+
+    store.applyModeration = async () => {
+      throw new AdminError("invalid-state");
+    };
+    await assert.rejects(
+      moderateUser(deps, ADMIN, { uid: "u1", action: "unsuspend", reasonCode: "other", note: "x" }, null),
+      expectReason("invalid-state"),
+    );
+    assert.equal(claims.verified.get("u1"), false, "claim put back");
+  });
+
   it("bans: suspended, ID hash on the ban list, cannot be unsuspended", async () => {
     store.nationalIds.set("hash-u2", "u2");
     await moderateUser(deps, ADMIN, { uid: "u2", action: "ban", reasonCode: "fake_documents" }, null);

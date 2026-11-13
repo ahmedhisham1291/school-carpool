@@ -480,7 +480,7 @@ describe("claim before status (review fix)", () => {
 
   it("approve: the verified claim is set before the status and the claimsUpdatedAt marker", async () => {
     const caseId = await submitted();
-    await decideVerification(deps, "admin1", { caseId, decision: "approve" });
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
     assert.deepEqual(store.events, ["claim:true", "status:verified", "marker:claimsUpdatedAt"]);
   });
 
@@ -492,14 +492,14 @@ describe("claim before status (review fix)", () => {
 
   it("an update case of a verified parent changes no claim and writes no marker", async () => {
     const caseId = await submitted();
-    await decideVerification(deps, "admin1", { caseId, decision: "approve" });
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
     store.events.length = 0;
     files.put(pendingPath("alice", "school_id_c2.jpg"));
     const update = await submitVerification(deps, "alice", {
       children: [{ ref: "c2", firstName: "Laila", age: 5, grade: "kg2", schoolName: "Nile School" }],
       consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
     });
-    await decideVerification(deps, "admin1", { caseId: update.caseId, decision: "approve" });
+    await decideVerification(deps, "admin1", { caseId: update.caseId, decision: "approve", nameCheck: "match" });
     assert.deepEqual(store.events, ["status:unchanged"]);
   });
 
@@ -509,7 +509,7 @@ describe("claim before status (review fix)", () => {
     store.saveDecision = async () => {
       throw new VerificationError("already-decided");
     };
-    await assert.rejects(decideVerification(deps, "admin1", { caseId, decision: "approve" }), expectReason("already-decided"));
+    await assert.rejects(decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" }), expectReason("already-decided"));
     assert.equal(claims.verified.get("alice"), false);
     store.saveDecision = save;
   });

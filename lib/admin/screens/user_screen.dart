@@ -143,14 +143,16 @@ class _UserScreenState extends ConsumerState<UserScreen> {
                       if (c.reason != null) rejectionReasonShort(l10n, c.reason!),
                     ].join(' · '),
                     leadingIcon: Icons.badge_outlined,
-                    trailing: AppStatusBadge(
-                      label: reviewStatusLabel(l10n, c.status),
-                      tone: switch (c.status) {
-                        ReviewStatus.approved => AppBadgeTone.success,
-                        ReviewStatus.rejected => AppBadgeTone.error,
-                        ReviewStatus.pending => AppBadgeTone.warning,
-                      },
-                    ),
+                    trailing: c.withdrawn
+                        ? AppStatusBadge(label: l10n.adminWithdrawn)
+                        : AppStatusBadge(
+                            label: reviewStatusLabel(l10n, c.status),
+                            tone: switch (c.status) {
+                              ReviewStatus.approved => AppBadgeTone.success,
+                              ReviewStatus.rejected => AppBadgeTone.error,
+                              ReviewStatus.pending => AppBadgeTone.warning,
+                            },
+                          ),
                   ),
               const SizedBox(height: AppSpacing.s24),
               AppSectionHeader(l10n.adminModerationHistory),

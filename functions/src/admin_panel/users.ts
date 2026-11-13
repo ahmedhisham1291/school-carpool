@@ -220,26 +220,33 @@ export async function moderateUser(
     };
   }
 
-  await deps.store.applyModeration(
-    {
-      ...write,
-      audit: {
-        actorUid: caller.uid,
-        action: `user.${request.action}`,
-        target: `users/${user.uid}`,
-        reasonCode: request.reasonCode,
-        details: request.action === "ban" ? { idBanned: write.banNationalIdHash !== null } : undefined,
-        ip,
+  // As in decideVerification (Prompt 3 review fix): the claim changes
+  // BEFORE the status and the claimsUpdatedAt marker, so a token the app
+  // refreshes on the marker already carries it. Put it back if the write fails.
+  const claimTarget = write.status === "suspended" ? false : write.status === "verified" ? true : null;
+  const claimBefore = user.status === "verified";
+  if (claimTarget !== null) await deps.claims.setVerified(user.uid, claimTarget);
+  try {
+    await deps.store.applyModeration(
+      {
+        ...write,
+        audit: {
+          actorUid: caller.uid,
+          action: `user.${request.action}`,
+          target: `users/${user.uid}`,
+          reasonCode: request.reasonCode,
+          details: request.action === "ban" ? { idBanned: write.banNationalIdHash !== null } : undefined,
+          ip,
+        },
       },
-    },
-    user.status,
-  );
-
-  if (write.status === "suspended") {
-    await deps.claims.setVerified(user.uid, false);
-    await deps.claims.revokeSessions(user.uid);
-  } else if (write.status === "verified") {
-    await deps.claims.setVerified(user.uid, true);
+      user.status,
+    );
+  } catch (error) {
+    if (claimTarget !== null && claimTarget !== claimBefore) {
+      await deps.claims.setVerified(user.uid, claimBefore).catch(() => undefined);
+    }
+    throw error;
   }
+  if (write.status === "suspended") await deps.claims.revokeSessions(user.uid);
   return { status: write.status };
 }

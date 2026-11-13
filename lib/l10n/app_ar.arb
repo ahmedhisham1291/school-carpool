@@ -2486,5 +2486,9 @@
   "verifyWithdrawn": "تم السحب.",
   "@verifyWithdrawn": {
     "description": "Snackbar"
+  },
+  "adminWithdrawn": "سحبه ولي الأمر",
+  "@adminWithdrawn": {
+    "description": "Admin panel: case the parent withdrew before review (badge, audit action; one line)"
   }
 }

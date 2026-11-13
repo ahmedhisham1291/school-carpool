@@ -201,6 +201,8 @@ export class FirestoreUsersStore implements UsersStore {
         status: write.status,
         statusBeforeSuspension: write.statusBeforeSuspension,
         banned: write.banned,
+        // The app refreshes its token when this changes (Prompt 3 review fix).
+        claimsUpdatedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
       tx.create(this.db.collection(MODERATIONS).doc(), {

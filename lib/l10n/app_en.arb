@@ -590,5 +590,6 @@
   "verifyWithdraw": "Withdraw",
   "verifyWithdrawTitle": "Withdraw your documents?",
   "verifyWithdrawBody": "They leave the review and are deleted. You can send them again.",
-  "verifyWithdrawn": "Withdrawn."
+  "verifyWithdrawn": "Withdrawn.",
+  "adminWithdrawn": "Withdrawn by parent"
 }

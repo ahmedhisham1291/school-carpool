@@ -324,9 +324,11 @@ class CaseHistory {
     required this.reason,
     required this.submittedAt,
     required this.decidedAt,
+    this.withdrawn = false,
   });
 
   factory CaseHistory.fromJson(Json j) => CaseHistory(
+    withdrawn: j.str('status') == 'withdrawn',
     caseId: j.str('caseId'),
     identity: j.str('scope', 'identity') == 'identity',
     status: switch (j.str('status')) {
@@ -345,6 +347,9 @@ class CaseHistory {
   final RejectionReason? reason;
   final DateTime? submittedAt;
   final DateTime? decidedAt;
+
+  /// The parent withdrew it before review (Prompt 3).
+  final bool withdrawn;
 }
 
 @immutable
