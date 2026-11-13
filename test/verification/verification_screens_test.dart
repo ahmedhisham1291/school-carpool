@@ -232,6 +232,10 @@ void main() {
         account: _account(AccountStatus.unverified),
         repository: repository,
       );
+      // A tall screen (600 x 4000) so the whole review step, and the message
+      // under it, is built without scrolling the lazy list.
+      tester.view.physicalSize = const Size(1200, 8000);
+      await tester.pumpAndSettle();
       final ProviderContainer container = ProviderScope.containerOf(tester.element(find.byType(VerificationFlowScreen)));
       container.read(verificationDraftProvider.notifier).update(
         (VerificationDraft d) => d.copyWith(
@@ -255,12 +259,6 @@ void main() {
       }
       await tester.tap(find.byKey(const Key('verify.next')));
       await tester.pumpAndSettle();
-      // The message sits under the review summary: scroll the step to it.
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('verify.failure')),
-        200,
-        scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first,
-      );
       expect(find.textContaining('already used by another account'), findsOneWidget);
       expect(repository.submissions, isEmpty);
     });
