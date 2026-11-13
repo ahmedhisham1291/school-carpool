@@ -31,7 +31,7 @@ class VerifyAccountScreen extends ConsumerWidget {
 
     if (account == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.verifyTitle)),
+        appBar: AppBar(title: AppBarTitle(l10n.verifyTitle)),
         body: const Skeleton(
           child: Column(children: <Widget>[SkeletonCard(), SkeletonListRow(), SkeletonListRow()]),
         ),
@@ -60,7 +60,7 @@ class VerifyAccountScreen extends ConsumerWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Semantics(header: true, child: Text(l10n.verifyTitle))),
+      appBar: AppBar(title: AppBarTitle(l10n.verifyTitle)),
       body: SafeArea(
         top: false,
         child: Column(
@@ -83,11 +83,25 @@ class VerifyAccountScreen extends ConsumerWidget {
                     ),
                   ),
                   AppSectionHeader(l10n.verifyStepsTitle),
-                  AppListRow(title: l10n.verifyStepId, leadingIcon: Icons.badge_outlined),
-                  AppListRow(title: l10n.verifyStepSelfie, leadingIcon: Icons.face_outlined),
-                  AppListRow(title: l10n.verifyStepChild, leadingIcon: Icons.school_outlined),
+                  // Short one-line titles; the detail goes in the subtitle.
+                  AppListRow(
+                    title: l10n.verifyStepId,
+                    subtitle: l10n.verifyStepIdDetail,
+                    leadingIcon: Icons.badge_outlined,
+                  ),
+                  AppListRow(
+                    title: l10n.verifyStepSelfie,
+                    subtitle: l10n.verifyStepSelfieDetail,
+                    leadingIcon: Icons.face_outlined,
+                  ),
+                  AppListRow(
+                    title: l10n.verifyStepChild,
+                    subtitle: l10n.verifyStepChildDetail,
+                    leadingIcon: Icons.school_outlined,
+                  ),
                   AppListRow(
                     title: l10n.verifyStepDriver,
+                    subtitle: l10n.verifyStepDriverDetail,
                     leadingIcon: Icons.directions_car_outlined,
                   ),
                   Padding(

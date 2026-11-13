@@ -456,7 +456,7 @@
   "@emailConfirmed": {
     "description": "Button to check the email confirmation"
   },
-  "emailResend": "أرسل الرابط مرة أخرى",
+  "emailResend": "أعد إرسال الرابط",
   "@emailResend": {
     "description": "Resend link button"
   },
@@ -556,19 +556,19 @@
   "@verifyStepsTitle": {
     "description": "Section title"
   },
-  "verifyStepId": "البطاقة الشخصية من الأمام والخلف",
+  "verifyStepId": "البطاقة الشخصية",
   "@verifyStepId": {
     "description": "Verification step"
   },
-  "verifyStepSelfie": "صورة سيلفي داخل التطبيق",
+  "verifyStepSelfie": "صورة سيلفي",
   "@verifyStepSelfie": {
     "description": "Verification step"
   },
-  "verifyStepChild": "بيانات طفلك وصورة كارنيه المدرسة",
+  "verifyStepChild": "بيانات طفلك",
   "@verifyStepChild": {
     "description": "Verification step"
   },
-  "verifyStepDriver": "رخصة القيادة وبيانات السيارة إذا كنت ستقود",
+  "verifyStepDriver": "رخصة القيادة",
   "@verifyStepDriver": {
     "description": "Verification step"
   },
@@ -632,7 +632,7 @@
   "@profileAccountSection": {
     "description": "Profile section title"
   },
-  "profileStatus": "حالة التوثيق",
+  "profileStatus": "الحالة",
   "@profileStatus": {
     "description": "Profile row label"
   },
@@ -753,5 +753,25 @@
   "sampleChipBoth": "الاثنان",
   "@sampleChipBoth": {
     "description": "Gallery sample: chip, both directions"
+  },
+  "verifyStepIdDetail": "الوجه والظهر",
+  "@verifyStepIdDetail": {
+    "description": "Verification step detail, under the national ID title"
+  },
+  "verifyStepSelfieDetail": "تُلتقط داخل التطبيق",
+  "@verifyStepSelfieDetail": {
+    "description": "Verification step detail, under the selfie title"
+  },
+  "verifyStepChildDetail": "وصورة كارنيه المدرسة",
+  "@verifyStepChildDetail": {
+    "description": "Verification step detail, under the child title"
+  },
+  "verifyStepDriverDetail": "وبيانات السيارة إذا كنت ستقود",
+  "@verifyStepDriverDetail": {
+    "description": "Verification step detail, under the driver's license title"
+  },
+  "signOutFailed": "تعذّر تسجيل الخروج",
+  "@signOutFailed": {
+    "description": "Snackbar when signing out fails; a few words, one line"
   }
 }

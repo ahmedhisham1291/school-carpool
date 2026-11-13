@@ -279,7 +279,8 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Verify your account'), findsWidgets);
-    expect(find.text('Your national ID, front and back'), findsOneWidget);
+    expect(find.text('National ID'), findsOneWidget);
+    expect(find.text('Front and back'), findsOneWidget);
     expect(find.byKey(const Key('verify.openProfile')), findsOneWidget);
   });
 }
