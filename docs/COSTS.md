@@ -21,7 +21,7 @@ Limits below are the public free allowances as understood in November 2026.
 | GitHub Actions | Free | Public repositories: free. Private: a monthly allowance of free Linux minutes (2,000 on the free plan in Nov 2026; check GitHub's billing page) | GitHub > Settings > Billing > Usage | A private repository uses 80 percent of the allowance |
 | Stream Chat | Build (free), later Maker | See Stream's pricing page; Maker is free for small companies that qualify | Stream dashboard | Prompt 9 onward, when the free plan's user or message limit is reached |
 | Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
-| Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes) | Google Cloud > Quotas, with per-day caps set in SETUP.md | Any product reaches 80 percent of its free calls |
+| Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
 | WhatsApp Business | Pay per template message | Codes and critical alerts only by default; other notifications are push unless the parent switches WhatsApp on | Meta WhatsApp Manager > Insights | Budget set by the owner |
 | Valify, wallet partner | Fake providers | Nothing is called until the pilot | n/a | Contract signed |
 | flutter_background_geolocation | No license | Debug builds and iOS need none | n/a | Before the first Android release build |
@@ -110,6 +110,36 @@ Limits below are the public free allowances as understood in November 2026.
 - **Usage tracking:** Algolia dashboard > Usage (search requests).
 - **Upgrade when:** 8,000 search requests in a month, or before the
   public launch if Algolia's terms rule out the Build plan for us.
+
+## Maps (Prompt 5)
+
+Google Maps Platform bills per product ("SKU"); since March 2025 each SKU
+has its own free monthly calls (Essentials 10,000, Pro 5,000, Enterprise
+1,000). Check Google's pricing page before relying on these numbers.
+
+| What we call | SKU | Free a month | How we keep it low |
+| --- | --- | --- | --- |
+| The map on iPhone and Android (Maps SDK) | Mobile native dynamic maps | Listed at no charge for the mobile SDKs (check the pricing page) | Maps appear only on the home picker, the school map and the nearby map; no map on the Home tab |
+| The map on the website (Stage 2) | Dynamic Maps (Essentials) | 10,000 loads | Not loaded until Stage 2; no key in web builds |
+| Address search as you type | Autocomplete Requests (Essentials, via Places API New) | 10,000 | 3 letters, 400 ms pause, one session token per search, at most 60 searches per parent per hour (`MAP_PLACE_SEARCHES_PER_HOUR`) |
+| The picked address | Place Details Essentials (fields `id`, `formattedAddress`, `location` only) | 10,000 | Cached in `placeCache` for 30 days (Firestore TTL deletes old entries) |
+| "Use my location" | Free (the phone's GPS) | n/a | Nothing is sent to Google |
+| Arrival times | Routes | n/a now | Prompt 13: only during a live run, at most once a minute per stop |
+
+- **Dev and CI:** `PLACES_PROVIDER=fake` (a few fixed places) and no map
+  key: no Google calls at all. The maps are drawn by a sketch.
+- **Firestore:** setting a home is about 5 reads and 3 writes; a nearby
+  search about 5 reads plus one read per parent found (at most 9 range
+  queries of 50); settings about 5 reads and 2 writes. Searches are limited
+  to 30 per parent per hour (`MAP_NEARBY_SEARCHES_PER_HOUR`) and home moves
+  to 4 a day (`MAP_HOME_MOVES_PER_DAY`), which also stops anyone sweeping
+  the map.
+- **Cloud Functions:** each autocomplete keystroke batch is one call (2
+  million free a month).
+- **Usage tracking:** Google Cloud > APIs & Services > each API > Metrics,
+  plus the per-day quota caps in SETUP.md section 15.4.
+- **Upgrade when:** any SKU passes 8,000 calls in a month (raise the
+  per-day caps knowingly, with the budget alert in place).
 
 ## Open cost questions
 

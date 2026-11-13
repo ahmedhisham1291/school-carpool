@@ -125,6 +125,17 @@ focused and hovered controls get a veil of their label color at
   the real content; the pulse stops with reduce-motion.
 - **Feedback** (`showAppSnackBar`, or `showAppSnackBarOn(messenger, ...)`
   after an `await`): a few words, one line ("Saved").
+- **Switch rows** (`AppSwitchRow`, Prompt 5): settings that are on or
+  off. One-line title, subtitle that says what the current choice means,
+  switch at the end; the whole row toggles and saves at once.
+- **Maps** (`AppMapView`, Prompt 5): colors come from the theme
+  (`mapStyleJson`: land on the page color, roads on the raised surface,
+  water in the accent wash, businesses and transit hidden), so the map
+  follows light and dark. The parent's own home and schools are pins.
+  Other parents are never pins: two soft accent discs (`AppMapTokens`
+  blur radii and opacities) around the server's rounded point. No Google
+  buttons; our own 48 dp buttons sit on the map. Tests, the gallery and
+  keyless dev builds draw the same content with `SketchMapView`.
 - New component: add it to the gallery first, then use it.
 
 ## One-line wording

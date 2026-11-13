@@ -7,12 +7,13 @@ import { MapError } from "./parent_map";
  * Places API key stays on the server (Secret Manager), searches are rate
  * limited per parent, and place details are cached.
  *
- * COST MODE (docs/COSTS.md): the app waits 400 ms after the last key press
- * and sends a session token; the details call ends the session, so the
- * autocomplete requests of that session are not billed separately (Places
- * API New session pricing). Details ask only for id, formattedAddress and
- * location (the cheapest "Essentials" fields) and are cached for 30 days
- * (the most Google's terms allow for coordinates).
+ * COST MODE (docs/COSTS.md): the app waits 400 ms after the last key press,
+ * needs 3 letters, and sends one session token per search; the details call
+ * ends the session. Details ask only for id, formattedAddress and location
+ * (the cheaper "Essentials" fields) and are cached for 30 days (the most
+ * Google's terms allow for coordinates). With Essentials details, Google
+ * still bills the first autocomplete requests of a session (inside the
+ * monthly free calls), so searches are also limited per parent per hour.
  */
 
 export interface PlaceSuggestion {
