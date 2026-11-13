@@ -251,7 +251,15 @@ void main() {
         repository: repository,
         session: testUnverifiedSession,
       );
-      await tester.ensureVisible(find.byKey(const Key('profile.signOut')));
+      // The Profile list builds lazily, so the button may not exist until the
+      // list scrolls; scroll the Profile list itself (not a nested one).
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('profile.signOut')),
+        200,
+        scrollable: find
+            .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+            .first,
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('profile.signOut')));
       await tester.pumpAndSettle();
