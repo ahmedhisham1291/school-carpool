@@ -517,3 +517,101 @@ a Maps JavaScript API key restricted to the admin site's domain, the
 `google_maps_flutter` package (with its web implementation) and the
 script tag in `web/index.html` (added by tool/bootstrap.sh). Owner decision
 (open question in docs/progress/prompt-04.md).
+
+## 14. Schools list (Prompt 4B)
+
+The schools parents pick from come from an import you run on your Mac (or
+in this repository's CI with the sample). Python 3.11 or newer, nothing to
+install. Search runs on Algolia in staging and prod; dev uses a fake search
+on the emulators, so no Algolia account is needed to work on the app.
+
+### 14.1 Download the data
+
+1. **OpenStreetMap schools (HDX).** Open
+   <https://data.humdata.org/dataset/hotosm_egy_education_facilities>
+   ("Egypt Education Facilities (OpenStreetMap Export)", by the
+   Humanitarian OpenStreetMap Team). If the link moved, search HDX for
+   "Egypt Education Facilities". Download the **GeoJSON** points and
+   polygons files (`hotosm_egy_education_facilities_points_geojson.zip`
+   and `..._polygons_geojson.zip`, or the CSV). Put the zip files as they
+   are into `data/schools/` (they are not committed: `data/schools/.gitignore`).
+2. **Ministry, governorate or school-group lists (optional).** Save each as
+   CSV (UTF-8) in `data/schools/`. Accepted headers, English or Arabic
+   (other columns are listed in the report and ignored):
+   `source_id`/`code`/`كود المدرسة`, `name_ar`/`اسم المدرسة`,
+   `name_en`/`اسم المدرسة بالانجليزي`, `governorate`/`المحافظة`,
+   `city`/`district`/`الإدارة`/`الحي`, `kind`/`stage`/`المرحلة`, and
+   `lat`+`lng` or `خط العرض`+`خط الطول` (optional). The file name becomes
+   the source (`list_<file name>`), so keep the name the same between runs.
+3. **Governorate boundaries (optional, recommended).** OpenStreetMap
+   points rarely say which governorate they are in; without boundaries the
+   tool uses the nearest town, which can be wrong within a few kilometres
+   of a border. Download "Egypt - Subnational Administrative Boundaries"
+   from HDX (admin level 1, GeoJSON) and put it in
+   `data/schools/boundaries/`.
+
+### 14.2 Run the import and read the report
+
+```sh
+python3 tools/import_schools/import_schools.py
+# writes build/schools/schools.json and build/schools/report.md
+```
+
+The report lists schools per governorate, what was dropped and why
+(no name, only "school" as a name, universities and courses, outside
+Egypt...), the duplicates it merged (same or similar name within about
+300 m, Arabic spelling differences ignored), and **likely duplicates** it
+did not merge, for you to check. Running it again on the same files gives
+the same IDs.
+
+Try it first with the hand-written sample (not real data):
+`python3 tools/import_schools/import_schools.py --input data/schools/sample`.
+
+### 14.3 Load into Firestore
+
+- **Emulators (dev):** start the emulators, then
+  `npm --prefix functions run schools:load:emulator`.
+- **Cloud project:** `gcloud auth application-default login`, then
+  `SCHOOLS_PROJECT=<project-id> npm --prefix functions run schools:load:cloud -- --dry-run`
+  to see what would change, and the same with `--yes` to write.
+
+Loading twice never creates duplicates: schools are matched by ID and by
+every source key, unchanged schools are not written, schools an admin
+edited or merged are left alone, and nothing is deleted. Never load the
+sample into prod.
+
+### 14.4 Algolia (before staging tests; not needed for dev)
+
+1. Create an Algolia account and one application. Create one index per
+   project: `schools_dev` (optional), `schools_staging`, `schools`.
+2. Apply the settings and send the schools once (admin key from Algolia's
+   API keys page, on your Mac only, never committed):
+   ```sh
+   ALGOLIA_APP_ID=... ALGOLIA_ADMIN_KEY=... ALGOLIA_INDEX=schools_staging \
+   SCHOOLS_PROJECT=<staging-project-id> npm --prefix functions run schools:algolia -- reindex
+   ```
+3. In Algolia > API keys, create two keys **limited to that index**:
+   - a **write** key with `addObject` and `deleteObject` only;
+   - a **search-only** key with `search` only, max hits per query 20 and
+     max queries per IP per hour 2000.
+4. Store them in Secret Manager for the project:
+   `firebase functions:secrets:set ALGOLIA_WRITE_KEY --project staging` and
+   `firebase functions:secrets:set ALGOLIA_SEARCH_KEY --project staging`.
+   In dev (fake search), set both to `unused`: the functions declare them.
+5. In `functions/.env.staging` (and `.env.prod`):
+   `SCHOOL_SEARCH_PROVIDER=algolia`, `ALGOLIA_APP_ID=<app id>`,
+   `ALGOLIA_INDEX=schools_staging`. Deploy the functions.
+
+From then on `syncSchoolToSearch` keeps the index in step: active schools
+are indexed with their names and places only; schools awaiting review and
+merged schools are not. The app never holds an Algolia secret: it asks
+`getSchoolSearchKey` for a key that can only search that index and expires
+after an hour. If the index ever drifts, run the `reindex` command again.
+
+### 14.5 "Other" schools
+
+A parent whose school is missing types its name and governorate (and may
+paste a pin) under "Other". It waits in the admin panel's **New schools**
+queue, visible only to that parent. Approve it (fix the names, add the
+city and pin) or merge it into an existing school; once approved it is
+indexed and every parent finds it.

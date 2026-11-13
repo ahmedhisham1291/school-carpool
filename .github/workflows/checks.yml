@@ -121,6 +121,15 @@ jobs:
         run: |
           npx --yes firebase-tools@15 emulators:exec --only firestore,auth \
             --project demo-school-carpool "npm --prefix functions run test:emulator"
+      - name: Schools import (Python tests, sample data, load twice into the emulator)
+        run: |
+          python3 -m unittest discover -s tools/import_schools -v
+          python3 tools/import_schools/import_schools.py --input data/schools/sample
+          npx --yes firebase-tools@15 emulators:exec --only firestore --project demo-school-carpool \
+            "npm --prefix functions run schools:load:emulator && npm --prefix functions run schools:load:emulator > /tmp/second_load.txt"
+          cat /tmp/second_load.txt
+          # The second load of the same file must write nothing.
+          grep -q "new: 0, changed: 0" /tmp/second_load.txt
       - name: Firestore and Storage rules tests on the emulators
         run: |
           npm install --prefix tests/rules --no-audit --no-fund
