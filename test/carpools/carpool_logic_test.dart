@@ -1,11 +1,11 @@
 // Written, not run here (no Flutter SDK in the build workspace). CI runs it.
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/carpools/carpool_logic.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
-import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 
