@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
@@ -127,6 +128,61 @@ void main() {
     testWidgets('without a number it offers to go back', (WidgetTester tester) async {
       await _pump(tester, location: AuthRoutes.code, repository: FakeAuthRepository());
       expect(find.text('Change number'), findsOneWidget);
+    });
+  });
+
+  group('email step', () {
+    const SessionState emailStage = SessionSignedIn(
+      uid: 'uid-1',
+      account: Account(
+        parentId: 'ABCD2345',
+        status: AccountStatus.unverified,
+        phone: '+201000000001',
+        email: null,
+        emailVerified: false,
+        termsAccepted: false,
+        language: 'ar',
+      ),
+    );
+
+    testWidgets('checks once on open, quietly, so a returning parent moves on', (WidgetTester tester) async {
+      final FakeAuthRepository repository = FakeAuthRepository();
+      await _pump(tester, location: AuthRoutes.email, repository: repository, session: emailStage);
+      await tester.pump();
+      await tester.pump();
+      expect(repository.calls, <String>['confirmEmail']);
+      // Not confirmed yet: no message, the address field is shown.
+      expect(find.byKey(const Key('email.field')), findsOneWidget);
+      expect(find.textContaining('Not confirmed yet'), findsNothing);
+    });
+
+    testWidgets('an ended session offers to sign in again', (WidgetTester tester) async {
+      final FakeAuthRepository repository = FakeAuthRepository()
+        ..failure = const AuthFailure(AuthFailureKind.signInAgain);
+      await _pump(tester, location: AuthRoutes.email, repository: repository, session: emailStage);
+      await tester.pump();
+      await tester.pump();
+      expect(find.textContaining('Sign in again with your number'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('email.signInAgain')));
+      await tester.tap(find.byKey(const Key('email.signInAgain')));
+      await tester.pump();
+      expect(repository.calls, <String>['confirmEmail', 'signOut']);
+    });
+
+    testWidgets('sends the link and waits for the confirmation', (WidgetTester tester) async {
+      final FakeAuthRepository repository = FakeAuthRepository();
+      await _pump(tester, location: AuthRoutes.email, repository: repository, session: emailStage);
+      await tester.pump();
+      await tester.enterText(find.byKey(const Key('email.field')), 'parent@example.com');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('email.send')));
+      await tester.pump();
+      await tester.pump();
+      expect(repository.calls, <String>['confirmEmail', 'sendEmailLink']);
+      await tester.tap(find.byKey(const Key('email.confirmed')));
+      await tester.pump();
+      await tester.pump();
+      expect(find.textContaining('Not confirmed yet'), findsOneWidget);
     });
   });
 

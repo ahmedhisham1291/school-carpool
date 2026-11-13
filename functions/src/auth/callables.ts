@@ -16,7 +16,7 @@ import {
 } from "../config";
 import { reportError } from "../sentry";
 import { asLanguage, createWhatsAppSender, type WhatsAppSender } from "../whatsapp/sender";
-import { FirebaseAccountService, USERS } from "./accounts";
+import { FirebaseAccountService, USERS, verifiedEmail } from "./accounts";
 import { ConsentError, parseConsentRequest, recordConsents } from "./consents";
 import { OtpError, requestCode as requestCodeFlow, verifyCode as verifyCodeFlow, type OtpDeps, type OtpErrorReason } from "./otp_flow";
 import { FirestoreOtpStore } from "./otp_store";
@@ -167,20 +167,24 @@ export const verifyCode = onCall(signInOptions, (request) =>
 
 /**
  * Copies a confirmed email from Firebase Auth to the user record. The app
- * sends the confirmation link with verifyBeforeUpdateEmail; Auth sets
- * emailVerified only after the parent opens the link.
- * {} -> { verified }
+ * sends the link with verifyBeforeUpdateEmail; Auth sets emailVerified only
+ * after the parent opens it. Opening the link changes the account's email,
+ * and Firebase then revokes the app's session, so a verified answer also
+ * carries a fresh custom token for the app to sign in with again.
+ * {} -> { verified, token? }
  */
 export const confirmEmail = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("confirmEmail", async () => {
     const uid = requireUid(request);
-    const user = await adminAuth().getUser(uid);
-    if (!user.email || !user.emailVerified) return { verified: false };
+    const auth = adminAuth();
+    const email = verifiedEmail(await auth.getUser(uid));
+    if (!email) return { verified: false };
     const ref = adminDb().collection(USERS).doc(uid);
     const snap = await ref.get();
     if (!snap.exists) throw new HttpsError("failed-precondition", "No account record.");
-    await ref.update({ email: user.email, emailVerified: true, updatedAt: FieldValue.serverTimestamp() });
-    return { verified: true };
+    if (snap.get("status") === "suspended") throw new HttpsError("permission-denied", "suspended", { reason: "suspended" });
+    await ref.update({ email, emailVerified: true, updatedAt: FieldValue.serverTimestamp() });
+    return { verified: true, token: await auth.createCustomToken(uid) };
   }),
 );
 

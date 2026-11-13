@@ -166,5 +166,7 @@
   "errorOutdatedTerms": "The terms were updated. Update the app, then try again.",
   "errorOffline": "No internet connection. Try again when you are back online.",
   "errorGeneric": "Something went wrong. Try again in a moment.",
-  "gallerySectionSignup": "Sign-up components"
+  "gallerySectionSignup": "Sign-up components",
+  "errorSignInAgain": "Your session ended after the email change. Sign in again with your number to continue.",
+  "actionSignInAgain": "Sign in again"
 }

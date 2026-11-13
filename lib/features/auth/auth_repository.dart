@@ -35,6 +35,8 @@ abstract interface class AuthRepository {
   Future<void> sendEmailLink(String email);
 
   /// True once the parent has opened the link; the server then saves it.
+  /// Opening the link revokes the session (email change), so a confirmed
+  /// answer carries a fresh token that this method signs in with.
   Future<bool> confirmEmail();
 
   /// Records acceptance of the terms, privacy policy and code of conduct,
@@ -123,9 +125,20 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<bool> confirmEmail() async {
-    await _guard(() => _currentUser().reload());
+    if (_auth.currentUser == null) {
+      throw const AuthFailure(AuthFailureKind.signInAgain);
+    }
+    // No reload() here: after the link the old session is revoked and
+    // reload() would fail. The server reads the truth from Firebase Auth.
     final Map<Object?, Object?> data = await _call('confirmEmail', <String, Object?>{});
-    return data['verified'] == true;
+    if (data['verified'] != true) {
+      return false;
+    }
+    final Object? token = data['token'];
+    if (token is String && token.isNotEmpty) {
+      await _guard(() => _auth.signInWithCustomToken(token));
+    }
+    return true;
   }
 
   @override

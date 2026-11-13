@@ -117,6 +117,17 @@ void main() {
       );
     });
 
+    test('an ended session asks to sign in again', () {
+      expect(
+        AuthFailure.from(FirebaseAuthException(code: 'user-token-expired')).kind,
+        AuthFailureKind.signInAgain,
+      );
+      expect(
+        AuthFailure.from(functionsError('unauthenticated', <String, Object?>{})).kind,
+        AuthFailureKind.signInAgain,
+      );
+    });
+
     test('no connection is offline', () {
       expect(AuthFailure.from(functionsError('unavailable', <String, Object?>{})).isOffline, isTrue);
       expect(AuthFailure.from(FirebaseAuthException(code: 'network-request-failed')).isOffline, isTrue);

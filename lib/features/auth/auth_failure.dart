@@ -14,6 +14,9 @@ enum AuthFailureKind {
   invalidEmail,
   emailInUse,
   outdatedTerms,
+
+  /// The session was revoked or expired; sign in again with a new code.
+  signInAgain,
   offline,
   unknown,
 }
@@ -38,6 +41,10 @@ class AuthFailure implements Exception {
         'invalid-email' => AuthFailureKind.invalidEmail,
         'email-already-in-use' => AuthFailureKind.emailInUse,
         'user-disabled' => AuthFailureKind.suspended,
+        'user-token-expired' ||
+        'invalid-user-token' ||
+        'requires-recent-login' ||
+        'user-not-found' => AuthFailureKind.signInAgain,
         _ => AuthFailureKind.unknown,
       });
     }
@@ -79,6 +86,7 @@ class AuthFailure implements Exception {
       'outdated-terms' => AuthFailureKind.outdatedTerms,
       _ => switch (error.code) {
         'unavailable' || 'deadline-exceeded' => AuthFailureKind.offline,
+        'unauthenticated' => AuthFailureKind.signInAgain,
         _ => AuthFailureKind.unknown,
       },
     };
@@ -101,6 +109,7 @@ class AuthFailure implements Exception {
       AuthFailureKind.invalidEmail => l10n.emailErrorInvalid,
       AuthFailureKind.emailInUse => l10n.errorEmailInUse,
       AuthFailureKind.outdatedTerms => l10n.errorOutdatedTerms,
+      AuthFailureKind.signInAgain => l10n.errorSignInAgain,
       AuthFailureKind.offline => l10n.errorOffline,
       AuthFailureKind.unknown => l10n.errorGeneric,
     };
