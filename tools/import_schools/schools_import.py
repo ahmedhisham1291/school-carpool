@@ -33,7 +33,8 @@ from egypt_places import EGYPT_BOUNDS, GOVERNORATE_ALIASES, GOVERNORATES, TOWNS
 
 MERGE_DISTANCE_M = 300.0
 NEARBY_REPORT_DISTANCE_M = 1500.0
-MERGE_SIMILARITY = 0.8
+# Names must match word for word (one slip allowed per rules above) to merge.
+MERGE_SIMILARITY = 1.0
 REPORT_SIMILARITY = 0.5
 
 # ---------------------------------------------------------------------------
@@ -84,11 +85,43 @@ def has_arabic(text: str) -> bool:
 # Words that say "this is a school" but not WHICH school. Dropped for
 # matching only (never from the stored names). Already normalized.
 _GENERIC = {
-    "مدرسه", "مدارس", "المدرسه", "حضانه", "روضه", "school", "schools", "kg",
-    "kindergarten", "nursery", "the", "al", "el", "of", "for", "and", "و",
-    "ابتدائيه", "اعداديه", "ثانويه", "رسميه", "primary", "preparatory", "secondary",
-    "level", "مرحله",
+    "مدرسه", "مدارس", "المدرسه", "school", "schools", "the", "al", "el", "of", "for",
+    "and", "و", "رسميه", "level", "مرحله", "اطفال", "children",
 }
+
+# Stage and gender words DISTINGUISH schools: in Egypt a primary, a
+# preparatory and a secondary school, or a boys' and a girls' school, often
+# share a name and a site but are separate schools with their own hours.
+# Two names whose stages or genders differ are never merged; when only one
+# name has one, the pair goes to the report instead (review of Prompt 4B).
+_STAGES = {
+    "حضانه": "kg", "روضه": "kg", "رياض": "kg", "kg": "kg", "kindergarten": "kg",
+    "nursery": "kg", "preschool": "kg",
+    "ابتدائي": "primary", "ابتدائيه": "primary", "primary": "primary", "elementary": "primary",
+    "اعدادي": "prep", "اعداديه": "prep", "preparatory": "prep", "prep": "prep", "middle": "prep",
+    "ثانوي": "secondary", "ثانويه": "secondary", "secondary": "secondary", "high": "secondary",
+}
+_GENDERS = {
+    "بنين": "boys", "للبنين": "boys", "boys": "boys", "boy": "boys",
+    "بنات": "girls", "للبنات": "girls", "girls": "girls", "girl": "girls",
+}
+
+# Words after which a person's name follows ("مدرسة الشهيد أحمد ...").
+_NAME_MARKERS = {"شهيد", "martyr", "shahid", "shaheed", "دكتور", "dr", "استاذ", "شيخ", "sheikh"}
+# Common given names (normalized). A one-letter difference in a person's
+# name is a different person (أحمد / محمد, محمد / محمود), never a slip.
+_PERSON_NAMES = {
+    "احمد", "محمد", "محمود", "حامد", "حمدي", "علي", "عمر", "عمرو", "حسن", "حسين", "حسني",
+    "مصطفي", "ابراهيم", "اسماعيل", "يوسف", "خالد", "سعد", "سعيد", "صلاح", "جمال", "كمال",
+    "عبدالله", "عبدالرحمن", "عبدالرحيم", "عبدالعزيز", "عبدالناصر", "عبدالحميد", "عبدالمنعم",
+    "عبدالفتاح", "عبدالسلام", "عثمان", "عادل", "عاطف", "طارق", "طه", "ياسر", "ياسين",
+    "فاطمه", "عائشه", "خديجه", "مريم", "زينب", "نفيسه", "هدي", "سلمي", "نور",
+    "mohamed", "mohammed", "muhammad", "mohammad", "mahmoud", "mahmud", "ahmed", "ahmad",
+    "ibrahim", "ismail", "mostafa", "mustafa", "youssef", "yousef", "khaled", "hassan",
+    "hussein", "hosny", "abdallah", "abdullah", "abdelrahman", "abdelaziz", "abdelnasser",
+    "fatma", "fatima", "aisha", "khadija", "maryam", "zeinab", "saad", "said", "salah",
+}
+
 _SYNONYMS = {
     "intl": "international", "int": "international", "internationale": "international",
     "lang": "language", "languages": "language", "لغات": "لغات", "للغات": "لغات",
@@ -97,19 +130,46 @@ _SYNONYMS = {
 }
 
 
-def match_tokens(name: str) -> tuple[str, ...]:
-    """Tokens used to compare two names: normalized, generic words removed,
-    a leading Arabic article dropped from longer words."""
-    tokens = []
+def _words(name: str) -> list[str]:
+    words = []
     for token in normalize_text(name).split():
         token = _SYNONYMS.get(token, token)
         if token.startswith("ال") and len(token) > 4:
             token = token[2:]
-        token = _SYNONYMS.get(token, token)
+        words.append(_SYNONYMS.get(token, token))
+    return words
+
+
+def match_tokens(name: str) -> tuple[str, ...]:
+    """Tokens used to compare two names: normalized, generic, stage and
+    gender words removed (stage and gender are compared separately, see
+    name_tags), a leading Arabic article dropped from longer words. Words
+    of a person's name are marked with a leading "~" (no spelling slip
+    allowed in them)."""
+    tokens = []
+    after_marker = False
+    for token in _words(name):
+        if token in _STAGES or token in _GENDERS:
+            continue
         if token in _GENERIC or token.startswith("مدرس"):
             continue
-        tokens.append(token)
+        is_name = after_marker or token in _PERSON_NAMES
+        after_marker = token in _NAME_MARKERS or (after_marker and token in _PERSON_NAMES)
+        tokens.append(f"~{token}" if is_name and token not in _NAME_MARKERS else token)
     return tuple(tokens)
+
+
+def name_tags(*names: str) -> tuple[frozenset[str], frozenset[str]]:
+    """(stages, genders) said in any of [names]: kg, primary, prep, secondary; boys, girls."""
+    stages: set[str] = set()
+    genders: set[str] = set()
+    for name in names:
+        for token in _words(name):
+            if token in _STAGES:
+                stages.add(_STAGES[token])
+            if token in _GENDERS:
+                genders.add(_GENDERS[token])
+    return frozenset(stages), frozenset(genders)
 
 
 def _edit_distance_at_most_one(a: str, b: str) -> bool:
@@ -135,17 +195,22 @@ def _edit_distance_at_most_one(a: str, b: str) -> bool:
     return True
 
 
+SLIP_MIN_LETTERS = 6
+
+
 def _tokens_match(a: str, b: str) -> bool:
+    """Same word, or one letter different in a word of 6+ letters that is
+    not part of a person's name ("Collage"/"College", "فكتوريا"/"فيكتوريا")."""
     if a == b:
         return True
-    return min(len(a), len(b)) >= 4 and _edit_distance_at_most_one(a, b)
+    if a.startswith("~") or b.startswith("~"):
+        return False
+    return min(len(a), len(b)) >= SLIP_MIN_LETTERS and _edit_distance_at_most_one(a, b)
 
 
 def token_similarity(a: tuple[str, ...], b: tuple[str, ...]) -> float:
-    """How alike two names are, 0 to 1: the share of words that match (one
-    spelling slip allowed in words of 4+ letters). When every word of the
-    shorter name is in the longer one ("El Alsson" and "El Alsson British
-    International"), the score is at least 0.85."""
+    """How alike two names are, 0 to 1: matching words over the words of the
+    longer name. 1.0 only when every word of both names matches."""
     if not a or not b:
         return 0.0
     if len(a) > len(b):
@@ -158,9 +223,15 @@ def token_similarity(a: tuple[str, ...], b: tuple[str, ...]) -> float:
                 used.add(k)
                 hits += 1
                 break
-    share = hits / len(b)
-    contained = 0.85 if hits == len(a) else 0.0
-    return max(share, contained)
+    return hits / len(b)
+
+
+def is_contained(a: tuple[str, ...], b: tuple[str, ...]) -> bool:
+    """Every word of the shorter name is in the longer one (and they differ)."""
+    if not a or not b or len(a) == len(b):
+        return False
+    short, long_ = (a, b) if len(a) < len(b) else (b, a)
+    return token_similarity(short, long_) * len(long_) >= len(short) - 1e-9
 
 
 # ---------------------------------------------------------------------------
@@ -314,6 +385,8 @@ class School:
     lng: float | None
     match_ar: tuple[str, ...] = ()
     match_en: tuple[str, ...] = ()
+    stages: frozenset[str] = frozenset()
+    genders: frozenset[str] = frozenset()
 
     def to_json(self) -> dict:
         return {
@@ -377,7 +450,8 @@ def _osm_source_id(props: dict, fallback: str) -> str:
     raw = raw.strip()
     if not raw:
         return fallback
-    if osm_type in ("node", "way", "relation", "n", "w", "r"):
+    # "node", "nodes", "ways_poly", "relation", "n", ...: the first letter tells.
+    if osm_type[:1] in ("n", "w", "r"):
         return f"{osm_type[0]}{raw.lstrip('-')}"
     return raw.lstrip("-")
 
@@ -451,10 +525,50 @@ def _list_kind(text: str) -> str:
     return "kindergarten" if any(w in key.split() or key.startswith(w) for w in _KG_WORDS) else "school"
 
 
+class InputFileError(Exception):
+    """A file that cannot be read; reported, the run goes on."""
+
+
+def decode_text(data: bytes) -> str:
+    """UTF-8 (with or without the BOM Excel adds), UTF-16 (Excel's "Unicode
+    text") or Windows-1256 (older Arabic Excel exports)."""
+    if data.startswith(b"\xef\xbb\xbf"):
+        return data[3:].decode("utf-8")
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16")
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    try:
+        return data.decode("cp1256")
+    except UnicodeDecodeError as error:
+        raise InputFileError("not UTF-8, UTF-16 or Windows-1256 text; save it as CSV UTF-8") from error
+
+
+def _sniff_dialect(text: str) -> type[csv.Dialect] | csv.Dialect:
+    """Comma, semicolon (Excel in many locales) or tab."""
+    sample = "\n".join(text.splitlines()[:20])
+    try:
+        return csv.Sniffer().sniff(sample, delimiters=",;\t")
+    except csv.Error:
+        return csv.excel
+
+
+def _list_row_id(name_ar: str, name_en: str, governorate: str, city: str) -> str:
+    """Stable ID for a list row without an ID column: from the normalized
+    name, governorate and city (not the row number, which shifts when the
+    list is edited)."""
+    import hashlib
+
+    key = "|".join(normalize_text(x) for x in (name_ar or name_en, governorate, city))
+    return "h" + hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
+
+
 def read_csv(data: bytes, file: str, source_name: str) -> tuple[list[RawEntry], list[str]]:
     """An OSM export CSV (has an amenity column) or a school list CSV."""
-    text = data.decode("utf-8-sig")
-    reader = csv.DictReader(io.StringIO(text))
+    text = decode_text(data)
+    reader = csv.DictReader(io.StringIO(text), dialect=_sniff_dialect(text))
     headers = [h.strip() for h in (reader.fieldnames or [])]
     rows = [{(k or "").strip(): (v or "") for k, v in row.items()} for row in reader]
     entries: list[RawEntry] = []
@@ -483,7 +597,9 @@ def read_csv(data: bytes, file: str, source_name: str) -> tuple[list[RawEntry], 
         # A single "name" column may hold Arabic.
         if name_en and not name_ar and has_arabic(name_en):
             name_ar, name_en = name_en, ""
-        raw_id = row.get(cols["id"] or "", "").strip() or str(i + 1)
+        raw_id = row.get(cols["id"] or "", "").strip() or _list_row_id(
+            name_ar, name_en, row.get(cols["governorate"] or "", ""), row.get(cols["city"] or "", "")
+        )
         source = normalize_text(row.get(cols["source"] or "", "")).replace(" ", "_") or source_name
         entries.append(
             RawEntry(
@@ -520,10 +636,18 @@ def read_inputs(folder: Path) -> tuple[list[RawEntry], Boundaries, list[str], li
     def take(name: str, data: bytes) -> None:
         suffix = Path(name).suffix.lower()
         if suffix in (".geojson", ".json"):
-            entries.extend(read_osm_geojson(data, name))
+            try:
+                entries.extend(read_osm_geojson(data, name))
+            except (ValueError, UnicodeDecodeError) as error:
+                problems.append(f"{name}: skipped, not valid GeoJSON ({type(error).__name__})")
+                return
             files_read.append(name)
         elif suffix == ".csv":
-            found, ignored = read_csv(data, name, _list_source_name(Path(name)))
+            try:
+                found, ignored = read_csv(data, name, _list_source_name(Path(name)))
+            except (InputFileError, csv.Error) as error:
+                problems.append(f"{name}: skipped, {error}")
+                return
             entries.extend(found)
             files_read.append(name)
             if ignored:
@@ -665,6 +789,8 @@ def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School]
                 lng=round(e.lng, 6) if has_point else None,  # type: ignore[arg-type]
                 match_ar=match_tokens(name_ar) if name_ar else (),
                 match_en=match_tokens(name_en) if name_en else (),
+                stages=name_tags(name_ar, name_en)[0],
+                genders=name_tags(name_ar, name_en)[1],
             )
         )
     return schools, dropped
@@ -678,6 +804,38 @@ def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School]
 def name_similarity(a: School, b: School) -> float:
     pairs = [(a.match_ar, b.match_ar), (a.match_en, b.match_en), (a.match_ar, b.match_en), (a.match_en, b.match_ar)]
     return max(token_similarity(x, y) for x, y in pairs)
+
+
+def _contained(a: School, b: School) -> bool:
+    pairs = [(a.match_ar, b.match_ar), (a.match_en, b.match_en), (a.match_ar, b.match_en), (a.match_en, b.match_ar)]
+    return any(is_contained(x, y) for x, y in pairs)
+
+
+def compare(a: School, b: School) -> tuple[str, float, str]:
+    """("merge" | "report" | "different", name similarity, why) for two
+    entries, before distance:
+    - a different kind (kindergarten / school), stage or gender: different;
+    - the same words (one slip allowed, rules above) and the same stage
+      and gender: merge;
+    - the same words but only one says a stage or gender, one name inside
+      the other, or half the words or more alike: report, not merge."""
+    sim = name_similarity(a, b)
+    if a.kind != b.kind:
+        return "different", sim, "kindergarten and school"
+    if a.stages and b.stages and a.stages != b.stages:
+        return "different", sim, "different stage"
+    if a.genders and b.genders and a.genders != b.genders:
+        return "different", sim, "boys and girls"
+    one_sided = bool(a.stages) != bool(b.stages) or bool(a.genders) != bool(b.genders)
+    if sim >= MERGE_SIMILARITY:
+        if one_sided:
+            return "report", sim, "same name, only one says the stage or boys/girls"
+        return "merge", sim, "same name"
+    if _contained(a, b):
+        return "report", sim, "one name inside the other"
+    if sim >= REPORT_SIMILARITY:
+        return "report", sim, "similar name"
+    return "different", sim, "different name"
 
 
 @dataclass
@@ -707,28 +865,20 @@ def _cells(lat: float, lng: float) -> tuple[int, int]:
 
 
 def find_duplicates(schools: list[School]) -> tuple[list[School], list[list[School]], list[LikelyDuplicate]]:
-    """Merges entries with a similar name within 300 m (and list entries
-    without a pin into a same-name school in the same governorate). Returns
-    the merged schools, the merged groups, and pairs to check by hand."""
-    parent = list(range(len(schools)))
-
-    def find(i: int) -> int:
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-
-    def union(i: int, j: int) -> None:
-        ri, rj = find(i), find(j)
-        if ri != rj:
-            parent[max(ri, rj)] = min(ri, rj)
+    """Merges entries with the same name (see compare) within 300 m, and a
+    list entry without a pin into the one same-name school of its
+    governorate. No chains: an entry joins a group only if it also matches
+    the group's main entry (and is within 300 m of it), and two groups are
+    never joined. Everything borderline goes to the report. Returns the
+    merged schools, the merged groups, and pairs to check by hand."""
+    likely: list[LikelyDuplicate] = []
+    merge_pairs: list[tuple[float, int, int]] = []
 
     grid: dict[tuple[int, int], list[int]] = {}
     for i, s in enumerate(schools):
         if s.lat is not None and s.lng is not None:
             grid.setdefault(_cells(s.lat, s.lng), []).append(i)
 
-    likely: list[LikelyDuplicate] = []
     reach = int(math.ceil(NEARBY_REPORT_DISTANCE_M / 480.0))
     for i, s in enumerate(schools):
         if s.lat is None or s.lng is None:
@@ -743,16 +893,16 @@ def find_duplicates(schools: list[School]) -> tuple[list[School], list[list[Scho
                     d = distance_m(s.lat, s.lng, t.lat, t.lng)  # type: ignore[arg-type]
                     if d > NEARBY_REPORT_DISTANCE_M:
                         continue
-                    sim = name_similarity(s, t)
-                    if d <= MERGE_DISTANCE_M and sim >= MERGE_SIMILARITY:
-                        union(i, j)
-                    elif d <= MERGE_DISTANCE_M and sim >= REPORT_SIMILARITY:
-                        likely.append(LikelyDuplicate(s, t, d, sim, "similar name within 300 m"))
-                    elif sim >= 0.999 and s.kind == t.kind:
+                    verdict, sim, why = compare(s, t)
+                    if d <= MERGE_DISTANCE_M and verdict == "merge":
+                        merge_pairs.append((d, i, j))
+                    elif d <= MERGE_DISTANCE_M and verdict == "report":
+                        likely.append(LikelyDuplicate(s, t, d, sim, f"{why}, within 300 m"))
+                    elif verdict == "merge":
                         likely.append(LikelyDuplicate(s, t, d, sim, "same name 300 m to 1.5 km apart"))
 
-    # Entries without a pin (lists): merge into a same-name school of the
-    # same governorate (and city when both have one).
+    # Entries without a pin (lists): the one same-name school of the same
+    # governorate (and city when both have one).
     by_name: dict[tuple[str, tuple[str, ...]], list[int]] = {}
     for i, s in enumerate(schools):
         for tokens in (s.match_ar, s.match_en):
@@ -765,23 +915,55 @@ def find_duplicates(schools: list[School]) -> tuple[list[School], list[list[Scho
         if s.city:
             same_city = {j for j in candidates if normalize_text(schools[j].city) in (normalize_text(s.city), "") or normalize_text(schools[j].city_ar) == normalize_text(s.city_ar)}
             candidates = same_city or candidates
-        if len(candidates) == 1:
-            union(i, next(iter(candidates)))
-        elif len(candidates) > 1:
-            for j in sorted(candidates):
-                likely.append(LikelyDuplicate(s, schools[j], None, 1.0, "list entry without a pin matches several schools"))
+        verdicts = {j: compare(s, schools[j]) for j in candidates}
+        mergeable = sorted(j for j, v in verdicts.items() if v[0] == "merge")
+        if len(mergeable) == 1:
+            merge_pairs.append((math.inf, i, mergeable[0]))
+        for j in sorted(candidates):
+            verdict, sim, why = verdicts[j]
+            if len(mergeable) > 1 and verdict == "merge":
+                likely.append(LikelyDuplicate(s, schools[j], None, sim, "list entry without a pin matches several schools"))
+            elif verdict == "report":
+                likely.append(LikelyDuplicate(s, schools[j], None, sim, f"{why}, list entry without a pin"))
 
-    groups: dict[int, list[School]] = {}
-    for i, s in enumerate(schools):
-        groups.setdefault(find(i), []).append(s)
+    # Closest pairs first. A group grows only by single entries that also
+    # match its main entry.
+    group_of = list(range(len(schools)))
+    members: dict[int, list[int]] = {i: [i] for i in range(len(schools))}
+
+    def main_entry(g: int) -> int:
+        return min(members[g], key=lambda k: _source_rank(schools[k]))
+
+    for d, i, j in sorted(merge_pairs, key=lambda p: (p[0], schools[p[1]].id, schools[p[2]].id)):
+        gi, gj = group_of[i], group_of[j]
+        if gi == gj:
+            continue
+        if len(members[gi]) > 1 and len(members[gj]) > 1:
+            likely.append(LikelyDuplicate(schools[i], schools[j], None if d == math.inf else d, 1.0, "both already merged with other entries"))
+            continue
+        group, single = (gi, j) if len(members[gi]) > 1 or (len(members[gj]) == 1 and gi < gj) else (gj, i)
+        main = schools[main_entry(group)]
+        newcomer = schools[single]
+        near = (
+            main.lat is None or newcomer.lat is None
+            or distance_m(main.lat, main.lng, newcomer.lat, newcomer.lng) <= MERGE_DISTANCE_M  # type: ignore[arg-type]
+        )
+        if main is not newcomer and (compare(newcomer, main)[0] != "merge" or not near):
+            likely.append(LikelyDuplicate(newcomer, main, None if d == math.inf else d, 1.0, "matches a merged entry but not its main entry"))
+            continue
+        for k in members.pop(group_of[single]):
+            group_of[k] = group
+            members[group].append(k)
 
     merged: list[School] = []
     merged_groups: list[list[School]] = []
-    for members in groups.values():
-        merged.append(_merge(members))
-        if len(members) > 1:
-            merged_groups.append(sorted(members, key=_source_rank))
+    for g in sorted(members):
+        group_members = [schools[k] for k in members[g]]
+        merged.append(_merge(group_members))
+        if len(group_members) > 1:
+            merged_groups.append(sorted(group_members, key=_source_rank))
     merged.sort(key=lambda s: s.id)
+    merged_groups.sort(key=lambda g: g[0].id)
     likely.sort(key=lambda p: (p.a.governorate, p.a.id, p.b.id))
     return merged, merged_groups, likely
 
@@ -818,6 +1000,8 @@ def _merge(members: list[School]) -> School:
         lng=located.lng,
         match_ar=primary.match_ar,
         match_en=primary.match_en,
+        stages=primary.stages,
+        genders=primary.genders,
     )
 
 
