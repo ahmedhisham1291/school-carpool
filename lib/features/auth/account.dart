@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/features/verification/verification_models.dart';
 
 /// Verification states from spec section 3. Only Cloud Functions change
 /// them; firestore.rules stops the app from writing the field.
@@ -29,6 +30,8 @@ class Account {
     required this.emailVerified,
     required this.termsAccepted,
     required this.language,
+    this.firstName,
+    this.verification,
   });
 
   factory Account.fromMap(Map<String, dynamic> data) => Account(
@@ -39,6 +42,8 @@ class Account {
     emailVerified: data['emailVerified'] as bool? ?? false,
     termsAccepted: data['termsAcceptedAt'] != null,
     language: data['language'] as String? ?? 'ar',
+    firstName: data['firstName'] as String?,
+    verification: VerificationSummary.fromMap(data['verification']),
   );
 
   /// Public 8-character parent ID (F44).
@@ -51,6 +56,15 @@ class Account {
   final bool emailVerified;
   final bool termsAccepted;
   final String language;
+
+  /// Set from the ID details once documents are submitted (Prompt 3).
+  final String? firstName;
+
+  /// The latest submission for review, or null before the first one.
+  final VerificationSummary? verification;
+
+  /// True while a submission waits for review: nothing new can be sent.
+  bool get reviewPending => verification?.status == ReviewStatus.pending || status == AccountStatus.pending;
 
   RegistrationStage get stage {
     if (!emailVerified) {
@@ -71,9 +85,11 @@ class Account {
       other.email == email &&
       other.emailVerified == emailVerified &&
       other.termsAccepted == termsAccepted &&
-      other.language == language;
+      other.language == language &&
+      other.firstName == firstName &&
+      other.verification == verification;
 
   @override
   int get hashCode =>
-      Object.hash(parentId, status, phone, email, emailVerified, termsAccepted, language);
+      Object.hash(parentId, status, phone, email, emailVerified, termsAccepted, language, firstName, verification);
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
@@ -64,15 +65,22 @@ Stream<SessionState> sessionStates(FirebaseAuth auth, FirebaseFirestore db) {
           return;
         }
         controller.add(const SessionLoading());
+        AccountStatus? lastStatus;
         accountSubscription = db
             .collection('users')
             .doc(user.uid)
             .snapshots()
             .listen((DocumentSnapshot<Map<String, dynamic>> snapshot) {
               final Map<String, dynamic>? data = snapshot.data();
-              controller.add(
-                SessionSignedIn(uid: user.uid, account: data == null ? null : Account.fromMap(data)),
-              );
+              final Account? account = data == null ? null : Account.fromMap(data);
+              final AccountStatus? status = account?.status;
+              if (status != null && lastStatus != null && status != lastStatus) {
+                // An admin decision changed the "verified" claim: fetch a
+                // fresh ID token so rules and functions see it now.
+                unawaited(refreshIdToken(user));
+              }
+              lastStatus = status;
+              controller.add(SessionSignedIn(uid: user.uid, account: account));
             }, onError: fail);
       }, onError: fail);
     },
@@ -83,6 +91,16 @@ Stream<SessionState> sessionStates(FirebaseAuth auth, FirebaseFirestore db) {
     },
   );
   return controller.stream;
+}
+
+/// Forces a new ID token with the latest custom claims. Failures are
+/// harmless: the token refreshes by itself within the hour.
+Future<void> refreshIdToken(User user) async {
+  try {
+    await user.getIdToken(true);
+  } on Object catch (error) {
+    debugPrint('session: token refresh failed ($error)');
+  }
 }
 
 final StreamProvider<SessionState> sessionStreamProvider = StreamProvider<SessionState>(

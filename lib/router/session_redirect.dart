@@ -13,6 +13,10 @@ abstract final class AuthRoutes {
   static const String terms = '/signup/terms';
   static const String verifyAccount = '/verify-account';
 
+  /// Document capture and submission (Prompt 3). Only while unverified or
+  /// rejected.
+  static const String verifySubmit = '/verify-account/submit';
+
   /// Open to signed-out visitors.
   static const Set<String> signedOut = <String>{welcome, phone, code};
 
@@ -25,7 +29,8 @@ abstract final class AuthRoutes {
 /// - Signed out: welcome, phone and code only.
 /// - Signed in: email, then terms, until both are done.
 /// - Unverified, pending or rejected: the verification screen and Profile
-///   only (spec section 3, "Profile only").
+///   only (spec section 3, "Profile only"). Document submission is open
+///   only while unverified or rejected (not while a review is pending).
 /// - Suspended: the verification screen only (it explains the suspension).
 /// - Verified: the full app.
 ///
@@ -56,8 +61,16 @@ String? _signedInTarget(Account account, String location) {
       break;
   }
   if (account.status == AccountStatus.verified) {
-    final bool gate = AuthRoutes.onboarding.contains(location) || location == AuthRoutes.verifyAccount;
+    final bool gate =
+        AuthRoutes.onboarding.contains(location) ||
+        location == AuthRoutes.verifyAccount ||
+        location == AuthRoutes.verifySubmit;
     return gate ? AppRoutes.initial : null;
+  }
+  if (location == AuthRoutes.verifySubmit) {
+    final bool canSubmit =
+        account.status == AccountStatus.unverified || account.status == AccountStatus.rejected;
+    return canSubmit ? null : AuthRoutes.verifyAccount;
   }
   final bool allowed =
       location == AuthRoutes.verifyAccount ||

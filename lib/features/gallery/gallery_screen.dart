@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
@@ -73,6 +75,8 @@ class GalleryScreen extends ConsumerWidget {
           const _Padded(child: _InputSamples()),
           AppSectionHeader(l10n.gallerySectionSignup),
           const _Padded(child: _SignupSamples()),
+          AppSectionHeader(l10n.gallerySectionVerification),
+          const _Padded(child: _VerificationSamples()),
           AppSectionHeader(l10n.gallerySectionCards),
           _Padded(
             child: Column(
@@ -479,6 +483,72 @@ class _SignupSamplesState extends State<_SignupSamples> {
               icon: Icons.error_outline_rounded,
             ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+class _VerificationSamples extends StatefulWidget {
+  const _VerificationSamples();
+
+  /// A 1 by 1 pixel PNG standing in for a captured photo (no real images in the app).
+  static final Uint8List samplePhoto = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOYc+IAAAQoAiWGhDpEAAAAAElFTkSuQmCC',
+  );
+
+  @override
+  State<_VerificationSamples> createState() => _VerificationSamplesState();
+}
+
+class _VerificationSamplesState extends State<_VerificationSamples> {
+  DateTime? _date;
+  int? _seats;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    final DateTime now = DateTime.now();
+    const SizedBox gap = SizedBox(height: AppSpacing.s16);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        AppCaptureTile(
+          title: l10n.verifyIdFront,
+          helperText: l10n.captureDocumentHint,
+          icon: Icons.badge_outlined,
+          actionLabel: l10n.captureTake,
+          doneLabel: l10n.captureDone,
+          todoLabel: l10n.captureTodo,
+          onCapture: () => _done(context),
+        ),
+        gap,
+        AppCaptureTile(
+          title: l10n.verifySelfieTile,
+          icon: Icons.face_outlined,
+          image: _VerificationSamples.samplePhoto,
+          actionLabel: l10n.captureRetake,
+          doneLabel: l10n.captureDone,
+          todoLabel: l10n.captureTodo,
+          onCapture: () => _done(context),
+        ),
+        gap,
+        AppDateField(
+          label: l10n.idExpiryLabel,
+          helperText: l10n.idExpiryHelper,
+          placeholder: l10n.dateChoose,
+          value: _date,
+          firstDate: now,
+          lastDate: DateTime(now.year + 10, now.month, now.day),
+          onChanged: (DateTime d) => setState(() => _date = d),
+        ),
+        gap,
+        AppSelectField<int>(
+          label: l10n.driverSeatsLabel,
+          helperText: l10n.driverSeatsHelper,
+          value: _seats,
+          options: <(int, String)>[for (int n = 1; n <= 8; n++) (n, l10n.driverSeatsCount(n))],
+          onChanged: (int v) => setState(() => _seats = v),
         ),
       ],
     );

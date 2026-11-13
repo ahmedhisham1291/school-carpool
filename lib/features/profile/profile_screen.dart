@@ -12,11 +12,12 @@ import 'package:school_carpool/features/onboarding/account_status_badge.dart';
 import 'package:school_carpool/features/onboarding/sign_out.dart';
 import 'package:school_carpool/features/settings/settings_section.dart';
 import 'package:school_carpool/l10n/l10n.dart';
+import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 
 /// Profile tab (spec section 10): parent ID with a copy button (F44), the
-/// account's status, phone and email, settings and sign out. Children,
-/// vehicle and wallet come in later prompts.
+/// account's status, phone and email, children and driving (Prompt 3),
+/// settings and sign out. The wallet comes in a later prompt.
 ///
 /// States: loading (skeleton), empty (signed out or record not created
 /// yet), error and offline (full-screen with retry). Settings stay usable
@@ -120,8 +121,23 @@ class ProfileScreen extends ConsumerWidget {
       ),
       AppListRow(
         title: l10n.emailLabel,
-        subtitle: email == null ? l10n.profileEmailMissing : '⁦$email⁩',
+        subtitle: email == null ? l10n.profileEmailMissing : '\u2066$email\u2069',
         leadingIcon: Icons.mail_outline_rounded,
+      ),
+      AppSectionHeader(l10n.profileFamilySection),
+      AppListRow(
+        key: const Key('profile.children'),
+        title: l10n.childrenTitle,
+        subtitle: l10n.profileChildrenHelper,
+        leadingIcon: Icons.child_care_outlined,
+        onTap: () => context.go(ProfileRoutes.children),
+      ),
+      AppListRow(
+        key: const Key('profile.driving'),
+        title: l10n.drivingTitle,
+        subtitle: l10n.profileDrivingHelper,
+        leadingIcon: Icons.directions_car_outlined,
+        onTap: () => context.go(ProfileRoutes.driving),
       ),
     ];
   }

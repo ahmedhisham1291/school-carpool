@@ -572,10 +572,6 @@
   "@verifyStepDriver": {
     "description": "Verification step"
   },
-  "verifyComingSoon": "خطوات التوثيق ستتاح في التحديث القادم من التطبيق.",
-  "@verifyComingSoon": {
-    "description": "Shown until Prompt 3 adds verification"
-  },
   "verifyOpenProfile": "افتح حسابي",
   "@verifyOpenProfile": {
     "description": "Verification screen main button"
@@ -584,7 +580,7 @@
   "@verifyPendingBody": {
     "description": "Status text: pending"
   },
-  "verifyRejectedBody": "لم نتمكن من توثيق حسابك. ستتمكن من إعادة الإرسال قريبًا.",
+  "verifyRejectedBody": "لم نتمكن من التحقق من حسابك. راجع السبب بالأسفل، وصحّحه، ثم أرسل مستنداتك مرة أخرى.",
   "@verifyRejectedBody": {
     "description": "Status text: rejected"
   },
@@ -725,5 +721,657 @@
   "gallerySectionSignup": "مكونات التسجيل",
   "@gallerySectionSignup": {
     "description": "Gallery section"
+  },
+  "listSeparator": "، ",
+  "@listSeparator": {
+    "description": "Separator between items of a short list (Arabic comma in Arabic)"
+  },
+  "gallerySectionVerification": "مكونات التحقق",
+  "@gallerySectionVerification": {
+    "description": "Gallery section title"
+  },
+  "captureIdFrontTitle": "وجه البطاقة",
+  "@captureIdFrontTitle": {
+    "description": "Camera screen title"
+  },
+  "captureIdBackTitle": "ظهر البطاقة",
+  "@captureIdBackTitle": {
+    "description": "Camera screen title"
+  },
+  "captureSelfieTitle": "صورة سيلفي مباشرة",
+  "@captureSelfieTitle": {
+    "description": "Camera screen title"
+  },
+  "captureSchoolIdTitle": "بطاقة المدرسة",
+  "@captureSchoolIdTitle": {
+    "description": "Camera screen title"
+  },
+  "captureLicenseTitle": "رخصة القيادة",
+  "@captureLicenseTitle": {
+    "description": "Camera screen title"
+  },
+  "captureCarLicenseTitle": "رخصة السيارة",
+  "@captureCarLicenseTitle": {
+    "description": "Camera screen title"
+  },
+  "captureDocumentHint": "ضع البطاقة داخل الإطار على سطح سادة، في إضاءة جيدة وبدون لمعان.",
+  "@captureDocumentHint": {
+    "description": "Camera hint for documents"
+  },
+  "captureIdBackHint": "تأكد أن تاريخ الانتهاء واضح ويمكن قراءته.",
+  "@captureIdBackHint": {
+    "description": "Hint for the back of the ID"
+  },
+  "captureSelfieHint": "ضع وجهك داخل الشكل البيضاوي وانظر مباشرة إلى الكاميرا، ثم اضغط الزر.",
+  "@captureSelfieHint": {
+    "description": "Selfie hint"
+  },
+  "captureTurnLeft": "الآن أدر رأسك ببطء إلى اليسار... {seconds}",
+  "@captureTurnLeft": {
+    "description": "Liveness prompt with a countdown",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "captureTurnRight": "الآن أدر رأسك ببطء إلى اليمين... {seconds}",
+  "@captureTurnRight": {
+    "description": "Liveness prompt with a countdown",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "captureShutter": "التقط الصورة",
+  "@captureShutter": {
+    "description": "Shutter button label for screen readers"
+  },
+  "captureStarting": "جارٍ تشغيل الكاميرا",
+  "@captureStarting": {
+    "description": "Loading label"
+  },
+  "capturePreparing": "جارٍ تجهيز الصورة",
+  "@capturePreparing": {
+    "description": "Processing label"
+  },
+  "captureReviewLabel": "صورتك",
+  "@captureReviewLabel": {
+    "description": "Review image label"
+  },
+  "captureReviewTurnLabel": "الصورة مع إدارة الرأس",
+  "@captureReviewTurnLabel": {
+    "description": "Second selfie label"
+  },
+  "captureReviewHint": "هل الصورة واضحة ويسهل قراءتها؟ إن لم تكن كذلك فالتقطها مرة أخرى.",
+  "@captureReviewHint": {
+    "description": "Review hint"
+  },
+  "captureUse": "استخدم هذه الصورة",
+  "@captureUse": {
+    "description": "Accept photo"
+  },
+  "captureRetake": "إعادة التصوير",
+  "@captureRetake": {
+    "description": "Retake photo"
+  },
+  "captureTake": "التقط صورة",
+  "@captureTake": {
+    "description": "Open camera"
+  },
+  "captureTakeSelfie": "التقط السيلفي",
+  "@captureTakeSelfie": {
+    "description": "Open selfie camera"
+  },
+  "captureDone": "تم التصوير",
+  "@captureDone": {
+    "description": "Capture status"
+  },
+  "captureTodo": "لم تُلتقط بعد",
+  "@captureTodo": {
+    "description": "Capture status"
+  },
+  "captureDeniedTitle": "الوصول إلى الكاميرا مغلق",
+  "@captureDeniedTitle": {
+    "description": "Camera denied title"
+  },
+  "captureErrorDenied": "اسمح باستخدام الكاميرا من الإعدادات > مشوار المدرسة > الكاميرا ثم حاول مرة أخرى. الصور تُلتقط داخل التطبيق فقط.",
+  "@captureErrorDenied": {
+    "description": "Camera denied help"
+  },
+  "captureErrorCamera": "تعذر تشغيل الكاميرا. أغلق التطبيقات الأخرى التي تستخدمها ثم حاول مرة أخرى.",
+  "@captureErrorCamera": {
+    "description": "Camera error"
+  },
+  "verifyStart": "ابدأ التحقق",
+  "@verifyStart": {
+    "description": "Start button"
+  },
+  "verifyResubmit": "صحّح وأعد الإرسال",
+  "@verifyResubmit": {
+    "description": "Resubmit button"
+  },
+  "verifyOpenStatus": "اذهب إلى التحقق",
+  "@verifyOpenStatus": {
+    "description": "Button to the verification status screen"
+  },
+  "verifyPrivacyNote": "تُحفظ بطاقتك وصورك في مخزن خاص، ولا يراها إلا المراجع، وتُحذف خلال ٧ أيام من القرار. نحتفظ فقط بتاريخ انتهاء البطاقة.",
+  "@verifyPrivacyNote": {
+    "description": "Privacy note on verify screen"
+  },
+  "verifyRejectedReasonLabel": "السبب",
+  "@verifyRejectedReasonLabel": {
+    "description": "Rejection reason label"
+  },
+  "verifyReviewerNoteLabel": "ملاحظة من المراجع",
+  "@verifyReviewerNoteLabel": {
+    "description": "Reviewer note label"
+  },
+  "verifyPendingNextTitle": "ماذا يحدث بعد ذلك",
+  "@verifyPendingNextTitle": {
+    "description": "Section title"
+  },
+  "verifyPendingNext1": "يراجع أحد المراجعين مستنداتك، عادةً خلال يوم.",
+  "@verifyPendingNext1": {
+    "description": "Pending next step"
+  },
+  "verifyPendingNext2": "ستظهر النتيجة هنا وسيصلك إشعار.",
+  "@verifyPendingNext2": {
+    "description": "Pending next step"
+  },
+  "verifyPendingNext3": "تُحذف بطاقتك وصورك خلال ٧ أيام من القرار.",
+  "@verifyPendingNext3": {
+    "description": "Pending next step"
+  },
+  "verifyDetailsTitle": "بياناتك",
+  "@verifyDetailsTitle": {
+    "description": "Step title"
+  },
+  "verifyDetailsBody": "اكتبها كما هي في بطاقة الرقم القومي.",
+  "@verifyDetailsBody": {
+    "description": "Step body"
+  },
+  "verifyIdTitle": "صور البطاقة",
+  "@verifyIdTitle": {
+    "description": "Step title"
+  },
+  "verifyIdBody": "التقط صورة لوجه وظهر بطاقة الرقم القومي.",
+  "@verifyIdBody": {
+    "description": "Step body"
+  },
+  "verifyIdFront": "وجه البطاقة",
+  "@verifyIdFront": {
+    "description": "Tile title"
+  },
+  "verifyIdBack": "ظهر البطاقة",
+  "@verifyIdBack": {
+    "description": "Tile title"
+  },
+  "verifySelfieTitle": "سيلفي مباشر",
+  "@verifySelfieTitle": {
+    "description": "Step title"
+  },
+  "verifySelfieBody": "هذا يثبت أن البطاقة تخصك.",
+  "@verifySelfieBody": {
+    "description": "Step body"
+  },
+  "verifySelfieHowTo": "انظر مباشرة إلى الكاميرا واضغط الزر. ثم أدر رأسك عندما يُطلب منك، وستُلتقط الصورة الثانية تلقائيًا.",
+  "@verifySelfieHowTo": {
+    "description": "Selfie instructions"
+  },
+  "verifySelfieTile": "صورتك السيلفي",
+  "@verifySelfieTile": {
+    "description": "Tile title"
+  },
+  "verifyChildrenTitle": "أطفالك",
+  "@verifyChildrenTitle": {
+    "description": "Step title"
+  },
+  "verifyChildrenBody": "أضف كل طفل سيركب، مع صورة بطاقة المدرسة الخاصة به.",
+  "@verifyChildrenBody": {
+    "description": "Step body"
+  },
+  "verifyChildrenEmpty": "لم تُضف أطفالًا بعد. أضف طفلًا واحدًا على الأقل.",
+  "@verifyChildrenEmpty": {
+    "description": "Empty children"
+  },
+  "verifyDrivingTitle": "القيادة",
+  "@verifyDrivingTitle": {
+    "description": "Step title"
+  },
+  "verifyDrivingBody": "هذه الخطوة لأولياء الأمور الذين سيقودون فقط. يمكنك إضافتها لاحقًا من حسابك.",
+  "@verifyDrivingBody": {
+    "description": "Step body"
+  },
+  "verifyDrivesLabel": "سأقود الأطفال في المشاوير",
+  "@verifyDrivesLabel": {
+    "description": "Checkbox"
+  },
+  "verifyDrivesHelper": "تحتاج إلى رخصة قيادة ورخصة سيارة ساريتين.",
+  "@verifyDrivesHelper": {
+    "description": "Checkbox helper"
+  },
+  "verifyReviewTitle": "راجع وأرسل",
+  "@verifyReviewTitle": {
+    "description": "Step title"
+  },
+  "verifyReviewBody": "تأكد أن كل شيء صحيح قبل الإرسال للمراجعة.",
+  "@verifyReviewBody": {
+    "description": "Step body"
+  },
+  "verifyReviewName": "الاسم",
+  "@verifyReviewName": {
+    "description": "Summary row"
+  },
+  "verifyReviewPhotos": "الصور",
+  "@verifyReviewPhotos": {
+    "description": "Summary row"
+  },
+  "verifyReviewPhotosCount": "{count, plural, =0{لا صور} =1{صورة واحدة} =2{صورتان} few{{count} صور} many{{count} صورة} other{{count} صورة}}",
+  "@verifyReviewPhotosCount": {
+    "description": "Photo count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "verifyReviewDrives": "نعم، مع بيانات الرخصة والسيارة",
+  "@verifyReviewDrives": {
+    "description": "Summary"
+  },
+  "verifyReviewNoDriving": "لا",
+  "@verifyReviewNoDriving": {
+    "description": "Summary"
+  },
+  "verifyConsentLabel": "أوافق على استخدام بطاقتي وصور وجهي وبيانات أطفالي للتحقق من حسابي",
+  "@verifyConsentLabel": {
+    "description": "Consent checkbox"
+  },
+  "verifyConsentHelper": "تُحذف الصور خلال ٧ أيام من القرار. يمكنك سحب موافقتك من حسابك.",
+  "@verifyConsentHelper": {
+    "description": "Consent helper"
+  },
+  "verifySubmit": "أرسل للمراجعة",
+  "@verifySubmit": {
+    "description": "Submit button"
+  },
+  "verifyUploading": "جارٍ إرسال مستنداتك... {percent}٪",
+  "@verifyUploading": {
+    "description": "Upload progress",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "verifyStepIncomplete": "أكمل كل ما في هذه الخطوة للمتابعة.",
+  "@verifyStepIncomplete": {
+    "description": "Disabled continue hint"
+  },
+  "verifyReviewIncomplete": "ضع علامة على مربع الموافقة للإرسال.",
+  "@verifyReviewIncomplete": {
+    "description": "Disabled submit hint"
+  },
+  "verifyErrorDetails": "بعض البيانات غير صحيحة. ارجع وراجع اسمك وبيانات البطاقة.",
+  "@verifyErrorDetails": {
+    "description": "Error"
+  },
+  "verifyErrorChild": "بيانات أحد الأطفال غير صحيحة. راجع بيانات كل طفل وحاول مرة أخرى.",
+  "@verifyErrorChild": {
+    "description": "Error"
+  },
+  "verifyErrorDriver": "بيانات السيارة أو الرخصة غير صحيحة. راجعها وحاول مرة أخرى.",
+  "@verifyErrorDriver": {
+    "description": "Error"
+  },
+  "verifyErrorLicenseExpired": "إحدى الرخص منتهية. جدّدها قبل إضافة بيانات القيادة.",
+  "@verifyErrorLicenseExpired": {
+    "description": "Error"
+  },
+  "verifyErrorDuplicate": "رقم البطاقة هذا مستخدم في حساب آخر. إذا كانت البطاقة تخصك فتواصل مع الدعم.",
+  "@verifyErrorDuplicate": {
+    "description": "Error"
+  },
+  "verifyErrorBanned": "لا يمكن استخدام هذه البطاقة في التطبيق. تواصل مع الدعم.",
+  "@verifyErrorBanned": {
+    "description": "Error"
+  },
+  "verifyErrorCaseOpen": "مستنداتك قيد المراجعة بالفعل. انتظر النتيجة.",
+  "@verifyErrorCaseOpen": {
+    "description": "Error"
+  },
+  "verifyErrorUpload": "تعذر إرسال إحدى الصور. حاول مرة أخرى؛ سيتم إرسال الصور الناقصة فقط.",
+  "@verifyErrorUpload": {
+    "description": "Error"
+  },
+  "verifyErrorOffline": "لا يوجد اتصال بالإنترنت. صورك محفوظة؛ حاول مرة أخرى عند عودة الاتصال.",
+  "@verifyErrorOffline": {
+    "description": "Error"
+  },
+  "firstNameLabel": "الاسم الأول",
+  "@firstNameLabel": {
+    "description": "Field"
+  },
+  "lastNameLabel": "اسم العائلة",
+  "@lastNameLabel": {
+    "description": "Field"
+  },
+  "nameAsOnIdHelper": "كما هو مكتوب في البطاقة",
+  "@nameAsOnIdHelper": {
+    "description": "Field helper"
+  },
+  "nameErrorInvalid": "استخدم حروفًا فقط، حرفين على الأقل.",
+  "@nameErrorInvalid": {
+    "description": "Field error"
+  },
+  "idNumberLabel": "الرقم القومي",
+  "@idNumberLabel": {
+    "description": "Field"
+  },
+  "idNumberHelper": "١٤ رقمًا. نحتفظ برمز محمي منه فقط، وليس بالرقم نفسه.",
+  "@idNumberHelper": {
+    "description": "Field helper"
+  },
+  "idNumberErrorLength": "أدخل الأرقام الـ ١٤ كلها.",
+  "@idNumberErrorLength": {
+    "description": "Field error"
+  },
+  "idNumberErrorInvalid": "هذا ليس رقمًا قوميًا صحيحًا. راجع كل رقم.",
+  "@idNumberErrorInvalid": {
+    "description": "Field error"
+  },
+  "idNumberErrorAge": "يجب أن يكون عمر ولي الأمر ١٨ سنة أو أكثر.",
+  "@idNumberErrorAge": {
+    "description": "Field error"
+  },
+  "idExpiryLabel": "تاريخ انتهاء البطاقة",
+  "@idExpiryLabel": {
+    "description": "Field"
+  },
+  "idExpiryHelper": "من ظهر البطاقة",
+  "@idExpiryHelper": {
+    "description": "Field helper"
+  },
+  "idExpiryErrorPast": "بطاقتك منتهية. جدّدها أولًا ثم قم بالتحقق.",
+  "@idExpiryErrorPast": {
+    "description": "Error"
+  },
+  "idPrivacyNote": "لا نحفظ أبدًا الديانة أو الحالة الاجتماعية أو المهنة المكتوبة على ظهر البطاقة.",
+  "@idPrivacyNote": {
+    "description": "Privacy note"
+  },
+  "dateChoose": "اختر تاريخًا",
+  "@dateChoose": {
+    "description": "Date placeholder"
+  },
+  "textErrorInvalid": "استخدم حروفًا وأرقامًا، حرفين على الأقل.",
+  "@textErrorInvalid": {
+    "description": "Field error"
+  },
+  "schoolErrorInvalid": "اكتب اسم المدرسة، حرفين على الأقل.",
+  "@schoolErrorInvalid": {
+    "description": "Field error"
+  },
+  "childAddTitle": "أضف طفلًا",
+  "@childAddTitle": {
+    "description": "Title/button"
+  },
+  "childEditTitle": "تعديل بيانات الطفل",
+  "@childEditTitle": {
+    "description": "Title"
+  },
+  "childEditHelper": "التعديل يحتاج صورة جديدة لبطاقة المدرسة ومراجعة جديدة.",
+  "@childEditHelper": {
+    "description": "Edit helper"
+  },
+  "childFormBody": "نحتفظ فقط بالاسم الأول والعمر والصف والمدرسة. تُحذف صورة بطاقة المدرسة بعد المراجعة.",
+  "@childFormBody": {
+    "description": "Form intro"
+  },
+  "childFirstNameLabel": "الاسم الأول للطفل",
+  "@childFirstNameLabel": {
+    "description": "Field"
+  },
+  "childFirstNameHelper": "كما هو مكتوب في بطاقة المدرسة",
+  "@childFirstNameHelper": {
+    "description": "Field helper"
+  },
+  "childAgeLabel": "العمر",
+  "@childAgeLabel": {
+    "description": "Field"
+  },
+  "childAgeYears": "{count, plural, =0{أقل من سنة} =1{سنة واحدة} =2{سنتان} few{{count} سنوات} many{{count} سنة} other{{count} سنة}}",
+  "@childAgeYears": {
+    "description": "Age option",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "childGradeLabel": "الصف",
+  "@childGradeLabel": {
+    "description": "Field"
+  },
+  "gradeKg1": "روضة أولى",
+  "@gradeKg1": {
+    "description": "Grade"
+  },
+  "gradeKg2": "روضة ثانية",
+  "@gradeKg2": {
+    "description": "Grade"
+  },
+  "gradeNumber": "الصف {number}",
+  "@gradeNumber": {
+    "description": "Grade label",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "childSchoolLabel": "المدرسة",
+  "@childSchoolLabel": {
+    "description": "Field"
+  },
+  "childSchoolHelper": "اكتب اسم المدرسة. سيتوفر الاختيار من قائمة قريبًا.",
+  "@childSchoolHelper": {
+    "description": "Field helper"
+  },
+  "childSchoolIdTitle": "بطاقة المدرسة",
+  "@childSchoolIdTitle": {
+    "description": "Tile"
+  },
+  "childSchoolIdHelper": "بطاقة المدرسة الخاصة بالطفل، وليست شهادة الميلاد أو بطاقة الرقم القومي.",
+  "@childSchoolIdHelper": {
+    "description": "Tile helper"
+  },
+  "childFormIncomplete": "املأ كل الحقول والتقط صورة بطاقة المدرسة.",
+  "@childFormIncomplete": {
+    "description": "Hint"
+  },
+  "childSave": "احفظ بيانات الطفل",
+  "@childSave": {
+    "description": "Button"
+  },
+  "childRemove": "حذف الطفل",
+  "@childRemove": {
+    "description": "Button"
+  },
+  "childRemoveTitle": "حذف {name}؟",
+  "@childRemoveTitle": {
+    "description": "Confirm title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "childRemoveDraftBody": "سيتم حذف البيانات والصورة التي أدخلتها لهذا الطفل.",
+  "@childRemoveDraftBody": {
+    "description": "Confirm body"
+  },
+  "childRemoveBody": "سيُحذف الطفل من حسابك. لا يمكن التراجع عن ذلك.",
+  "@childRemoveBody": {
+    "description": "Confirm body"
+  },
+  "childRemoved": "تم حذف الطفل.",
+  "@childRemoved": {
+    "description": "Snackbar"
+  },
+  "childSentForReview": "تم الإرسال للمراجعة.",
+  "@childSentForReview": {
+    "description": "Snackbar"
+  },
+  "childrenTitle": "الأطفال",
+  "@childrenTitle": {
+    "description": "Title"
+  },
+  "childrenEmptyTitle": "لا يوجد أطفال بعد",
+  "@childrenEmptyTitle": {
+    "description": "Empty title"
+  },
+  "childrenEmptyBody": "أضف طفلًا مع صورة بطاقة المدرسة الخاصة به.",
+  "@childrenEmptyBody": {
+    "description": "Empty body"
+  },
+  "childrenAddInVerification": "تضيف أطفالك أثناء خطوات التحقق.",
+  "@childrenAddInVerification": {
+    "description": "Empty body unverified"
+  },
+  "childrenLockedPending": "التعديلات متوقفة أثناء مراجعة مستنداتك.",
+  "@childrenLockedPending": {
+    "description": "Note"
+  },
+  "drivingTitle": "السيارة والرخصة",
+  "@drivingTitle": {
+    "description": "Title"
+  },
+  "drivingNone": "لم تُضف سيارة بعد. أضفها إذا كنت ستقود.",
+  "@drivingNone": {
+    "description": "Empty"
+  },
+  "drivingAddInVerification": "تضيف بيانات القيادة أثناء خطوات التحقق.",
+  "@drivingAddInVerification": {
+    "description": "Unverified note"
+  },
+  "drivingFormBody": "السيارة أو الرخصة الجديدة تُراجع مرة أخرى قبل أن تتمكن من القيادة.",
+  "@drivingFormBody": {
+    "description": "Form intro"
+  },
+  "drivingChange": "تغيير السيارة أو الرخصة",
+  "@drivingChange": {
+    "description": "Button"
+  },
+  "drivingSentForReview": "تم الإرسال للمراجعة.",
+  "@drivingSentForReview": {
+    "description": "Snackbar"
+  },
+  "driverPlateLabel": "رقم اللوحة",
+  "@driverPlateLabel": {
+    "description": "Field"
+  },
+  "driverPlateHelper": "الحروف والأرقام كما في اللوحة",
+  "@driverPlateHelper": {
+    "description": "Field helper"
+  },
+  "driverModelLabel": "ماركة وطراز السيارة",
+  "@driverModelLabel": {
+    "description": "Field"
+  },
+  "driverModelHelper": "مثل تويوتا كورولا",
+  "@driverModelHelper": {
+    "description": "Field helper"
+  },
+  "driverColorLabel": "اللون",
+  "@driverColorLabel": {
+    "description": "Field"
+  },
+  "driverSeatsLabel": "مقاعد الركاب",
+  "@driverSeatsLabel": {
+    "description": "Field"
+  },
+  "driverSeatsHelper": "بدون مقعد السائق. لن يسمح التطبيق بمشوار بعدد أطفال أكبر.",
+  "@driverSeatsHelper": {
+    "description": "Field helper"
+  },
+  "driverSeatsCount": "{count, plural, =1{مقعد واحد} =2{مقعدان} few{{count} مقاعد} many{{count} مقعدًا} other{{count} مقعد}}",
+  "@driverSeatsCount": {
+    "description": "Seats option",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "driverLicenseExpiryLabel": "تاريخ انتهاء رخصة القيادة",
+  "@driverLicenseExpiryLabel": {
+    "description": "Field"
+  },
+  "driverCarLicenseExpiryLabel": "تاريخ انتهاء رخصة السيارة",
+  "@driverCarLicenseExpiryLabel": {
+    "description": "Field"
+  },
+  "driverLicensePhotoTitle": "رخصة القيادة",
+  "@driverLicensePhotoTitle": {
+    "description": "Tile"
+  },
+  "driverCarLicensePhotoTitle": "رخصة السيارة",
+  "@driverCarLicensePhotoTitle": {
+    "description": "Tile"
+  },
+  "reasonPhotoUnclear": "إحدى الصور غير واضحة أو مظلمة أو مقطوعة. التقط صورًا واضحة في إضاءة جيدة.",
+  "@reasonPhotoUnclear": {
+    "description": "Rejection reason"
+  },
+  "reasonIdMismatch": "البيانات التي كتبتها لا تطابق البطاقة. اكتبها كما هي في البطاقة.",
+  "@reasonIdMismatch": {
+    "description": "Rejection reason"
+  },
+  "reasonSelfieMismatch": "صورتك السيلفي لا تطابق صورة البطاقة. التقط سيلفي جديدًا في إضاءة جيدة بدون نظارة أو كمامة.",
+  "@reasonSelfieMismatch": {
+    "description": "Rejection reason"
+  },
+  "reasonLivenessFailed": "صورة إدارة الرأس ناقصة أو غير مطابقة. التقط السيلفي مرة أخرى واتبع التعليمات.",
+  "@reasonLivenessFailed": {
+    "description": "Rejection reason"
+  },
+  "reasonIdExpired": "بطاقتك منتهية. جدّدها ثم أعد الإرسال.",
+  "@reasonIdExpired": {
+    "description": "Rejection reason"
+  },
+  "reasonSchoolIdUnclear": "تعذرت قراءة صورة بطاقة المدرسة. التقطها مرة أخرى.",
+  "@reasonSchoolIdUnclear": {
+    "description": "Rejection reason"
+  },
+  "reasonChildNameMismatch": "اسم الطفل في بطاقة المدرسة لا يُظهر صلة القرابة. تواصل مع الدعم لعرض شهادة الميلاد (تُعرض فقط ولا تُحفظ).",
+  "@reasonChildNameMismatch": {
+    "description": "Rejection reason"
+  },
+  "reasonLicenseInvalid": "تعذر قبول رخصة القيادة أو رخصة السيارة. تأكد أن كلتيهما سارية وواضحة.",
+  "@reasonLicenseInvalid": {
+    "description": "Rejection reason"
+  },
+  "reasonOther": "راجع ملاحظة المراجع بالأسفل.",
+  "@reasonOther": {
+    "description": "Rejection reason"
+  },
+  "reviewApproved": "مقبول",
+  "@reviewApproved": {
+    "description": "Review status"
+  },
+  "profileFamilySection": "العائلة والسيارة",
+  "@profileFamilySection": {
+    "description": "Section"
+  },
+  "profileChildrenHelper": "الأطفال والتحقق من بطاقة المدرسة",
+  "@profileChildrenHelper": {
+    "description": "Row helper"
+  },
+  "profileDrivingHelper": "مطلوبة فقط إذا كنت ستقود",
+  "@profileDrivingHelper": {
+    "description": "Row helper"
   }
 }
