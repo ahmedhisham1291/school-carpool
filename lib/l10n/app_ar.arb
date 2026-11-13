@@ -1437,5 +1437,21 @@
   "signOutFailed": "تعذّر تسجيل الخروج",
   "@signOutFailed": {
     "description": "Snackbar when signing out fails; a few words, one line"
+  },
+  "verifyPendingNext1Title": "المراجعة",
+  "@verifyPendingNext1Title": {
+    "description": "Pending status row title, above verifyPendingNext1"
+  },
+  "verifyPendingNext2Title": "النتيجة",
+  "@verifyPendingNext2Title": {
+    "description": "Pending status row title, above verifyPendingNext2"
+  },
+  "verifyPendingNext3Title": "صورك",
+  "@verifyPendingNext3Title": {
+    "description": "Pending status row title, above verifyPendingNext3"
+  },
+  "verifyWithdrawFailed": "تعذّر سحب الطلب",
+  "@verifyWithdrawFailed": {
+    "description": "Snackbar when withdrawing fails; a few words, one line"
   }
 }

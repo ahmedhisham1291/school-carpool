@@ -190,7 +190,7 @@
   "captureTake": "Take photo",
   "captureTakeSelfie": "Take selfie",
   "captureDone": "Photo taken",
-  "captureTodo": "Not taken yet",
+  "captureTodo": "Not taken",
   "captureDeniedTitle": "Camera access is off",
   "captureErrorDenied": "Allow the camera in Settings > School Carpool > Camera, then try again. Photos are taken in the app only.",
   "captureErrorCamera": "The camera could not start. Close other apps that use it, then try again.",
@@ -247,7 +247,7 @@
   "lastNameLabel": "Last name",
   "nameAsOnIdHelper": "As written on your ID",
   "nameErrorInvalid": "Use letters only, at least 2.",
-  "idNumberLabel": "National ID number",
+  "idNumberLabel": "National ID",
   "idNumberHelper": "14 digits. We keep only a protected code of it, never the number.",
   "idNumberErrorLength": "Enter all 14 digits.",
   "idNumberErrorInvalid": "This is not a valid national ID number. Check each digit.",
@@ -334,5 +334,9 @@
   "verifyStepSelfieDetail": "Taken in the app",
   "verifyStepChildDetail": "And their school ID card",
   "verifyStepDriverDetail": "And car details, if you will drive",
-  "signOutFailed": "Couldn't sign out"
+  "signOutFailed": "Couldn't sign out",
+  "verifyPendingNext1Title": "Review",
+  "verifyPendingNext2Title": "Result",
+  "verifyPendingNext3Title": "Your photos",
+  "verifyWithdrawFailed": "Couldn't withdraw"
 }

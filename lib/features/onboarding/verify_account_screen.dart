@@ -92,7 +92,7 @@ class VerifyAccountScreen extends ConsumerWidget {
                           Text(statusBody, style: context.text.bodyLarge),
                           if (account.status == AccountStatus.rejected && reason != null) ...<Widget>[
                             const SizedBox(height: AppSpacing.s16),
-                            Text(l10n.verifyRejectedReasonLabel, style: context.text.titleSmall),
+                            OneLineText(l10n.verifyRejectedReasonLabel, style: context.text.titleSmall),
                             const SizedBox(height: AppSpacing.s4),
                             Text(
                               rejectionReasonText(l10n, reason),
@@ -102,7 +102,7 @@ class VerifyAccountScreen extends ConsumerWidget {
                           ],
                           if (account.status == AccountStatus.rejected && note != null) ...<Widget>[
                             const SizedBox(height: AppSpacing.s16),
-                            Text(l10n.verifyReviewerNoteLabel, style: context.text.titleSmall),
+                            OneLineText(l10n.verifyReviewerNoteLabel, style: context.text.titleSmall),
                             const SizedBox(height: AppSpacing.s4),
                             Text(note, key: const Key('verify.note'), style: context.text.bodyLarge),
                           ],
@@ -113,9 +113,21 @@ class VerifyAccountScreen extends ConsumerWidget {
                   // Short one-line row titles; the detail goes in the subtitle.
                   if (account.status == AccountStatus.pending) ...<Widget>[
                     AppSectionHeader(l10n.verifyPendingNextTitle),
-                    AppListRow(title: l10n.verifyPendingNext1, leadingIcon: Icons.fact_check_outlined),
-                    AppListRow(title: l10n.verifyPendingNext2, leadingIcon: Icons.notifications_outlined),
-                    AppListRow(title: l10n.verifyPendingNext3, leadingIcon: Icons.delete_sweep_outlined),
+                    AppListRow(
+                      title: l10n.verifyPendingNext1Title,
+                      subtitle: l10n.verifyPendingNext1,
+                      leadingIcon: Icons.fact_check_outlined,
+                    ),
+                    AppListRow(
+                      title: l10n.verifyPendingNext2Title,
+                      subtitle: l10n.verifyPendingNext2,
+                      leadingIcon: Icons.notifications_outlined,
+                    ),
+                    AppListRow(
+                      title: l10n.verifyPendingNext3Title,
+                      subtitle: l10n.verifyPendingNext3,
+                      leadingIcon: Icons.delete_sweep_outlined,
+                    ),
                   ] else ...<Widget>[
                     AppSectionHeader(l10n.verifyStepsTitle),
                     AppListRow(
@@ -205,8 +217,8 @@ Future<void> _withdraw(BuildContext context, WidgetRef ref, String caseId) async
   }
   try {
     await repository.withdraw(caseId);
-    messenger.showSnackBar(SnackBar(content: Text(l10n.verifyWithdrawn)));
-  } on VerificationFailure catch (failure) {
-    messenger.showSnackBar(SnackBar(content: Text(failure.message(l10n))));
+    showAppSnackBarOn(messenger, l10n.verifyWithdrawn);
+  } on VerificationFailure {
+    showAppSnackBarOn(messenger, l10n.verifyWithdrawFailed);
   }
 }
