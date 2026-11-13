@@ -15,7 +15,7 @@ right to left.
 
 | Tool | Version |
 | --- | --- |
-| Flutter | stable, 3.47 or newer (Material comes from the `material_ui` package) |
+| Flutter | stable, 3.50 or newer (Material comes from the `material_ui` package) |
 | Xcode | current release, for iPhone builds (macOS only) |
 | Node.js | 22 (Cloud Functions runtime) |
 | Java | 21 (Firebase emulators) |

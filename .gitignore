@@ -65,3 +65,10 @@ emulator-data/
 # --- OS ---
 .DS_Store
 Thumbs.db
+
+# Python bytecode (tool/patch_native.py)
+__pycache__/
+*.pyc
+
+# Generated screenshots (test/screenshots, uploaded by CI as an artifact)
+test/screenshots/goldens/

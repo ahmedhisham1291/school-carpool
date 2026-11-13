@@ -7,11 +7,11 @@ publish_to: none
 version: 0.1.0+1
 
 environment:
-  # Flutter 3.47+ ships Material as the separate `material_ui` package; the
-  # in-SDK `package:flutter/material.dart` is deprecated. Current stable is
-  # 3.50.0 (Nov 2026).
+  # Dart 3.13 (needed by material_ui) ships with Flutter 3.50. Material comes
+  # from the `material_ui` package: it was published with Flutter 3.47 and
+  # the in-SDK `package:flutter/material.dart` is formally deprecated in 3.50.
   sdk: ^3.13.0
-  flutter: ">=3.47.0"
+  flutter: ">=3.50.0"
 
 dependencies:
   flutter:
