@@ -43,3 +43,24 @@ label took two lines).
 2. The 200 percent text check uses an ellipsis as the last resort on
    buttons; OK, or should buttons grow to two lines only at very large
    text sizes?
+
+## Review round 1 (docs/reviews/design-refresh-01-review.md)
+
+Fixed:
+- Blocking 1: `AppBarTitle` (one line, header semantics, scales down) used
+  by the placeholder tabs, the gallery and the one-line test.
+- Blocking 2: settings segment labels and field label use `OneLineText`;
+  settings snackbars use `showAppSnackBarOn`. (`date_field` and
+  `select_field` are not on this branch: change them to
+  `label: OneLineText(label)` when merging prompt 03/04.)
+- 200 percent text: `OneLineText(scaleDown: true)` in buttons, app bar,
+  sheet and dialog titles (shrink, never ellipsis); new x2 test.
+- Pill contrast: doc and test no longer claim 3:1; selection is also the
+  filled icon and semibold label.
+- Dark separation: page `#0F1514`, cards `#19211F`, hairline `#323C3A`.
+- Tokens: `AppOpacity`, `AppIconSize`, `AppSpacing.maxSentenceWidth`.
+- Elegance: cooler teal-leaning paper `#F4F7F6`; state views drop the icon
+  tile (large light icon); tab labels 13 px.
+
+Not done: the bold "today's run" card (Home is a feature screen) and the
+long-press large label on tabs.

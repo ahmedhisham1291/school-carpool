@@ -131,7 +131,7 @@ class AppNavigationBarItem extends StatelessWidget {
                   ),
                   child: Icon(
                     selected ? destination.selectedIcon : destination.icon,
-                    size: AppSpacing.s24,
+                    size: AppIconSize.md,
                     color: selected ? colors.onPrimaryContainer : colors.onSurfaceVariant,
                   ),
                 ),

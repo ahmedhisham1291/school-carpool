@@ -25,7 +25,7 @@ class GalleryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: OneLineText(l10n.galleryTitle),
+        title: AppBarTitle(l10n.galleryTitle),
         actions: <Widget>[
           IconButton(
             key: const Key('gallery.toggleLanguage'),

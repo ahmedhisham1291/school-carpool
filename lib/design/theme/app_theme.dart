@@ -3,6 +3,7 @@ import 'package:school_carpool/design/theme/app_colors.dart';
 import 'package:school_carpool/design/theme/design_direction.dart';
 import 'package:school_carpool/design/tokens/app_borders.dart';
 import 'package:school_carpool/design/tokens/app_motion.dart';
+import 'package:school_carpool/design/tokens/app_opacity.dart';
 import 'package:school_carpool/design/tokens/app_palette.dart';
 import 'package:school_carpool/design/tokens/app_radii.dart';
 import 'package:school_carpool/design/tokens/app_spacing.dart';
@@ -49,10 +50,13 @@ abstract final class AppTheme {
     WidgetStateProperty<Color?> veil(Color color) =>
         WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
           if (states.contains(WidgetState.pressed)) {
-            return color.withValues(alpha: 0.12);
+            return color.withValues(alpha: AppOpacity.pressed);
           }
-          if (states.contains(WidgetState.focused) || states.contains(WidgetState.hovered)) {
-            return color.withValues(alpha: 0.08);
+          if (states.contains(WidgetState.focused)) {
+            return color.withValues(alpha: AppOpacity.focus);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return color.withValues(alpha: AppOpacity.hover);
           }
           return null;
         });

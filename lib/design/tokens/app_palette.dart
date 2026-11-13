@@ -39,11 +39,12 @@ class AppPalette {
 
 // ---------------------------------------------------------------------------
 // Direction A: "Calm teal", refined (design refresh 01).
-// A deep teal accent used sparingly, soft warm-neutral surfaces, white cards
-// with hairline borders and near-black ink. Dark theme is a deep teal
-// graphite, never pure black. Roles and hex values: docs/DESIGN.md.
+// A deep teal accent used sparingly, cool teal-leaning paper surfaces, white
+// cards with hairline borders and near-black ink. Dark theme is a deep teal
+// graphite, never pure black, with cards one clear tone step above the page.
+// Roles and hex values: docs/DESIGN.md.
 // Contrast (WCAG): primary/onPrimary 7.6, surface/onSurfaceVariant 6.3,
-// outline on every light surface at least 3.1.
+// outline on every surface at least 3.2.
 // ---------------------------------------------------------------------------
 
 const AppPalette directionALight = AppPalette(
@@ -55,30 +56,30 @@ const AppPalette directionALight = AppPalette(
     onPrimaryContainer: Color(0xFF0A3A35),
     secondary: Color(0xFF4B5A57),
     onSecondary: Color(0xFFFFFFFF),
-    secondaryContainer: Color(0xFFECEAE4),
-    onSecondaryContainer: Color(0xFF1E2826),
+    secondaryContainer: Color(0xFFE6EDEA),
+    onSecondaryContainer: Color(0xFF1C2826),
     tertiary: Color(0xFF4B5A57),
     onTertiary: Color(0xFFFFFFFF),
     error: Color(0xFFB42318),
     onError: Color(0xFFFFFFFF),
     errorContainer: Color(0xFFFBE8E6),
     onErrorContainer: Color(0xFF5C130C),
-    surface: Color(0xFFF7F6F3),
-    onSurface: Color(0xFF141A19),
-    surfaceDim: Color(0xFFE1DFD9),
-    surfaceBright: Color(0xFFF7F6F3),
+    surface: Color(0xFFF4F7F6),
+    onSurface: Color(0xFF131A19),
+    surfaceDim: Color(0xFFDDE3E1),
+    surfaceBright: Color(0xFFF4F7F6),
     surfaceContainerLowest: Color(0xFFFFFFFF),
-    surfaceContainerLow: Color(0xFFF1F0EC),
-    surfaceContainer: Color(0xFFEDEBE7),
-    surfaceContainerHigh: Color(0xFFE7E5E0),
-    surfaceContainerHighest: Color(0xFFE1DFD9),
-    onSurfaceVariant: Color(0xFF545D5B),
-    outline: Color(0xFF7F8683),
-    outlineVariant: Color(0xFFE3E1DB),
-    shadow: Color(0xFF141A19),
+    surfaceContainerLow: Color(0xFFEEF2F1),
+    surfaceContainer: Color(0xFFE9EEEC),
+    surfaceContainerHigh: Color(0xFFE3E8E6),
+    surfaceContainerHighest: Color(0xFFDDE3E1),
+    onSurfaceVariant: Color(0xFF525D5A),
+    outline: Color(0xFF7C8784),
+    outlineVariant: Color(0xFFDCE3E0),
+    shadow: Color(0xFF131A19),
     scrim: Color(0xFF000000),
     inverseSurface: Color(0xFF232928),
-    onInverseSurface: Color(0xFFF1F0EC),
+    onInverseSurface: Color(0xFFEEF2F1),
     inversePrimary: Color(0xFF8ED3C8),
     surfaceTint: Color(0x00000000),
   ),
@@ -91,8 +92,8 @@ const AppPalette directionALight = AppPalette(
     onWarning: Color(0xFFFFFFFF),
     warningContainer: Color(0xFFFAEAD3),
     onWarningContainer: Color(0xFF3D2200),
-    skeletonBase: Color(0xFFECEAE4),
-    skeletonHighlight: Color(0xFFF5F4F0),
+    skeletonBase: Color(0xFFE6EDEA),
+    skeletonHighlight: Color(0xFFF0F4F3),
   ),
 );
 
@@ -105,7 +106,7 @@ const AppPalette directionADark = AppPalette(
     onPrimaryContainer: Color(0xFFBDEDE5),
     secondary: Color(0xFFB3C1BE),
     onSecondary: Color(0xFF1E2826),
-    secondaryContainer: Color(0xFF243030),
+    secondaryContainer: Color(0xFF26322F),
     onSecondaryContainer: Color(0xFFD5E1DE),
     tertiary: Color(0xFFB3C1BE),
     onTertiary: Color(0xFF1E2826),
@@ -113,18 +114,18 @@ const AppPalette directionADark = AppPalette(
     onError: Color(0xFF601410),
     errorContainer: Color(0xFF5A1A16),
     onErrorContainer: Color(0xFFFADCD9),
-    surface: Color(0xFF111716),
+    surface: Color(0xFF0F1514),
     onSurface: Color(0xFFE5EAE8),
-    surfaceDim: Color(0xFF111716),
+    surfaceDim: Color(0xFF0F1514),
     surfaceBright: Color(0xFF2F3836),
-    surfaceContainerLowest: Color(0xFF0C1110),
-    surfaceContainerLow: Color(0xFF171E1D),
-    surfaceContainer: Color(0xFF1B2322),
-    surfaceContainerHigh: Color(0xFF222A29),
-    surfaceContainerHighest: Color(0xFF2A3331),
-    onSurfaceVariant: Color(0xFFA7B2AF),
-    outline: Color(0xFF6E7976),
-    outlineVariant: Color(0xFF283130),
+    surfaceContainerLowest: Color(0xFF0B100F),
+    surfaceContainerLow: Color(0xFF19211F),
+    surfaceContainer: Color(0xFF1D2624),
+    surfaceContainerHigh: Color(0xFF242D2B),
+    surfaceContainerHighest: Color(0xFF2C3634),
+    onSurfaceVariant: Color(0xFFA9B4B1),
+    outline: Color(0xFF717C79),
+    outlineVariant: Color(0xFF323C3A),
     shadow: Color(0xFF000000),
     scrim: Color(0xFF000000),
     inverseSurface: Color(0xFFE5EAE8),
@@ -141,8 +142,8 @@ const AppPalette directionADark = AppPalette(
     onWarning: Color(0xFF452B00),
     warningContainer: Color(0xFF44300F),
     onWarningContainer: Color(0xFFFBE3BC),
-    skeletonBase: Color(0xFF1F2827),
-    skeletonHighlight: Color(0xFF283130),
+    skeletonBase: Color(0xFF242D2B),
+    skeletonHighlight: Color(0xFF2C3634),
   ),
 );
 

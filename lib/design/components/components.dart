@@ -5,6 +5,7 @@
 /// one line (`OneLineText`), so screens inherit the one-line rule.
 library;
 
+export 'package:school_carpool/design/components/app_bar_title.dart';
 export 'package:school_carpool/design/components/app_button.dart';
 export 'package:school_carpool/design/components/app_card.dart';
 export 'package:school_carpool/design/components/app_chip.dart';

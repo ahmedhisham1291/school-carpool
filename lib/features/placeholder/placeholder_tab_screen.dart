@@ -33,7 +33,7 @@ class PlaceholderTabScreen extends StatelessWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Semantics(header: true, child: Text(title))),
+      appBar: AppBar(title: AppBarTitle(title)),
       body: tab == AppTab.profile
           ? ListView(
               padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),

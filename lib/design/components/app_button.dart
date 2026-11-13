@@ -28,7 +28,8 @@ enum AppButtonSize {
 /// The only button used in screens.
 ///
 /// The label is always one line (DESIGN rules): write two or three words,
-/// such as "Create carpool". Full width ([expand]) is the normal layout for
+/// such as "Create carpool". At very large text sizes the label shrinks to
+/// fit rather than hiding words behind an ellipsis. Full width ([expand]) is the normal layout for
 /// the one primary action on phones. While [loading] the button is disabled
 /// and announces "loading".
 class AppButton extends StatelessWidget {
@@ -53,7 +54,7 @@ class AppButton extends StatelessWidget {
   /// Fill the available width (typical for the primary action on phones).
   final bool expand;
 
-  static const double _spinnerSize = AppSpacing.s16 + AppSpacing.s4;
+  static const double _spinnerSize = AppIconSize.sm;
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +77,7 @@ class AppButton extends StatelessWidget {
       label: label,
       icon: icon,
       loading: loading,
-      iconSize: large ? AppSpacing.s24 + AppSpacing.s4 : AppSpacing.s24 - AppSpacing.s4,
+      iconSize: large ? AppIconSize.lg : AppIconSize.sm,
     );
 
     final Widget button = switch (variant) {
@@ -118,7 +119,9 @@ class _ButtonContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget text = Flexible(child: OneLineText(label, textAlign: TextAlign.center));
+    final Widget text = Flexible(
+      child: OneLineText(label, textAlign: TextAlign.center, scaleDown: true),
+    );
     final Widget leading;
     if (loading) {
       leading = const SizedBox.square(
@@ -128,7 +131,7 @@ class _ButtonContent extends StatelessWidget {
     } else if (icon != null) {
       leading = Icon(icon, size: iconSize);
     } else {
-      return OneLineText(label, textAlign: TextAlign.center);
+      return OneLineText(label, textAlign: TextAlign.center, scaleDown: true);
     }
     return Row(
       mainAxisSize: MainAxisSize.min,

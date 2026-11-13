@@ -50,6 +50,6 @@ abstract final class AppTypeScale {
     labelLarge: _style(16, 24, medium),
     labelMedium: _style(14, 20, medium),
     // Bottom navigation labels: quiet and small, always one line.
-    labelSmall: _style(12, 16, medium),
+    labelSmall: _style(13, 18, medium),
   ).apply(fontFamily: fontFamily);
 }

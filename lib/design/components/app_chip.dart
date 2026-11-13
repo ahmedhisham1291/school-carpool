@@ -20,8 +20,6 @@ class AppChip extends StatelessWidget {
   final ValueChanged<bool>? onSelected;
   final IconData? icon;
 
-  static const double _iconSize = AppSpacing.s16 + AppSpacing.s4;
-
   @override
   Widget build(BuildContext context) {
     final ColorScheme colors = context.colors;
@@ -32,7 +30,7 @@ class AppChip extends StatelessWidget {
       selected: selected,
       onSelected: onSelected,
       showCheckmark: false,
-      avatar: leading == null ? null : Icon(leading, size: _iconSize, color: foreground),
+      avatar: leading == null ? null : Icon(leading, size: AppIconSize.sm, color: foreground),
       labelStyle: context.text.labelLarge?.copyWith(color: foreground),
       side: BorderSide(color: selected ? colors.primary : colors.outline),
       shape: const StadiumBorder(),

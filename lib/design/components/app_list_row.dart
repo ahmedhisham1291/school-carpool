@@ -49,7 +49,7 @@ class AppListRow extends StatelessWidget {
                     color: colors.secondaryContainer,
                     borderRadius: AppRadii.control,
                   ),
-                  child: Icon(lead, color: colors.onSecondaryContainer, size: AppSpacing.s24),
+                  child: Icon(lead, color: colors.onSecondaryContainer, size: AppIconSize.md),
                 ),
               ),
               const SizedBox(width: AppSpacing.s16),
@@ -78,7 +78,7 @@ class AppListRow extends StatelessWidget {
               Icon(
                 Icons.chevron_right_rounded,
                 color: colors.onSurfaceVariant,
-                size: AppSpacing.s16 + AppSpacing.s4,
+                size: AppIconSize.sm,
               ),
             ],
           ],

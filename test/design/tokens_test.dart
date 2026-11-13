@@ -95,8 +95,10 @@ void main() {
             'onSurface/raised': (c.onSurface, raised, 4.5),
             'onSurfaceVariant/raised': (c.onSurfaceVariant, raised, 4.5),
             'primary text/raised': (c.primary, raised, 4.5),
-            // Selected tab and chip: icon and label on the soft teal wash.
-            'primary/primaryContainer': (c.primary, c.primaryContainer, 3.0),
+            // Teal text or icon placed on the soft teal wash (selected chip).
+            // The tab pill itself is not relied on: selection is also shown
+            // by the filled icon and the semibold label.
+            'primary text/primaryContainer': (c.primary, c.primaryContainer, 4.5),
             'onInverseSurface/inverseSurface': (c.onInverseSurface, c.inverseSurface, 4.5),
             'inversePrimary/inverseSurface': (c.inversePrimary, c.inverseSurface, 4.5),
             'onSuccess/success': (s.onSuccess, s.success, 4.5),

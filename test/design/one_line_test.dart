@@ -5,6 +5,8 @@
 // chip, title and label fits on one line in Arabic and English on a 320 dp
 // wide phone. Real fonts are loaded so text has its true width.
 
+import 'dart:async';
+
 import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -57,6 +59,23 @@ void _expectOneLine(Finder finder, String where) {
         .any((box) => box.top >= half);
     expect(wraps, isFalse, reason: '"$text" wraps onto two lines ($where)');
     expect(paragraph.didExceedMaxLines, isFalse, reason: '"$text" is cut off ($where)');
+  }
+}
+
+/// Fails if any text under [finder] is drawn smaller than [minScale] of its
+/// size (text that scales down to fit instead of wrapping).
+void _expectNotShrunk(Finder finder, double minScale, String where) {
+  for (final RenderParagraph paragraph in _paragraphs(finder)) {
+    final Rect drawn = MatrixUtils.transformRect(
+      paragraph.getTransformTo(null),
+      Offset.zero & paragraph.size,
+    );
+    final double scale = drawn.width / paragraph.size.width;
+    expect(
+      scale,
+      greaterThanOrEqualTo(minScale),
+      reason: '"${paragraph.text.toPlainText()}" is shrunk to $scale; shorten it ($where)',
+    );
   }
 }
 
@@ -161,7 +180,7 @@ void main() {
         ];
         const double stateHeight = AppSpacing.s64 * 6;
         return Scaffold(
-          appBar: AppBar(title: OneLineText(l10n.galleryTitle)),
+          appBar: AppBar(title: AppBarTitle(l10n.galleryTitle)),
           body: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -234,6 +253,75 @@ void main() {
       _expectOneLine(
         find.descendant(of: find.byType(AppStateView), matching: find.byType(OneLineText)),
         'state titles and actions',
+      );
+    });
+
+    testWidgets('[$lang] at 200 percent text, buttons and titles shrink, never cut words', (
+      WidgetTester tester,
+    ) async {
+      _useNarrowPhone(tester, height: 1600, textScale: 2);
+      late String confirmTitle;
+      await _pumpContent(tester, locale, (BuildContext context) {
+        final AppLocalizations l10n = context.l10n;
+        confirmTitle = l10n.sampleConfirmTitle;
+        final List<String> buttons = <String>[
+          l10n.sampleButtonPrimary,
+          l10n.sampleButtonSecondary,
+          l10n.sampleButtonDanger,
+          l10n.actionRetry,
+          l10n.actionConfirm,
+        ];
+        return Scaffold(
+          appBar: AppBar(title: AppBarTitle(l10n.devOpenGallery)),
+          body: SingleChildScrollView(
+            padding: AppSpacing.screenPadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (final String label in buttons) ...<Widget>[
+                  AppButton(
+                    label: label,
+                    icon: Icons.add_rounded,
+                    expand: true,
+                    onPressed: () {},
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                ],
+                Builder(
+                  builder: (BuildContext inner) => AppButton(
+                    key: const Key('openDialog'),
+                    label: l10n.sampleConfirmOpen,
+                    onPressed: () => unawaited(
+                      showConfirmDialog(
+                        context: inner,
+                        title: l10n.sampleConfirmTitle,
+                        body: l10n.sampleConfirmBody,
+                        confirmLabel: l10n.sampleButtonDanger,
+                        destructive: true,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      });
+
+      _expectOneLine(find.byType(AppBarTitle), 'app bar title x2');
+      _expectOneLine(find.byType(AppButton), 'buttons x2');
+      _expectNotShrunk(find.byType(AppButton), 0.75, 'buttons x2');
+
+      await tester.tap(find.byKey(const Key('openDialog')));
+      await tester.pumpAndSettle();
+      final Finder dialogTitle = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text(confirmTitle),
+      );
+      _expectOneLine(dialogTitle, 'dialog title x2');
+      _expectOneLine(
+        find.descendant(of: find.byType(AlertDialog), matching: find.byType(AppButton)),
+        'dialog buttons x2',
       );
     });
 

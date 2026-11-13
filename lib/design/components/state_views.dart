@@ -4,8 +4,8 @@ import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
-/// Shared layout for full-screen empty, error and offline states: a soft
-/// icon tile, a one-line title, one short sentence that says what to do, and
+/// Shared layout for full-screen empty, error and offline states: one large
+/// light icon, a one-line title, one short sentence that says what to do, and
 /// at most one action.
 ///
 /// Scrolls when text is scaled up, so nothing is cut off at 200 percent.
@@ -27,19 +27,13 @@ class AppStateView extends StatelessWidget {
   final VoidCallback? onAction;
   final AppStateTone tone;
 
-  /// Keeps the sentence short and centred, even on wide screens.
-  static const double _bodyMaxWidth = AppSpacing.s64 * 5;
-
   @override
   Widget build(BuildContext context) {
     final ColorScheme colors = context.colors;
-    final (Color background, Color foreground) = switch (tone) {
-      AppStateTone.neutral => (colors.surfaceContainerHigh, colors.onSurfaceVariant),
-      AppStateTone.error => (colors.errorContainer, colors.onErrorContainer),
-      AppStateTone.warning => (
-        context.appColors.warningContainer,
-        context.appColors.onWarningContainer,
-      ),
+    final Color iconColor = switch (tone) {
+      AppStateTone.neutral => colors.onSurfaceVariant,
+      AppStateTone.error => colors.error,
+      AppStateTone.warning => context.appColors.warning,
     };
     final String? label = actionLabel;
 
@@ -51,13 +45,8 @@ class AppStateView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              SizedBox.square(
-                dimension: AppSpacing.s64,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: background, borderRadius: AppRadii.card),
-                  child: Icon(icon, color: foreground, size: AppSpacing.s32),
-                ),
-              ),
+              // Type carries the hierarchy: one large, light icon, no tile.
+              Icon(icon, color: iconColor, size: AppIconSize.xl),
               const SizedBox(height: AppSpacing.s24),
               Semantics(
                 header: true,
@@ -69,7 +58,7 @@ class AppStateView extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.s8),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: _bodyMaxWidth),
+                constraints: const BoxConstraints(maxWidth: AppSpacing.maxSentenceWidth),
                 child: Text(
                   body,
                   style: context.text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),

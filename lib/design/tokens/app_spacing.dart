@@ -39,6 +39,9 @@ abstract final class AppSpacing {
   /// Maximum width of reading content on wide screens (web, tablets).
   static const double maxContentWidth = 640;
 
+  /// Maximum width of a short centred sentence (empty and error states).
+  static const double maxSentenceWidth = 320;
+
   static const EdgeInsetsDirectional screenPadding =
       EdgeInsetsDirectional.symmetric(horizontal: screenGutter, vertical: s16);
 

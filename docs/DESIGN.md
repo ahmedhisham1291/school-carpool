@@ -22,19 +22,20 @@ titles or decoration.
 | `onPrimary` | `#FFFFFF` | `#00332D` | Text on the primary button |
 | `primaryContainer` | `#DCEDE9` | `#173F3A` | Selected tab pill, selected chip |
 | `onPrimaryContainer` | `#0A3A35` | `#BDEDE5` | Icon and text on that wash |
-| `surface` | `#F7F6F3` | `#111716` | Page background (soft warm neutral / teal graphite, never pure black) |
-| `surfaceRaised` (`AppColors`) | `#FFFFFF` | `#171E1D` | Cards, sheets, dialogs, inputs, bottom bar |
-| `onSurface` | `#141A19` | `#E5EAE8` | Main text (near-black ink) |
-| `onSurfaceVariant` | `#545D5B` | `#A7B2AF` | Secondary text, icons, section headers |
-| `outlineVariant` | `#E3E1DB` | `#283130` | Hairline borders and dividers |
-| `outline` | `#7F8683` | `#6E7976` | Input and secondary-button borders (3:1) |
-| `secondaryContainer` | `#ECEAE4` | `#243030` | Neutral icon tiles in list rows |
+| `surface` | `#F4F7F6` | `#0F1514` | Page background (cool teal-leaning paper / teal graphite, never pure black) |
+| `surfaceRaised` (`AppColors`) | `#FFFFFF` | `#19211F` | Cards, sheets, dialogs, inputs, bottom bar (dark: one clear tone step above the page) |
+| `onSurface` | `#131A19` | `#E5EAE8` | Main text (near-black ink) |
+| `onSurfaceVariant` | `#525D5A` | `#A9B4B1` | Secondary text, icons, section headers |
+| `outlineVariant` | `#DCE3E0` | `#323C3A` | Hairline borders and dividers |
+| `outline` | `#7C8784` | `#717C79` | Input and secondary-button borders (3:1) |
+| `secondaryContainer` | `#E6EDEA` | `#26322F` | Neutral icon tiles in list rows |
 | `error` | `#B42318` | `#F2B8B5` | Errors, destructive buttons |
 | `success` / `warning` | `#1D6B3F` / `#8A4B00` | `#86D3A0` / `#F2BE6B` | Status text and icons |
 | `inverseSurface` | `#232928` | `#E5EAE8` | Snackbars |
 
-Every text pair meets WCAG AA (4.5:1; 3:1 for borders and the selected
-pill). `test/design/tokens_test.dart` checks them in both directions and
+Every text pair meets WCAG AA (4.5:1 for text, 3:1 for input and button
+borders). The selected-tab pill is a soft wash and is not relied on to show
+selection: the selected tab also has a filled icon and a semibold label. `test/design/tokens_test.dart` checks them in both directions and
 both themes. Change a color only together with that test.
 
 Direction B (warm indigo) stays behind the dev setting for comparison;
@@ -54,7 +55,7 @@ always 0 (tracking breaks Arabic joins). Sentence case; no all-caps labels.
 | `bodyLarge` | 18 / 30 | 400 | Input text, important reading text |
 | `bodyMedium` | 16 / 26 | 400 | Body text, helper and error text (never smaller) |
 | `labelLarge` | 16 / 24 | 500 | Buttons, chips, section headers |
-| `labelSmall` | 12 / 16 | 500 | Bottom tab labels only |
+| `labelSmall` | 13 / 18 | 500 | Bottom tab labels only |
 | `bodySmall` | 14 / 22 | 400 | Captions only, never sentences |
 
 ## Spacing
@@ -68,6 +69,13 @@ between items, 24 at the screen edges (`screenGutter`) and between groups,
 Three steps, never mixed up: controls 12 (buttons, inputs, icon tiles,
 snackbars), cards 16, sheets and dialogs 24. Chips and the tab pill are
 full pills.
+
+## Icons and states
+
+Icon sizes come from `AppIconSize`: 20 (chips, chevrons, button icons), 24
+(default), 28 (driver buttons), 48 (empty and error states). Pressed,
+focused and hovered controls get a veil of their label color at
+`AppOpacity.pressed` (0.12) or `hover`/`focus` (0.08), no ripple.
 
 ## Borders and elevation
 
@@ -96,25 +104,35 @@ full pills.
 - **Chips** (`AppChip`): pill, `outline` border; selected gets the teal
   wash and a teal border. No checkmark.
 - **Bottom navigation** (`AppNavigationBar`): raised bar with a hairline on
-  top, teal pill behind the selected icon, outlined icon when not selected
-  and filled when selected, 12 px labels. Text scale is clamped to 1.3 in
-  the bar only; a label that is still too wide scales down, never wraps.
+  top, soft teal pill behind the selected icon, outlined icon when not
+  selected and filled when selected (plus a semibold label), 13 px labels.
+  Text scale is clamped to 1.3 in the bar only; a label that is still too
+  wide scales down, never wraps.
+- **App bar titles** (`AppBarTitle`): always `AppBar(title:
+  AppBarTitle(text))`, never a plain `Text`. One line, header semantics,
+  scales down at large text instead of cutting words.
+- **Segmented buttons and other Material widgets that take a label
+  widget**: pass `OneLineText(label)`, never `Text`.
 - **Section headers** (`AppSectionHeader`): quiet `onSurfaceVariant`
   label, 32 above, 8 below. Not teal, not all caps.
 - **Empty, error, offline** (`EmptyStateView`, `ErrorStateView`,
-  `OfflineStateView`): soft 64 tile with one icon, one-line title, one short
-  sentence, at most one action.
+  `OfflineStateView`): one large light icon (no tile), one-line title, one
+  short sentence, at most one action. Type carries the hierarchy.
 - **Loading** (`Skeleton` + `SkeletonCard`, `SkeletonListRow`): shapes match
   the real content; the pulse stops with reduce-motion.
-- **Feedback** (`showAppSnackBar`): a few words, one line ("Saved").
+- **Feedback** (`showAppSnackBar`, or `showAppSnackBarOn(messenger, ...)`
+  after an `await`): a few words, one line ("Saved").
 - New component: add it to the gallery first, then use it.
 
 ## One-line wording
 
 Every label, button, tab, chip and title fits on one line in Arabic and
 English on a 320 dp wide phone. Shared components enforce it with
-`OneLineText` (maxLines 1, no wrap, ellipsis), but the ellipsis is a safety
-net: if it shows, the wording is too long. Write it shorter.
+`OneLineText` (maxLines 1, no wrap). Two fallbacks, both safety nets: by
+default an ellipsis (list titles, chips, labels); with `scaleDown: true` the
+text shrinks to fit so no word is hidden (buttons, app bar, sheet and dialog
+titles, which do this already). If either shows at normal text size, the
+wording is too long. Write it shorter.
 
 Rules:
 - Tabs: one word. Buttons: verb + noun, two or three words. Chips: one or
@@ -133,9 +151,10 @@ Rules:
 | App bar | Component gallery (with three actions) | Gallery / المعرض |
 
 `test/design/one_line_test.dart` renders tabs (normal and 200 percent
-text), buttons, chips, headers, rows, field labels, state views, snackbars
-and the Profile tab at 320 dp in both languages and fails on any wrap or
-ellipsis. Add new user-facing labels of these kinds to it.
+text), buttons, chips, headers, rows, field labels, state views, snackbars,
+the Profile tab, and buttons, app bar and dialog titles at 200 percent, at
+320 dp in both languages, and fails on any wrap, ellipsis or heavy
+shrinking. Add new user-facing labels of these kinds to it.
 
 ## Accessibility and motion
 

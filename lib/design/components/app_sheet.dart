@@ -45,7 +45,10 @@ class AppSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Semantics(header: true, child: OneLineText(title, style: context.text.titleLarge)),
+            Semantics(
+              header: true,
+              child: OneLineText(title, style: context.text.titleLarge, scaleDown: true),
+            ),
             const SizedBox(height: AppSpacing.s8),
             DefaultTextStyle.merge(
               style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant),
@@ -73,7 +76,7 @@ Future<bool> showConfirmDialog({
   final bool? confirmed = await showDialog<bool>(
     context: context,
     builder: (BuildContext dialogContext) => AlertDialog(
-      title: Semantics(header: true, child: OneLineText(title)),
+      title: Semantics(header: true, child: OneLineText(title, scaleDown: true)),
       content: Text(body),
       actionsOverflowButtonSpacing: AppSpacing.s8,
       actions: <Widget>[
