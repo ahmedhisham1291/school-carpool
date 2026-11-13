@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
 /// One choice from a short fixed list (grade, number of seats).
@@ -28,10 +29,10 @@ class AppSelectField<T> extends StatelessWidget {
       key: ValueKey<T?>(value),
       initialValue: value,
       isExpanded: true,
-      decoration: InputDecoration(labelText: label, helperText: helperText),
+      decoration: InputDecoration(label: OneLineText(label), helperText: helperText),
       style: context.text.bodyLarge,
       items: <DropdownMenuItem<T>>[
-        for (final (T option, String text) in options) DropdownMenuItem<T>(value: option, child: Text(text)),
+        for (final (T option, String text) in options) DropdownMenuItem<T>(value: option, child: OneLineText(text)),
       ],
       onChanged: changed == null
           ? null

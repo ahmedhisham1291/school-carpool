@@ -292,7 +292,8 @@ void main() {
         children: kids,
       );
       expect(find.text('Omar'), findsOneWidget);
-      expect(find.text('Approved'), findsOneWidget);
+      // The status leads each child's subtitle.
+      expect(find.textContaining('Approved · '), findsOneWidget);
       expect(find.textContaining('A school ID photo could not be read'), findsOneWidget);
       await tester.tap(find.text('Laila'));
       await tester.pumpAndSettle();

@@ -7,7 +7,7 @@ import 'package:school_carpool/features/auth/signup_flow.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// Asks for confirmation, then signs out. The router then opens the
-/// welcome screen. Shows a snack bar if signing out fails.
+/// welcome screen. Shows a short snack bar if signing out fails.
 Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
   final AppLocalizations l10n = context.l10n;
   final AuthRepository repository = ref.read(authRepositoryProvider);
@@ -25,7 +25,9 @@ Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
   try {
     flow.reset();
     await repository.signOut();
-  } on AuthFailure catch (failure) {
-    messenger?.showSnackBar(SnackBar(content: Text(failure.message(l10n))));
+  } on AuthFailure {
+    if (messenger != null) {
+      showAppSnackBarOn(messenger, l10n.signOutFailed);
+    }
   }
 }

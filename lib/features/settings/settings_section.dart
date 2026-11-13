@@ -36,8 +36,8 @@ class SettingsSection extends ConsumerWidget {
             key: const Key('settings.language'),
             showSelectedIcon: false,
             segments: <ButtonSegment<Locale>>[
-              ButtonSegment<Locale>(value: AppLocales.arabic, label: Text(l10n.languageArabic)),
-              ButtonSegment<Locale>(value: AppLocales.english, label: Text(l10n.languageEnglish)),
+              ButtonSegment<Locale>(value: AppLocales.arabic, label: OneLineText(l10n.languageArabic)),
+              ButtonSegment<Locale>(value: AppLocales.english, label: OneLineText(l10n.languageEnglish)),
             ],
             selected: <Locale>{locale},
             onSelectionChanged: (Set<Locale> selection) =>
@@ -50,9 +50,9 @@ class SettingsSection extends ConsumerWidget {
             key: const Key('settings.theme'),
             showSelectedIcon: false,
             segments: <ButtonSegment<ThemeMode>>[
-              ButtonSegment<ThemeMode>(value: ThemeMode.system, label: Text(l10n.themeSystem)),
-              ButtonSegment<ThemeMode>(value: ThemeMode.light, label: Text(l10n.themeLight)),
-              ButtonSegment<ThemeMode>(value: ThemeMode.dark, label: Text(l10n.themeDark)),
+              ButtonSegment<ThemeMode>(value: ThemeMode.system, label: OneLineText(l10n.themeSystem)),
+              ButtonSegment<ThemeMode>(value: ThemeMode.light, label: OneLineText(l10n.themeLight)),
+              ButtonSegment<ThemeMode>(value: ThemeMode.dark, label: OneLineText(l10n.themeDark)),
             ],
             selected: <ThemeMode>{themeMode},
             onSelectionChanged: (Set<ThemeMode> selection) =>
@@ -96,7 +96,7 @@ class _LabeledControl extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(label, style: context.text.labelLarge),
+          OneLineText(label, style: context.text.labelLarge),
           const SizedBox(height: AppSpacing.s8),
           child,
         ],
@@ -126,11 +126,11 @@ class _DevTools extends ConsumerWidget {
             segments: <ButtonSegment<DesignDirection>>[
               ButtonSegment<DesignDirection>(
                 value: DesignDirection.a,
-                label: Text(l10n.directionA),
+                label: OneLineText(l10n.directionA),
               ),
               ButtonSegment<DesignDirection>(
                 value: DesignDirection.b,
-                label: Text(l10n.directionB),
+                label: OneLineText(l10n.directionB),
               ),
             ],
             selected: <DesignDirection>{direction},
@@ -164,16 +164,14 @@ class _DevTools extends ConsumerWidget {
     final AppLocalizations l10n = context.l10n;
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final bool sent = await sendTestError(ref.read(flavorConfigProvider));
-    messenger.showSnackBar(
-      SnackBar(content: Text(sent ? l10n.devTestErrorSent : l10n.devSentryOff)),
-    );
+    showAppSnackBarOn(messenger, sent ? l10n.devTestErrorSent : l10n.devSentryOff);
   }
 
   Future<void> _sendFunctionTestError(BuildContext context) async {
     final AppLocalizations l10n = context.l10n;
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final String feedback = await _callFunctionTestError(l10n);
-    messenger.showSnackBar(SnackBar(content: Text(feedback)));
+    showAppSnackBarOn(messenger, feedback);
   }
 
   /// Returns the message to show. The function throws on purpose, so a

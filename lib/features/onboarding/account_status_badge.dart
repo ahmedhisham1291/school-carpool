@@ -9,16 +9,20 @@ class AccountStatusBadge extends StatelessWidget {
 
   final AccountStatus status;
 
+  /// The words, tone and icon for [status], shared with list rows that show
+  /// the status as text.
+  static (String, AppBadgeTone, IconData) describe(AccountStatus status, AppLocalizations l10n) =>
+      switch (status) {
+        AccountStatus.unverified => (l10n.statusUnverified, AppBadgeTone.neutral, Icons.shield_outlined),
+        AccountStatus.pending => (l10n.statusPending, AppBadgeTone.warning, Icons.hourglass_top_rounded),
+        AccountStatus.verified => (l10n.statusVerified, AppBadgeTone.success, Icons.verified_rounded),
+        AccountStatus.rejected => (l10n.statusRejected, AppBadgeTone.error, Icons.error_outline_rounded),
+        AccountStatus.suspended => (l10n.statusSuspended, AppBadgeTone.error, Icons.block_rounded),
+      };
+
   @override
   Widget build(BuildContext context) {
-    final AppLocalizations l10n = context.l10n;
-    final (String label, AppBadgeTone tone, IconData icon) = switch (status) {
-      AccountStatus.unverified => (l10n.statusUnverified, AppBadgeTone.neutral, Icons.shield_outlined),
-      AccountStatus.pending => (l10n.statusPending, AppBadgeTone.warning, Icons.hourglass_top_rounded),
-      AccountStatus.verified => (l10n.statusVerified, AppBadgeTone.success, Icons.verified_rounded),
-      AccountStatus.rejected => (l10n.statusRejected, AppBadgeTone.error, Icons.error_outline_rounded),
-      AccountStatus.suspended => (l10n.statusSuspended, AppBadgeTone.error, Icons.block_rounded),
-    };
+    final (String label, AppBadgeTone tone, IconData icon) = describe(status, context.l10n);
     return AppStatusBadge(label: label, tone: tone, icon: icon);
   }
 }

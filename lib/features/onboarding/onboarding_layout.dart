@@ -6,8 +6,9 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 /// terms.
 const int kSignupSteps = 4;
 
-/// Layout shared by the sign-up steps: progress, a title, one line that
-/// says what to do, the step's content, and the actions pinned at the
+/// Layout shared by the sign-up steps: progress, a one-line title (scaled
+/// down, never wrapped or cut, at large text), one sentence that says what
+/// to do, the step's content, and the actions pinned at the
 /// bottom (above the keyboard). Scrolls when text is scaled to 200 percent.
 /// Built only from design-system components.
 class OnboardingLayout extends StatelessWidget {
@@ -59,7 +60,11 @@ class OnboardingLayout extends StatelessWidget {
                         ],
                         Semantics(
                           header: true,
-                          child: Text(title, style: context.text.headlineMedium),
+                          child: OneLineText(
+                            title,
+                            style: context.text.headlineSmall,
+                            scaleDown: true,
+                          ),
                         ),
                         if (text != null) ...<Widget>[
                           const SizedBox(height: AppSpacing.s8),

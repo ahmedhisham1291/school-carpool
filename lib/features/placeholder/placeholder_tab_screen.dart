@@ -30,7 +30,7 @@ class PlaceholderTabScreen extends StatelessWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Semantics(header: true, child: Text(title))),
+      appBar: AppBar(title: AppBarTitle(title)),
       body: EmptyStateView(icon: icon, title: l10n.comingSoon, body: body),
     );
   }

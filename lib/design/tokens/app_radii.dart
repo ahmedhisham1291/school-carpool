@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
-/// Corner radii. Rounded cards are part of the brand ("calm, trustworthy").
+/// Corner radii. Three steps, used consistently: controls (12), cards (16),
+/// sheets and dialogs (24). Chips and the navigation indicator are pills.
 abstract final class AppRadii {
   static const double sm = 8;
   static const double md = 12;
@@ -14,11 +15,17 @@ abstract final class AppRadii {
   static const BorderRadius xlAll = BorderRadius.all(Radius.circular(xl));
   static const BorderRadius pillAll = BorderRadius.all(Radius.circular(pill));
 
-  /// Inputs and buttons.
+  /// Inputs, buttons, icon tiles and snackbars.
   static const BorderRadius control = mdAll;
 
   /// Cards and list groups.
   static const BorderRadius card = lgAll;
+
+  /// Dialogs.
+  static const BorderRadius dialog = xlAll;
+
+  /// Chips and the selected-tab indicator.
+  static const BorderRadius chip = pillAll;
 
   /// Top corners of bottom sheets.
   static const BorderRadius sheetTop = BorderRadius.vertical(top: Radius.circular(xl));

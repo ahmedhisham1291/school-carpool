@@ -92,7 +92,7 @@ class _ChildrenScreenState extends ConsumerState<ChildrenScreen> {
           }
         },
       );
-      messenger.showSnackBar(SnackBar(content: Text(done)));
+      showAppSnackBarOn(messenger, done);
     } on VerificationFailure catch (failure) {
       if (mounted) {
         setState(() => _failure = failure);
@@ -126,7 +126,7 @@ class _ChildrenScreenState extends ConsumerState<ChildrenScreen> {
     });
     try {
       await ref.read(verificationRepositoryProvider).removeChild(child.id);
-      messenger.showSnackBar(SnackBar(content: Text(l10n.childRemoved)));
+      showAppSnackBarOn(messenger, l10n.childRemoved);
     } on VerificationFailure catch (failure) {
       if (mounted) {
         setState(() => _failure = failure);
@@ -162,13 +162,19 @@ class _ChildrenScreenState extends ConsumerState<ChildrenScreen> {
             AppListRow(
               key: Key('children.${child.id}'),
               title: child.firstName,
+              // The review status leads the subtitle (not a trailing badge),
+              // so the one-line name keeps its room at 320 dp and 200%.
               subtitle: <String>[
-                '${l10n.childAgeYears(child.age)} · ${gradeLabel(l10n, child.grade)} · ${child.schoolName}',
+                <String>[
+                  reviewStatusLabel(l10n, child.status),
+                  l10n.childAgeYears(child.age),
+                  gradeLabel(l10n, child.grade),
+                  child.schoolName,
+                ].join(' · '),
                 if (child.status == ReviewStatus.rejected && child.reason != null)
                   rejectionReasonText(l10n, child.reason!),
               ].join('\n'),
-              leadingIcon: Icons.child_care_outlined,
-              trailing: ReviewStatusBadge(status: child.status),
+              leadingIcon: ReviewStatusBadge.iconFor(child.status),
               onTap: canChange ? () => unawaited(_showActions(child)) : null,
             ),
         ],
@@ -179,7 +185,7 @@ class _ChildrenScreenState extends ConsumerState<ChildrenScreen> {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Semantics(header: true, child: Text(l10n.childrenTitle))),
+      appBar: AppBar(title: AppBarTitle(l10n.childrenTitle)),
       body: SafeArea(
         top: false,
         child: Column(

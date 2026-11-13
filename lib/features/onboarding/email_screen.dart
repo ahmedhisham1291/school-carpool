@@ -17,7 +17,7 @@ final RegExp kEmailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
 /// Step 3: email with a confirmation link (spec section 3, step 2).
 ///
 /// Two parts: enter the address (checked as typed), then "check your inbox"
-/// with "I have confirmed", resend and change. The app also checks when the
+/// with "I confirmed it", resend and change. The app also checks when the
 /// screen opens (a parent who opened the link and signed in again moves on
 /// to the terms) and when the parent comes back from the mail app.
 ///
@@ -103,9 +103,7 @@ class _EmailScreenState extends ConsumerState<EmailScreen> with WidgetsBindingOb
         return;
       }
       setState(() => _sentTo = email);
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(sentMessage)));
+      showAppSnackBarOn(messenger, sentMessage);
     } on AuthFailure catch (failure) {
       if (mounted) {
         setState(() => _failure = failure);

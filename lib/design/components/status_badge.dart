@@ -1,10 +1,12 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
 enum AppBadgeTone { neutral, success, warning, error }
 
 /// A small pill that names a status, for example "Verified" or "Under
-/// review". Color is never the only signal: the text always says it.
+/// review". Color is never the only signal: the text always says it. The
+/// label is one or two words and stays on one line.
 class AppStatusBadge extends StatelessWidget {
   const AppStatusBadge({required this.label, super.key, this.tone = AppBadgeTone.neutral, this.icon});
 
@@ -31,11 +33,11 @@ class AppStatusBadge extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (leading != null) ...<Widget>[
-              ExcludeSemantics(child: Icon(leading, size: AppSpacing.s16, color: foreground)),
+              ExcludeSemantics(child: Icon(leading, size: AppIconSize.sm, color: foreground)),
               const SizedBox(width: AppSpacing.s4),
             ],
             Flexible(
-              child: Text(label, style: context.text.labelLarge?.copyWith(color: foreground)),
+              child: OneLineText(label, style: context.text.labelLarge?.copyWith(color: foreground)),
             ),
           ],
         ),

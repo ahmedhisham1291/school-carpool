@@ -320,7 +320,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
     return Scaffold(
       backgroundColor: context.colors.surface,
       appBar: AppBar(
-        title: Semantics(header: true, child: Text(_title(l10n))),
+        title: AppBarTitle(_title(l10n)),
         leading: IconButton(
           key: const Key('capture.close'),
           tooltip: l10n.actionCancel,

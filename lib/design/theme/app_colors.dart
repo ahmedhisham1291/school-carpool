@@ -3,7 +3,7 @@ import 'package:school_carpool/design/tokens/app_palette.dart';
 import 'package:school_carpool/design/tokens/app_shadows.dart';
 
 /// Theme extension for the tokens Material's [ThemeData] has no slot for:
-/// status colors, skeleton colors and shadows.
+/// status colors, skeleton colors, the raised surface and shadows.
 ///
 /// Read it with `context.appColors` (see `theme_context.dart`).
 @immutable
@@ -19,6 +19,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.onWarningContainer,
     required this.skeletonBase,
     required this.skeletonHighlight,
+    required this.surfaceRaised,
     required this.brightness,
   });
 
@@ -35,6 +36,7 @@ class AppColors extends ThemeExtension<AppColors> {
       onWarningContainer: s.onWarningContainer,
       skeletonBase: s.skeletonBase,
       skeletonHighlight: s.skeletonHighlight,
+      surfaceRaised: raisedSurfaceOf(palette.scheme),
       brightness: palette.scheme.brightness,
     );
   }
@@ -49,7 +51,17 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color onWarningContainer;
   final Color skeletonBase;
   final Color skeletonHighlight;
+
+  /// Cards, sheets, dialogs, inputs and the bottom bar: white on the soft
+  /// neutral background in light mode, one step lighter than the background
+  /// in dark mode. Always paired with a hairline border.
+  final Color surfaceRaised;
   final Brightness brightness;
+
+  /// The raised surface for a color scheme (see [surfaceRaised]).
+  static Color raisedSurfaceOf(ColorScheme scheme) => scheme.brightness == Brightness.light
+      ? scheme.surfaceContainerLowest
+      : scheme.surfaceContainerLow;
 
   List<BoxShadow> shadow(AppElevation elevation) => AppShadows.of(brightness, elevation);
 
@@ -65,6 +77,7 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? onWarningContainer,
     Color? skeletonBase,
     Color? skeletonHighlight,
+    Color? surfaceRaised,
     Brightness? brightness,
   }) {
     return AppColors(
@@ -78,6 +91,7 @@ class AppColors extends ThemeExtension<AppColors> {
       onWarningContainer: onWarningContainer ?? this.onWarningContainer,
       skeletonBase: skeletonBase ?? this.skeletonBase,
       skeletonHighlight: skeletonHighlight ?? this.skeletonHighlight,
+      surfaceRaised: surfaceRaised ?? this.surfaceRaised,
       brightness: brightness ?? this.brightness,
     );
   }
@@ -99,6 +113,7 @@ class AppColors extends ThemeExtension<AppColors> {
       onWarningContainer: mix(onWarningContainer, other.onWarningContainer),
       skeletonBase: mix(skeletonBase, other.skeletonBase),
       skeletonHighlight: mix(skeletonHighlight, other.skeletonHighlight),
+      surfaceRaised: mix(surfaceRaised, other.surfaceRaised),
       brightness: t < 0.5 ? brightness : other.brightness,
     );
   }

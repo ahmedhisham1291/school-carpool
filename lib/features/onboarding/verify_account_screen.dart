@@ -38,7 +38,7 @@ class VerifyAccountScreen extends ConsumerWidget {
 
     if (account == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.verifyTitle)),
+        appBar: AppBar(title: AppBarTitle(l10n.verifyTitle)),
         body: const Skeleton(
           child: Column(children: <Widget>[SkeletonCard(), SkeletonListRow(), SkeletonListRow()]),
         ),
@@ -71,7 +71,7 @@ class VerifyAccountScreen extends ConsumerWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Semantics(header: true, child: Text(l10n.verifyTitle))),
+      appBar: AppBar(title: AppBarTitle(l10n.verifyTitle)),
       body: SafeArea(
         top: false,
         child: Column(
@@ -92,7 +92,7 @@ class VerifyAccountScreen extends ConsumerWidget {
                           Text(statusBody, style: context.text.bodyLarge),
                           if (account.status == AccountStatus.rejected && reason != null) ...<Widget>[
                             const SizedBox(height: AppSpacing.s16),
-                            Text(l10n.verifyRejectedReasonLabel, style: context.text.titleSmall),
+                            OneLineText(l10n.verifyRejectedReasonLabel, style: context.text.titleSmall),
                             const SizedBox(height: AppSpacing.s4),
                             Text(
                               rejectionReasonText(l10n, reason),
@@ -102,7 +102,7 @@ class VerifyAccountScreen extends ConsumerWidget {
                           ],
                           if (account.status == AccountStatus.rejected && note != null) ...<Widget>[
                             const SizedBox(height: AppSpacing.s16),
-                            Text(l10n.verifyReviewerNoteLabel, style: context.text.titleSmall),
+                            OneLineText(l10n.verifyReviewerNoteLabel, style: context.text.titleSmall),
                             const SizedBox(height: AppSpacing.s4),
                             Text(note, key: const Key('verify.note'), style: context.text.bodyLarge),
                           ],
@@ -110,17 +110,46 @@ class VerifyAccountScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  // Short one-line row titles; the detail goes in the subtitle.
                   if (account.status == AccountStatus.pending) ...<Widget>[
                     AppSectionHeader(l10n.verifyPendingNextTitle),
-                    AppListRow(title: l10n.verifyPendingNext1, leadingIcon: Icons.fact_check_outlined),
-                    AppListRow(title: l10n.verifyPendingNext2, leadingIcon: Icons.notifications_outlined),
-                    AppListRow(title: l10n.verifyPendingNext3, leadingIcon: Icons.delete_sweep_outlined),
+                    AppListRow(
+                      title: l10n.verifyPendingNext1Title,
+                      subtitle: l10n.verifyPendingNext1,
+                      leadingIcon: Icons.fact_check_outlined,
+                    ),
+                    AppListRow(
+                      title: l10n.verifyPendingNext2Title,
+                      subtitle: l10n.verifyPendingNext2,
+                      leadingIcon: Icons.notifications_outlined,
+                    ),
+                    AppListRow(
+                      title: l10n.verifyPendingNext3Title,
+                      subtitle: l10n.verifyPendingNext3,
+                      leadingIcon: Icons.delete_sweep_outlined,
+                    ),
                   ] else ...<Widget>[
                     AppSectionHeader(l10n.verifyStepsTitle),
-                    AppListRow(title: l10n.verifyStepId, leadingIcon: Icons.badge_outlined),
-                    AppListRow(title: l10n.verifyStepSelfie, leadingIcon: Icons.face_outlined),
-                    AppListRow(title: l10n.verifyStepChild, leadingIcon: Icons.school_outlined),
-                    AppListRow(title: l10n.verifyStepDriver, leadingIcon: Icons.directions_car_outlined),
+                    AppListRow(
+                      title: l10n.verifyStepId,
+                      subtitle: l10n.verifyStepIdDetail,
+                      leadingIcon: Icons.badge_outlined,
+                    ),
+                    AppListRow(
+                      title: l10n.verifyStepSelfie,
+                      subtitle: l10n.verifyStepSelfieDetail,
+                      leadingIcon: Icons.face_outlined,
+                    ),
+                    AppListRow(
+                      title: l10n.verifyStepChild,
+                      subtitle: l10n.verifyStepChildDetail,
+                      leadingIcon: Icons.school_outlined,
+                    ),
+                    AppListRow(
+                      title: l10n.verifyStepDriver,
+                      subtitle: l10n.verifyStepDriverDetail,
+                      leadingIcon: Icons.directions_car_outlined,
+                    ),
                     Padding(
                       padding: AppSpacing.screenPadding,
                       child: AppInlineMessage(message: l10n.verifyPrivacyNote, icon: Icons.lock_outline_rounded),
@@ -188,8 +217,8 @@ Future<void> _withdraw(BuildContext context, WidgetRef ref, String caseId) async
   }
   try {
     await repository.withdraw(caseId);
-    messenger.showSnackBar(SnackBar(content: Text(l10n.verifyWithdrawn)));
-  } on VerificationFailure catch (failure) {
-    messenger.showSnackBar(SnackBar(content: Text(failure.message(l10n))));
+    showAppSnackBarOn(messenger, l10n.verifyWithdrawn);
+  } on VerificationFailure {
+    showAppSnackBarOn(messenger, l10n.verifyWithdrawFailed);
   }
 }

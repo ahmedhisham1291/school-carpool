@@ -1,9 +1,12 @@
 // Screenshots for the owner (no Mac needed). Written, not run here.
 //
-// Renders the tab shell, the sign-up screens (Prompt 2) and the component
-// gallery in Arabic and English, light and dark (gallery also in design
-// directions A and B) with the real bundled fonts, and writes PNGs to
-// test/screenshots/goldens/.
+// Renders the tab shell, the sign-up screens (Prompt 2), the verification
+// screens (Prompt 3) and the component gallery in Arabic and English, light
+// and dark (gallery also in design directions A and B) with the real
+// bundled fonts, and writes PNGs to test/screenshots/goldens/. The shell,
+// the sign-up and the verification screens are also
+// rendered on a small 320 dp phone, at normal and at 200 percent text, to
+// show that tab labels, titles and buttons stay on one line.
 //
 // These tests only run with --update-goldens (they are skipped in a plain
 // `flutter test`, so there are no committed images to compare against):
@@ -13,7 +16,6 @@
 // CI (.github/workflows/checks.yml) runs this and uploads the folder as the
 // "screenshots" artifact.
 
-import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -30,36 +32,9 @@ import 'package:school_carpool/router/session_redirect.dart';
 import 'package:school_carpool/settings/app_settings.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
+import '../helpers/fonts.dart';
 import '../helpers/test_app.dart';
 import '../helpers/verification_fakes.dart';
-
-Future<void> _loadFont(String family, List<String> assets) async {
-  final FontLoader loader = FontLoader(family);
-  for (final String asset in assets) {
-    loader.addFont(rootBundle.load(asset));
-  }
-  await loader.load();
-}
-
-Future<void> _loadFonts() async {
-  await _loadFont('IBMPlexSansArabic', <String>[
-    'assets/fonts/ibm_plex_sans_arabic/IBMPlexSansArabic-Regular.ttf',
-    'assets/fonts/ibm_plex_sans_arabic/IBMPlexSansArabic-Medium.ttf',
-    'assets/fonts/ibm_plex_sans_arabic/IBMPlexSansArabic-SemiBold.ttf',
-    'assets/fonts/ibm_plex_sans_arabic/IBMPlexSansArabic-Bold.ttf',
-  ]);
-  await _loadFont('Tajawal', <String>[
-    'assets/fonts/tajawal/Tajawal-Regular.ttf',
-    'assets/fonts/tajawal/Tajawal-Medium.ttf',
-    'assets/fonts/tajawal/Tajawal-Bold.ttf',
-  ]);
-  try {
-    // Bundled by `uses-material-design: true`; without it icons are boxes.
-    await _loadFont('MaterialIcons', <String>['fonts/MaterialIcons-Regular.otf']);
-  } on Object catch (error) {
-    debugPrint('screenshots: Material icons font not loaded ($error)');
-  }
-}
 
 Future<void> _pumpScreen(
   WidgetTester tester, {
@@ -70,12 +45,15 @@ Future<void> _pumpScreen(
   required Size logicalSize,
   required double pixelRatio,
   SessionState session = testVerifiedSession,
+  double textScale = 1,
   List<Override> extraOverrides = const <Override>[],
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
     ..physicalSize = logicalSize * pixelRatio;
   addTearDown(tester.view.reset);
+  tester.platformDispatcher.textScaleFactorTestValue = textScale;
+  addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
   final GoRouter router = buildAppRouter(showDevTools: true, initialLocation: location);
   addTearDown(router.dispose);
@@ -114,7 +92,7 @@ class _PresetSignupFlow extends SignupFlowController {
 }
 
 void main() {
-  setUpAll(_loadFonts);
+  setUpAll(loadAppFonts);
 
   const List<String> locales = <String>['ar', 'en'];
   const List<String> modes = <String>['light', 'dark'];
@@ -142,34 +120,78 @@ void main() {
     }
   }
 
-  // Sign-up screens (Prompt 2) and the screens of an unverified account.
-  const Map<String, String> signupScreens = <String, String>{
-    'welcome': AuthRoutes.welcome,
-    'phone': AuthRoutes.phone,
-    'code': AuthRoutes.code,
-    'email': AuthRoutes.email,
-    'terms': AuthRoutes.terms,
-    'verify_account': AuthRoutes.verifyAccount,
-    'profile_unverified': '/profile',
+  // Sign-up screens (Prompt 2) and the screens of an unverified account,
+  // each with the session the router lets onto that screen.
+  const Map<String, (String, SessionState)> signupScreens = <String, (String, SessionState)>{
+    'welcome': (AuthRoutes.welcome, SessionSignedOut()),
+    'phone': (AuthRoutes.phone, SessionSignedOut()),
+    'code': (AuthRoutes.code, SessionSignedOut()),
+    'email': (AuthRoutes.email, testEmailStageSession),
+    'terms': (AuthRoutes.terms, testTermsStageSession),
+    'verify_account': (AuthRoutes.verifyAccount, testUnverifiedSession),
+    'profile_unverified': ('/profile', testUnverifiedSession),
   };
-  for (final MapEntry<String, String> screen in signupScreens.entries) {
+  for (final MapEntry<String, (String, SessionState)> screen in signupScreens.entries) {
+    final (String location, SessionState session) = screen.value;
     for (final String locale in locales) {
       for (final String mode in modes) {
         final String name = 'signup_${screen.key}_${locale}_$mode';
         testWidgets(name, skip: skip, (WidgetTester tester) async {
           await _pumpScreen(
             tester,
-            location: screen.value,
+            location: location,
             locale: locale,
             themeMode: mode,
             direction: 'a',
             logicalSize: const Size(390, 844),
             pixelRatio: 3,
-            session: testUnverifiedSession,
+            session: session,
           );
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
         });
       }
+    }
+    // Small phone (320 dp), light, normal and 200 percent text: titles,
+    // labels and buttons stay on one line.
+    for (final double scale in <double>[1, 2]) {
+      for (final String locale in locales) {
+        final String name = 'signup_${screen.key}_${locale}_light_320_text${scale.round()}x';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: location,
+            locale: locale,
+            themeMode: 'light',
+            direction: 'a',
+            logicalSize: const Size(320, 640),
+            pixelRatio: 3,
+            session: session,
+            textScale: scale,
+          );
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Small phone (320 dp wide), Home tab, normal and 200 percent text: the
+  // tab labels must stay on one line.
+  for (final double scale in <double>[1, 2]) {
+    for (final String locale in locales) {
+      final String name = 'shell_home_a_${locale}_light_320_text${scale.round()}x';
+      testWidgets(name, skip: skip, (WidgetTester tester) async {
+        await _pumpScreen(
+          tester,
+          location: '/home',
+          locale: locale,
+          themeMode: 'light',
+          direction: 'a',
+          logicalSize: const Size(320, 640),
+          pixelRatio: 3,
+          textScale: scale,
+        );
+        await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+      });
     }
   }
 
@@ -186,7 +208,7 @@ void main() {
             locale: locale,
             themeMode: mode,
             direction: direction,
-            logicalSize: const Size(390, 7800),
+            logicalSize: const Size(390, 8800),
             pixelRatio: 2,
           );
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
@@ -194,6 +216,7 @@ void main() {
       }
     }
   }
+
   // Verification (Prompt 3): the first step, pending, rejected with a
   // reason, children and driving. The camera screen needs a real camera and
   // is not rendered here (see docs/progress/prompt-03.md).
@@ -253,6 +276,30 @@ void main() {
             logicalSize: const Size(390, 844),
             pixelRatio: 3,
             session: screen.value.$2,
+            extraOverrides: verificationOverrides(
+              repository: FakeVerificationRepository(),
+              children: sampleChildren,
+            ),
+          );
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+    // Small phone (320 dp), light, normal and 200 percent text.
+    for (final double scale in <double>[1, 2]) {
+      for (final String locale in locales) {
+        final String name = 'verification_${screen.key}_${locale}_light_320_text${scale.round()}x';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: screen.value.$1,
+            locale: locale,
+            themeMode: 'light',
+            direction: 'a',
+            logicalSize: const Size(320, 640),
+            pixelRatio: 3,
+            session: screen.value.$2,
+            textScale: scale,
             extraOverrides: verificationOverrides(
               repository: FakeVerificationRepository(),
               children: sampleChildren,

@@ -1,7 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
-/// Rounded card on the lowest surface tone, optionally tappable.
+/// Raised card with a hairline border, optionally tappable. Use
+/// [AppElevation.medium] only for a card that must stand out above others.
 class AppCard extends StatelessWidget {
   const AppCard({
     required this.child,

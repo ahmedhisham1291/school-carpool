@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/app_button.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/components/status_badge.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
@@ -29,7 +30,7 @@ class AppCaptureTile extends StatelessWidget {
   final String actionLabel;
   final VoidCallback? onCapture;
 
-  /// Status texts ("Taken", "Not taken yet").
+  /// Status texts ("Photo taken", "Not taken").
   final String doneLabel;
   final String todoLabel;
 
@@ -59,11 +60,11 @@ class AppCaptureTile extends StatelessWidget {
                 SizedBox.square(
                   dimension: _preview,
                   child: ClipRRect(
-                    borderRadius: AppRadii.mdAll,
+                    borderRadius: AppRadii.control,
                     child: bytes == null
                         ? ColoredBox(
                             color: colors.secondaryContainer,
-                            child: Icon(icon, color: colors.onSecondaryContainer, size: AppSpacing.s32),
+                            child: Icon(icon, color: colors.onSecondaryContainer, size: AppIconSize.lg),
                           )
                         : ExcludeSemantics(child: Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true)),
                   ),
@@ -73,7 +74,7 @@ class AppCaptureTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(title, style: context.text.titleSmall),
+                      OneLineText(title, style: context.text.titleSmall),
                       if (helper != null)
                         Text(helper, style: context.text.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
                       const SizedBox(height: AppSpacing.s8),

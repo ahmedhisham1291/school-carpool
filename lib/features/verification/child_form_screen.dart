@@ -66,7 +66,7 @@ class _ChildFormScreenState extends ConsumerState<ChildFormScreen> {
     final bool editing = widget.initial.firstName.isNotEmpty;
     return SecureScreen(
       child: Scaffold(
-        appBar: AppBar(title: Semantics(header: true, child: Text(editing ? l10n.childEditTitle : l10n.childAddTitle))),
+        appBar: AppBar(title: AppBarTitle(editing ? l10n.childEditTitle : l10n.childAddTitle)),
         body: SafeArea(
           top: false,
           child: Column(
