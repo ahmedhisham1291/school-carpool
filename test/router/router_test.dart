@@ -9,6 +9,7 @@ import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
+import 'package:school_carpool/features/home/home_screen.dart';
 import 'package:school_carpool/features/placeholder/placeholder_tab_screen.dart';
 import 'package:school_carpool/features/profile/profile_screen.dart';
 import 'package:school_carpool/l10n/l10n.dart';
@@ -61,7 +62,6 @@ void main() {
       Icons.directions_car_outlined: AppTab.carpools,
       Icons.chat_bubble_outline_rounded: AppTab.chats,
       Icons.notifications_none_rounded: AppTab.notifications,
-      Icons.home_outlined: AppTab.home,
     };
     for (final MapEntry<IconData, AppTab> entry in icons.entries) {
       await tester.tap(find.byIcon(entry.key).first);
@@ -72,6 +72,11 @@ void main() {
       );
       expect(screen.tab, entry.value);
     }
+    // Home has its own screen since Prompt 5 (parents nearby, home, driving schools).
+    await tester.tap(find.byIcon(Icons.home_outlined).first);
+    await tester.pumpAndSettle();
+    expect(currentPath(router), AppTab.home.path);
+    expect(find.byType(HomeScreen).hitTestable(), findsOneWidget);
     // Profile has its own screen since Prompt 2.
     await tester.tap(find.byIcon(Icons.person_outline_rounded).first);
     await tester.pumpAndSettle();

@@ -8,6 +8,7 @@ export 'package:school_carpool/design/theme/design_direction.dart';
 export 'package:school_carpool/design/theme/theme_context.dart';
 export 'package:school_carpool/design/tokens/app_borders.dart';
 export 'package:school_carpool/design/tokens/app_icon_size.dart';
+export 'package:school_carpool/design/tokens/app_map.dart';
 export 'package:school_carpool/design/tokens/app_motion.dart';
 export 'package:school_carpool/design/tokens/app_opacity.dart';
 export 'package:school_carpool/design/tokens/app_palette.dart';

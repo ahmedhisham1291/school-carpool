@@ -7,8 +7,12 @@ import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/auth_repository.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/maps/location_service.dart';
+import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/settings/settings_store.dart';
+
+import 'map_fakes.dart';
 
 /// Dev config for tests: no emulators, no Sentry.
 const FlavorConfig testDevConfig = FlavorConfig(
@@ -19,6 +23,7 @@ const FlavorConfig testDevConfig = FlavorConfig(
   sentrySampleRate: 1,
   recaptchaSiteKey: '',
   appCheckDebugToken: '',
+  mapsEnabled: false,
 );
 
 /// Same as [testDevConfig] but for staging (no developer tools).
@@ -30,6 +35,7 @@ const FlavorConfig testStagingConfig = FlavorConfig(
   sentrySampleRate: 1,
   recaptchaSiteKey: '',
   appCheckDebugToken: '',
+  mapsEnabled: false,
 );
 
 /// Wraps [home] in a MaterialApp with our localizations and theme.
@@ -168,11 +174,16 @@ class FakeAuthRepository implements AuthRepository {
 }
 
 /// Overrides that keep Firebase out of widget tests: a fixed session and a
-/// fake repository.
+/// fake repository, plus the maps fakes (Profile and Home read the
+/// parent's home since Prompt 5; pass [maps] etc. to control them).
 List<Override> authOverrides({
   SessionState session = testVerifiedSession,
   AuthRepository? repository,
+  MapRepository? maps,
+  PlacesRepository? places,
+  LocationService? location,
 }) => <Override>[
   sessionProvider.overrideWithValue(session),
   authRepositoryProvider.overrideWithValue(repository ?? FakeAuthRepository()),
+  ...mapOverrides(maps: maps, places: places, location: location),
 ];

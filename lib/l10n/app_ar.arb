@@ -2703,5 +2703,383 @@
         "type": "String"
       }
     }
+  },
+  "homeLocationTitle": "موقع المنزل",
+  "@homeLocationTitle": {
+    "description": "App bar and row title: the parent's home pin"
+  },
+  "homeSearchLabel": "العنوان",
+  "@homeSearchLabel": {
+    "description": "Address search field label"
+  },
+  "homeSearchHint": "الشارع أو المنطقة",
+  "@homeSearchHint": {
+    "description": "Address search placeholder"
+  },
+  "homeMoveHint": "حرّك الخريطة لتضع الدبوس على منزلك.",
+  "@homeMoveHint": {
+    "description": "Hint before a home is set"
+  },
+  "homePrivacyNote": "يرى الآباء الآخرون منطقة تقريبية بحدود 500 متر فقط.",
+  "@homePrivacyNote": {
+    "description": "Privacy note under the home map"
+  },
+  "homeSave": "حفظ المنزل",
+  "@homeSave": {
+    "description": "Primary button"
+  },
+  "homeSaved": "تم حفظ المنزل",
+  "@homeSaved": {
+    "description": "Snackbar"
+  },
+  "homeUseLocation": "استخدم موقعي",
+  "@homeUseLocation": {
+    "description": "Tooltip of the current location button"
+  },
+  "homePinLabel": "منزلك",
+  "@homePinLabel": {
+    "description": "Screen-reader label of the home pin"
+  },
+  "homeMapLabel": "خريطة لتحديد منزلك",
+  "@homeMapLabel": {
+    "description": "Screen-reader label of the map"
+  },
+  "homeSearchNoResults": "لم نجد العنوان. حرّك الخريطة بدلًا من ذلك.",
+  "@homeSearchNoResults": {
+    "description": "Helper when the address search finds nothing"
+  },
+  "homeRowSet": "تم التحديد",
+  "@homeRowSet": {
+    "description": "Row subtitle: home is set"
+  },
+  "homeRowNotSet": "لم يُحدد بعد",
+  "@homeRowNotSet": {
+    "description": "Row subtitle: no home yet"
+  },
+  "homeAroundYouSection": "حولك",
+  "@homeAroundYouSection": {
+    "description": "Section header on the Home tab"
+  },
+  "homeNearbyHelper": "آباء موثقون من مدرستك",
+  "@homeNearbyHelper": {
+    "description": "Row subtitle"
+  },
+  "homeTripsSection": "الرحلات",
+  "@homeTripsSection": {
+    "description": "Section header on the Home tab"
+  },
+  "profileHomeHelper": "يرى الآخرون منطقة تقريبية فقط",
+  "@profileHomeHelper": {
+    "description": "Profile row subtitle"
+  },
+  "profileDrivingSchoolsHelper": "المدارس التي يمكنك التوصيل إليها",
+  "@profileDrivingSchoolsHelper": {
+    "description": "Row subtitle"
+  },
+  "locationPermissionTitle": "موقعك",
+  "@locationPermissionTitle": {
+    "description": "App bar title of the explanation screen"
+  },
+  "locationPermissionHeading": "استخدام موقعك؟",
+  "@locationPermissionHeading": {
+    "description": "Heading"
+  },
+  "locationPermissionBody": "نستخدمه مرة واحدة لوضع الدبوس على منزلك. يرى الآباء الآخرون منطقة تقريبية بحدود 500 متر فقط.",
+  "@locationPermissionBody": {
+    "description": "Why we ask for the location"
+  },
+  "locationPermissionBlockedBody": "الموقع متوقف لهذا التطبيق. شغّله من الإعدادات، أو ابحث عن عنوانك.",
+  "@locationPermissionBlockedBody": {
+    "description": "When the permission was refused for good"
+  },
+  "locationOpenSettings": "فتح الإعدادات",
+  "@locationOpenSettings": {
+    "description": "Button"
+  },
+  "locationNotNow": "ليس الآن",
+  "@locationNotNow": {
+    "description": "Button"
+  },
+  "locationServiceOff": "شغّل خدمات الموقع من الإعدادات.",
+  "@locationServiceOff": {
+    "description": "Snackbar"
+  },
+  "locationFailed": "تعذر تحديد موقعك. حاول مرة أخرى.",
+  "@locationFailed": {
+    "description": "Snackbar"
+  },
+  "mapPreviewLabel": "معاينة",
+  "@mapPreviewLabel": {
+    "description": "Badge on the drawn map in dev builds without a Maps key"
+  },
+  "mapUnavailableTitle": "الخريطة غير متاحة",
+  "@mapUnavailableTitle": {
+    "description": "State title"
+  },
+  "mapUnavailableBody": "ابحث عن العنوان بدلًا من ذلك.",
+  "@mapUnavailableBody": {
+    "description": "State body"
+  },
+  "mapErrorTooMany": "محاولات كثيرة. حاول لاحقًا.",
+  "@mapErrorTooMany": {
+    "description": "Rate limit message"
+  },
+  "mapErrorNotVerified": "متاح بعد توثيق حسابك.",
+  "@mapErrorNotVerified": {
+    "description": "Message"
+  },
+  "mapErrorNoHome": "حدد منزلك أولًا.",
+  "@mapErrorNoHome": {
+    "description": "Message"
+  },
+  "mapErrorNotYourSchool": "اختر إحدى مدارسك.",
+  "@mapErrorNotYourSchool": {
+    "description": "Message"
+  },
+  "mapErrorOutsideEgypt": "اختر مكانًا داخل مصر.",
+  "@mapErrorOutsideEgypt": {
+    "description": "Message"
+  },
+  "drivingSchoolsTitle": "مدارس التوصيل",
+  "@drivingSchoolsTitle": {
+    "description": "App bar and row title (F24)"
+  },
+  "drivingSchoolsIntro": "المدارس التي يمكنك التوصيل إليها. يراك آباء هذه المدارس على الخريطة.",
+  "@drivingSchoolsIntro": {
+    "description": "Intro text"
+  },
+  "drivingSchoolsChildrenSection": "مدارس أطفالك",
+  "@drivingSchoolsChildrenSection": {
+    "description": "Section header"
+  },
+  "drivingSchoolsOtherSection": "مدارس أخرى",
+  "@drivingSchoolsOtherSection": {
+    "description": "Section header"
+  },
+  "drivingSchoolsFromChild": "مدرسة أحد أطفالك",
+  "@drivingSchoolsFromChild": {
+    "description": "Row subtitle"
+  },
+  "drivingSchoolsEmpty": "لا توجد مدارس أخرى بعد.",
+  "@drivingSchoolsEmpty": {
+    "description": "Empty note"
+  },
+  "drivingSchoolsAdd": "إضافة مدرسة",
+  "@drivingSchoolsAdd": {
+    "description": "Row title"
+  },
+  "drivingSchoolsRemove": "إزالة",
+  "@drivingSchoolsRemove": {
+    "description": "Tooltip"
+  },
+  "drivingSchoolsSaved": "تم الحفظ",
+  "@drivingSchoolsSaved": {
+    "description": "Snackbar"
+  },
+  "drivingSchoolsAlready": "المدرسة موجودة بالفعل",
+  "@drivingSchoolsAlready": {
+    "description": "Snackbar"
+  },
+  "drivingSchoolsPendingNo": "اختر مدرسة من القائمة",
+  "@drivingSchoolsPendingNo": {
+    "description": "Snackbar: a school awaiting review cannot be a driving school"
+  },
+  "drivingSchoolsMax": "الحد الأقصى {count} مدارس.",
+  "@drivingSchoolsMax": {
+    "description": "Inline note",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyTitle": "آباء قريبون",
+  "@nearbyTitle": {
+    "description": "App bar and row title (F22)"
+  },
+  "nearbyShowList": "قائمة",
+  "@nearbyShowList": {
+    "description": "Tooltip: show as a list"
+  },
+  "nearbyShowMap": "خريطة",
+  "@nearbyShowMap": {
+    "description": "Tooltip: show on the map"
+  },
+  "nearbySchoolSheetTitle": "المدرسة",
+  "@nearbySchoolSheetTitle": {
+    "description": "Sheet title"
+  },
+  "nearbyDrivingSchool": "مدرسة توصيل",
+  "@nearbyDrivingSchool": {
+    "description": "Row subtitle"
+  },
+  "nearbyRadiusSheetTitle": "المسافة",
+  "@nearbyRadiusSheetTitle": {
+    "description": "Sheet title"
+  },
+  "nearbyRadiusKm": "{km} كم",
+  "@nearbyRadiusKm": {
+    "description": "Radius chip and slider value",
+    "placeholders": {
+      "km": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyRadiusApply": "تطبيق",
+  "@nearbyRadiusApply": {
+    "description": "Button"
+  },
+  "nearbyCount": "{count, plural, =0{لا يوجد آباء} =1{أب واحد قريب} =2{أبوان قريبان} few{{count} آباء قريبون} many{{count} أبًا قريبًا} other{{count} أب قريب}}",
+  "@nearbyCount": {
+    "description": "Result count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyMapLabel": "خريطة الآباء القريبين: {count}",
+  "@nearbyMapLabel": {
+    "description": "Screen-reader label",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyAreaLabel": "{name}، منطقة تقريبية",
+  "@nearbyAreaLabel": {
+    "description": "Screen-reader label of a blurred marker",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "nearbyEmptyTitle": "لا يوجد آباء قريبون بعد",
+  "@nearbyEmptyTitle": {
+    "description": "Empty state title"
+  },
+  "nearbyEmptyBody": "جرّب مسافة أكبر.",
+  "@nearbyEmptyBody": {
+    "description": "Empty state body"
+  },
+  "nearbyWiderRadius": "توسيع المسافة",
+  "@nearbyWiderRadius": {
+    "description": "Button"
+  },
+  "nearbyNoHomeTitle": "حدد منزلك أولًا",
+  "@nearbyNoHomeTitle": {
+    "description": "Empty state title"
+  },
+  "nearbyNoHomeBody": "نبحث حول منزلك فقط.",
+  "@nearbyNoHomeBody": {
+    "description": "Empty state body"
+  },
+  "nearbySetHome": "تحديد المنزل",
+  "@nearbySetHome": {
+    "description": "Button"
+  },
+  "nearbyNoSchoolTitle": "لا توجد مدرسة بعد",
+  "@nearbyNoSchoolTitle": {
+    "description": "Empty state title"
+  },
+  "nearbyNoSchoolBody": "تظهر هنا مدارس أطفالك بعد التوثيق، أو أضف مدرسة توصيل.",
+  "@nearbyNoSchoolBody": {
+    "description": "Empty state body"
+  },
+  "nearbyAddSchool": "إضافة مدرسة",
+  "@nearbyAddSchool": {
+    "description": "Button"
+  },
+  "nearbyYouAreHidden": "أنت مخفي عن الخريطة. يمكنك البحث والانضمام.",
+  "@nearbyYouAreHidden": {
+    "description": "Note"
+  },
+  "parentCardSchool": "المدرسة",
+  "@parentCardSchool": {
+    "description": "Row subtitle on the parent card"
+  },
+  "parentCardPrivacy": "الموقع تقريبي. يُشارك العنوان داخل المجموعة فقط إن اختار ذلك.",
+  "@parentCardPrivacy": {
+    "description": "Privacy note on the parent card"
+  },
+  "parentJoin": "انضمام",
+  "@parentJoin": {
+    "description": "Button"
+  },
+  "parentMessage": "مراسلة",
+  "@parentMessage": {
+    "description": "Button"
+  },
+  "parentJoinSoon": "المجموعات قريبًا",
+  "@parentJoinSoon": {
+    "description": "Snackbar placeholder"
+  },
+  "parentMessageSoon": "المحادثات قريبًا",
+  "@parentMessageSoon": {
+    "description": "Snackbar placeholder"
+  },
+  "schoolNearestSection": "الأقرب لمنزلك",
+  "@schoolNearestSection": {
+    "description": "Section header"
+  },
+  "schoolDistanceKm": "{km} كم",
+  "@schoolDistanceKm": {
+    "description": "Distance from home",
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "schoolShowMap": "خريطة",
+  "@schoolShowMap": {
+    "description": "Tooltip"
+  },
+  "schoolMapLabel": "خريطة المدارس",
+  "@schoolMapLabel": {
+    "description": "Screen-reader label"
+  },
+  "schoolMapHint": "اختر مدرسة على الخريطة",
+  "@schoolMapHint": {
+    "description": "Hint"
+  },
+  "schoolChoose": "اختيار المدرسة",
+  "@schoolChoose": {
+    "description": "Button"
+  },
+  "settingsMapSection": "الخريطة",
+  "@settingsMapSection": {
+    "description": "Section header"
+  },
+  "settingsShowOnMap": "أظهرني على الخريطة",
+  "@settingsShowOnMap": {
+    "description": "Switch title"
+  },
+  "settingsShowOnMapOn": "يراك آباء مدرستك في منطقة تقريبية.",
+  "@settingsShowOnMapOn": {
+    "description": "Switch subtitle when on"
+  },
+  "settingsShowOnMapOff": "أنت مخفي. يمكنك البحث والانضمام.",
+  "@settingsShowOnMapOff": {
+    "description": "Switch subtitle when off"
+  },
+  "settingsNewParentAlerts": "تنبيهات الآباء الجدد",
+  "@settingsNewParentAlerts": {
+    "description": "Switch title"
+  },
+  "settingsNewParentAlertsHelper": "عند توثيق أب جديد قريب منك.",
+  "@settingsNewParentAlertsHelper": {
+    "description": "Switch subtitle"
+  },
+  "settingsSaved": "تم الحفظ",
+  "@settingsSaved": {
+    "description": "Snackbar"
+  },
+  "gallerySectionMaps": "الخرائط",
+  "@gallerySectionMaps": {
+    "description": "Gallery section header"
   }
 }

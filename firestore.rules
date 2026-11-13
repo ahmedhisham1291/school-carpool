@@ -131,9 +131,67 @@ service cloud.firestore {
     match /searchKeyLimits/{uid} {
       allow read, write: if false;
     }
-    // Areas open with the maps prompt (Prompt 5).
+    // Areas stay admin-only until carpools use them (Prompt 6).
     match /areas/{id} {
       allow read, write: if false;
+    }
+
+    // Prompt 5 (F21 to F24): homes and maps.
+    // The parent's EXACT home and map settings. Only the owner reads it;
+    // only the setHomeLocation, updateMapSettings and setDrivingSchools
+    // functions write it. Nobody else, verified or not, can read it.
+    match /homes/{uid} {
+      allow get: if isSelf(uid);
+      allow list, create, update, delete: if false;
+    }
+    // The public map record: rounded point (about 500 m), geohash of the
+    // rounded point, first name and schools. Read only by Cloud Functions
+    // (searchNearbyParents, which rate limits and offsets every point); the
+    // app never reads it, not even the owner's.
+    match /parentLocations/{uid} {
+      allow read, write: if false;
+    }
+    // "New parent nearby" events (sent in Prompt 8), map rate limits and
+    // the address cache: Cloud Functions only.
+    match /newParentEvents/{id} {
+      allow read, write: if false;
+    }
+    match /mapLimits/{uid} {
+      allow read, write: if false;
+    }
+    match /placeCache/{id} {
+      allow read, write: if false;
+    }
+
+    // Carpool memberships (Prompt 6 creates them, Cloud Functions only):
+    // memberships/{carpoolId}_{uid} with status requested, approved,
+    // declined or left. Closed to the app for now; the rules below look
+    // them up.
+    match /memberships/{id} {
+      allow read, write: if false;
+    }
+    function approvedMember(carpoolId, uid) {
+      let path = /databases/$(database)/documents/memberships/$(carpoolId + '_' + uid);
+      return exists(path) && get(path).data.status == 'approved'
+        && get(path).data.carpoolId == carpoolId && get(path).data.uid == uid;
+    }
+    // Carpools themselves open in Prompt 6.
+    match /carpools/{carpoolId} {
+      allow read, write: if false;
+
+      // EXACT pickup point a parent chose to share with one carpool
+      // (Prompt 6 writes it through a function, only if the parent
+      // chooses). Readable by its owner and by verified parents who are
+      // approved members of the same carpool, while the owner is an
+      // approved member too. Never by anyone else, never written by the app.
+      match /pickupPoints/{uid} {
+        allow get: if isSelf(uid)
+          || (signedIn()
+            && request.auth.token.verified == true
+            && approvedMember(carpoolId, request.auth.uid)
+            && approvedMember(carpoolId, uid));
+        allow list, create, update, delete: if false;
+      }
     }
 
     // Reserved parent IDs, sign-in codes and sign-in limits: Cloud

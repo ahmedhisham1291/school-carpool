@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
 import 'package:school_carpool/features/schools/text_normalize.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
@@ -24,6 +25,10 @@ import 'package:school_carpool/firebase/firebase_setup.dart';
 abstract interface class SchoolSearch {
   /// Throws [SchoolSearchFailure].
   Future<List<SchoolOption>> search(String query, {String? governorate});
+
+  /// Schools nearest to [around] (the parent's home), nearest first
+  /// (Prompt 5). Throws [SchoolSearchFailure].
+  Future<List<SchoolOption>> nearest(GeoPin around);
 }
 
 enum SchoolSearchFailureKind { offline, unavailable }
@@ -48,6 +53,9 @@ class InMemorySchoolSearch implements SchoolSearch {
   @override
   Future<List<SchoolOption>> search(String query, {String? governorate}) async =>
       _matcher.search(query, governorate: governorate);
+
+  @override
+  Future<List<SchoolOption>> nearest(GeoPin around) async => _matcher.nearest(around);
 }
 
 /// The fake search for development: loads the active schools from
@@ -86,7 +94,13 @@ class FirestoreSchoolSearch implements SchoolSearch {
   }
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) async {
+  Future<List<SchoolOption>> search(String query, {String? governorate}) async =>
+      (await _current()).search(query, governorate: governorate);
+
+  @override
+  Future<List<SchoolOption>> nearest(GeoPin around) async => (await _current()).nearest(around);
+
+  Future<SchoolMatcher> _current() async {
     final DateTime? loadedAt = _loadedAt;
     if (loadedAt == null || _now().difference(loadedAt) > maxAge) {
       _matcher = null;
@@ -96,7 +110,7 @@ class FirestoreSchoolSearch implements SchoolSearch {
     }
     final Future<SchoolMatcher> loading = _matcher ??= _load();
     try {
-      return (await loading).search(query, governorate: governorate);
+      return await loading;
     } on SchoolSearchFailure {
       _matcher = null; // Try again next time.
       rethrow;
@@ -183,15 +197,33 @@ class AlgoliaSchoolSearch implements SchoolSearch {
   }
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) async {
+  Future<List<SchoolOption>> search(String query, {String? governorate}) {
     final String normalized = normalizeText(query);
-    final String cacheKey = '$normalized|${governorate ?? ''}';
+    return _cached('$normalized|${governorate ?? ''}', <String, String>{
+      'query': normalized,
+      'hitsPerPage': '$kMaxSchoolResults',
+      if (governorate != null) 'filters': 'governorate:$governorate',
+    });
+  }
+
+  /// One search with no text, ranked by distance (Algolia's geo ranking on
+  /// `_geoloc`), with the same per-parent key and cache as [search]. The
+  /// picker asks once per opening (free plan, COSTS.md).
+  @override
+  Future<List<SchoolOption>> nearest(GeoPin around) => _cached('@${around.lat},${around.lng}', <String, String>{
+    'query': '',
+    'hitsPerPage': '$kMaxSchoolResults',
+    'aroundLatLng': '${around.lat},${around.lng}',
+    'aroundRadius': 'all',
+  });
+
+  Future<List<SchoolOption>> _cached(String cacheKey, Map<String, String> query) async {
     final (DateTime, List<SchoolOption>)? cached = _cache.remove(cacheKey);
     if (cached != null && _now().difference(cached.$1) < cacheAge) {
       _cache[cacheKey] = cached;
       return cached.$2;
     }
-    final List<SchoolOption> found = await _ask(normalized, governorate);
+    final List<SchoolOption> found = await _ask(query);
     _cache[cacheKey] = (_now(), found);
     if (_cache.length > cacheSize) {
       _cache.remove(_cache.keys.first);
@@ -199,16 +231,10 @@ class AlgoliaSchoolSearch implements SchoolSearch {
     return found;
   }
 
-  Future<List<SchoolOption>> _ask(String query, String? governorate) async {
+  Future<List<SchoolOption>> _ask(Map<String, String> query) async {
     final SearchKey key = await _validKey();
     final Uri url = Uri.https('${key.appId}-dsn.algolia.net', '/1/indexes/${key.indexName}/query');
-    final String params = Uri(
-      queryParameters: <String, String>{
-        'query': query,
-        'hitsPerPage': '$kMaxSchoolResults',
-        if (governorate != null) 'filters': 'governorate:$governorate',
-      },
-    ).query;
+    final String params = Uri(queryParameters: query).query;
     final Map<String, Object?> answer = await _transport(url, <String, String>{
       'X-Algolia-Application-Id': key.appId,
       'X-Algolia-API-Key': key.key,
@@ -235,6 +261,10 @@ class UnavailableSchoolSearch implements SchoolSearch {
   @override
   Future<List<SchoolOption>> search(String query, {String? governorate}) =>
       Future<List<SchoolOption>>.error(const SchoolSearchFailure(SchoolSearchFailureKind.unavailable));
+
+  @override
+  Future<List<SchoolOption>> nearest(GeoPin around) =>
+      Future<List<SchoolOption>>.error(const SchoolSearchFailure(SchoolSearchFailureKind.unavailable));
 }
 
 /// Outside the emulators: asks the server which search to use once
@@ -249,7 +279,13 @@ class ServerSelectedSchoolSearch implements SchoolSearch {
   SchoolSearch? _chosen;
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) async {
+  Future<List<SchoolOption>> search(String query, {String? governorate}) async =>
+      (await _choose()).search(query, governorate: governorate);
+
+  @override
+  Future<List<SchoolOption>> nearest(GeoPin around) async => (await _choose()).nearest(around);
+
+  Future<SchoolSearch> _choose() async {
     SchoolSearch? chosen = _chosen;
     if (chosen == null) {
       final SearchKey first = await fetchKey();
@@ -267,7 +303,7 @@ class ServerSelectedSchoolSearch implements SchoolSearch {
             )
           : fallback;
     }
-    return chosen.search(query, governorate: governorate);
+    return chosen;
   }
 }
 

@@ -56,6 +56,14 @@ const paths = [
   "children/c1",
   "carpools/k1",
   "memberships/m1",
+  // Prompt 5 (maps.test.ts): homes/alice is readable by alice only;
+  // parentLocations and the rest stay closed to everyone.
+  "homes/bob",
+  "parentLocations/alice",
+  "newParentEvents/alice",
+  "mapLimits/alice",
+  "placeCache/ar_x",
+  "carpools/k1/pickupPoints/bob",
   "scheduleEntries/e1",
   "wallets/alice",
   "transfers/t1",

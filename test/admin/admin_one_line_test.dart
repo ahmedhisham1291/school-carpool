@@ -15,31 +15,14 @@ import 'package:school_carpool/design/components/components.dart';
 
 import '../helpers/admin_fakes.dart';
 import '../helpers/fonts.dart';
+import '../helpers/one_line.dart';
 
-List<RenderParagraph> _paragraphs(Finder finder) => find
-    .descendant(of: finder, matching: find.byType(RichText), matchRoot: true)
-    .evaluate()
-    .map((Element element) => element.renderObject! as RenderParagraph)
-    .toList();
+List<RenderParagraph> _paragraphs(Finder finder) => paragraphsIn(finder);
 
 /// Fails if any text under [finder] wraps onto a second line, or is cut off
-/// with an ellipsis when [allowEllipsis] is false.
-void _expectOneLine(Finder finder, String where, {bool allowEllipsis = false}) {
-  for (final RenderParagraph paragraph in _paragraphs(finder)) {
-    final String text = paragraph.text.toPlainText();
-    if (text.isEmpty) {
-      continue;
-    }
-    final double half = paragraph.size.height / 2;
-    final bool wraps = paragraph
-        .getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: text.length))
-        .any((box) => box.top >= half);
-    expect(wraps, isFalse, reason: '"$text" wraps onto two lines ($where)');
-    if (!allowEllipsis) {
-      expect(paragraph.didExceedMaxLines, isFalse, reason: '"$text" is cut off ($where)');
-    }
-  }
-}
+/// with an ellipsis when [allowEllipsis] is false (message with widths).
+void _expectOneLine(Finder finder, String where, {bool allowEllipsis = false}) =>
+    expectOneLine(finder, where, allowEllipsis: allowEllipsis);
 
 /// Fails if text under [finder] is drawn smaller than [minScale] of its size.
 void _expectNotShrunk(Finder finder, double minScale, String where) {

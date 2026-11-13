@@ -9,6 +9,7 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/phone_number.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/maps/map_settings_section.dart';
 import 'package:school_carpool/features/onboarding/account_status_badge.dart';
 import 'package:school_carpool/features/onboarding/sign_out.dart';
 import 'package:school_carpool/features/settings/settings_section.dart';
@@ -56,6 +57,7 @@ class ProfileScreen extends ConsumerWidget {
         children: <Widget>[
           ...top,
           const SettingsSection(),
+          const MapSettingsSection(),
           AppListRow(
             key: const Key('profile.about'),
             title: l10n.aboutTitle,
@@ -149,6 +151,20 @@ class ProfileScreen extends ConsumerWidget {
         subtitle: l10n.profileChildrenHelper,
         leadingIcon: Icons.child_care_outlined,
         onTap: () => context.go(ProfileRoutes.children),
+      ),
+      AppListRow(
+        key: const Key('profile.homeLocation'),
+        title: l10n.homeLocationTitle,
+        subtitle: l10n.profileHomeHelper,
+        leadingIcon: Icons.home_work_outlined,
+        onTap: () => context.go(ProfileRoutes.homeLocation),
+      ),
+      AppListRow(
+        key: const Key('profile.drivingSchools'),
+        title: l10n.drivingSchoolsTitle,
+        subtitle: l10n.profileDrivingSchoolsHelper,
+        leadingIcon: Icons.alt_route_rounded,
+        onTap: () => context.go(ProfileRoutes.drivingSchools),
       ),
       AppListRow(
         key: const Key('profile.driving'),

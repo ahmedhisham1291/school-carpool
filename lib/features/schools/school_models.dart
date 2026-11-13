@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart' show GeoPoint;
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/schools/text_normalize.dart';
 
 /// A school a parent can pick for a child (F4): from the list (active) or
@@ -13,6 +15,7 @@ class SchoolOption {
     this.city = '',
     this.cityAr = '',
     this.pending = false,
+    this.location,
   });
 
   /// From Firestore (schools/{id}) or an Algolia hit (same field names).
@@ -30,7 +33,23 @@ class SchoolOption {
       city: text('city'),
       cityAr: text('cityAr'),
       pending: data['status'] == 'awaiting_review',
+      location: _locationOf(data['location']) ?? _locationOf(data['_geoloc']),
     );
+  }
+
+  /// A Firestore GeoPoint or Algolia's `_geoloc` ({lat, lng}).
+  static GeoPin? _locationOf(Object? value) {
+    if (value is GeoPoint) {
+      return GeoPin(value.latitude, value.longitude);
+    }
+    if (value is Map<Object?, Object?>) {
+      final Object? lat = value['lat'];
+      final Object? lng = value['lng'];
+      if (lat is num && lng is num) {
+        return GeoPin(lat.toDouble(), lng.toDouble());
+      }
+    }
+    return null;
   }
 
   final String id;
@@ -44,6 +63,9 @@ class SchoolOption {
 
   /// Typed under "Other" by this parent, waiting for an admin.
   final bool pending;
+
+  /// The school's pin set by the admin (F40), or null.
+  final GeoPin? location;
 
   /// The name in the app's language, falling back to the other one.
   String name(String languageCode) {
@@ -67,10 +89,11 @@ class SchoolOption {
       other.governorate == governorate &&
       other.city == city &&
       other.cityAr == cityAr &&
-      other.pending == pending;
+      other.pending == pending &&
+      Geo.same(other.location, location);
 
   @override
-  int get hashCode => Object.hash(id, nameAr, nameEn, governorate, city, cityAr, pending);
+  int get hashCode => Object.hash(id, nameAr, nameEn, governorate, city, cityAr, pending, location?.lat, location?.lng);
 }
 
 /// The shortest query that is searched (one letter matches too much).
@@ -92,6 +115,15 @@ class SchoolMatcher {
     : _entries = <_Entry>[for (final SchoolOption s in schools) _Entry(s)];
 
   final List<_Entry> _entries;
+
+  /// Schools with a pin, nearest to [around] first.
+  List<SchoolOption> nearest(GeoPin around, {int limit = kMaxSchoolResults}) {
+    final List<(double, SchoolOption)> withPin = <(double, SchoolOption)>[
+      for (final _Entry e in _entries)
+        if (e.school.location case final GeoPin at) (Geo.distanceKm(around, at), e.school),
+    ]..sort(((double, SchoolOption) a, (double, SchoolOption) b) => a.$1.compareTo(b.$1));
+    return <SchoolOption>[for (final (double _, SchoolOption s) in withPin.take(limit)) s];
+  }
 
   List<SchoolOption> search(String query, {String? governorate, int limit = kMaxSchoolResults}) {
     final List<String> words = normalizeText(query).split(' ').where((String w) => w.isNotEmpty).toList();

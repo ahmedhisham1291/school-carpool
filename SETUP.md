@@ -628,3 +628,74 @@ paste a pin) under "Other". It waits in the admin panel's **New schools**
 queue, visible only to that parent. Approve it (fix the names, add the
 city and pin) or merge it into an existing school; once approved it is
 indexed and every parent finds it.
+
+## 15. Maps, home and nearby parents (Prompt 5)
+
+Keys are never committed. Each Firebase project (dev, staging, prod) is a
+Google Cloud project; make the keys in that project.
+
+### 15.1 Turn on the APIs (each cloud project)
+
+console.cloud.google.com > APIs & Services > Library: enable **Maps SDK for
+iOS**, **Maps SDK for Android** (Stage 3) and **Places API (New)**. Maps
+JavaScript API waits for the website (Stage 2).
+
+### 15.2 Three keys per project
+
+APIs & Services > Credentials > Create credentials > API key, three times:
+
+| Key | Application restriction | API restriction | Where it goes |
+| --- | --- | --- | --- |
+| iOS maps key | iOS apps: `org.schoolcarpool.app.dev` (`.stg`, or the prod id) | Maps SDK for iOS | Codemagic environment group (`dev_defines` / `staging_defines`) as `MAPS_API_KEY_IOS` |
+| Server Places key | None possible for Cloud Functions; keep the API restriction | Places API (New) only | Secret Manager: `firebase functions:secrets:set MAPS_SERVER_KEY --project staging` |
+| Android maps key (Stage 3) | Android apps: package name + SHA-1 | Maps SDK for Android | `MAPS_API_KEY_ANDROID` in the Android build environment |
+
+In dev on the emulators nothing is needed: the Places search is fake and
+the maps are drawn by a sketch marked "Preview". Set
+`firebase functions:secrets:set MAPS_SERVER_KEY` to `unused` in a cloud
+project that still uses the fake search (the functions declare it).
+
+### 15.3 Functions settings
+
+In `functions/.env.staging` (and `.env.prod`): `PLACES_PROVIDER=google`.
+Optional limits (defaults in brackets): `MAP_HOME_MOVES_PER_DAY` (4),
+`MAP_NEARBY_SEARCHES_PER_HOUR` (30), `MAP_PLACE_SEARCHES_PER_HOUR` (60),
+`MAP_PLACE_DETAILS_PER_HOUR` (20, picked addresses not in the cache),
+`MAP_DRIVING_SCHOOL_CHANGES_PER_DAY` (3). Deploy the functions and the
+Firestore indexes (`firebase deploy --only functions,firestore:indexes`;
+the nearby search needs the `parentLocations` index).
+
+Firestore > TTL policies: add a policy on collection group `placeCache`,
+field `expiresAt` (cached addresses are deleted after 30 days).
+
+### 15.4 Caps and budget (each project)
+
+APIs & Services > each Maps API > Quotas: set "requests per day" to about
+300 for Places API (New) (autocomplete and details) so a bug cannot pass
+the free monthly calls. The budget alert from section 4 stays on.
+
+### 15.5 Build with a key
+
+- **Codemagic:** add `MAPS_API_KEY_IOS` to the environment group. The
+  bootstrap writes it into `ios/Flutter/Maps.xcconfig` (generated, not
+  committed), `Info.plist` reads it as `GMSApiKey`, `AppDelegate.swift`
+  passes it to Google Maps, and the build adds
+  `--dart-define=MAPS_ENABLED=true` when the key is set.
+- **On a Mac:** `MAPS_API_KEY_IOS=<key> FLAVOR=dev tool/bootstrap.sh`, then
+  `flutter run -t lib/main_dev.dart --dart-define=MAPS_ENABLED=true`
+  (add `--dart-define=EMULATOR_HOST=<Mac LAN address>` on a real iPhone).
+- Without a key the app never crashes: dev shows the sketch map,
+  staging and prod show "Map unavailable" and the address search still
+  works.
+- If bootstrap printed "could not find didFinishLaunchingWithOptions",
+  open `ios/Runner/AppDelegate.swift` and add, at the start of that
+  function: `if let key = Bundle.main.object(forInfoDictionaryKey:
+  "GMSApiKey") as? String, !key.isEmpty { GMSServices.provideAPIKey(key) }`
+  and `import GoogleMaps` at the top.
+
+### 15.6 Fake nearby parents (emulators)
+
+`npm --prefix functions run seed:emulator` adds eight fake verified
+parents around Maadi whose children go to "Nile International School
+(test)" (one hides from the map). Set your home in Maadi and pick that
+school for your child to see them.

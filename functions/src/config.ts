@@ -105,3 +105,25 @@ export const ALGOLIA_WRITE_KEY = defineSecret("ALGOLIA_WRITE_KEY");
  * to the app: the app gets a one-hour secured key derived from it.
  */
 export const ALGOLIA_SEARCH_KEY = defineSecret("ALGOLIA_SEARCH_KEY");
+
+/**
+ * Maps (Prompt 5: F21 to F24). Limits per parent, counted on the server
+ * (spec section 7: nobody can sweep the map).
+ */
+export const MAP_HOME_MOVES_PER_DAY = defineInt("MAP_HOME_MOVES_PER_DAY", { default: 4 });
+export const MAP_NEARBY_SEARCHES_PER_HOUR = defineInt("MAP_NEARBY_SEARCHES_PER_HOUR", { default: 30 });
+export const MAP_PLACE_SEARCHES_PER_HOUR = defineInt("MAP_PLACE_SEARCHES_PER_HOUR", { default: 60 });
+export const MAP_PLACE_DETAILS_PER_HOUR = defineInt("MAP_PLACE_DETAILS_PER_HOUR", { default: 20 });
+/** Low on purpose: driving schools decide whose maps a parent can open. */
+export const MAP_DRIVING_SCHOOL_CHANGES_PER_DAY = defineInt("MAP_DRIVING_SCHOOL_CHANGES_PER_DAY", { default: 3 });
+
+/**
+ * Address search (Places API New). "fake" (dev and CI: a few fixed
+ * places, no key, no cost) or "google". COST MODE: docs/COSTS.md.
+ */
+export const PLACES_PROVIDER = defineString("PLACES_PROVIDER", { default: "fake" });
+/**
+ * Server key with only "Places API (New)" allowed (Secret Manager). Never
+ * sent to the app. The app's map keys are separate (SETUP.md section 15).
+ */
+export const MAPS_SERVER_KEY = defineSecret("MAPS_SERVER_KEY");

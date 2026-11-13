@@ -15,6 +15,7 @@ const List<SchoolOption> testSchools = <SchoolOption>[
     governorate: 'cairo',
     city: 'Maadi',
     cityAr: 'المعادي',
+    location: GeoPin(29.9602, 31.2569),
   ),
   SchoolOption(
     id: 'victoria',
@@ -23,6 +24,7 @@ const List<SchoolOption> testSchools = <SchoolOption>[
     governorate: 'alexandria',
     city: 'Alexandria',
     cityAr: 'الإسكندرية',
+    location: GeoPin(31.2156, 29.9553),
   ),
   SchoolOption(
     id: 'orman',
@@ -31,6 +33,7 @@ const List<SchoolOption> testSchools = <SchoolOption>[
     governorate: 'giza',
     city: 'Dokki',
     cityAr: 'الدقي',
+    location: GeoPin(30.0384, 31.2101),
   ),
 ];
 
@@ -50,6 +53,18 @@ class FakeSchoolSearch implements SchoolSearch {
       throw f;
     }
     return _inner.search(query, governorate: governorate);
+  }
+
+  final List<GeoPin> nearestCalls = <GeoPin>[];
+
+  @override
+  Future<List<SchoolOption>> nearest(GeoPin around) async {
+    nearestCalls.add(around);
+    final SchoolSearchFailure? f = failure;
+    if (f != null) {
+      throw f;
+    }
+    return _inner.nearest(around);
   }
 }
 

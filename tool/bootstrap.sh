@@ -12,6 +12,11 @@
 #                     placeholder below. Must match the App IDs in the Apple
 #                     Developer account and the apps in Firebase.
 #   FLUTTER           Path to the flutter binary (default: flutter).
+#   MAPS_API_KEY_IOS      Google Maps key for this flavor's iPhone app
+#   MAPS_API_KEY_ANDROID  (restricted to the bundle id / package name),
+#   MAPS_API_KEY_WEB      written into the generated native folders only,
+#                         never into the repository (SETUP.md section 15).
+#                         Build with --dart-define=MAPS_ENABLED=true when set.
 #
 # Native folders (ios/, android/, web/) are NOT committed: this script
 # recreates them, so every change we need in them lives in tool/ and is

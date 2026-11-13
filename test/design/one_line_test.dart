@@ -32,6 +32,7 @@ import 'package:school_carpool/settings/app_settings.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
 import '../helpers/fonts.dart';
+import '../helpers/one_line.dart';
 import '../helpers/test_app.dart';
 import '../helpers/verification_fakes.dart';
 
@@ -48,31 +49,11 @@ void _useNarrowPhone(WidgetTester tester, {double height = 640, double textScale
 }
 
 /// The paragraphs that [finder] renders.
-List<RenderParagraph> _paragraphs(Finder finder) => find
-    .descendant(of: finder, matching: find.byType(RichText), matchRoot: true)
-    .evaluate()
-    .map((Element element) => element.renderObject! as RenderParagraph)
-    .toList();
+List<RenderParagraph> _paragraphs(Finder finder) => paragraphsIn(finder);
 
 /// Fails if any text under [finder] wraps onto a second line or is cut off
-/// with an ellipsis.
-void _expectOneLine(Finder finder, String where) {
-  final List<RenderParagraph> paragraphs = _paragraphs(finder);
-  expect(paragraphs, isNotEmpty, reason: 'no text found: $where');
-  for (final RenderParagraph paragraph in paragraphs) {
-    final String text = paragraph.text.toPlainText();
-    if (text.isEmpty) {
-      continue;
-    }
-    // A box that starts in the lower half of the paragraph is a second line.
-    final double half = paragraph.size.height / 2;
-    final bool wraps = paragraph
-        .getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: text.length))
-        .any((box) => box.top >= half);
-    expect(wraps, isFalse, reason: '"$text" wraps onto two lines ($where)');
-    expect(paragraph.didExceedMaxLines, isFalse, reason: '"$text" is cut off ($where)');
-  }
-}
+/// with an ellipsis; the message gives the text and its widths.
+void _expectOneLine(Finder finder, String where) => expectOneLine(finder, where, requireText: true);
 
 /// Fails if any text under [finder] is drawn smaller than [minScale] of its
 /// size (text that scales down to fit instead of wrapping).

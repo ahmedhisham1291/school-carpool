@@ -17,6 +17,7 @@ class FlavorConfig {
     required this.sentrySampleRate,
     required this.recaptchaSiteKey,
     required this.appCheckDebugToken,
+    required this.mapsEnabled,
   });
 
   /// Reads the defines for [flavor]. Emulators are only allowed in dev.
@@ -27,6 +28,7 @@ class FlavorConfig {
     const String sentrySampleRate = String.fromEnvironment('SENTRY_SAMPLE_RATE', defaultValue: '1.0');
     const String recaptchaSiteKey = String.fromEnvironment('RECAPTCHA_SITE_KEY');
     const String appCheckDebugToken = String.fromEnvironment('APP_CHECK_DEBUG_TOKEN');
+    const bool mapsEnabled = bool.fromEnvironment('MAPS_ENABLED');
 
     final bool useEmulators = flavor == Flavor.dev && useEmulatorsDefine;
     return FlavorConfig(
@@ -37,6 +39,7 @@ class FlavorConfig {
       sentrySampleRate: (double.tryParse(sentrySampleRate) ?? 1.0).clamp(0.0, 1.0),
       recaptchaSiteKey: recaptchaSiteKey,
       appCheckDebugToken: appCheckDebugToken,
+      mapsEnabled: mapsEnabled,
     );
   }
 
@@ -61,6 +64,12 @@ class FlavorConfig {
 
   /// Optional App Check debug token for debug builds on real devices.
   final String appCheckDebugToken;
+
+  /// True when this build has a Google Maps key (`--dart-define=MAPS_ENABLED=true`,
+  /// set together with the key; SETUP.md section 15). Without a key the
+  /// maps show a sketch preview (dev) or a "map unavailable" note, never a
+  /// crash.
+  final bool mapsEnabled;
 
   bool get isDev => flavor == Flavor.dev;
   bool get isProd => flavor == Flavor.prod;

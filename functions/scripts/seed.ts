@@ -19,6 +19,8 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, GeoPoint, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { roundToGrid } from "../src/maps/geo";
+import { buildPublicLocation, defaultHome, type HomeRecord, type PublicLocation } from "../src/maps/parent_map";
 import { searchKeysFor } from "../src/schools/catalog";
 import { nameSearchFields } from "../src/text/normalize";
 
@@ -125,9 +127,36 @@ const devAdmins = [
   { uid: "seed-admin", email: "reviewer@example.com", displayName: "Reviewer (test)", role: "admin" },
 ] as const;
 
-/** Rounds to about 500 m, like the server will for real homes (Prompt 5). */
-function roundCoord(value: number): number {
-  return Math.round(value * 200) / 200;
+/** homes/{uid} (exact, owner only) as the setHomeLocation function writes it. */
+function homeDoc(home: HomeRecord) {
+  return {
+    location: home.location ? new GeoPoint(home.location.lat, home.location.lng) : null,
+    label: home.label,
+    showOnMap: home.showOnMap,
+    notifyNewParents: home.notifyNewParents,
+    radiusKm: home.radiusKm,
+    drivingSchools: home.drivingSchools,
+    updatedAt: Timestamp.now(),
+  };
+}
+
+/** parentLocations/{uid} (rounded point only) as the functions write it. */
+function publicDoc(p: PublicLocation) {
+  return {
+    point: new GeoPoint(p.point.lat, p.point.lng),
+    geohash: p.geohash,
+    firstName: p.firstName,
+    verified: p.verified,
+    showOnMap: p.showOnMap,
+    notifyNewParents: p.notifyNewParents,
+    radiusKm: p.radiusKm,
+    schoolIds: p.schoolIds,
+    childSchoolIds: p.childSchoolIds,
+    drivingSchoolIds: p.drivingSchoolIds,
+    // Seeded parents are not announced again by the new-parent alerts.
+    announced: true,
+    updatedAt: Timestamp.now(),
+  };
 }
 
 async function upsertAuthUser(uid: string, email: string, phoneNumber: string, displayName: string, verified: boolean) {
@@ -198,14 +227,16 @@ async function main(): Promise<void> {
       createdAt: now,
     });
 
-    batch.set(db.collection("parentLocations").doc(uid), {
-      approxLocation: new GeoPoint(roundCoord(area.lat + (rand() - 0.5) * 0.01), roundCoord(area.lng + (rand() - 0.5) * 0.01)),
-      areaId: area.id,
-      schoolId: school.id,
-      radiusKm: 3,
+    // Prompt 5: an exact home (fake) and the rounded public record.
+    const home: HomeRecord = {
+      ...defaultHome(now.toMillis()),
+      location: { lat: area.lat + (rand() - 0.5) * 0.01, lng: area.lng + (rand() - 0.5) * 0.01 },
+      label: `${area.nameEn} (test)`,
       showOnMap: i !== 4,
-      notifyNewParents: true,
-    });
+    };
+    batch.set(db.collection("homes").doc(uid), homeDoc(home));
+    const pub = buildPublicLocation(home, { status, firstName: firstNames[i] }, status === "verified" ? [school.id] : [], null, now.toMillis());
+    if (pub) batch.set(db.collection("parentLocations").doc(uid), publicDoc(pub));
 
     const kids = 1 + (i % 2);
     for (let k = 0; k < kids; k++) {
@@ -225,6 +256,52 @@ async function main(): Promise<void> {
       });
       childCount++;
     }
+  }
+
+  // Prompt 5: fake verified parents around Maadi for the nearby parents map
+  // (school-nile-intl). Set your home in Maadi and pick that school for your
+  // child to see them. One of them hides from the map.
+  const mapNames = ["Hoda", "Tarek", "Rania", "Sherif", "Dalia", "Amr", "Heba", "Waleed"];
+  const maadi = { lat: 29.9602, lng: 31.2569 };
+  for (let j = 0; j < mapNames.length; j++) {
+    const uid = `seed-map-parent-${j + 1}`;
+    const angle = (j / mapNames.length) * 2 * Math.PI;
+    const km = 0.6 + (j % 4) * 0.8; // 0.6 to 3 km from the school
+    const location = {
+      lat: maadi.lat + (km / 111.32) * Math.cos(angle),
+      lng: maadi.lng + (km / (111.32 * Math.cos((maadi.lat * Math.PI) / 180))) * Math.sin(angle),
+    };
+    await upsertAuthUser(uid, `map${j + 1}@example.com`, `+2010000001${String(j + 1).padStart(2, "0")}`, mapNames[j], true);
+    batch.set(db.collection("users").doc(uid), {
+      parentId: parentId(),
+      firstName: mapNames[j],
+      lastName: "Test",
+      ...nameSearchFields(mapNames[j], "Test"),
+      phone: `+2010000001${String(j + 1).padStart(2, "0")}`,
+      email: `map${j + 1}@example.com`,
+      status: "verified",
+      emailVerified: true,
+      termsAcceptedAt: now,
+      language: "ar",
+      createdAt: now,
+    });
+    batch.set(db.collection("children").doc(`seed-map-child-${j + 1}`), {
+      ownerUid: uid,
+      firstName: childNames[j % childNames.length],
+      age: 7 + (j % 6),
+      grade: `g${1 + (j % 8)}`,
+      schoolName: schools[0].nameEn,
+      schoolId: schools[0].id,
+      status: "approved",
+      caseId: null,
+      schoolIdChecked: true,
+      createdAt: now,
+    });
+    const home: HomeRecord = { ...defaultHome(now.toMillis()), location, label: "Maadi (test)", showOnMap: j !== 7 };
+    batch.set(db.collection("homes").doc(uid), homeDoc(home));
+    const pub = buildPublicLocation(home, { status: "verified", firstName: mapNames[j] }, [schools[0].id], null, now.toMillis());
+    if (pub) batch.set(db.collection("parentLocations").doc(uid), publicDoc(pub));
+    if (pub && j === 0 && JSON.stringify(roundToGrid(location)) !== JSON.stringify(pub.point)) throw new Error("rounding mismatch");
   }
 
   // "Other" schools waiting for review (Prompt 4B adds them from the app).
