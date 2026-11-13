@@ -10,6 +10,8 @@ import 'package:school_carpool/features/verification/verification_failure.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/features/verification/verification_repository.dart';
 
+import 'school_fakes.dart';
+
 /// A valid 1 by 1 pixel PNG standing in for a photo, so Image.memory can
 /// decode it (tests never use real images).
 final Uint8List fakePhoto = base64Decode(
@@ -82,4 +84,6 @@ List<Override> verificationOverrides({
   screenSecurityProvider.overrideWithValue(const NoScreenSecurity()),
   childrenProvider.overrideWith((Ref ref) => Stream<List<ChildRecord>>.value(children ?? repository.childList)),
   vehicleProvider.overrideWith((Ref ref) => Stream<VehicleRecord?>.value(null)),
+  // The child form picks the school from the schools list (F4).
+  ...schoolOverrides(),
 ];

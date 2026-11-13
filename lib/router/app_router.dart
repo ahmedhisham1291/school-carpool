@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
+import 'package:school_carpool/features/about/about_screen.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
 import 'package:school_carpool/features/onboarding/code_screen.dart';
@@ -37,8 +38,10 @@ enum AppTab {
 abstract final class ProfileRoutes {
   static const String childrenSegment = 'children';
   static const String drivingSegment = 'driving';
+  static const String aboutSegment = 'about';
   static const String children = '/profile/$childrenSegment';
   static const String driving = '/profile/$drivingSegment';
+  static const String about = '/profile/$aboutSegment';
 }
 
 abstract final class AppRoutes {
@@ -119,6 +122,10 @@ GoRouter buildAppRouter({
                       GoRoute(
                         path: ProfileRoutes.drivingSegment,
                         builder: (BuildContext context, GoRouterState state) => const DrivingScreen(),
+                      ),
+                      GoRoute(
+                        path: ProfileRoutes.aboutSegment,
+                        builder: (BuildContext context, GoRouterState state) => const AboutScreen(),
                       ),
                     ],
                   ],

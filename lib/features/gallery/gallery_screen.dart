@@ -577,6 +577,7 @@ class _VerificationSamples extends StatefulWidget {
 class _VerificationSamplesState extends State<_VerificationSamples> {
   DateTime? _date;
   int? _seats;
+  String? _school;
 
   @override
   Widget build(BuildContext context) {
@@ -622,6 +623,16 @@ class _VerificationSamplesState extends State<_VerificationSamples> {
           value: _seats,
           options: <(int, String)>[for (int n = 1; n <= 8; n++) (n, l10n.driverSeatsCount(n))],
           onChanged: (int v) => setState(() => _seats = v),
+        ),
+        gap,
+        // Prompt 4B: the child's school, chosen in the school picker.
+        AppPickerField(
+          label: l10n.childSchoolLabel,
+          placeholder: l10n.childSchoolPlaceholder,
+          helperText: l10n.childSchoolHelper,
+          prefixIcon: Icons.school_outlined,
+          value: _school,
+          onTap: () => setState(() => _school = _school == null ? l10n.gallerySampleSchool : null),
         ),
       ],
     );

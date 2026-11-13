@@ -50,6 +50,7 @@ class _ChildrenScreenState extends ConsumerState<ChildrenScreen> {
             firstName: record.firstName,
             age: record.age,
             grade: record.grade,
+            schoolId: record.schoolId,
             schoolName: record.schoolName,
           );
     final ChildDraft? child = await openChildForm(context, initial);

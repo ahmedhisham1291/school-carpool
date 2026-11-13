@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/schools/school_models.dart';
+import 'package:school_carpool/features/schools/school_picker_screen.dart';
 import 'package:school_carpool/features/verification/capture_screen.dart';
 import 'package:school_carpool/features/verification/screen_security.dart';
 import 'package:school_carpool/features/verification/verification_draft.dart';
@@ -19,8 +21,8 @@ Future<ChildDraft?> openChildForm(BuildContext context, ChildDraft initial) => N
 
 /// Child details with a photo of the school ID card (spec section 3, step
 /// 5; F3). Uses the school ID card, never the child's national ID or birth
-/// certificate. The school is typed for now; picking it from the schools
-/// list comes with F4.
+/// certificate. The school comes from the schools list (F4), or is added
+/// under "Other" and picked while it awaits review.
 ///
 /// One screen with a few fields, checked as the parent types; the button
 /// stays off and says what is missing. No loading, empty or offline state:
@@ -40,17 +42,30 @@ class _ChildFormScreenState extends ConsumerState<ChildFormScreen> {
   static const int _minAge = 2;
   static const int _maxAge = 19;
 
-  void _set({String? firstName, int? age, Grade? grade, String? schoolName, Uint8List? photo}) => setState(() {
+  /// The school as picked in this session (to show "awaiting review").
+  SchoolOption? _school;
+
+  void _set({String? firstName, int? age, Grade? grade, SchoolOption? school, Uint8List? photo}) => setState(() {
+    final String language = Localizations.localeOf(context).languageCode;
+    _school = school ?? _school;
     _child = ChildDraft(
       ref: _child.ref,
       childId: _child.childId,
       firstName: firstName ?? _child.firstName,
       age: age ?? _child.age,
       grade: grade ?? _child.grade,
-      schoolName: schoolName ?? _child.schoolName,
+      schoolId: school?.id ?? _child.schoolId,
+      schoolName: school?.name(language) ?? _child.schoolName,
       schoolIdPhoto: photo ?? _child.schoolIdPhoto,
     );
   });
+
+  Future<void> _pickSchool() async {
+    final SchoolOption? school = await openSchoolPicker(context);
+    if (school != null && mounted) {
+      _set(school: school);
+    }
+  }
 
   Future<void> _capture() async {
     final CaptureLauncher launch = ref.read(captureLauncherProvider);
@@ -107,16 +122,15 @@ class _ChildFormScreenState extends ConsumerState<ChildFormScreen> {
                       onChanged: (Grade v) => _set(grade: v),
                     ),
                     const SizedBox(height: AppSpacing.s16),
-                    AppTextField(
+                    AppPickerField(
                       key: const Key('child.school'),
                       label: l10n.childSchoolLabel,
-                      helperText: l10n.childSchoolHelper,
-                      initialValue: _child.schoolName,
+                      placeholder: l10n.childSchoolPlaceholder,
+                      helperText: _school?.pending ?? false ? l10n.childSchoolPendingHelper : l10n.childSchoolHelper,
                       prefixIcon: Icons.school_outlined,
-                      validator: (String? v) => (v ?? '').trim().isEmpty || isValidFreeText(v ?? '', min: 2, max: 100)
-                          ? null
-                          : l10n.schoolErrorInvalid,
-                      onChanged: (String v) => _set(schoolName: v),
+                      // A child from before the schools list has a name but no school: pick again.
+                      value: _child.schoolId.isEmpty ? null : _child.schoolName,
+                      onTap: () => unawaited(_pickSchool()),
                     ),
                     const SizedBox(height: AppSpacing.s24),
                     AppCaptureTile(

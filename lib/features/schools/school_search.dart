@@ -1,0 +1,267 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show HttpClient, HttpClientRequest, HttpClientResponse, HttpException, SocketException;
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_carpool/config/flavor.dart';
+import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/schools/school_models.dart';
+import 'package:school_carpool/firebase/firebase_setup.dart';
+
+/// School search (F4) as the parent types, in Arabic or English, spelling
+/// tolerant, with an optional governorate filter.
+///
+/// - Staging and prod: Algolia, with a one-hour key from the
+///   getSchoolSearchKey function that can only search the schools index.
+///   The index holds school names and places only.
+/// - Dev on the emulators (and any project where the server says
+///   "fake"): [FirestoreSchoolSearch] reads the emulator's schools and
+///   matches on the phone. No Algolia account is needed.
+abstract interface class SchoolSearch {
+  /// Throws [SchoolSearchFailure].
+  Future<List<SchoolOption>> search(String query, {String? governorate});
+}
+
+enum SchoolSearchFailureKind { offline, unavailable }
+
+class SchoolSearchFailure implements Exception {
+  const SchoolSearchFailure(this.kind);
+
+  final SchoolSearchFailureKind kind;
+
+  bool get isOffline => kind == SchoolSearchFailureKind.offline;
+
+  @override
+  String toString() => 'SchoolSearchFailure(${kind.name})';
+}
+
+/// Matches in memory: tests, the gallery, and the base of the Firestore fake.
+class InMemorySchoolSearch implements SchoolSearch {
+  InMemorySchoolSearch(Iterable<SchoolOption> schools) : _matcher = SchoolMatcher(schools);
+
+  final SchoolMatcher _matcher;
+
+  @override
+  Future<List<SchoolOption>> search(String query, {String? governorate}) async =>
+      _matcher.search(query, governorate: governorate);
+}
+
+/// The fake search for development: loads the active schools from
+/// Firestore once (the emulator's seed and the sample import, at most
+/// [limit], as firestore.rules allow) and matches on the phone.
+class FirestoreSchoolSearch implements SchoolSearch {
+  FirestoreSchoolSearch(this._db);
+
+  final FirebaseFirestore _db;
+
+  /// The most a list query may read (firestore.rules).
+  static const int limit = 200;
+
+  Future<SchoolMatcher>? _matcher;
+
+  Future<SchoolMatcher> _load() async {
+    try {
+      final QuerySnapshot<Map<String, dynamic>> snap = await _db
+          .collection('schools')
+          .where('status', isEqualTo: 'active')
+          .limit(limit)
+          .get();
+      return SchoolMatcher(<SchoolOption>[
+        for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in snap.docs) SchoolOption.fromMap(doc.id, doc.data()),
+      ]);
+    } on FirebaseException catch (error) {
+      throw SchoolSearchFailure(
+        error.code == 'unavailable' ? SchoolSearchFailureKind.offline : SchoolSearchFailureKind.unavailable,
+      );
+    }
+  }
+
+  @override
+  Future<List<SchoolOption>> search(String query, {String? governorate}) async {
+    final Future<SchoolMatcher> loading = _matcher ??= _load();
+    try {
+      return (await loading).search(query, governorate: governorate);
+    } on SchoolSearchFailure {
+      _matcher = null; // Try again next time.
+      rethrow;
+    }
+  }
+}
+
+/// A search key from getSchoolSearchKey.
+@immutable
+class SearchKey {
+  const SearchKey({required this.provider, this.appId = '', this.indexName = '', this.key = '', this.validUntil});
+
+  final String provider;
+  final String appId;
+  final String indexName;
+  final String key;
+  final DateTime? validUntil;
+
+  bool get isAlgolia => provider == 'algolia' && appId.isNotEmpty && key.isNotEmpty;
+}
+
+/// Sends one search to Algolia and returns the decoded answer.
+typedef AlgoliaTransport =
+    Future<Map<String, Object?>> Function(Uri url, Map<String, String> headers, String body);
+
+/// Algolia's search API over HTTPS. iPhone and Android only for now: the
+/// website's search arrives with its platform work (Stage 2).
+Future<Map<String, Object?>> httpAlgoliaTransport(Uri url, Map<String, String> headers, String body) async {
+  if (kIsWeb) {
+    throw const SchoolSearchFailure(SchoolSearchFailureKind.unavailable);
+  }
+  final HttpClient client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+  try {
+    final HttpClientRequest request = await client.postUrl(url);
+    headers.forEach(request.headers.set);
+    request.add(utf8.encode(body));
+    final HttpClientResponse response = await request.close().timeout(const Duration(seconds: 10));
+    final String text = await response.transform(utf8.decoder).join();
+    if (response.statusCode != 200) {
+      throw const SchoolSearchFailure(SchoolSearchFailureKind.unavailable);
+    }
+    final Object? data = jsonDecode(text);
+    return data is Map<String, Object?> ? data : const <String, Object?>{};
+  } on SocketException {
+    throw const SchoolSearchFailure(SchoolSearchFailureKind.offline);
+  } on TimeoutException {
+    throw const SchoolSearchFailure(SchoolSearchFailureKind.offline);
+  } on HttpException {
+    throw const SchoolSearchFailure(SchoolSearchFailureKind.offline);
+  } finally {
+    client.close();
+  }
+}
+
+/// Algolia search with a secured key (names and places come back, nothing
+/// else). The key is fetched again shortly before it expires.
+class AlgoliaSchoolSearch implements SchoolSearch {
+  AlgoliaSchoolSearch({
+    required Future<SearchKey> Function() fetchKey,
+    AlgoliaTransport transport = httpAlgoliaTransport,
+    DateTime Function() now = DateTime.now,
+  }) : _fetchKey = fetchKey,
+       _transport = transport,
+       _now = now;
+
+  final Future<SearchKey> Function() _fetchKey;
+  final AlgoliaTransport _transport;
+  final DateTime Function() _now;
+  SearchKey? _key;
+
+  Future<SearchKey> _validKey() async {
+    final SearchKey? key = _key;
+    final DateTime? until = key?.validUntil;
+    if (key != null && until != null && _now().isBefore(until.subtract(const Duration(minutes: 1)))) {
+      return key;
+    }
+    return _key = await _fetchKey();
+  }
+
+  @override
+  Future<List<SchoolOption>> search(String query, {String? governorate}) async {
+    final SearchKey key = await _validKey();
+    final Uri url = Uri.https('${key.appId}-dsn.algolia.net', '/1/indexes/${key.indexName}/query');
+    final String params = Uri(
+      queryParameters: <String, String>{
+        'query': query.trim(),
+        'hitsPerPage': '$kMaxSchoolResults',
+        if (governorate != null) 'filters': 'governorate:$governorate',
+      },
+    ).query;
+    final Map<String, Object?> answer = await _transport(url, <String, String>{
+      'X-Algolia-Application-Id': key.appId,
+      'X-Algolia-API-Key': key.key,
+      'Content-Type': 'application/json',
+    }, jsonEncode(<String, String>{'params': params}));
+    final Object? hits = answer['hits'];
+    if (hits is! List<Object?>) {
+      return const <SchoolOption>[];
+    }
+    return <SchoolOption>[
+      for (final Object? hit in hits)
+        if (hit is Map<String, Object?> && hit['objectID'] is String)
+          SchoolOption.fromMap(hit['objectID'] as String, <String, Object?>{...hit, 'status': 'active'}),
+    ];
+  }
+}
+
+/// Outside the emulators: asks the server which search to use once
+/// (Algolia when it is set up for this project, else the Firestore fake).
+class ServerSelectedSchoolSearch implements SchoolSearch {
+  ServerSelectedSchoolSearch({required this.fetchKey, required this.fallback, AlgoliaTransport? transport})
+    : _transport = transport ?? httpAlgoliaTransport;
+
+  final Future<SearchKey> Function() fetchKey;
+  final SchoolSearch fallback;
+  final AlgoliaTransport _transport;
+  SchoolSearch? _chosen;
+
+  @override
+  Future<List<SchoolOption>> search(String query, {String? governorate}) async {
+    SchoolSearch? chosen = _chosen;
+    if (chosen == null) {
+      final SearchKey first = await fetchKey();
+      bool used = false;
+      chosen = _chosen = first.isAlgolia
+          ? AlgoliaSchoolSearch(
+              fetchKey: () async {
+                if (!used) {
+                  used = true;
+                  return first;
+                }
+                return fetchKey();
+              },
+              transport: _transport,
+            )
+          : fallback;
+    }
+    return chosen.search(query, governorate: governorate);
+  }
+}
+
+/// Calls getSchoolSearchKey.
+Future<SearchKey> fetchSearchKey(FirebaseFunctions functions) async {
+  try {
+    final HttpsCallableResult<Object?> result = await functions.httpsCallable('getSchoolSearchKey').call<Object?>();
+    final Object? data = result.data;
+    if (data is! Map<Object?, Object?>) {
+      return const SearchKey(provider: 'fake');
+    }
+    final Map<Object?, Object?> map = data;
+    String text(String k) {
+      final Object? v = map[k];
+      return v is String ? v : '';
+    }
+
+    final Object? until = map['validUntil'];
+    return SearchKey(
+      provider: text('provider'),
+      appId: text('appId'),
+      indexName: text('indexName'),
+      key: text('key'),
+      validUntil: until is num ? DateTime.fromMillisecondsSinceEpoch(until.toInt() * 1000) : null,
+    );
+  } on FirebaseFunctionsException catch (error) {
+    throw SchoolSearchFailure(
+      error.code == 'unavailable' || error.code == 'deadline-exceeded'
+          ? SchoolSearchFailureKind.offline
+          : SchoolSearchFailureKind.unavailable,
+    );
+  }
+}
+
+final Provider<SchoolSearch> schoolSearchProvider = Provider<SchoolSearch>((Ref ref) {
+  final FirestoreSchoolSearch fake = FirestoreSchoolSearch(ref.watch(firestoreProvider));
+  if (ref.watch(flavorConfigProvider).useEmulators) {
+    return fake;
+  }
+  final FirebaseFunctions functions = functionsClient();
+  return ServerSelectedSchoolSearch(fetchKey: () => fetchSearchKey(functions), fallback: fake);
+});

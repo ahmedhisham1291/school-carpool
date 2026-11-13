@@ -33,7 +33,15 @@ VerificationDraft completeDraft() => VerificationDraft(
   selfie: fakePhoto,
   selfieTurn: fakePhoto,
   children: <ChildDraft>[
-    ChildDraft(ref: 'c1', firstName: 'Omar', age: 8, grade: Grade.g3, schoolName: 'Nile School', schoolIdPhoto: fakePhoto),
+    ChildDraft(
+      ref: 'c1',
+      firstName: 'Omar',
+      age: 8,
+      grade: Grade.g3,
+      schoolId: 'nile',
+      schoolName: 'Nile School',
+      schoolIdPhoto: fakePhoto,
+    ),
   ],
   consent: true,
 );
@@ -125,8 +133,31 @@ void main() {
         'firstName': 'Omar',
         'age': 8,
         'grade': 'g3',
+        'schoolId': 'nile',
         'schoolName': 'Nile School',
       });
+    });
+
+    test('a child needs a school picked from the list (F4)', () {
+      final ChildDraft typedOnly = ChildDraft(
+        ref: 'c1',
+        firstName: 'Omar',
+        age: 8,
+        grade: Grade.g3,
+        schoolName: 'Nile',
+        schoolIdPhoto: fakePhoto,
+      );
+      expect(typedOnly.isComplete, isFalse);
+      final ChildDraft picked = ChildDraft(
+        ref: 'c1',
+        firstName: 'Omar',
+        age: 8,
+        grade: Grade.g3,
+        schoolId: 'nile',
+        schoolName: 'Nile',
+        schoolIdPhoto: fakePhoto,
+      );
+      expect(picked.isComplete, isTrue);
     });
 
     test('child slots are c1 to c10, reusing freed ones', () {
@@ -243,8 +274,10 @@ void main() {
         'age': 8,
         'grade': 'kg2',
         'schoolName': 'Nile',
+        'schoolId': 'nile',
         'status': 'approved',
       });
+      expect(child.schoolId, 'nile');
       expect(child.grade, Grade.kg2);
       expect(child.status, ReviewStatus.approved);
       expect(parseIsoDate('2030-05-01'), DateTime(2030, 5));

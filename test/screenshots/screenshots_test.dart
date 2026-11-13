@@ -3,7 +3,8 @@
 // Renders the tab shell, the sign-up screens (Prompt 2), the verification
 // screens (Prompt 3), the admin web panel (Prompt 4) and the component
 // gallery in Arabic and English, light and dark (gallery also in design
-// directions A and B) with the real bundled fonts, and writes PNGs to
+// directions A and B), the schools picker and About (Prompt 4B) with the
+// real bundled fonts, and writes PNGs to
 // test/screenshots/goldens/. The shell, the sign-up and the verification
 // screens are also rendered on a small 320 dp phone, at normal and at 200
 // percent text, to show that tab labels, titles and buttons stay on one
@@ -26,10 +27,14 @@ import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/app.dart';
 import 'package:school_carpool/config/flavor.dart';
+import 'package:school_carpool/features/about/about_screen.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
+import 'package:school_carpool/features/schools/other_school_screen.dart';
+import 'package:school_carpool/features/schools/school_picker_screen.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
+import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 import 'package:school_carpool/settings/app_settings.dart';
@@ -37,6 +42,7 @@ import 'package:school_carpool/settings/settings_store.dart';
 
 import '../helpers/admin_fakes.dart';
 import '../helpers/fonts.dart';
+import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
 import '../helpers/verification_fakes.dart';
 
@@ -349,6 +355,46 @@ void main() {
           for (int i = 0; i < 4; i++) {
             await tester.pump(const Duration(milliseconds: 100));
           }
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Schools list (Prompt 4B, F4): the school picker before typing, with
+  // results, with no results, the "Other" form, and About with the
+  // OpenStreetMap credit.
+  final Map<String, (Widget, String?)> schoolScreens = <String, (Widget, String?)>{
+    'school_picker': (const SchoolPickerScreen(), null),
+    'school_picker_results': (const SchoolPickerScreen(), 'school'),
+    'school_picker_empty': (const SchoolPickerScreen(), 'zzzz'),
+    'school_other': (const OtherSchoolScreen(initialName: 'Zohour School'), null),
+    'about': (const AboutScreen(), null),
+  };
+  for (final MapEntry<String, (Widget, String?)> screen in schoolScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = '${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          tester.view
+            ..devicePixelRatio = 3
+            ..physicalSize = const Size(390, 844) * 3;
+          addTearDown(tester.view.reset);
+          await tester.pumpWidget(
+            buildTestApp(
+              screen.value.$1,
+              locale: locale == 'ar' ? AppLocales.arabic : AppLocales.english,
+              brightness: mode == 'dark' ? Brightness.dark : Brightness.light,
+              extraOverrides: <Override>[...authOverrides(session: testUnverifiedSession), ...schoolOverrides()],
+            ),
+          );
+          await tester.pump();
+          final String? query = screen.value.$2;
+          if (query != null) {
+            await tester.enterText(find.byKey(const Key('school.search')), query);
+            await tester.pump(const Duration(milliseconds: 400));
+          }
+          await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
         });
       }

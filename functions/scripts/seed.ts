@@ -4,6 +4,10 @@
  *   firebase emulators:start --project demo-school-carpool   (terminal 1)
  *   npm --prefix functions run seed:emulator                 (terminal 2)
  *
+ * For the schools list (Prompt 4B) also load the hand-written sample:
+ *   python3 tools/import_schools/import_schools.py --input data/schools/sample
+ *   npm --prefix functions run schools:load:emulator
+ *
  * PRIVACY: only fake data. The script refuses to run unless it is pointed at
  * the emulators and at a `demo-` project, so it can never touch a real one.
  * Running it twice gives the same result (fixed ids, upserts).
@@ -15,6 +19,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, GeoPoint, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { searchKeysFor } from "../src/schools/catalog";
 import { nameSearchFields } from "../src/text/normalize";
 
 const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCLOUD_PROJECT_ID ?? "";
@@ -142,11 +147,19 @@ async function main(): Promise<void> {
     batch.set(db.collection("schools").doc(s.id), {
       nameAr: s.nameAr,
       nameEn: s.nameEn,
+      // Same shape as the schools import (Prompt 4B; src/schools/catalog.ts).
+      searchKeys: searchKeysFor(s.nameAr, s.nameEn),
+      kind: s.id.endsWith("-kg") ? "kindergarten" : "school",
       governorate: s.governorate,
       city: s.city,
+      cityAr: "",
       location: new GeoPoint(s.lat, s.lng),
       source: "seed",
+      sourceId: s.id,
+      sourceKeys: [],
       status: "active",
+      addedBy: null,
+      mergedInto: null,
       createdAt: now,
     });
     for (const a of s.areas) {
@@ -223,6 +236,8 @@ async function main(): Promise<void> {
     batch.set(db.collection("schools").doc(t.id), {
       nameAr: t.nameAr,
       nameEn: t.nameEn,
+      searchKeys: searchKeysFor(t.nameAr, t.nameEn),
+      kind: "school",
       governorate: "cairo",
       city: t.city,
       location: null,

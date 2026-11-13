@@ -820,6 +820,7 @@ void main() {
                 firstName: 'Omar',
                 age: 8,
                 grade: Grade.g3,
+                schoolId: 'nile',
                 schoolName: 'Nile School',
                 schoolIdPhoto: fakePhoto,
               ),

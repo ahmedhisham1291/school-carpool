@@ -22,6 +22,7 @@ export 'package:school_carpool/design/components/date_field.dart';
 export 'package:school_carpool/design/components/digits_input_formatter.dart';
 export 'package:school_carpool/design/components/inline_message.dart';
 export 'package:school_carpool/design/components/one_line_text.dart';
+export 'package:school_carpool/design/components/picker_field.dart';
 export 'package:school_carpool/design/components/section_header.dart';
 export 'package:school_carpool/design/components/select_field.dart';
 export 'package:school_carpool/design/components/skeleton.dart';
