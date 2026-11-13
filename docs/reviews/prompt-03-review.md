@@ -178,3 +178,13 @@ because the failing job cancels the rest.
 
 1. `store.ts` `withdrawCase`: an **edited** child of a withdrawn update case is set to `status: "rejected"`. The comment says it goes "back to how a reviewer left them". A previously approved child whose edit the parent withdraws now shows as rejected. Either keep the child's previous status and fields on the case (e.g. `previousStatus`) and restore them, or change the comment and the UI copy.
 2. `saveSubmission` reads a query (`nationalIds where uid == ...`) inside the transaction. That is fine, but it adds a read on every resubmission. Acceptable at this scale.
+
+## Re-review 2 (coordinator)
+
+The only blocking item from the last re-review was the Android build
+(`screen_protector` Kotlin sources not compiled). Fixed in `tool/patch_native.py`
+(dfcf499, ff8417a): the Kotlin plugin is applied to that module with JVM target 17.
+CI run 43443592642 on ff8417a is fully green: analyze, flutter test, screenshots,
+Functions, emulator and rules tests, web and Android builds.
+
+**Verdict: PASS.**
