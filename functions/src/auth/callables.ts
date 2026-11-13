@@ -31,6 +31,7 @@ import {
   type OtpErrorReason,
 } from "./otp_flow";
 import { FirestoreOtpStore } from "./otp_store";
+import { emailConfirmationIsNew } from "./sign_in_policy";
 
 /**
  * Callable functions for sign-up and sign-in (F1). App Check is enforced in
@@ -175,7 +176,8 @@ export const verifyCode = onCall(signInOptions, (request) =>
  * sends the link with verifyBeforeUpdateEmail; Auth sets emailVerified only
  * after the parent opens it. Opening the link changes the account's email,
  * and Firebase then revokes the app's session, so a verified answer also
- * carries a fresh custom token for the app to sign in with again.
+ * carries a fresh custom token for the app to sign in with again, but only
+ * on the change to confirmed.
  * {} -> { verified, token? }
  */
 export const confirmEmail = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
@@ -188,6 +190,11 @@ export const confirmEmail = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (requ
     const snap = await ref.get();
     if (!snap.exists) throw new HttpsError("failed-precondition", "No account record.");
     if (snap.get("status") === "suspended") throw new HttpsError("permission-denied", "suspended", { reason: "suspended" });
+    // Only the change to "confirmed" writes and mints a token; a repeat
+    // call (the app checks on open and on resume) gets no token.
+    if (!emailConfirmationIsNew({ email: snap.get("email"), emailVerified: snap.get("emailVerified") }, email)) {
+      return { verified: true };
+    }
     await ref.update({ email, emailVerified: true, updatedAt: FieldValue.serverTimestamp() });
     return { verified: true, token: await auth.createCustomToken(uid) };
   }),

@@ -310,6 +310,14 @@ emulators need none of this.
    (sign-up)" and "Enable delete"**, so no account can be made outside our
    functions. Optional: **Templates > Email address verification** to set
    the sender name and the Arabic text.
+   With this provider on, a password reset sent to a parent's inbox could
+   otherwise open the account without the phone. The functions
+   `blockNonCodeSignIn` and `blockSignInEmails` (Identity Platform
+   blocking functions, free tier) refuse every password, email-link, SMS
+   and anonymous sign-in and never send password-reset or sign-in emails.
+   They register themselves on deploy; check **Authentication > Settings >
+   Blocking functions** shows them for "Before sign in" and "Before email
+   sent". Only the WhatsApp code (custom token) signs in.
 4. **Auto-delete old sign-in records** (Firestore TTL, free):
 
    ```sh
