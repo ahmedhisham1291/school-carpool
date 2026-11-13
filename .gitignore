@@ -44,6 +44,11 @@ dart_defines/*.json
 .env
 .env.*
 !.env.example
+# Functions params per project: non-secret flags only (see functions/.env.example)
+!functions/.env.local
+!functions/.env.dev
+!functions/.env.staging
+!functions/.env.prod
 
 # --- Node / Firebase ---
 node_modules/

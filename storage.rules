@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// DENY EVERYTHING (Prompt 1). Verification images will go to a private
+// bucket that only Cloud Functions and admin review tools can read.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

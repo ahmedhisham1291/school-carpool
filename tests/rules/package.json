@@ -1,0 +1,19 @@
+{
+  "name": "school-carpool-rules-tests",
+  "private": true,
+  "description": "Emulator tests for firestore.rules and storage.rules. Run through `npm run test:emulator` from this folder.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"lib/**/*.test.js\"",
+    "test:emulator": "cd ../.. && firebase emulators:exec --only firestore,storage --project demo-school-carpool \"npm --prefix tests/rules test\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@types/node": "^22.0.0",
+    "firebase": "^12.18.0",
+    "typescript": "^5.9.3"
+  }
+}
