@@ -40,8 +40,8 @@ void main() {
 
   group('models', () {
     test('home from Firestore', () {
-      final HomeLocation home = HomeLocation.fromMap(<String, Object?>{
-        'location': const GeoPoint(29.96, 31.25),
+      final HomeLocation home = HomeLocation.fromMap(const <String, Object?>{
+        'location': GeoPoint(29.96, 31.25),
         'label': 'Road 9',
         'showOnMap': false,
         'radiusKm': 5,
@@ -134,7 +134,7 @@ void main() {
       );
       expect(
         Geo.same(
-          SchoolOption.fromMap('a', <String, Object?>{
+          SchoolOption.fromMap('a', const <String, Object?>{
             '_geoloc': <String, Object?>{'lat': 30.5, 'lng': 31.5},
           }).location,
           const GeoPin(30.5, 31.5),

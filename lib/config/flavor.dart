@@ -17,7 +17,7 @@ class FlavorConfig {
     required this.sentrySampleRate,
     required this.recaptchaSiteKey,
     required this.appCheckDebugToken,
-    this.mapsEnabled = false,
+    required this.mapsEnabled,
   });
 
   /// Reads the defines for [flavor]. Emulators are only allowed in dev.

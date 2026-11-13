@@ -23,6 +23,7 @@ const FlavorConfig testDevConfig = FlavorConfig(
   sentrySampleRate: 1,
   recaptchaSiteKey: '',
   appCheckDebugToken: '',
+  mapsEnabled: false,
 );
 
 /// Same as [testDevConfig] but for staging (no developer tools).
@@ -34,6 +35,7 @@ const FlavorConfig testStagingConfig = FlavorConfig(
   sentrySampleRate: 1,
   recaptchaSiteKey: '',
   appCheckDebugToken: '',
+  mapsEnabled: false,
 );
 
 /// Wraps [home] in a MaterialApp with our localizations and theme.

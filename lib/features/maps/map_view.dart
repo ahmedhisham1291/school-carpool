@@ -231,7 +231,6 @@ class _SketchMapViewState extends State<SketchMapView> {
             onPanUpdate: (DragUpdateDetails d) => _pan(d.delta),
             onPanEnd: (DragEndDetails _) => config.onCameraIdle?.call(config.camera.center),
             child: Stack(
-              clipBehavior: Clip.hardEdge,
               children: <Widget>[
                 Positioned.fill(
                   child: CustomPaint(
