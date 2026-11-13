@@ -48,3 +48,27 @@ export const WHATSAPP_API_VERSION = defineString("WHATSAPP_API_VERSION", { defau
 export const WHATSAPP_CODE_TEMPLATE = defineString("WHATSAPP_CODE_TEMPLATE", { default: "login_code" });
 export const WHATSAPP_TEMPLATE_LANG_AR = defineString("WHATSAPP_TEMPLATE_LANG_AR", { default: "ar" });
 export const WHATSAPP_TEMPLATE_LANG_EN = defineString("WHATSAPP_TEMPLATE_LANG_EN", { default: "en" });
+
+/**
+ * Key for the keyed hash of national ID numbers (Secret Manager). Separate
+ * from OTP_HMAC_KEY: the ban list depends on it forever, so it must never
+ * be rotated without re-hashing. In the local emulators a fixed dev key is
+ * used when functions/.secret.local does not set it.
+ */
+export const NATIONAL_ID_HMAC_KEY = defineSecret("NATIONAL_ID_HMAC_KEY");
+
+/** "fake" (answer from config/kyc.fakeResult; refused in prod) or "valify". */
+export const KYC_PROVIDER = defineString("KYC_PROVIDER", { default: "fake" });
+
+/** Valify stays off until the contract (COST MODE: fake provider until the pilot). */
+export const VALIFY_ENABLED = defineBoolean("VALIFY_ENABLED", { default: false });
+export const VALIFY_BASE_URL = defineString("VALIFY_BASE_URL", { default: "" });
+export const VALIFY_USERNAME = defineString("VALIFY_USERNAME", { default: "" });
+export const VALIFY_CLIENT_ID = defineString("VALIFY_CLIENT_ID", { default: "" });
+export const VALIFY_BUNDLE_KEY = defineString("VALIFY_BUNDLE_KEY", { default: "" });
+/**
+ * Valify secrets. Declared but not bound to any function until the
+ * contract, so deploys do not need them to exist in Secret Manager.
+ */
+export const VALIFY_CLIENT_SECRET_NAME = "VALIFY_CLIENT_SECRET";
+export const VALIFY_PASSWORD_NAME = "VALIFY_PASSWORD";
