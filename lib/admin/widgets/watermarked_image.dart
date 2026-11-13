@@ -36,8 +36,9 @@ class WatermarkedImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? link = url;
-    final ImageProvider<Object>? provider =
-        image ?? (link == null ? null : NetworkImage(link, webHtmlElementStrategy: WebHtmlElementStrategy.never));
+    // NetworkImage's default web strategy (never) draws the image on the
+    // canvas and never as an <img> element the browser could save.
+    final ImageProvider<Object>? provider = image ?? (link == null ? null : NetworkImage(link));
     return Semantics(
       image: true,
       label: semanticLabel,

@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://REPLACE-admin-site-id.web.app", "https://REPLACE-admin-site-id.firebaseapp.com"],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 300
+  }
+]
