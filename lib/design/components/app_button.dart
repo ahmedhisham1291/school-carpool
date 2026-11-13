@@ -93,7 +93,7 @@ class AppButton extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: false,
-      label: '$label, ${context.l10n.stateLoadingLabel}',
+      label: context.l10n.buttonLoadingLabel(label),
       excludeSemantics: true,
       child: sized,
     );

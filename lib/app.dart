@@ -9,15 +9,45 @@ import 'package:school_carpool/settings/app_settings.dart';
 
 /// Root widget. Language, theme mode and (dev only) design direction come
 /// from persisted settings; Arabic and right-to-left are the default.
-class CarpoolApp extends ConsumerWidget {
+///
+/// Also follows the phone's reduce-motion setting: theme changes, button
+/// animations and page transitions become instant.
+class CarpoolApp extends ConsumerStatefulWidget {
   const CarpoolApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CarpoolApp> createState() => _CarpoolAppState();
+}
+
+class _CarpoolAppState extends ConsumerState<CarpoolApp> with WidgetsBindingObserver {
+  bool _reduceMotion = AppMotion.platformReducesMotion();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAccessibilityFeatures() {
+    final bool reduce = AppMotion.platformReducesMotion();
+    if (reduce != _reduceMotion) {
+      setState(() => _reduceMotion = reduce);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final FlavorConfig config = ref.watch(flavorConfigProvider);
     final Locale locale = ref.watch(localeProvider);
     final ThemeMode themeMode = ref.watch(themeModeProvider);
-    // Staging and prod always use the default direction until the owner picks.
+    // Staging and prod always use direction A (owner decision, Prompt 1).
     final DesignDirection direction = config.showDevTools
         ? ref.watch(designDirectionProvider)
         : DesignDirection.a;
@@ -30,10 +60,10 @@ class CarpoolApp extends ConsumerWidget {
       locale: locale,
       supportedLocales: AppLocales.supported,
       localizationsDelegates: AppLocales.delegates,
-      theme: AppTheme.light(direction),
-      darkTheme: AppTheme.dark(direction),
+      theme: AppTheme.light(direction, reduceMotion: _reduceMotion),
+      darkTheme: AppTheme.dark(direction, reduceMotion: _reduceMotion),
       themeMode: themeMode,
-      themeAnimationDuration: AppMotion.normal,
+      themeAnimationDuration: _reduceMotion ? Duration.zero : AppMotion.normal,
       builder: (BuildContext context, Widget? child) =>
           FlavorBanner(flavor: config.flavor, child: child ?? const SizedBox.shrink()),
     );

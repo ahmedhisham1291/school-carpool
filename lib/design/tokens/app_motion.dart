@@ -16,6 +16,16 @@ abstract final class AppMotion {
   static Duration resolve(BuildContext context, Duration duration) =>
       reduceMotion(context) ? Duration.zero : duration;
 
+  /// True for Android "Remove animations" (`disableAnimations`) and for iOS
+  /// "Reduce Motion", which Flutter reports separately as `reduceMotion`.
   static bool reduceMotion(BuildContext context) =>
-      MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+      (MediaQuery.maybeDisableAnimationsOf(context) ?? false) ||
+      (MediaQuery.maybeReduceMotionOf(context) ?? false);
+
+  /// Same check without a [BuildContext], for the app root that builds the
+  /// theme above [MediaQuery].
+  static bool platformReducesMotion() {
+    final features = WidgetsBinding.instance.platformDispatcher.accessibilityFeatures;
+    return features.disableAnimations || features.reduceMotion;
+  }
 }

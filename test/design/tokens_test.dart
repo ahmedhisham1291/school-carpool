@@ -121,6 +121,7 @@ void main() {
   group('motion', () {
     testWidgets('durations collapse to zero when the phone reduces motion', (WidgetTester tester) async {
       late Duration reduced;
+      late Duration iosReduced;
       late Duration normal;
       await tester.pumpWidget(
         Directionality(
@@ -132,6 +133,16 @@ void main() {
               child: Builder(
                 builder: (BuildContext context) {
                   reduced = AppMotion.resolve(context, AppMotion.normal);
+                  return const SizedBox();
+                },
+              ),
+            ),
+            // iOS "Reduce Motion" arrives as reduceMotion, not disableAnimations.
+            MediaQuery(
+              data: const MediaQueryData(reduceMotion: true),
+              child: Builder(
+                builder: (BuildContext context) {
+                  iosReduced = AppMotion.resolve(context, AppMotion.normal);
                   return const SizedBox();
                 },
               ),
@@ -150,7 +161,21 @@ void main() {
         ),
       );
       expect(reduced, Duration.zero);
+      expect(iosReduced, Duration.zero);
       expect(normal, AppMotion.normal);
+    });
+
+    test('reduced-motion theme has no page transitions or button animation', () {
+      final ThemeData theme = AppTheme.light(DesignDirection.a, reduceMotion: true);
+      expect(
+        theme.pageTransitionsTheme.builders[TargetPlatform.iOS],
+        isA<NoMotionPageTransitionsBuilder>(),
+      );
+      expect(
+        theme.filledButtonTheme.style!.animationDuration,
+        Duration.zero,
+      );
+      expect(AppTheme.light(DesignDirection.a).filledButtonTheme.style!.animationDuration, AppMotion.fast);
     });
   });
 }

@@ -12,11 +12,19 @@ import 'package:school_carpool/design/tokens/app_typography.dart';
 /// Every color, size, radius and duration comes from the tokens in
 /// `lib/design/tokens`. Screens never hard-code these values.
 abstract final class AppTheme {
-  static ThemeData light(DesignDirection direction) => build(direction, Brightness.light);
+  static ThemeData light(DesignDirection direction, {bool reduceMotion = false}) =>
+      build(direction, Brightness.light, reduceMotion: reduceMotion);
 
-  static ThemeData dark(DesignDirection direction) => build(direction, Brightness.dark);
+  static ThemeData dark(DesignDirection direction, {bool reduceMotion = false}) =>
+      build(direction, Brightness.dark, reduceMotion: reduceMotion);
 
-  static ThemeData build(DesignDirection direction, Brightness brightness) {
+  /// [reduceMotion]: the phone asked for less motion, so button animations
+  /// and page transitions are switched off.
+  static ThemeData build(
+    DesignDirection direction,
+    Brightness brightness, {
+    bool reduceMotion = false,
+  }) {
     final AppPalette palette = direction.palette(brightness);
     final ColorScheme scheme = palette.scheme;
     final TextTheme text = AppTypeScale.textTheme(
@@ -29,6 +37,7 @@ abstract final class AppTheme {
       vertical: AppSpacing.s8,
     );
     const OutlinedBorder buttonShape = RoundedRectangleBorder(borderRadius: AppRadii.control);
+    final Duration buttonMotion = reduceMotion ? Duration.zero : AppMotion.fast;
 
     OutlineInputBorder inputBorder(Color color, [double width = 1]) => OutlineInputBorder(
       borderRadius: AppRadii.control,
@@ -45,6 +54,14 @@ abstract final class AppTheme {
       dividerColor: scheme.outlineVariant,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,
+      pageTransitionsTheme: reduceMotion
+          ? PageTransitionsTheme(
+              builders: <TargetPlatform, PageTransitionsBuilder>{
+                for (final TargetPlatform platform in TargetPlatform.values)
+                  platform: const NoMotionPageTransitionsBuilder(),
+              },
+            )
+          : null,
       extensions: <ThemeExtension<dynamic>>[AppColors.fromPalette(palette)],
       appBarTheme: AppBarThemeData(
         backgroundColor: scheme.surface,
@@ -61,7 +78,7 @@ abstract final class AppTheme {
           padding: buttonPadding,
           shape: buttonShape,
           textStyle: text.labelLarge,
-          animationDuration: AppMotion.fast,
+          animationDuration: buttonMotion,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -71,7 +88,7 @@ abstract final class AppTheme {
           shape: buttonShape,
           textStyle: text.labelLarge,
           side: BorderSide(color: scheme.outline),
-          animationDuration: AppMotion.fast,
+          animationDuration: buttonMotion,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -80,7 +97,7 @@ abstract final class AppTheme {
           padding: buttonPadding,
           shape: buttonShape,
           textStyle: text.labelLarge,
-          animationDuration: AppMotion.fast,
+          animationDuration: buttonMotion,
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -101,8 +118,9 @@ abstract final class AppTheme {
         disabledBorder: inputBorder(scheme.outlineVariant),
         labelStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         hintStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-        helperStyle: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-        errorStyle: text.bodySmall?.copyWith(color: scheme.error),
+        // Helper and error text tell the parent what to do: body size (16).
+        helperStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        errorStyle: text.bodyMedium?.copyWith(color: scheme.error),
         helperMaxLines: 3,
         errorMaxLines: 3,
       ),
@@ -164,4 +182,22 @@ abstract final class AppTheme {
       progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary),
     );
   }
+}
+
+/// Page transition with no movement, used when the phone asks for reduced
+/// motion. The new page appears at once.
+class NoMotionPageTransitionsBuilder extends PageTransitionsBuilder {
+  const NoMotionPageTransitionsBuilder();
+
+  @override
+  Duration get transitionDuration => Duration.zero;
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => child;
 }
