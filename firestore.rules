@@ -18,14 +18,26 @@ service cloud.firestore {
 
     // Prompt 4 (F14): an admin of the panel. The "admin" custom claim is
     // set only by a super admin (createAdmin function) or the bootstrap
-    // script; the sign-in used a second factor (TOTP); and the sign-in is
-    // less than 8 hours old (keep in sync with ADMIN_SESSION_MAX_SECONDS in
-    // functions/src/admin_panel/guard.ts). Parents never have the claim.
+    // script; the sign-in used a second factor (TOTP); the sign-in is less
+    // than 8 hours old (keep in sync with ADMIN_SESSION_MAX_SECONDS in
+    // functions/src/admin_panel/guard.ts); and the admin's record exists,
+    // is not disabled, and the token was issued after any revocation (so a
+    // disabled admin loses access at once, not when the token expires).
+    // Parents never have the claim.
+    function adminRecordAllows() {
+      let record = get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
+      return record.disabled != true
+        && (!('revokedAt' in record)
+          || timestamp.value(request.auth.token.iat * 1000) > record.revokedAt);
+    }
+
     function isAdmin() {
       return signedIn()
         && request.auth.token.admin == true
         && 'sign_in_second_factor' in request.auth.token.firebase
         && request.auth.token.auth_time is int
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && adminRecordAllows()
         && request.time < timestamp.value(request.auth.token.auth_time * 1000) + duration.value(8, 'h');
     }
 

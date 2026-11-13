@@ -1,5 +1,6 @@
 // Rules for Prompt 4 (F14): the audit log is readable only by admins who
-// signed in with two steps less than 8 hours ago, and nobody (admins
+// signed in with two steps less than 8 hours ago, whose admin record exists,
+// is not disabled and was not revoked after the token, and nobody (admins
 // included) writes, edits or deletes it. The panel's other collections are
 // closed to everyone. Runs only against the emulators. Written, not run
 // here (no npm registry in the build workspace); CI runs it.
@@ -51,6 +52,7 @@ beforeEach(async () => {
     await db.doc("auditLog/l1").set({ actorUid: "admin1", action: "verification.view", target: "verifications/c1", time: new Date() });
     await db.doc("auditLog/l2").set({ actorUid: "admin1", action: "user.suspend", target: "users/alice", time: new Date() });
     await db.doc("admins/admin1").set({ email: "rev@example.com", displayName: "Reviewer", role: "admin", disabled: false });
+    await db.doc("admins/super1").set({ email: "super@example.com", displayName: "Super", role: "superAdmin", disabled: false });
     await db.doc("adminLimits/admin1").set({ windowStartMs: 1, count: 1 });
     await db.doc("moderations/m1").set({ uid: "alice", action: "suspend", note: "internal" });
     await db.doc("reports/r1").set({ reporterId: "bob", targetType: "user", targetId: "alice", status: "open" });
@@ -80,6 +82,25 @@ describe("audit log", () => {
       await assertFails(db.doc("auditLog/l1").set({ action: "replaced" }));
       await assertFails(db.doc("auditLog/l1").delete());
     }
+  });
+
+  it("a disabled admin, a revoked token or a missing admin record loses access at once", async () => {
+    const asNoRecord = env.authenticatedContext("ghost", withMfa({ admin: true }));
+    await assertFails(asNoRecord.firestore().doc("auditLog/l1").get());
+
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc("admins/admin1").update({ revokedAt: new Date() });
+    });
+    // A token issued before revokedAt is refused; one issued after it works.
+    const asOldToken = env.authenticatedContext("admin1", withMfa({ admin: true, iat: nowSeconds() - 120 }));
+    await assertFails(asOldToken.firestore().doc("auditLog/l1").get());
+    const asNewToken = env.authenticatedContext("admin1", withMfa({ admin: true, iat: nowSeconds() + 5 }));
+    await assertSucceeds(asNewToken.firestore().doc("auditLog/l1").get());
+
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc("admins/admin1").update({ disabled: true });
+    });
+    await assertFails(asNewToken.firestore().doc("auditLog/l1").get());
   });
 
   it("parents, signed-out visitors and incomplete admin sessions cannot read it", async () => {
