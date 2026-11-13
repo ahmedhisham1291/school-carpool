@@ -252,3 +252,9 @@ The remaining non-blocking items from the first review are not part of
 this fix round: the Dart normalizer has no NFKC step, picker titles are
 one line, state views have a fixed height, `addOtherSchool` can create
 twice, and pending schools cannot be rejected.
+
+## Re-review 2 (coordinator)
+
+The only open item was the cancelled Android step (cancelled by a new push, not
+a failure). CI run 43510194070 on 69add35 is fully green: analyze, flutter test,
+Functions, rules, Python import, web, admin panel and Android. **Verdict: PASS.**
