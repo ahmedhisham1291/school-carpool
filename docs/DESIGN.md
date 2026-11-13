@@ -136,6 +136,13 @@ focused and hovered controls get a veil of their label color at
   blur radii and opacities) around the server's rounded point. No Google
   buttons; our own 48 dp buttons sit on the map. Tests, the gallery and
   keyless dev builds draw the same content with `SketchMapView`.
+- **Carpool pieces** (Prompt 6, `lib/features/carpools/carpool_widgets.dart`,
+  in the gallery under "Carpools"): `CarpoolCard` (title, area, times,
+  days, a seats badge, a contribution badge and the rules as quiet badges;
+  the whole card opens the carpool), `RulesWrap`, `DaysPicker` (day chips,
+  Saturday first) and `RunTimeField` (switch row plus a time picker every
+  15 minutes). Forms with several parts (start a carpool) use
+  `AppStepProgress` and say on each step what to fix before Next.
 - New component: add it to the gallery first, then use it.
 
 ## One-line wording
