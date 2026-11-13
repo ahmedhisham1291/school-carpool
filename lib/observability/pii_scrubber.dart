@@ -72,10 +72,10 @@ abstract final class PiiScrubber {
     if (value is String) {
       return scrubString(value);
     }
-    if (value is Map) {
+    if (value is Map<dynamic, dynamic>) {
       return scrubMap(value, depth: depth + 1);
     }
-    if (value is Iterable) {
+    if (value is Iterable<dynamic>) {
       if (value is List<int> && value.length > 64) {
         return redacted; // raw bytes, for example an image
       }

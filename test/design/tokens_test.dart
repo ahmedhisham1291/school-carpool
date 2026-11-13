@@ -77,7 +77,7 @@ void main() {
             'onSuccessContainer': (s.onSuccessContainer, s.successContainer, 4.5),
             'onWarningContainer': (s.onWarningContainer, s.warningContainer, 4.5),
             // Borders of inputs are UI components: 3:1.
-            'outline/surface': (c.outline, c.surface, 3),
+            'outline/surface': (c.outline, c.surface, 3.0),
           };
           pairs.forEach((String name, (Color, Color, double) pair) {
             final double ratio = contrast(pair.$1, pair.$2);
