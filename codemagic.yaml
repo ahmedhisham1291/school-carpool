@@ -1,0 +1,173 @@
+# Codemagic CI/CD. See SETUP.md ("Codemagic") for the one-time setup:
+# App Store Connect API key integration, environment groups and secrets.
+#
+# COST MODE (free tier first, docs/COSTS.md):
+#   - `checks` runs analyze, tests, rules tests and the web and Android
+#     builds on a Linux machine for every push and pull request.
+#   - iOS builds run on macOS only for pushes to main and version tags
+#     (v*), or when started by hand. The free personal tier has 500 macOS
+#     minutes a month; one iOS build takes about 15 to 25 minutes.
+#
+# Placeholders to replace (open questions in docs/progress/prompt-01.md):
+#   org.schoolcarpool.app      reverse-domain base for bundle ids
+#   CodemagicASC               name of the App Store Connect key integration
+#   APP_STORE_APPLE_ID values  numeric Apple ID of each app in App Store Connect
+
+definitions:
+  env_versions: &env_versions
+    flutter: stable
+    node: 22
+    java: 21
+  cache: &cache
+    cache_paths:
+      - $HOME/.pub-cache
+      - $HOME/.npm
+      - $HOME/.cache/firebase/emulators
+  scripts:
+    - &bootstrap_dev
+      name: Bootstrap (native folders, packages, localizations)
+      script: FLAVOR=dev tool/bootstrap.sh
+    - &analyze
+      name: flutter analyze
+      script: flutter analyze
+    - &flutter_test
+      name: flutter test
+      script: flutter test --reporter expanded
+    - &functions_test
+      name: Cloud Functions build and unit tests
+      script: |
+        npm install --prefix functions --no-audit --no-fund
+        npm test --prefix functions
+    - &rules_test
+      name: Firestore and Storage rules tests on the emulators
+      script: |
+        npm install -g firebase-tools@15 --no-audit --no-fund
+        npm install --prefix tests/rules --no-audit --no-fund
+        firebase emulators:exec --only firestore,storage --project demo-school-carpool \
+          "npm --prefix tests/rules test"
+
+workflows:
+  checks:
+    name: Checks (analyze, tests, rules, web and Android builds)
+    instance_type: linux_x2
+    max_build_duration: 45
+    environment:
+      <<: *env_versions
+    cache: *cache
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: '*'
+          include: true
+          source: true
+      cancel_previous_builds: true
+    scripts:
+      - *bootstrap_dev
+      - *analyze
+      - *flutter_test
+      - *functions_test
+      - *rules_test
+      - name: Build web (staging)
+        script: flutter build web --release -t lib/main_staging.dart
+      - name: Build Android APK (staging, debug-signed until Stage 3)
+        script: FLAVOR=staging tool/bootstrap.sh && flutter build apk --release -t lib/main_staging.dart
+    artifacts:
+      - build/web/**
+      - build/app/outputs/flutter-apk/*.apk
+
+  ios-staging:
+    name: iOS staging to TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: CodemagicASC
+    environment:
+      <<: *env_versions
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: org.schoolcarpool.app.stg
+      groups:
+        # SENTRY_DSN_APP_STAGING, RECAPTCHA_SITE_KEY (web, later)
+        - staging_defines
+      vars:
+        APP_STORE_APPLE_ID: 0000000000
+    cache: *cache
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+      tag_patterns:
+        - pattern: 'v*'
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Bootstrap (staging)
+        script: FLAVOR=staging tool/bootstrap.sh
+      - name: Use signing profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          flutter build ipa --release \
+            -t lib/main_staging.dart \
+            --build-number=$((LATEST + 1)) \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=SENTRY_DSN="${SENTRY_DSN_APP_STAGING:-}" \
+            --dart-define=SENTRY_SAMPLE_RATE=1.0
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+  ios-dev:
+    # Started by hand only (no triggering): a dev build with the gallery and
+    # developer tools on TestFlight, talking to the cloud dev project instead
+    # of local emulators (USE_EMULATORS=false). Needs the dev Firebase options.
+    name: iOS dev to TestFlight (manual)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: CodemagicASC
+    environment:
+      <<: *env_versions
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: org.schoolcarpool.app.dev
+      groups:
+        # SENTRY_DSN_APP_DEV
+        - dev_defines
+      vars:
+        APP_STORE_APPLE_ID: 0000000000
+    cache: *cache
+    scripts:
+      - name: Bootstrap (dev)
+        script: FLAVOR=dev tool/bootstrap.sh
+      - name: Use signing profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          flutter build ipa --release \
+            -t lib/main_dev.dart \
+            --build-number=$((LATEST + 1)) \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=USE_EMULATORS=false \
+            --dart-define=SENTRY_DSN="${SENTRY_DSN_APP_DEV:-}" \
+            --dart-define=SENTRY_SAMPLE_RATE=1.0
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
