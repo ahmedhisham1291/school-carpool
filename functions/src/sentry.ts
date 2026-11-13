@@ -19,7 +19,6 @@ export function startSentry(): boolean {
       dsn,
       environment: process.env.APP_ENV ?? "unknown",
       sampleRate: Number.isFinite(rate) ? Math.min(Math.max(rate, 0), 1) : 1,
-      sendDefaultPii: false,
       beforeSend: (event) => scrubEvent(event),
       beforeBreadcrumb: (breadcrumb) => scrubEvent(breadcrumb),
     });
