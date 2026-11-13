@@ -16,6 +16,7 @@ class AppListRow extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.showChevron = true,
+    this.inset = true,
   });
 
   final String title;
@@ -24,6 +25,11 @@ class AppListRow extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool showChevron;
+
+  /// Side padding of the screen gutter. Set false when the row sits inside
+  /// content that already has the gutter (a padded form list), so the row
+  /// lines up with the fields instead of being indented twice.
+  final bool inset;
 
   @override
   Widget build(BuildContext context) {
@@ -35,8 +41,8 @@ class AppListRow extends StatelessWidget {
     final Widget row = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: AppSpacing.s64),
       child: Padding(
-        padding: const EdgeInsetsDirectional.symmetric(
-          horizontal: AppSpacing.screenGutter,
+        padding: EdgeInsetsDirectional.symmetric(
+          horizontal: inset ? AppSpacing.screenGutter : 0,
           vertical: AppSpacing.s8,
         ),
         child: Row(

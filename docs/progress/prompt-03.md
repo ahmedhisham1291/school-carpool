@@ -136,7 +136,7 @@ Prerequisites: Prompt 2 setup, SETUP.md section 12 (secret, deploy), dev
 build installed.
 
 1. Sign in with a fake number, finish email and terms. You land on
-   **Verify your account** (Not verified). Tap **Start verification**.
+   **Verify your account** (Not verified). Tap **Get verified**.
 2. Fill in names, a fake 14-digit number (for example 29001150123456) and an
    expiry date. Try 7 digits: "Enter all 14 digits."
 3. Take the ID front and back (the camera opens, never the gallery). Try a

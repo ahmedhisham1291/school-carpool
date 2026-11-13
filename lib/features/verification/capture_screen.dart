@@ -390,7 +390,7 @@ class _Viewfinder extends StatelessWidget {
               dimension: AppSpacing.driverTouchTarget + AppSpacing.s16,
               child: IconButton.filled(
                 key: const Key('capture.shutter'),
-                iconSize: AppSpacing.s40,
+                iconSize: AppIconSize.lg,
                 onPressed: busy ? null : onShutter,
                 icon: const Icon(Icons.camera_alt_rounded),
               ),

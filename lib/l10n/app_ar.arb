@@ -1378,7 +1378,7 @@
   "@errorSignInAgain": {
     "description": "The session was revoked (for example after the email link)"
   },
-  "actionSignInAgain": "تسجيل الدخول مرة أخرى",
+  "actionSignInAgain": "سجّل الدخول مجددًا",
   "@actionSignInAgain": {
     "description": "Button that signs out and opens the welcome screen"
   },
@@ -1426,11 +1426,11 @@
   "@verifyStepSelfieDetail": {
     "description": "Verification step detail, under the selfie title"
   },
-  "verifyStepChildDetail": "وصورة كارنيه المدرسة",
+  "verifyStepChildDetail": "صورة بطاقة المدرسة",
   "@verifyStepChildDetail": {
     "description": "Verification step detail, under the child title"
   },
-  "verifyStepDriverDetail": "وبيانات السيارة إذا كنت ستقود",
+  "verifyStepDriverDetail": "فقط إذا كنت ستقود، مع بيانات السيارة",
   "@verifyStepDriverDetail": {
     "description": "Verification step detail, under the driver's license title"
   },
@@ -1453,6 +1453,10 @@
   "verifyWithdrawFailed": "تعذّر سحب الطلب",
   "@verifyWithdrawFailed": {
     "description": "Snackbar when withdrawing fails; a few words, one line"
+  },
+  "errorOfflineShort": "لا يوجد اتصال. حاول مرة أخرى.",
+  "@errorOfflineShort": {
+    "description": "Short one-line snackbar when an action failed because the phone is offline"
   },
   "adminPanelTitle": "لوحة الإدارة",
   "@adminPanelTitle": {
