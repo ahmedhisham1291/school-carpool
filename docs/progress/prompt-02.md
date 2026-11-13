@@ -289,3 +289,28 @@ Deferred:
 - The flow on a real iPhone, including that the fresh token after the
   email link works as described (Firebase documents the revocation, not
   the exact client behaviour): owner test step 8 above.
+
+## Review round 1, second part (coordinator, 13 Nov)
+
+- CI run `43427592161`: analyze clean; Functions, rules and emulator tests
+  pass. Four `flutter test` failures were test mistakes, now fixed: wrong
+  expected string in the formatter test, a pushed-route check that does
+  not reflect `push` (now checks the code screen is shown), an ambiguous
+  scrollable in the sign-out test, and the language switch below the fold
+  on the longer Profile (the test scrolls to it first).
+- `confirmEmail` writes and returns a fresh custom token **only on the
+  change to confirmed** (record not yet confirmed, or another address); a
+  repeat call returns `{ verified: true }` without a token. Unit-tested.
+- **Account takeover through the Email/Password provider closed:**
+  blocking functions `blockNonCodeSignIn` (refuses password, email link,
+  SMS and anonymous sign-in) and `blockSignInEmails` (no password-reset or
+  sign-in emails). Unknown methods are allowed on purpose so custom-token
+  sign-in can never be blocked by a value we did not foresee. The policy
+  is unit-tested; the blocking functions themselves only run in the cloud
+  (the emulator does not call them for custom tokens). SETUP.md 11.3.
+- **Daily cap per number across devices:** 30 wrong codes a day close the
+  number for every device until the day window ends (on top of the
+  per-device hour lock). A stranger needs at least 6 codes over 6 hours
+  to reach it. Unit-tested.
+- Still to check on a real project: that "Before sign in" does not block
+  the custom-token sign-in (owner test step 7 covers it).

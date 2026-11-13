@@ -31,6 +31,13 @@ export interface OtpLimits {
   maxAttemptsPerCode: number;
   maxFailuresBeforeLock: number;
   lockSeconds: number;
+  /**
+   * Wrong codes for one number per day across all devices. Above it the
+   * number is closed for the rest of that day, for every device. High
+   * enough that a stranger needs many codes over hours (5 codes an hour,
+   * 5 tries each) to reach it.
+   */
+  maxFailuresPerPhonePerDay: number;
 }
 
 export const DEFAULT_OTP_LIMITS: OtpLimits = {
@@ -43,7 +50,10 @@ export const DEFAULT_OTP_LIMITS: OtpLimits = {
   maxAttemptsPerCode: 5,
   maxFailuresBeforeLock: 10,
   lockSeconds: 3600,
+  maxFailuresPerPhonePerDay: 30,
 };
+
+const DAY_MS = 24 * 3600 * 1000;
 
 export interface LimitRecord {
   windowStartMs: number;
@@ -160,6 +170,13 @@ function rollFailWindow(record: LimitRecord, now: number, windowMs: number): Lim
   return now - record.failWindowStartMs >= windowMs ? { ...record, failWindowStartMs: now, failures: 0 } : record;
 }
 
+/** Refusal when the number used up its wrong codes for the day. */
+function dailyLimitRefusal(phoneRecord: LimitRecord, now: number, limits: OtpLimits): OtpError | null {
+  const daily = rollFailWindow(phoneRecord, now, DAY_MS);
+  if (daily.failures < limits.maxFailuresPerPhonePerDay) return null;
+  return new OtpError("locked", { retryAfterSeconds: secondsUntil(daily.failWindowStartMs + DAY_MS - now) });
+}
+
 function secondsUntil(ms: number): number {
   return Math.max(1, Math.ceil(ms / 1000));
 }
@@ -201,6 +218,8 @@ export async function requestCode(deps: OtpDeps, input: RequestCodeInput): Promi
     if (lockRecord.lockedUntilMs > now) {
       return new OtpError("locked", { retryAfterSeconds: secondsUntil(lockRecord.lockedUntilMs - now) });
     }
+    const dailyRefusal = dailyLimitRefusal(phoneRecord, now, limits);
+    if (dailyRefusal) return dailyRefusal;
     if (phoneRecord.lastSendMs > 0 && now - phoneRecord.lastSendMs < cooldownMs) {
       return new OtpError("too-soon", { retryAfterSeconds: secondsUntil(phoneRecord.lastSendMs + cooldownMs - now) });
     }
@@ -269,11 +288,14 @@ export async function verifyCode(deps: OtpDeps, input: VerifyCodeInput): Promise
   const refusal = await deps.store.run(async (tx): Promise<OtpError | null> => {
     const now = deps.now();
     const limit = (await tx.getLimit(lKey)) ?? emptyLimit();
+    const phoneRecord = (await tx.getLimit(pKey)) ?? emptyLimit();
     const stored = await tx.getCode(pKey);
 
     if (limit.lockedUntilMs > now) {
       return new OtpError("locked", { retryAfterSeconds: secondsUntil(limit.lockedUntilMs - now) });
     }
+    const dailyRefusal = dailyLimitRefusal(phoneRecord, now, limits);
+    if (dailyRefusal) return dailyRefusal;
     if (!stored) return new OtpError("expired");
     if (now >= stored.expiresAtMs) {
       tx.deleteCode(pKey);
@@ -290,6 +312,10 @@ export async function verifyCode(deps: OtpDeps, input: VerifyCodeInput): Promise
     const counted = rollFailWindow(limit, now, windowMs);
     const failures = counted.failures + 1;
     const attempts = stored.attempts + 1;
+    // The number's daily count, shared by all devices (same document as
+    // the number's send counters, which stay untouched).
+    const daily = rollFailWindow(phoneRecord, now, DAY_MS);
+    tx.setLimit(pKey, { ...daily, failures: daily.failures + 1 });
     if (failures >= limits.maxFailuresBeforeLock) {
       tx.setLimit(lKey, { ...counted, failures: 0, failWindowStartMs: 0, lockedUntilMs: now + limits.lockSeconds * 1000 });
       tx.deleteCode(pKey);

@@ -226,6 +226,25 @@ describe("sign-in codes", () => {
     assert.equal(reported.length, 1);
   });
 
+  it("closes the number for the day after too many wrong codes across devices", async () => {
+    let failures = 0;
+    let device = 0;
+    while (failures < DEFAULT_OTP_LIMITS.maxFailuresPerPhonePerDay) {
+      now += 3600_000; // next hour: fresh send window and device lock
+      const id = `${String(device++).padStart(4, "0")}cccccccccccccccc`;
+      await ask({ deviceId: id });
+      for (let i = 0; i < DEFAULT_OTP_LIMITS.maxAttemptsPerCode && failures < DEFAULT_OTP_LIMITS.maxFailuresPerPhonePerDay; i++) {
+        await check("000000", id).catch(() => undefined);
+        failures++;
+      }
+    }
+    now += 61_000;
+    await expectReason(ask({ deviceId: "dddddddddddddddd" }), "locked");
+    await expectReason(check("123456", "dddddddddddddddd"), "locked");
+    now += 24 * 3600_000;
+    await ask({ deviceId: "dddddddddddddddd" });
+  });
+
   it("stores no plain value in the lock key either", async () => {
     await ask();
     await expectReason(check("000000"), "wrong-code");
