@@ -29,6 +29,16 @@ abstract final class Geo {
     return 2 * 6371.0088 * math.asin(math.min(1, math.sqrt(h)));
   }
 
+  /// Grid step of the server's rounding (functions/src/maps/geo.ts GRID_DEG).
+  static const double gridDeg = 0.005;
+
+  /// The centre of the grid cell holding [p], as the server rounds homes.
+  /// Used only to draw the search ring where the server measures from.
+  static GeoPin roundToGrid(GeoPin p) {
+    double cell(double x) => ((x / gridDeg).floorToDouble() + 0.5) * gridDeg;
+    return GeoPin(cell(p.lat), cell(p.lng));
+  }
+
   static bool same(GeoPin? a, GeoPin? b) =>
       identical(a, b) || (a != null && b != null && a.lat == b.lat && a.lng == b.lng);
 }

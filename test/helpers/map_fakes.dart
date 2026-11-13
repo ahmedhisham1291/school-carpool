@@ -99,6 +99,12 @@ class FakeMapRepository implements MapRepository {
     return parents.where((NearbyParent p) => p.schoolId == schoolId).toList();
   }
 
+  /// School pins by school ID (F40).
+  Map<String, GeoPin> schoolPins = <String, GeoPin>{'nile': const GeoPin(29.9602, 31.2569)};
+
+  @override
+  Future<GeoPin?> schoolPin(String schoolId) async => schoolPins[schoolId];
+
   Future<void> dispose() => _changes.close();
 }
 

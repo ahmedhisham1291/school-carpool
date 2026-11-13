@@ -7,6 +7,7 @@ import {
   MAP_DRIVING_SCHOOL_CHANGES_PER_DAY,
   MAP_HOME_MOVES_PER_DAY,
   MAP_NEARBY_SEARCHES_PER_HOUR,
+  MAP_PLACE_DETAILS_PER_HOUR,
   MAP_PLACE_SEARCHES_PER_HOUR,
   MAPS_SERVER_KEY,
   PLACES_PROVIDER,
@@ -15,11 +16,13 @@ import {
 import { reportError } from "../sentry";
 import {
   MAP_ERROR_CODES,
+  checkPlaceAccount,
   MapError,
   refreshPublicLocation,
   searchNearby,
   setDrivingSchools as setDrivingSchoolsFlow,
   setHome,
+  takePlaceDetails,
   takePlaceSearch,
   updateMapSettings as updateMapSettingsFlow,
   type MapDeps,
@@ -43,6 +46,7 @@ function deps(): MapDeps {
       homeMovesPerDay: MAP_HOME_MOVES_PER_DAY.value(),
       nearbySearchesPerHour: MAP_NEARBY_SEARCHES_PER_HOUR.value(),
       placeSearchesPerHour: MAP_PLACE_SEARCHES_PER_HOUR.value(),
+      placeDetailsPerHour: MAP_PLACE_DETAILS_PER_HOUR.value(),
       drivingSchoolChangesPerDay: MAP_DRIVING_SCHOOL_CHANGES_PER_DAY.value(),
     },
   };
@@ -111,11 +115,26 @@ export const placesAutocomplete = onCall({ enforceAppCheck: ENFORCE_APP_CHECK, s
   }),
 );
 
-/** { placeId, sessionToken, language } -> { placeId, label, location } */
+/**
+ * { placeId, sessionToken, language } -> { placeId, label, location }
+ * Refused for suspended or banned accounts; cache misses are limited per
+ * parent per hour (MAP_PLACE_DETAILS_PER_HOUR) on top of the project's
+ * daily Places cap (SETUP 15.4).
+ */
 export const placeDetails = onCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [MAPS_SERVER_KEY] }, (request) =>
-  run("placeDetails", () => {
-    requireUid(request);
-    return placeDetailsFlow({ provider: placesProvider(), cache: new FirestorePlaceCache(adminDb()), now: () => Date.now() }, request.data);
+  run("placeDetails", async () => {
+    const uid = requireUid(request);
+    const d = deps();
+    await checkPlaceAccount(d, uid);
+    return placeDetailsFlow(
+      {
+        provider: placesProvider(),
+        cache: new FirestorePlaceCache(adminDb()),
+        now: () => Date.now(),
+        beforeProviderCall: () => takePlaceDetails(d, uid),
+      },
+      request.data,
+    );
   }),
 );
 

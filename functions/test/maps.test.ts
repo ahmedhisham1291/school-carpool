@@ -27,6 +27,8 @@ import {
   searchNearby,
   setDrivingSchools,
   setHome,
+  checkPlaceAccount,
+  takePlaceDetails,
   takePlaceSearch,
   updateMapSettings,
   type MapDeps,
@@ -528,5 +530,43 @@ describe("address search (Places proxy)", () => {
     const { deps } = setup();
     for (let i = 0; i < DEFAULT_MAP_LIMITS.placeSearchesPerHour; i++) await takePlaceSearch(deps, "alice");
     await expectMapError(takePlaceSearch(deps, "alice"), "rate-limited");
+  });
+
+  it("place details: suspended or banned accounts are refused; only cache misses take from the hourly limit", async () => {
+    const { deps, store } = setup();
+    let providerCalls = 0;
+    const inner = new FakePlacesProvider();
+    const provider: PlacesProvider = {
+      autocomplete: (...a) => inner.autocomplete(...a),
+      details: async (...a) => {
+        providerCalls++;
+        return inner.details(...a);
+      },
+    };
+    const cache = new MemoryPlaceCache();
+    const call = async (uid: string, placeId: string) => {
+      await checkPlaceAccount(deps, uid);
+      return placeDetails(
+        { provider, cache, now: () => 1_000, beforeProviderCall: () => takePlaceDetails(deps, uid) },
+        { placeId, sessionToken: "abcdefgh12", language: "en" },
+      );
+    };
+    // Unverified accounts may pick an address (registration), suspended may not.
+    store.accounts.set("newbie", { status: "unverified", firstName: "New" });
+    await call("newbie", "fake-maadi");
+    store.accounts.set("bad", { status: "suspended", firstName: "Bad" });
+    await expectMapError(call("bad", "fake-zamalek"), "suspended");
+    await expectMapError(call("nobody", "fake-zamalek"), "no-account");
+    assert.equal(providerCalls, 1);
+
+    // Cached places cost nothing and are not counted.
+    for (let i = 0; i < DEFAULT_MAP_LIMITS.placeDetailsPerHour + 5; i++) await call("alice", "fake-maadi");
+    assert.equal(providerCalls, 1);
+
+    // Cache misses are counted per parent per hour.
+    for (let i = 0; i < DEFAULT_MAP_LIMITS.placeDetailsPerHour; i++) await call("alice", `uncached-${i}`).catch(() => undefined);
+    await expectMapError(call("alice", "fake-heliopolis"), "rate-limited");
+    // Another parent is not affected.
+    await call("bob", "fake-heliopolis");
   });
 });

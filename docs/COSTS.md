@@ -129,7 +129,7 @@ has its own free monthly calls (Essentials 10,000, Pro 5,000, Enterprise
 | The map on iPhone and Android (Maps SDK) | Mobile native dynamic maps | Listed at no charge for the mobile SDKs (check the pricing page) | Maps appear only on the home picker, the school map and the nearby map; no map on the Home tab |
 | The map on the website (Stage 2) | Dynamic Maps (Essentials) | 10,000 loads | Not loaded until Stage 2; no key in web builds |
 | Address search as you type | Autocomplete Requests (Essentials, via Places API New) | 10,000 | 3 letters, 400 ms pause, one session token per search, at most 60 searches per parent per hour (`MAP_PLACE_SEARCHES_PER_HOUR`) |
-| The picked address | Place Details Essentials (fields `id`, `formattedAddress`, `location` only) | 10,000 | Cached in `placeCache` for 30 days (Firestore TTL deletes old entries) |
+| The picked address | Place Details Essentials (fields `id`, `formattedAddress`, `location` only) | 10,000 | Cached in `placeCache` for 30 days (Firestore TTL deletes old entries); cache misses limited to 20 per parent per hour (`MAP_PLACE_DETAILS_PER_HOUR`); suspended accounts refused |
 | "Use my location" | Free (the phone's GPS) | n/a | Nothing is sent to Google |
 | Arrival times | Routes | n/a now | Prompt 13: only during a live run, at most once a minute per stop |
 

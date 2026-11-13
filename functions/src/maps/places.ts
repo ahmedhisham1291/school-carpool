@@ -76,12 +76,19 @@ export async function autocomplete(provider: PlacesProvider, data: unknown): Pro
 
 /** Details from the cache or the provider. Places outside Egypt are refused. */
 export async function placeDetails(
-  deps: { provider: PlacesProvider; cache: PlaceCache; now: () => number },
+  deps: {
+    provider: PlacesProvider;
+    cache: PlaceCache;
+    now: () => number;
+    /** Called before a billed provider call (cache miss): rate limit. */
+    beforeProviderCall?: () => Promise<void>;
+  },
   data: unknown,
 ): Promise<PlaceDetails> {
   const input = parseDetails(data);
   const key = `${input.language}_${input.placeId}`.slice(0, 300);
   const cached = await deps.cache.get(key, deps.now());
+  if (!cached && deps.beforeProviderCall) await deps.beforeProviderCall();
   const details = cached ?? (await deps.provider.details(input.placeId, input.sessionToken, input.language));
   if (!details || !isValidPoint(details.location)) throw new MapError("invalid-request");
   if (!inEgypt(details.location)) throw new MapError("outside-egypt");

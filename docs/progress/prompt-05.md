@@ -40,7 +40,8 @@ Expect small analyzer fixes on the first CI run.
 - The search centre is always the caller's own home (no centre in the
   request), the school must be one of the caller's (approved children or
   driving schools), searches are limited to 30 an hour, home moves to 4 a
-  day and driving-school changes to 10 a day: nobody can sweep the map.
+  day and driving-school changes to 3 a day (at most 5 driving schools):
+  nobody can sweep the map.
 - Hidden, unverified and suspended parents never appear; hidden parents can
   still search (spec section 6).
 - On the map other parents are two soft discs, never pins; the card shows
@@ -175,12 +176,39 @@ for approved members of the same carpool, with seeded memberships).
 - No new Kotlin-only plugin (google_maps_flutter_android and
   geolocator_android are Java): `KOTLIN_FIX_PLUGINS` unchanged.
 
+## Review fixes (docs/reviews/prompt-05-review.md)
+
+- **Blocking 1 fixed:** `placeDetails` refuses missing, suspended and
+  banned accounts (unverified parents may still pick an address while
+  registering) and takes from its own hourly limit, 20 per parent
+  (`MAP_PLACE_DETAILS_PER_HOUR`), only on a cache miss (the billed call),
+  on top of the project's daily Places cap. Unit test added.
+- The radius ring is centred on the rounded home (the client rounds with
+  the server's grid, `Geo.roundToGrid`), where the server measures from;
+  the map follows a home saved while it is open.
+- F40: the nearby map shows the selected school's pin
+  (`MapRepository.schoolPin`).
+- Driving-school changes lowered from 10 to 3 a day (still at most 5
+  schools); a daily cap on distinct schools searched is left for the
+  owner's answer to question 3.
+- The marker offset is derived from the uid and can be removed by a
+  client; it reveals nothing beyond the rounded cell, and rounding stays
+  the protection (decision recorded; a secret-keyed offset can come later
+  if the owner wants markers to reveal less than the cell).
+- One-line test covers the school chip (ellipsis allowed for a long
+  school name, never a wrap).
+- **Account deletion (Prompt 12, retention/privacy):** must delete
+  `homes/{uid}` (exact home), `mapLimits/{uid}` and `newParentEvents/{uid}`;
+  `parentLocations/{uid}` already goes when the user record is deleted
+  (trigger).
+
 ## Open questions for the owner
 
 1. **Keys:** create the iOS maps key and the server Places key per project
    (SETUP 15.2). Until then dev shows the sketch map and fake places.
 2. **Limits:** 4 home moves a day, 30 nearby searches an hour, 60 address
-   searches an hour, 10 driving-school changes a day. OK?
+   searches and 20 new address picks an hour, 3 driving-school changes a
+   day. OK?
 3. **Driving schools on the map:** parents appear on the map of each school
    they can drive to (not only their children's). OK, or children's
    schools only?

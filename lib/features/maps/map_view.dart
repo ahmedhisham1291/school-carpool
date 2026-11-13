@@ -73,6 +73,7 @@ class MapViewConfig {
     this.markers = const <MapMarker>[],
     this.areas = const <MapArea>[],
     this.radiusKm,
+    this.radiusCenter,
     this.onCameraIdle,
   });
 
@@ -81,9 +82,10 @@ class MapViewConfig {
   final List<MapMarker> markers;
   final List<MapArea> areas;
 
-  /// A faint ring of this radius around the camera's first centre (the
-  /// parent's home on the nearby map).
+  /// A faint ring of this radius around [radiusCenter] (on the nearby map:
+  /// the parent's rounded home, where the server measures from).
   final double? radiusKm;
+  final GeoPin? radiusCenter;
 
   /// Where the map stopped after the parent moved it.
   final ValueChanged<GeoPin>? onCameraIdle;
@@ -161,8 +163,6 @@ class SketchMapView extends StatefulWidget {
 }
 
 class _SketchMapViewState extends State<SketchMapView> {
-  late final GeoPin _ringCenter = widget.config.camera.center;
-
   @override
   void initState() {
     super.initState();
@@ -225,6 +225,7 @@ class _SketchMapViewState extends State<SketchMapView> {
           final Size size = constraints.biggest;
           final double mpp = _metersPerPixel;
           final double? ringKm = config.radiusKm;
+          final GeoPin? ringCenter = config.radiusCenter;
           return GestureDetector(
             key: const Key('map.surface'),
             behavior: HitTestBehavior.opaque,
@@ -243,9 +244,9 @@ class _SketchMapViewState extends State<SketchMapView> {
                     ),
                   ),
                 ),
-                if (ringKm != null)
+                if (ringKm != null && ringCenter != null)
                   _disc(
-                    center: _project(_ringCenter, size),
+                    center: _project(ringCenter, size),
                     radius: ringKm * 1000 / mpp,
                     color: colors.primary.withValues(alpha: AppMapTokens.radiusRingOpacity),
                     border: colors.primary,

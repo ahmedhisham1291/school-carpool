@@ -41,7 +41,11 @@ class _NearbyParentsScreenState extends ConsumerState<NearbyParentsScreen> {
   String? _searchedKey;
   AsyncValue<List<NearbyParent>> _results = const AsyncLoading<List<NearbyParent>>();
   MapCameraController? _camera;
+  GeoPin? _cameraHome;
   int _request = 0;
+
+  /// School pins (F40) by school ID; null while unknown or without a pin.
+  final Map<String, GeoPin?> _schoolPins = <String, GeoPin?>{};
 
   @override
   void dispose() {
@@ -63,6 +67,13 @@ class _NearbyParentsScreenState extends ConsumerState<NearbyParentsScreen> {
     }
     if (mounted && request == _request) {
       setState(() => _results = next);
+    }
+  }
+
+  Future<void> _loadSchoolPin(String schoolId) async {
+    final GeoPin? pin = await ref.read(mapRepositoryProvider).schoolPin(schoolId);
+    if (mounted) {
+      setState(() => _schoolPins[schoolId] = pin);
     }
   }
 
@@ -229,7 +240,17 @@ class _NearbyParentsScreenState extends ConsumerState<NearbyParentsScreen> {
         }
       });
     }
+    if (!_schoolPins.containsKey(school.id)) {
+      _schoolPins[school.id] = null;
+      WidgetsBinding.instance.addPostFrameCallback((Duration _) => unawaited(_loadSchoolPin(school.id)));
+    }
     final MapCameraController camera = _camera ??= MapCameraController(center: homePin, zoom: AppMapTokens.areaZoom);
+    // Follow a home saved while this screen is open.
+    if (_cameraHome != null && !Geo.same(_cameraHome, homePin)) {
+      WidgetsBinding.instance.addPostFrameCallback((Duration _) => camera.moveTo(homePin));
+    }
+    _cameraHome = homePin;
+    final GeoPin? schoolPin = _schoolPins[school.id];
     final String schoolName = school.name(language);
     final List<NearbyParent> parents = _results.value ?? const <NearbyParent>[];
 
@@ -328,8 +349,12 @@ class _NearbyParentsScreenState extends ConsumerState<NearbyParentsScreen> {
                     camera: camera,
                     semanticLabel: l10n.nearbyMapLabel(parents.length),
                     radiusKm: radius.toDouble(),
+                    // The server measures from the rounded home, so the ring does too.
+                    radiusCenter: Geo.roundToGrid(homePin),
                     markers: <MapMarker>[
                       MapMarker(id: 'home', at: homePin, kind: MapMarkerKind.home, label: l10n.homePinLabel),
+                      if (schoolPin != null)
+                        MapMarker(id: 'school.${school.id}', at: schoolPin, kind: MapMarkerKind.school, label: schoolName),
                     ],
                     areas: <MapArea>[
                       for (final NearbyParent p in parents)

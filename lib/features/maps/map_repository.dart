@@ -27,6 +27,10 @@ abstract interface class MapRepository {
 
   /// Throws [MapFailure].
   Future<List<NearbyParent>> nearby({required String schoolId, required int radiusKm});
+
+  /// The pin of an active school (F40), or null when it has none or cannot
+  /// be read. Schools are public data (firestore.rules).
+  Future<GeoPin?> schoolPin(String schoolId);
 }
 
 /// Address search through the placesAutocomplete and placeDetails functions
@@ -132,6 +136,17 @@ class FirebaseMapRepository implements MapRepository {
       }
     }
     return out;
+  }
+
+  @override
+  Future<GeoPin?> schoolPin(String schoolId) async {
+    try {
+      final DocumentSnapshot<Map<String, dynamic>> snap = await _db.collection('schools').doc(schoolId).get();
+      final Object? loc = snap.data()?['location'];
+      return loc is GeoPoint ? GeoPin(loc.latitude, loc.longitude) : null;
+    } on FirebaseException {
+      return null;
+    }
   }
 }
 

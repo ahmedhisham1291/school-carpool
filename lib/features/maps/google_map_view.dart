@@ -22,7 +22,6 @@ class GoogleMapView extends StatefulWidget {
 
 class _GoogleMapViewState extends State<GoogleMapView> {
   gm.GoogleMapController? _controller;
-  late final GeoPin _ringCenter = widget.config.camera.center;
 
   @override
   void initState() {
@@ -66,6 +65,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     final ColorScheme colors = context.colors;
     final MapViewConfig config = widget.config;
     final double? ringKm = config.radiusKm;
+    final GeoPin? ringCenter = config.radiusCenter;
 
     final Set<gm.Marker> markers = <gm.Marker>{
       for (final MapMarker m in config.markers)
@@ -83,10 +83,10 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     };
 
     final Set<gm.Circle> circles = <gm.Circle>{
-      if (ringKm != null)
+      if (ringKm != null && ringCenter != null)
         gm.Circle(
           circleId: const gm.CircleId('radius'),
-          center: _latLng(_ringCenter),
+          center: _latLng(ringCenter),
           radius: ringKm * 1000,
           fillColor: colors.primary.withValues(alpha: AppMapTokens.radiusRingOpacity),
           strokeColor: colors.primary.withValues(alpha: AppMapTokens.blurInnerOpacity),

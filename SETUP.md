@@ -660,7 +660,8 @@ project that still uses the fake search (the functions declare it).
 In `functions/.env.staging` (and `.env.prod`): `PLACES_PROVIDER=google`.
 Optional limits (defaults in brackets): `MAP_HOME_MOVES_PER_DAY` (4),
 `MAP_NEARBY_SEARCHES_PER_HOUR` (30), `MAP_PLACE_SEARCHES_PER_HOUR` (60),
-`MAP_DRIVING_SCHOOL_CHANGES_PER_DAY` (10). Deploy the functions and the
+`MAP_PLACE_DETAILS_PER_HOUR` (20, picked addresses not in the cache),
+`MAP_DRIVING_SCHOOL_CHANGES_PER_DAY` (3). Deploy the functions and the
 Firestore indexes (`firebase deploy --only functions,firestore:indexes`;
 the nearby search needs the `parentLocations` index).
 

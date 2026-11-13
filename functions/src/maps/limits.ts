@@ -5,7 +5,7 @@
  * or change them (firestore.rules).
  */
 
-export type MapLimitKind = "homeMoves" | "nearbySearches" | "placeSearches" | "drivingSchoolChanges";
+export type MapLimitKind = "homeMoves" | "nearbySearches" | "placeSearches" | "placeDetails" | "drivingSchoolChanges";
 
 export interface WindowCounter {
   windowStartMs: number;
@@ -25,6 +25,7 @@ export const LIMIT_WINDOWS: Record<MapLimitKind, number> = {
   homeMoves: DAY,
   nearbySearches: HOUR,
   placeSearches: HOUR,
+  placeDetails: HOUR,
   drivingSchoolChanges: DAY,
 };
 

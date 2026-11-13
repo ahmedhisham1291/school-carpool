@@ -93,6 +93,15 @@ void main() {
       expect(Geo.inEgypt(const GeoPin(48.85, 2.35)), isFalse);
       expect(Geo.radiusChoicesKm, contains(Geo.defaultRadiusKm));
     });
+
+    test('rounds like the server (cell centre of the 0.005 degree grid)', () {
+      final GeoPin a = Geo.roundToGrid(const GeoPin(29.96001, 31.25501));
+      final GeoPin b = Geo.roundToGrid(const GeoPin(29.96499, 31.25999));
+      expect(a.lat, closeTo(29.9625, 1e-9));
+      expect(a.lng, closeTo(31.2575, 1e-9));
+      expect(b.lat, closeTo(a.lat, 1e-9));
+      expect(b.lng, closeTo(a.lng, 1e-9));
+    });
   });
 
   group('my schools (map filter)', () {

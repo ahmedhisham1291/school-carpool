@@ -226,6 +226,8 @@ void main() {
       // Other parents are never pins; the only pin is the parent's own home.
       expect(find.byKey(const Key('map.marker.p1')), findsNothing);
       expect(find.byKey(const Key('map.marker.home')), findsOneWidget);
+      // F40: the selected school's pin is on the map too.
+      expect(find.byKey(const Key('map.marker.school.nile')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('map.area.p1')));
       await tester.pumpAndSettle();
@@ -431,6 +433,8 @@ void main() {
         await _pump(tester, const NearbyParentsScreen(), locale: locale, maps: FakeMapRepository(home: _savedHome), width: 320, height: 720);
         expectOneLine(find.byType(AppBarTitle), 'nearby title');
         expectOneLine(find.byKey(const Key('nearby.radiusChip')), 'radius chip');
+        // A school name is data: a long one may end in an ellipsis but never wraps.
+        expectOneLine(find.byKey(const Key('nearby.schoolChip')), 'school chip', allowEllipsis: true);
         await tester.tap(find.byKey(const Key('map.area.p1')));
         await tester.pumpAndSettle();
         expectOneLine(oneLineIn('parent.join'), 'join');

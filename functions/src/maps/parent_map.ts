@@ -154,6 +154,8 @@ export interface MapLimits {
   homeMovesPerDay: number;
   nearbySearchesPerHour: number;
   placeSearchesPerHour: number;
+  /** Place details that miss the cache (each one is a billed Places call). */
+  placeDetailsPerHour: number;
   drivingSchoolChangesPerDay: number;
 }
 
@@ -161,7 +163,8 @@ export const DEFAULT_MAP_LIMITS: MapLimits = {
   homeMovesPerDay: 4,
   nearbySearchesPerHour: 30,
   placeSearchesPerHour: 60,
-  drivingSchoolChangesPerDay: 10,
+  placeDetailsPerHour: 20,
+  drivingSchoolChangesPerDay: 3,
 };
 
 export interface MapDeps {
@@ -483,4 +486,18 @@ export async function searchNearby(
 export async function takePlaceSearch(deps: MapDeps, uid: string): Promise<void> {
   await requireAccount(deps.store, uid);
   await take(deps, uid, "placeSearches", deps.limits.placeSearchesPerHour);
+}
+
+/**
+ * Place details: any account that exists and is not suspended or banned
+ * (registration needs the home before verification). The account is
+ * checked on every call; the hourly limit is taken only when the cache
+ * misses (only then is Google called and billed).
+ */
+export async function checkPlaceAccount(deps: MapDeps, uid: string): Promise<void> {
+  await requireAccount(deps.store, uid);
+}
+
+export async function takePlaceDetails(deps: MapDeps, uid: string): Promise<void> {
+  await take(deps, uid, "placeDetails", deps.limits.placeDetailsPerHour);
 }

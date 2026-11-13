@@ -113,7 +113,9 @@ export const ALGOLIA_SEARCH_KEY = defineSecret("ALGOLIA_SEARCH_KEY");
 export const MAP_HOME_MOVES_PER_DAY = defineInt("MAP_HOME_MOVES_PER_DAY", { default: 4 });
 export const MAP_NEARBY_SEARCHES_PER_HOUR = defineInt("MAP_NEARBY_SEARCHES_PER_HOUR", { default: 30 });
 export const MAP_PLACE_SEARCHES_PER_HOUR = defineInt("MAP_PLACE_SEARCHES_PER_HOUR", { default: 60 });
-export const MAP_DRIVING_SCHOOL_CHANGES_PER_DAY = defineInt("MAP_DRIVING_SCHOOL_CHANGES_PER_DAY", { default: 10 });
+export const MAP_PLACE_DETAILS_PER_HOUR = defineInt("MAP_PLACE_DETAILS_PER_HOUR", { default: 20 });
+/** Low on purpose: driving schools decide whose maps a parent can open. */
+export const MAP_DRIVING_SCHOOL_CHANGES_PER_DAY = defineInt("MAP_DRIVING_SCHOOL_CHANGES_PER_DAY", { default: 3 });
 
 /**
  * Address search (Places API New). "fake" (dev and CI: a few fixed
