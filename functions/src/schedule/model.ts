@@ -402,7 +402,7 @@ export function proposeWeek(input: RotationInput): RotationResult {
       const deadline = confirmDeadline(date, time, nowMs, deadlines);
       if (deadline === null) continue;
       const base: RunRecord = old
-        ? { ...old, time, startMs: cairoToUtcMs(date, time), riders: withoutAbsent(riders, old.absent), updatedAtMs: nowMs }
+        ? { ...old, time, startMs: cairoToUtcMs(date, time), confirmByMs: deadline, riders: withoutAbsent(riders, old.absent), updatedAtMs: nowMs }
         : {
             id,
             carpoolId: carpool.id,
@@ -426,7 +426,7 @@ export function proposeWeek(input: RotationInput): RotationResult {
             createdAtMs: nowMs,
             updatedAtMs: nowMs,
           };
-      if (base.status === "cancelled") Object.assign(base, { status: "open", confirmByMs: deadline });
+      if (base.status === "cancelled") base.status = "open";
       const canDrive = (uid: string) => runProblem(uid, base.riders, members, consents, today) === null;
 
       // A planned driver who may still drive keeps the run.

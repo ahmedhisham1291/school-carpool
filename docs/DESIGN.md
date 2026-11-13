@@ -143,6 +143,14 @@ focused and hovered controls get a veil of their label color at
   Saturday first) and `RunTimeField` (switch row plus a time picker every
   15 minutes). Forms with several parts (start a carpool) use
   `AppStepProgress` and say on each step what to fix before Next.
+- **Schedule** (Prompt 7, `lib/features/schedule/`): no new design-system
+  component; screens reuse `AppChip` (week), `AppSectionHeader` (one per
+  day), `AppListRow` (one per run: direction and time, driver and number
+  of children, a status badge) and `AppSheet`. Run status badges (in the
+  gallery under "Carpools"): To confirm and Swap asked are warning, Confirmed
+  success, Needs driver and Own trip error, No school and Done neutral.
+  Driver actions in the run sheet are large buttons
+  (`AppButtonSize.large`), one primary at a time, with no typing.
 - New component: add it to the gallery first, then use it.
 
 ## One-line wording
