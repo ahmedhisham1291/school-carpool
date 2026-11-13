@@ -47,15 +47,7 @@ abstract interface class AuthRepository {
 }
 
 class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository({
-    required FirebaseAuth auth,
-    required FirebaseFunctions functions,
-    required FirebaseFirestore db,
-    required String installId,
-  }) : _auth = auth,
-       _functions = functions,
-       _db = db,
-       _installId = installId;
+  FirebaseAuthRepository(this._auth, this._functions, this._db, this._installId);
 
   final FirebaseAuth _auth;
   final FirebaseFunctions _functions;
@@ -157,9 +149,9 @@ class FirebaseAuthRepository implements AuthRepository {
 
 final Provider<AuthRepository> authRepositoryProvider = Provider<AuthRepository>(
   (Ref ref) => FirebaseAuthRepository(
-    auth: ref.watch(firebaseAuthProvider),
-    functions: functionsClient(),
-    db: ref.watch(firestoreProvider),
-    installId: ref.watch(installIdProvider),
+    ref.watch(firebaseAuthProvider),
+    functionsClient(),
+    ref.watch(firestoreProvider),
+    ref.watch(installIdProvider),
   ),
 );

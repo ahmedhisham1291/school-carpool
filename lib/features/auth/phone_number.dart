@@ -1,3 +1,4 @@
+import 'package:school_carpool/design/bidi.dart';
 import 'package:school_carpool/design/components/digits_input_formatter.dart';
 
 /// Egyptian mobile numbers, checked as the parent types. The server runs
@@ -31,8 +32,8 @@ abstract final class EgyptPhone {
   static String display(String e164) {
     final String local = e164.startsWith('+20') ? e164.substring(3) : e164;
     if (local.length != 10) {
-      return '⁦$e164⁩';
+      return ltrIsolate(e164);
     }
-    return '⁦+20 ${local.substring(0, 2)} ${local.substring(2, 6)} ${local.substring(6)}⁩';
+    return ltrIsolate('+20 ${local.substring(0, 2)} ${local.substring(2, 6)} ${local.substring(6)}');
   }
 }

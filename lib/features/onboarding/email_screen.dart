@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/bidi.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
@@ -179,7 +180,7 @@ class _EmailScreenState extends ConsumerState<EmailScreen> with WidgetsBindingOb
     return OnboardingLayout(
       step: 3,
       title: l10n.emailCheckTitle,
-      body: l10n.emailCheckBody('⁦$sentTo⁩'),
+      body: l10n.emailCheckBody(ltrIsolate(sentTo)),
       primary: AppButton(
         key: const Key('email.confirmed'),
         label: l10n.emailConfirmed,
