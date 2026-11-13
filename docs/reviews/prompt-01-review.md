@@ -267,3 +267,121 @@ I also checked these APIs against the sources:
 - Visual quality of the two directions: no rendering here (issue 17).
 - `tool/patch_native.py` on the real Flutter 3.50 templates: the builder
   says it tested this; I reviewed the code only.
+
+---
+
+# Re-review (round 2)
+
+Reviewed commits `7f8b0c9..cf993d0` (10 builder commits after `bbe0f6e`).
+As before, no Flutter SDK is available here, so analyze and test were not
+run. Checks were made against the package sources at their release tags.
+
+## Verdict
+
+**PASS.** Both blocking issues are fixed, and I found no new blocking
+compile risk in the changed code.
+
+## Blocking fixes
+
+1. **Issue 1 (final reassigned in catch) is fixed.**
+   `settings_section.dart:155-173` now calls
+   `_callFunctionTestError(l10n)`, which `return`s from `try` and from each
+   `on` clause. Its result goes into
+   `final String feedback = await ...`. No final local is assigned in a
+   catch any more. `context` is still read only before the `await`.
+2. **Issue 2 (rules contexts created before `env`) is fixed.**
+   `tests/rules/deny_all.test.ts:59-95`: the `users` list holds `make`
+   closures, and each `it` calls `make()` inside the test body. That runs
+   after the async `before()`, so `env` is set by then. The same
+   test coverage is kept: 12 paths x 4 identities, plus a collection list
+   and Storage.
+
+## New and changed code
+
+- **`.github/workflows/checks.yml`** (new tool; the owner approved it, see
+  progress note "Owner decisions" 5). It should run on `ubuntu-latest`:
+  - **Action SHAs:** each one matches its tag. Checked with
+    `git ls-remote`:
+    - `actions/checkout@3d3c42e` = v7 / v7.0.1
+    - `subosito/flutter-action@1a44944` = v2 / v2.23.0
+    - `actions/upload-artifact@cf430e0` = v7 / v7.0.2
+    - `actions/setup-java@b843ebf` = v6 / v6.1.0
+    - `actions/setup-node@949feb2` = v7 / v7.1.0
+    - `actions/cache@55cc834` = v6 / v6.1.0
+  - **flutter-action:** `channel: stable`, `flutter-version: 3.50.0` and
+    `cache: true` are valid inputs. 3.50.0 is a real stable tag and
+    satisfies `sdk ^3.13`.
+  - **Bootstrap:** it needs only bash, python3 and flutter, all present on
+    ubuntu runners. `flutter create --platforms=ios` works on Linux, and the
+    xcodeproj step is skipped off macOS.
+  - **builds job:** Java 17 plus the runner's preinstalled Android SDK is
+    enough for the 3.50 Gradle/AGP template. The web build and the
+    debug-signed release APK look right.
+  - **backend job:** Node 22 and Java 21 (the firebase-tools 15 emulators
+    need Java 21). `npx --yes firebase-tools@15 emulators:exec --only
+    firestore,storage --project demo-school-carpool "npm --prefix
+    tests/rules test"` runs from the repo root, where `firebase.json` is.
+    `singleProjectMode` only warns about the tests' separate project id.
+    The emulator jars are cached in `~/.cache/firebase/emulators`.
+  - **Artifact upload:** `if: always()` with `if-no-files-found: warn`,
+    which is right for the screenshots.
+- **Screenshots (`test/screenshots/screenshots_test.dart`).** The approach
+  is sound:
+  - `skip: !autoUpdateGoldenFiles` means a plain `flutter test` skips
+    these tests; `--update-goldens` writes 16 PNGs to
+    `test/screenshots/goldens/`. That folder is gitignored and uploaded as
+    an artifact.
+  - The real fonts are loaded through `FontLoader`. The `services.dart`
+    import is needed, because `material_ui` does not export `FontLoader`
+    or `rootBundle`.
+  - The MaterialIcons load is wrapped in a `try`, so a missing font cannot
+    fail the run.
+  - Overriding `routerProvider` with a router per location is valid. The
+    tests use `pump`, not `pumpAndSettle`, because the skeleton animation
+    loops.
+- **Reduce motion:**
+  - `AppMotion.reduceMotion` now also checks `MediaQuery.maybeReduceMotionOf`
+    (exists in 3.50, `media_query.dart:2073`).
+  - `platformReducesMotion()` reads `AccessibilityFeatures.reduceMotion`
+    and `disableAnimations` (both in `dart:ui`, `window.dart:954,965`).
+  - `CarpoolApp` becomes a `ConsumerStatefulWidget` with
+    `WidgetsBindingObserver.didChangeAccessibilityFeatures`, so the theme
+    is rebuilt when the setting changes.
+  - The theme switches off button `animationDuration`,
+    `themeAnimationDuration` and page transitions.
+  - `NoMotionPageTransitionsBuilder` overrides `transitionDuration` and
+    `buildTransitions<T>` with signatures that match the widgets-layer base
+    class. `TargetPlatform` reaches the app through `material_ui` →
+    `widgets.dart` (`basic.dart:37`).
+  - The new tokens tests cover iOS `reduceMotion` and the reduced theme.
+- **`codemagic.yaml`** now holds iOS workflows only: `ios-staging` runs on
+  main, `v*` tags and manual starts, and `ios-dev` runs only when started
+  by hand. The Apple ID placeholders are quoted strings now, and the YAML
+  parses. Issues 7, 8 and 18 are fixed.
+- **Other review items:**
+  - Fixed: the Arabic default for `StartupErrorApp` (10); helper and error
+    text at 16 (13); the button loading label as an ARB message with a
+    placeholder and an Arabic comma (15); the sample value moved to ARB
+    (15); the unused `actionClose` removed (16); `flutter: ">=3.50.0"` and
+    the corrected comments (3, 4); the `.pyc` removed and ignored (6).
+  - ARB parity re-checked: 71/71 keys and matching placeholders, and every
+    `l10n.*` key used in the code is defined.
+
+## Non-blocking (new or still open)
+
+- R1. There are still no lockfiles (`pubspec.lock`, `package-lock.json`).
+  Commit them from the first green Actions run.
+- R2. Actions pins Flutter 3.50.0, but Codemagic uses `flutter: stable`.
+  Pin Codemagic to `3.50.0` too, so iOS builds the same SDK that CI
+  checked.
+- R3. The screenshot run renders the gallery at 390x5200 logical pixels,
+  ratio 2, about 10k px tall. That is fine for an artifact, but if the
+  runner gets tight on memory, split the gallery into two images.
+- R4. Earlier items 11 (Dart scrubber: `contexts`) and 19 (no iOS compile
+  on branches) are deferred in the progress note. That is acceptable.
+
+## Still not verified here
+
+`flutter analyze`, `flutter test` and the screenshot output; the Actions
+and Codemagic runs; the TestFlight install and Sentry delivery. The first
+green `checks` run on GitHub is the real confirmation.
