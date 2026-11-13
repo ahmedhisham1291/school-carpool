@@ -183,15 +183,13 @@ class VerificationDraft {
 
   /// Every image to upload, by upload name.
   Map<String, Uint8List> files() => <String, Uint8List>{
-    if (idFront != null) VerificationDocument.idFront.fileName: idFront!,
-    if (idBack != null) VerificationDocument.idBack.fileName: idBack!,
-    if (selfie != null) VerificationDocument.selfie.fileName: selfie!,
-    if (selfieTurn != null) VerificationDocument.selfieTurn.fileName: selfieTurn!,
-    for (final ChildDraft child in children)
-      if (child.schoolIdPhoto != null) schoolIdFileName(child.ref): child.schoolIdPhoto!,
-    if (drives && driver.licensePhoto != null) VerificationDocument.license.fileName: driver.licensePhoto!,
-    if (drives && driver.carLicensePhoto != null)
-      VerificationDocument.carLicense.fileName: driver.carLicensePhoto!,
+    VerificationDocument.idFront.fileName: ?idFront,
+    VerificationDocument.idBack.fileName: ?idBack,
+    VerificationDocument.selfie.fileName: ?selfie,
+    VerificationDocument.selfieTurn.fileName: ?selfieTurn,
+    for (final ChildDraft child in children) schoolIdFileName(child.ref): ?child.schoolIdPhoto,
+    if (drives) VerificationDocument.license.fileName: ?driver.licensePhoto,
+    if (drives) VerificationDocument.carLicense.fileName: ?driver.carLicensePhoto,
   };
 
   /// Body of the submitVerification call.

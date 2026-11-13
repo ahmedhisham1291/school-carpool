@@ -30,13 +30,7 @@ abstract interface class VerificationRepository {
 }
 
 class FirebaseVerificationRepository implements VerificationRepository {
-  FirebaseVerificationRepository({
-    required FirebaseStorage storage,
-    required FirebaseFunctions functions,
-    required FirebaseFirestore db,
-  }) : _storage = storage,
-       _functions = functions,
-       _db = db;
+  FirebaseVerificationRepository(this._storage, this._functions, this._db);
 
   final FirebaseStorage _storage;
   final FirebaseFunctions _functions;
@@ -115,9 +109,9 @@ class FirebaseVerificationRepository implements VerificationRepository {
 
 final Provider<VerificationRepository> verificationRepositoryProvider = Provider<VerificationRepository>(
   (Ref ref) => FirebaseVerificationRepository(
-    storage: FirebaseStorage.instance,
-    functions: functionsClient(),
-    db: ref.watch(firestoreProvider),
+    FirebaseStorage.instance,
+    functionsClient(),
+    ref.watch(firestoreProvider),
   ),
 );
 

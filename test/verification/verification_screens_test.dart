@@ -11,7 +11,6 @@ import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
-import 'package:school_carpool/features/verification/capture_screen.dart';
 import 'package:school_carpool/features/verification/verification_draft.dart';
 import 'package:school_carpool/features/verification/verification_failure.dart';
 import 'package:school_carpool/features/verification/verification_flow_screen.dart';

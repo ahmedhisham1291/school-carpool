@@ -182,7 +182,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
           debugPrint('capture: temporary file not deleted ($error)');
         }
       }
-      return compressor.compress(raw, document: !widget.request.isSelfie);
+      return await compressor.compress(raw, document: !widget.request.isSelfie);
     } on CameraException {
       if (mounted) {
         setState(() => _phase = _Phase.failed);

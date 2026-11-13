@@ -213,7 +213,7 @@ void main() {
     });
 
     test('the account record reads the verification summary', () {
-      final Account a = Account.fromMap(<String, dynamic>{
+      final Account a = Account.fromMap(const <String, dynamic>{
         'parentId': 'ABCD2345',
         'status': 'pending',
         'firstName': 'Mona',
@@ -225,7 +225,7 @@ void main() {
     });
 
     test('children and grades', () {
-      final ChildRecord child = ChildRecord.fromDoc('k1', <String, dynamic>{
+      final ChildRecord child = ChildRecord.fromDoc('k1', const <String, dynamic>{
         'firstName': 'Omar',
         'age': 8,
         'grade': 'kg2',
