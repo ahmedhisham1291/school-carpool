@@ -19,6 +19,8 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, GeoPoint, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { carpoolToDoc, memberToDoc, membershipToDoc } from "../src/carpools/store";
+import type { MembershipRecord } from "../src/carpools/model";
 import { roundToGrid } from "../src/maps/geo";
 import { buildPublicLocation, defaultHome, type HomeRecord, type PublicLocation } from "../src/maps/parent_map";
 import { searchKeysFor } from "../src/schools/catalog";
@@ -302,6 +304,80 @@ async function main(): Promise<void> {
     const pub = buildPublicLocation(home, { status: "verified", firstName: mapNames[j] }, [schools[0].id], null, now.toMillis());
     if (pub) batch.set(db.collection("parentLocations").doc(uid), publicDoc(pub));
     if (pub && j === 0 && JSON.stringify(roundToGrid(location)) !== JSON.stringify(pub.point)) throw new Error("rounding mismatch");
+  }
+
+  // Prompt 6: approved cars for the first three map parents (Hoda, Tarek,
+  // Rania), so they can drive and be accepted as drivers, and one ready
+  // carpool by Hoda at the Nile school (Degla) with Tarek approved. Play
+  // these parents with `npm --prefix functions run carpool:emulator`.
+  for (let j = 0; j < 3; j++) {
+    const uid = `seed-map-parent-${j + 1}`;
+    batch.set(db.collection("vehicles").doc(uid), {
+      driverUid: uid,
+      plate: `TEST ${100 + j}`,
+      model: "Test car",
+      color: "White",
+      seats: 4,
+      licenseExpiry: "2030-01-31",
+      carLicenseExpiry: "2030-01-31",
+      status: "approved",
+      reasonCode: null,
+      caseId: null,
+      updatedAt: now,
+    });
+  }
+  const seedCarpoolId = "seed-carpool-1";
+  const nowMs = now.toMillis();
+  const seedMember = (j: number, role: "admin" | "member"): MembershipRecord => ({
+    carpoolId: seedCarpoolId,
+    uid: `seed-map-parent-${j + 1}`,
+    status: "approved",
+    role,
+    firstName: mapNames[j],
+    children: [{ id: `seed-map-child-${j + 1}`, firstName: childNames[j % childNames.length], grade: `g${1 + (j % 8)}` }],
+    car: { seats: 4, validUntil: "2030-01-31" },
+    drivingDays: role === "admin" ? ["sun", "tue", "thu"] : ["mon", "wed"],
+    acceptedRules: true,
+    acceptedContribution: true,
+    requestedAtMs: nowMs,
+    decidedAtMs: nowMs,
+    decidedBy: "seed-map-parent-1",
+    updatedAtMs: nowMs,
+  });
+  batch.set(
+    db.collection("carpools").doc(seedCarpoolId),
+    carpoolToDoc({
+      id: seedCarpoolId,
+      kind: "school",
+      schoolId: schools[0].id,
+      schoolNameAr: schools[0].nameAr,
+      schoolNameEn: schools[0].nameEn,
+      areaId: schools[0].areas[0].id,
+      areaNameAr: schools[0].areas[0].nameAr,
+      areaNameEn: schools[0].areas[0].nameEn,
+      activity: null,
+      morning: "07:30",
+      afternoon: "14:30",
+      days: ["sun", "mon", "tue", "wed", "thu"],
+      seats: 4,
+      childrenCount: 2,
+      memberCount: 2,
+      rules: ["no_smoking", "seat_belts", "wait_5_min"],
+      contribution: { amount: 50, period: "week", note: "Fuel share (test)" },
+      creatorUid: "seed-map-parent-1",
+      creatorFirstName: mapNames[0],
+      status: "active",
+      createdAtMs: nowMs,
+      updatedAtMs: nowMs,
+    }),
+  );
+  for (const [j, role] of [[0, "admin"], [1, "member"]] as const) {
+    const m = seedMember(j, role);
+    batch.set(db.collection("memberships").doc(`${seedCarpoolId}_${m.uid}`), membershipToDoc(m));
+    batch.set(
+      db.collection("carpools").doc(seedCarpoolId).collection("members").doc(m.uid),
+      memberToDoc({ uid: m.uid, role, firstName: m.firstName, children: m.children, car: m.car, drivingDays: m.drivingDays, pickupShared: false, joinedAtMs: nowMs }),
+    );
   }
 
   // "Other" schools waiting for review (Prompt 4B adds them from the app).

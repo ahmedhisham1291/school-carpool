@@ -218,7 +218,7 @@ export function memberFromDoc(uid: string, d: DocumentData): MemberRecord {
   };
 }
 
-function memberToDoc(m: MemberRecord): DocumentData {
+export function memberToDoc(m: MemberRecord): DocumentData {
   return {
     uid: m.uid,
     role: m.role,
@@ -243,7 +243,7 @@ export function consentFromDoc(d: DocumentData): ConsentRecord {
   };
 }
 
-function consentToDoc(c: ConsentRecord): DocumentData {
+export function consentToDoc(c: ConsentRecord): DocumentData {
   return {
     carpoolId: c.carpoolId,
     parentUid: c.parentUid,
