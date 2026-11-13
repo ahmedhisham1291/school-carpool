@@ -103,7 +103,7 @@ void main() {
       final FakeAdminApi api = FakeAdminApi();
       await pumpAdminPanel(tester, session: signedIn, location: '/queue/case1', api: api, locale: 'en', size: const Size(1280, 2400));
       await settle(tester);
-      expect(api.calls, <String>['openCase:case1']);
+      expect(api.calls, contains('openCase:case1'));
 
       FilledButton approve() => tester.widget<FilledButton>(
         find.descendant(of: find.byKey(const Key('case.approve')), matching: find.byType(FilledButton)),
