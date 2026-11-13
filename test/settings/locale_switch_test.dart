@@ -76,6 +76,7 @@ void main() {
           overrides: [
             flavorConfigProvider.overrideWithValue(testDevConfig),
             settingsStoreProvider.overrideWithValue(store),
+            ...authOverrides(),
           ],
           child: const CarpoolApp(),
         ),

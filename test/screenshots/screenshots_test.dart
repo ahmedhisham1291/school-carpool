@@ -1,8 +1,9 @@
 // Screenshots for the owner (no Mac needed). Written, not run here.
 //
-// Renders the tab shell and the component gallery in Arabic and English,
-// light and dark (gallery also in design directions A and B) with the real
-// bundled fonts, and writes PNGs to test/screenshots/goldens/.
+// Renders the tab shell, the sign-up screens (Prompt 2) and the component
+// gallery in Arabic and English, light and dark (gallery also in design
+// directions A and B) with the real bundled fonts, and writes PNGs to
+// test/screenshots/goldens/.
 //
 // These tests only run with --update-goldens (they are skipped in a plain
 // `flutter test`, so there are no committed images to compare against):
@@ -19,7 +20,10 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/app.dart';
 import 'package:school_carpool/config/flavor.dart';
+import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/auth/signup_flow.dart';
 import 'package:school_carpool/router/app_router.dart';
+import 'package:school_carpool/router/session_redirect.dart';
 import 'package:school_carpool/settings/app_settings.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
@@ -61,6 +65,7 @@ Future<void> _pumpScreen(
   required String direction,
   required Size logicalSize,
   required double pixelRatio,
+  SessionState session = testVerifiedSession,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -82,6 +87,8 @@ Future<void> _pumpScreen(
           }),
         ),
         routerProvider.overrideWithValue(router),
+        ...authOverrides(session: session),
+        signupFlowProvider.overrideWith(_PresetSignupFlow.new),
       ],
       child: const CarpoolApp(),
     ),
@@ -89,6 +96,15 @@ Future<void> _pumpScreen(
   // The gallery has a looping skeleton animation: pump frames, do not settle.
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
+}
+
+/// The code screen needs a number the code was "sent" to. Fake number.
+class _PresetSignupFlow extends SignupFlowController {
+  @override
+  SignupFlowState build() => SignupFlowState(
+    phoneE164: '+201000000001',
+    resendAvailableAt: DateTime.now().add(const Duration(seconds: 45)),
+  );
 }
 
 void main() {
@@ -113,6 +129,37 @@ void main() {
             direction: 'a',
             logicalSize: const Size(390, 844),
             pixelRatio: 3,
+          );
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Sign-up screens (Prompt 2) and the screens of an unverified account.
+  const Map<String, String> signupScreens = <String, String>{
+    'welcome': AuthRoutes.welcome,
+    'phone': AuthRoutes.phone,
+    'code': AuthRoutes.code,
+    'email': AuthRoutes.email,
+    'terms': AuthRoutes.terms,
+    'verify_account': AuthRoutes.verifyAccount,
+    'profile_unverified': '/profile',
+  };
+  for (final MapEntry<String, String> screen in signupScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'signup_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: screen.value,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            session: testUnverifiedSession,
           );
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
         });

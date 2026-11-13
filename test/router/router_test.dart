@@ -9,6 +9,7 @@ import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
 import 'package:school_carpool/features/placeholder/placeholder_tab_screen.dart';
+import 'package:school_carpool/features/profile/profile_screen.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/settings/settings_store.dart';
@@ -27,6 +28,7 @@ void main() {
         overrides: [
           flavorConfigProvider.overrideWithValue(config),
           settingsStoreProvider.overrideWithValue(InMemorySettingsStore()),
+          ...authOverrides(),
         ],
         child: MaterialApp.router(
           routerConfig: router,
@@ -52,17 +54,16 @@ void main() {
     }
   });
 
-  testWidgets('each tab opens its own placeholder screen', (WidgetTester tester) async {
+  testWidgets('each tab opens its own screen', (WidgetTester tester) async {
     final GoRouter router = await pumpRouter(tester, config: testDevConfig);
     final Map<IconData, AppTab> icons = <IconData, AppTab>{
       Icons.directions_car_outlined: AppTab.carpools,
       Icons.chat_bubble_outline_rounded: AppTab.chats,
       Icons.notifications_none_rounded: AppTab.notifications,
-      Icons.person_outline_rounded: AppTab.profile,
       Icons.home_outlined: AppTab.home,
     };
     for (final MapEntry<IconData, AppTab> entry in icons.entries) {
-      await tester.tap(find.byIcon(entry.key));
+      await tester.tap(find.byIcon(entry.key).first);
       await tester.pumpAndSettle();
       expect(currentPath(router), entry.value.path);
       final PlaceholderTabScreen screen = tester.widget<PlaceholderTabScreen>(
@@ -70,6 +71,11 @@ void main() {
       );
       expect(screen.tab, entry.value);
     }
+    // Profile has its own screen since Prompt 2.
+    await tester.tap(find.byIcon(Icons.person_outline_rounded).first);
+    await tester.pumpAndSettle();
+    expect(currentPath(router), AppTab.profile.path);
+    expect(find.byType(ProfileScreen).hitTestable(), findsOneWidget);
   });
 
   testWidgets('dev build opens the component gallery', (WidgetTester tester) async {
