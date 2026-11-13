@@ -111,11 +111,22 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Schools and areas: written only by Cloud Functions (admin panel,
-    // Prompt 4; import, Prompt 4B). Parent reads open in Prompt 4B.
-    match /schools/{id} {
-      allow read, write: if false;
+    // Prompt 4B (F4): the schools list. Written only by Cloud Functions
+    // (import script, admin panel, addOtherSchool). A signed-in user reads
+    // active schools (public school names and places; queries at most 200
+    // at a time) and only their OWN school typed under "Other" while it
+    // awaits review. Merged schools and other parents' pending schools
+    // stay hidden. Approving a school removes the parent's uid from it.
+    function schoolVisible() {
+      return resource.data.status == 'active'
+        || (resource.data.status == 'awaiting_review' && resource.data.addedBy == request.auth.uid);
     }
+    match /schools/{id} {
+      allow get: if signedIn() && schoolVisible();
+      allow list: if signedIn() && request.query.limit <= 200 && schoolVisible();
+      allow create, update, delete: if false;
+    }
+    // Areas open with the maps prompt (Prompt 5).
     match /areas/{id} {
       allow read, write: if false;
     }

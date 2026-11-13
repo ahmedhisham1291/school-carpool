@@ -112,7 +112,8 @@ describe("audit log", () => {
 });
 
 describe("admin panel collections are closed (functions only)", () => {
-  const paths = ["admins/admin1", "adminLimits/admin1", "moderations/m1", "reports/r1", "schools/s1", "areas/a1"];
+  // schools/ is readable by signed-in users since Prompt 4B (tests/rules/schools.test.ts).
+  const paths = ["admins/admin1", "adminLimits/admin1", "moderations/m1", "reports/r1", "areas/a1"];
   for (const path of paths) {
     it(`nobody reads or writes ${path}, admins with two steps included`, async () => {
       for (const make of [asAdmin, asSuperAdmin, asParent, signedOut]) {

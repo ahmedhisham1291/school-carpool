@@ -46,6 +46,8 @@ after(async () => {
 const paths = [
   // users/alice is readable by alice since Prompt 2 (users.test.ts).
   "users/bob",
+  // Active schools are readable since Prompt 4B (schools.test.ts); s1 has
+  // no status, so it stays hidden.
   "schools/s1",
   "areas/a1",
   // children/{id} is readable by its owner since Prompt 3
