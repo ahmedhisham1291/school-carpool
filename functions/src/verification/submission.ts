@@ -17,6 +17,7 @@ export type VerificationErrorReason =
   | "invalid-expiry"
   | "id-expired"
   | "invalid-child"
+  | "unknown-school"
   | "invalid-driver"
   | "license-expired"
   | "missing-children"
@@ -86,7 +87,9 @@ export interface ChildSubmission {
   firstName: string;
   age: number;
   grade: Grade;
-  /** Typed school name until the schools list (F4) arrives. */
+  /** The school picked from the schools list, or the parent's own "Other" school (F4). */
+  schoolId: string;
+  /** The name the app showed; the server keeps it only if it is one of the school's names. */
   schoolName: string;
 }
 
@@ -127,6 +130,8 @@ const FREE_TEXT = /^[\p{L}\p{M}\p{N} .,'()&’/-]+$/u;
 /** Child slots c1 to c10 (MAX_CHILDREN); storage.rules allows the same names. */
 const REF = /^c([1-9]|10)$/;
 const DOC_ID = /^[A-Za-z0-9]{1,40}$/;
+/** School document IDs: generated ones and the import's "osm-n123" (catalog.ts). */
+const SCHOOL_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export function cleanName(value: unknown): string | null {
@@ -191,13 +196,14 @@ function parseChild(value: unknown): ChildSubmission {
   const firstName = cleanName(raw.firstName);
   const age = raw.age;
   const grade = GRADES.includes(raw.grade as Grade) ? (raw.grade as Grade) : null;
-  const schoolName = cleanText(raw.schoolName, 2, 100);
+  const schoolId = typeof raw.schoolId === "string" && SCHOOL_ID.test(raw.schoolId) ? raw.schoolId : null;
+  const schoolName = raw.schoolName === undefined || raw.schoolName === null ? "" : cleanText(raw.schoolName, 2, 120);
   const ageOk = typeof age === "number" && Number.isInteger(age) && age >= CHILD_MIN_AGE && age <= CHILD_MAX_AGE;
   const idOk = childId === null || (typeof childId === "string" && DOC_ID.test(childId));
-  if (!ref || !firstName || !ageOk || !grade || !schoolName || !idOk) {
+  if (!ref || !firstName || !ageOk || !grade || !schoolId || schoolName === null || !idOk) {
     throw new VerificationError("invalid-child", { ref });
   }
-  return { ref, childId: childId as string | null, firstName, age: age as number, grade, schoolName };
+  return { ref, childId: childId as string | null, firstName, age: age as number, grade, schoolId, schoolName };
 }
 
 function parseDriver(raw: Record<string, unknown>, today: string): DriverSubmission {

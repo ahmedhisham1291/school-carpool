@@ -1,0 +1,123 @@
+{
+ "type": "FeatureCollection",
+ "name": "SAMPLE polygons (hand-written, not OSM data)",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Cairo American College",
+    "name:ar": "كلية القاهرة الأمريكية",
+    "name:en": "Cairo American College",
+    "amenity": "school",
+    "building": "school",
+    "osm_id": 200001,
+    "osm_type": "way"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       31.264,
+       29.958799999999997
+      ],
+      [
+       31.265600000000003,
+       29.958799999999997
+      ],
+      [
+       31.265600000000003,
+       29.9604
+      ],
+      [
+       31.264,
+       29.9604
+      ],
+      [
+       31.264,
+       29.958799999999997
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "كليه فكتوريا",
+    "name:ar": "كليه فكتوريا",
+    "name:en": "Victoria Collage",
+    "amenity": "school",
+    "building": "school",
+    "osm_id": 200002,
+    "osm_type": "way"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       29.969199999999997,
+       31.241999999999997
+      ],
+      [
+       29.9708,
+       31.241999999999997
+      ],
+      [
+       29.9708,
+       31.2436
+      ],
+      [
+       29.969199999999997,
+       31.2436
+      ],
+      [
+       29.969199999999997,
+       31.241999999999997
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "El Alsson School",
+    "name:ar": "مدرسة الالسن",
+    "name:en": "El Alsson School",
+    "amenity": "school",
+    "building": "school",
+    "osm_id": 200003,
+    "osm_type": "way"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       31.144399999999997,
+       29.9442
+      ],
+      [
+       31.146,
+       29.9442
+      ],
+      [
+       31.146,
+       29.945800000000002
+      ],
+      [
+       31.144399999999997,
+       29.945800000000002
+      ],
+      [
+       31.144399999999997,
+       29.9442
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

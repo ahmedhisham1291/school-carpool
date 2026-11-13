@@ -88,9 +88,43 @@ Limits below are the public free allowances as understood in November 2026.
   make few calls.
 - **Upgrade when:** never needed for the panel alone at pilot size.
 
+## Schools list (Prompt 4B)
+
+- **Algolia Build (free) plan:** 10,000 search requests and 10,000
+  recommend requests a month, up to 1 million records, one application.
+  Egypt's OpenStreetMap export has a few tens of thousands of schools, far
+  below the record limit. The plan's terms say it is for evaluation and
+  not for production use (see open question 3).
+- **Searches:** the picker waits 300 ms after the last key press and needs
+  2 letters, so one school search is usually 2 to 4 requests. At about 3
+  searches per parent (registration and children), 10,000 requests cover
+  roughly 1,000 parents a month. Dev and CI use the fake search: zero.
+- **Index writes:** `syncSchoolToSearch` writes only when a school's
+  indexed fields change, so loading the same file again costs nothing.
+  The first import sends every school once.
+- **Search key:** one `getSchoolSearchKey` call per app session per hour.
+- **Per-parent limits:** the secured keys carry a hashed user token, so
+  Algolia's limit of 100 searches an hour counts per parent (not per IP
+  address), and each parent gets at most 6 keys a day: at most about 600
+  requests a day for one account, so one abusive account needs many days
+  (and a verified identity soon after sign-up) to use up the free month.
+  Answers are cached on the phone for 10 minutes. The fake search is
+  refused in prod.
+- **Firestore:** the loader reads every school once per run (about 30,000
+  reads, inside the free 50,000 a day; run it at most once a day) and
+  writes only new or changed schools. The dev fake reads at most 200
+  schools once per app start, on the emulators only.
+- **Usage tracking:** Algolia dashboard > Usage (search requests).
+- **Upgrade when:** 8,000 search requests in a month, or before the
+  public launch if Algolia's terms rule out the Build plan for us.
+
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub
    Actions.
 2. Cloud Storage outside the free US regions is billed from the first GB.
    The bucket region is part of the hosting decision with the lawyer.
+3. Algolia's Build plan terms say it is "provided only for evaluation
+   purposes" and not for production use. Before launch, either ask
+   Algolia's non-profit programme (the app is free and non-profit) or
+   budget the pay-as-you-go Grow plan. The fake search keeps dev free.

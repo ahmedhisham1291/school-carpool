@@ -1110,10 +1110,6 @@
   "@textErrorInvalid": {
     "description": "Field error"
   },
-  "schoolErrorInvalid": "اكتب اسم المدرسة، حرفين على الأقل.",
-  "@schoolErrorInvalid": {
-    "description": "Field error"
-  },
   "childAddTitle": "أضف طفلًا",
   "@childAddTitle": {
     "description": "Title/button"
@@ -1176,7 +1172,7 @@
   "@childSchoolLabel": {
     "description": "Field"
   },
-  "childSchoolHelper": "اكتب اسم المدرسة. سيتوفر الاختيار من قائمة قريبًا.",
+  "childSchoolHelper": "ابحث في القائمة، أو أضفها من «مدرسة أخرى».",
   "@childSchoolHelper": {
     "description": "Field helper"
   },
@@ -2550,5 +2546,162 @@
   "adminWithdrawn": "سحبه ولي الأمر",
   "@adminWithdrawn": {
     "description": "Admin panel: case the parent withdrew before review (badge, audit action; one line)"
+  },
+  "schoolPickerTitle": "اختيار المدرسة",
+  "@schoolPickerTitle": {
+    "description": "App bar title of the school picker"
+  },
+  "schoolSearchLabel": "اسم المدرسة",
+  "@schoolSearchLabel": {
+    "description": "Search field label in the school picker"
+  },
+  "schoolSearchPlaceholder": "بالعربية أو الإنجليزية",
+  "@schoolSearchPlaceholder": {
+    "description": "Search field hint"
+  },
+  "schoolSearchHint": "اكتب حرفين على الأقل من اسم المدرسة.",
+  "@schoolSearchHint": {
+    "description": "Shown before the parent types"
+  },
+  "schoolAllGovernorates": "كل المحافظات",
+  "@schoolAllGovernorates": {
+    "description": "Governorate filter chip when no governorate is chosen"
+  },
+  "schoolGovernorateSheetTitle": "المحافظة",
+  "@schoolGovernorateSheetTitle": {
+    "description": "Title of the governorate filter sheet"
+  },
+  "schoolNoResultsTitle": "لا توجد نتائج",
+  "@schoolNoResultsTitle": {
+    "description": "Empty state title"
+  },
+  "schoolNoResultsBody": "راجع الكتابة، أو أضفها من «مدرسة أخرى».",
+  "@schoolNoResultsBody": {
+    "description": "Empty state body"
+  },
+  "schoolAwaitingReview": "قيد المراجعة",
+  "@schoolAwaitingReview": {
+    "description": "Subtitle of the parent's own school waiting for an admin"
+  },
+  "schoolOtherTitle": "مدرسة أخرى",
+  "@schoolOtherTitle": {
+    "description": "Last row of every result list"
+  },
+  "schoolOtherSubtitle": "غير موجودة؟ أضفها.",
+  "@schoolOtherSubtitle": {
+    "description": "Subtitle of the Other row"
+  },
+  "otherSchoolTitle": "إضافة مدرسة",
+  "@otherSchoolTitle": {
+    "description": "App bar title of the Other school form"
+  },
+  "otherSchoolBody": "سنراجعها ونضيفها إلى القائمة. يمكنك المتابعة الآن.",
+  "@otherSchoolBody": {
+    "description": "Intro of the Other school form"
+  },
+  "otherSchoolNameLabel": "اسم المدرسة",
+  "@otherSchoolNameLabel": {
+    "description": "Field label"
+  },
+  "otherSchoolNameHelper": "كما هو مكتوب على لافتة المدرسة.",
+  "@otherSchoolNameHelper": {
+    "description": "Field helper"
+  },
+  "otherSchoolNameError": "اكتب الاسم كاملًا، 3 أحرف على الأقل.",
+  "@otherSchoolNameError": {
+    "description": "Field error"
+  },
+  "otherSchoolGovernorateLabel": "المحافظة",
+  "@otherSchoolGovernorateLabel": {
+    "description": "Field label"
+  },
+  "otherSchoolPinLabel": "الموقع (اختياري)",
+  "@otherSchoolPinLabel": {
+    "description": "Field label"
+  },
+  "otherSchoolPinErrorFormat": "اكتب رقمين: خط العرض، خط الطول.",
+  "@otherSchoolPinErrorFormat": {
+    "description": "Field error"
+  },
+  "otherSchoolPinErrorOutside": "هذا الموقع خارج مصر. راجع الأرقام.",
+  "@otherSchoolPinErrorOutside": {
+    "description": "Field error"
+  },
+  "otherSchoolIncomplete": "أضف الاسم والمحافظة.",
+  "@otherSchoolIncomplete": {
+    "description": "Shown above the disabled button"
+  },
+  "otherSchoolSave": "إضافة المدرسة",
+  "@otherSchoolSave": {
+    "description": "Primary button"
+  },
+  "otherSchoolAdded": "تمت إضافة المدرسة",
+  "@otherSchoolAdded": {
+    "description": "Snackbar"
+  },
+  "otherSchoolTooMany": "لديك 5 مدارس قيد المراجعة. انتظر الرد.",
+  "@otherSchoolTooMany": {
+    "description": "Error"
+  },
+  "childSchoolPlaceholder": "اختر المدرسة",
+  "@childSchoolPlaceholder": {
+    "description": "Placeholder of the school field"
+  },
+  "childSchoolPendingHelper": "قيد المراجعة. يمكنك المتابعة.",
+  "@childSchoolPendingHelper": {
+    "description": "Helper when the picked school awaits review"
+  },
+  "verifyErrorSchool": "اختر المدرسة مرة أخرى.",
+  "@verifyErrorSchool": {
+    "description": "Error when the server does not accept the child's school"
+  },
+  "gallerySampleSchool": "مدرسة النيل الدولية",
+  "@gallerySampleSchool": {
+    "description": "Sample value in the component gallery"
+  },
+  "aboutTitle": "عن التطبيق",
+  "@aboutTitle": {
+    "description": "App bar title and Profile row"
+  },
+  "profileAboutHelper": "مصادر البيانات والتراخيص",
+  "@profileAboutHelper": {
+    "description": "Subtitle of the About row"
+  },
+  "aboutBody": "تطبيق مجاني غير ربحي لأولياء الأمور في مصر لتبادل توصيل الأطفال إلى المدرسة.",
+  "@aboutBody": {
+    "description": "About card text"
+  },
+  "aboutDataSection": "مصادر البيانات",
+  "@aboutDataSection": {
+    "description": "Section header"
+  },
+  "aboutOsmCredit": "تستخدم قائمة المدارس بيانات © المساهمون في OpenStreetMap، المتاحة بموجب رخصة قاعدة البيانات المفتوحة (ODbL).",
+  "@aboutOsmCredit": {
+    "description": "Attribution required by the OpenStreetMap licence; keep the © OpenStreetMap contributors wording"
+  },
+  "aboutOsmLinkTitle": "تفاصيل الترخيص",
+  "@aboutOsmLinkTitle": {
+    "description": "Row that copies the OpenStreetMap copyright link"
+  },
+  "aboutLinkCopied": "تم نسخ الرابط",
+  "@aboutLinkCopied": {
+    "description": "Snackbar"
+  },
+  "aboutSoftwareSection": "البرامج",
+  "@aboutSoftwareSection": {
+    "description": "Section header"
+  },
+  "aboutLicenses": "تراخيص المصادر المفتوحة",
+  "@aboutLicenses": {
+    "description": "Row that opens the licences page"
+  },
+  "otherSchoolPinHelper": "الصقه من خرائط جوجل، مثل {example}.",
+  "@otherSchoolPinHelper": {
+    "description": "Field helper; example is a coordinate pair shown left to right",
+    "placeholders": {
+      "example": {
+        "type": "String"
+      }
+    }
   }
 }

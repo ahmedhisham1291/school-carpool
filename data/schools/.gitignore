@@ -1,0 +1,8 @@
+# The real exports are large and carry their own licence (OpenStreetMap
+# data is under the ODbL): keep them out of the repository. Only the
+# hand-written sample and the READMEs are committed.
+*
+!.gitignore
+!README.md
+!sample/
+!sample/**

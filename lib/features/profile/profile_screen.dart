@@ -18,7 +18,7 @@ import 'package:school_carpool/router/session_redirect.dart';
 
 /// Profile tab (spec section 10): parent ID with a copy button (F44), the
 /// account's status, phone and email, children and driving (Prompt 3),
-/// settings and sign out. The wallet comes in a later prompt.
+/// settings, About (with the OpenStreetMap credit, Prompt 4B) and sign out. The wallet comes in a later prompt.
 ///
 /// States: loading (skeleton), empty (signed out or record not created
 /// yet), error and offline (full-screen with retry). Settings stay usable
@@ -56,6 +56,13 @@ class ProfileScreen extends ConsumerWidget {
         children: <Widget>[
           ...top,
           const SettingsSection(),
+          AppListRow(
+            key: const Key('profile.about'),
+            title: l10n.aboutTitle,
+            subtitle: l10n.profileAboutHelper,
+            leadingIcon: Icons.info_outline_rounded,
+            onTap: () => context.go(ProfileRoutes.about),
+          ),
           if (session is SessionSignedIn)
             Padding(
               padding: AppSpacing.screenPadding,

@@ -163,6 +163,7 @@ class ChildRecord {
     required this.grade,
     required this.schoolName,
     required this.status,
+    this.schoolId = '',
     this.reason,
   });
 
@@ -174,6 +175,7 @@ class ChildRecord {
       age: age is num ? age.toInt() : 0,
       grade: Grade.fromName(data['grade']) ?? Grade.g1,
       schoolName: data['schoolName'] as String? ?? '',
+      schoolId: data['schoolId'] as String? ?? '',
       status: ReviewStatus.fromName(data['status']) ?? ReviewStatus.pending,
       reason: RejectionReason.fromCode(data['reasonCode']),
     );
@@ -184,6 +186,9 @@ class ChildRecord {
   final int age;
   final Grade grade;
   final String schoolName;
+
+  /// Empty for children added before the schools list (F4).
+  final String schoolId;
   final ReviewStatus status;
   final RejectionReason? reason;
 
@@ -195,11 +200,12 @@ class ChildRecord {
       other.age == age &&
       other.grade == grade &&
       other.schoolName == schoolName &&
+      other.schoolId == schoolId &&
       other.status == status &&
       other.reason == reason;
 
   @override
-  int get hashCode => Object.hash(id, firstName, age, grade, schoolName, status, reason);
+  int get hashCode => Object.hash(id, firstName, age, grade, schoolName, schoolId, status, reason);
 }
 
 /// The parent's car, vehicles/{uid}. Written only by Cloud Functions.

@@ -4,6 +4,7 @@ import type {
   ClaimsService,
   DecisionWrite,
   QueueEntry,
+  SchoolChoice,
   StoredFile,
   SubmissionWrite,
   UserSnapshot,
@@ -28,6 +29,15 @@ export class MemoryVerificationStore implements VerificationStore {
   readonly audit: Array<{ actorUid: string; action: string; target: string }> = [];
   readonly consents: Array<{ uid: string; type: string }> = [];
   readonly vehicles = new Map<string, { status: string; caseId: string }>();
+  /** Schools children may be linked to; "nile" is active by default. */
+  readonly schools = new Map<string, SchoolChoice>([
+    ["nile", { id: "nile", nameAr: "مدرسة النيل", nameEn: "Nile School", status: "active", addedBy: null, mergedInto: null }],
+  ]);
+
+  async getSchool(id: string): Promise<SchoolChoice | undefined> {
+    const school = this.schools.get(id);
+    return school ? { ...school } : undefined;
+  }
 
   newId(): string {
     this.counter += 1;

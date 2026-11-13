@@ -194,7 +194,15 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Grade 3').last);
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('child.school')), 'Nile School');
+      // The school comes from the schools list (F4).
+      await tester.tap(find.byKey(const Key('child.school')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('school.search')), 'Nile');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('school.result.nile')));
+      await tester.pumpAndSettle();
+      expect(find.text('Nile International School'), findsOneWidget);
       await tester.tap(find.descendant(of: find.byKey(const Key('child.schoolIdTile')), matching: find.text('Take photo')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('child.save')));
@@ -248,7 +256,7 @@ void main() {
           selfie: fakePhoto,
           selfieTurn: fakePhoto,
           children: <ChildDraft>[
-            ChildDraft(ref: 'c1', firstName: 'Omar', age: 8, grade: Grade.g3, schoolName: 'Nile', schoolIdPhoto: fakePhoto),
+            ChildDraft(ref: 'c1', firstName: 'Omar', age: 8, grade: Grade.g3, schoolId: 'nile', schoolName: 'Nile', schoolIdPhoto: fakePhoto),
           ],
           consent: true,
         ),

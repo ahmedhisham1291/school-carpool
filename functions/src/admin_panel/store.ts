@@ -290,6 +290,12 @@ export class FirestoreSchoolsStore implements SchoolsStore {
       mergedInto: school.mergedInto,
       updatedAt: FieldValue.serverTimestamp(),
     };
+    if (!isNew) {
+      // The schools import (Prompt 4B) never overwrites an admin's edit;
+      // an approved "Other" school drops the parent's uid (addedBy null).
+      fields.adminEdited = true;
+      fields.addedBy = school.addedBy;
+    }
     const ref = this.db.collection(SCHOOLS).doc(school.id);
     if (isNew) {
       batch.create(ref, {
@@ -341,7 +347,15 @@ export class FirestoreSchoolsStore implements SchoolsStore {
       mergedInto: intoId,
       updatedAt: FieldValue.serverTimestamp(),
     });
-    for (const doc of children.docs) batch.update(doc.ref, { schoolId: intoId, updatedAt: FieldValue.serverTimestamp() });
+    const into = await this.db.collection(SCHOOLS).doc(intoId).get();
+    const intoName = String(into.get("nameAr") ?? "");
+    for (const doc of children.docs) {
+      batch.update(doc.ref, {
+        schoolId: intoId,
+        ...(intoName ? { schoolName: intoName } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
     batch.create(this.db.collection(AUDIT_LOG).doc(), auditDoc({ ...audit, details: { ...audit.details, children: children.size } }));
     await batch.commit();
     return children.size;

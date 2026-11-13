@@ -19,6 +19,7 @@ class ChildDraft {
     this.firstName = '',
     this.age,
     this.grade,
+    this.schoolId = '',
     this.schoolName = '',
     this.schoolIdPhoto,
   });
@@ -32,7 +33,11 @@ class ChildDraft {
   final int? age;
   final Grade? grade;
 
-  /// Typed school name until the schools list (F4, Prompt 4B).
+  /// The school picked from the schools list, or the parent's own "Other"
+  /// school awaiting review (F4).
+  final String schoolId;
+
+  /// The school's name as the picker showed it.
   final String schoolName;
   final Uint8List? schoolIdPhoto;
 
@@ -40,7 +45,7 @@ class ChildDraft {
       isValidPersonName(firstName) &&
       age != null &&
       grade != null &&
-      isValidFreeText(schoolName, min: 2, max: 100) &&
+      schoolId.isNotEmpty &&
       schoolIdPhoto != null;
 
   Map<String, Object?> toPayload() => <String, Object?>{
@@ -49,6 +54,7 @@ class ChildDraft {
     'firstName': firstName.trim(),
     'age': age,
     'grade': grade?.name,
+    'schoolId': schoolId,
     'schoolName': schoolName.trim(),
   };
 }

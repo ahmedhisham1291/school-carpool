@@ -281,7 +281,8 @@ describe("schools", () => {
   it("adds and edits a school with a pin and areas; every change is audited", async () => {
     const { id } = await saveSchool(deps, ADMIN, school, null);
     assert.equal(store.schools.get(id)?.status, "active");
-    assert.equal(store.schools.get(id)?.addedBy, "admin1");
+    // No uid on a school every parent can read; the audit log keeps the admin.
+    assert.equal(store.schools.get(id)?.addedBy, null);
     await saveSchool(deps, ADMIN, { ...school, id, city: "Degla" }, null);
     assert.equal(store.schools.get(id)?.city, "Degla");
     const area = await saveArea(deps, ADMIN, { schoolId: id, nameAr: "دجلة", nameEn: "Degla", center: { lat: 29.959, lng: 31.27 } }, null);
@@ -323,7 +324,8 @@ describe("schools", () => {
     await approveSchool(deps, ADMIN, { ...school, id: "p1" }, null);
     assert.equal(store.schools.get("p1")?.status, "active");
     assert.equal(store.schools.get("p1")?.nameEn, "Nile School");
-    assert.equal(store.schools.get("p1")?.addedBy, "u1");
+    // The parent's uid leaves the school once every parent can read it.
+    assert.equal(store.schools.get("p1")?.addedBy, null);
 
     assert.deepEqual(await mergeSchool(deps, ADMIN, { schoolId: "p2", intoId: "p1" }, null), { id: "p1", childrenMoved: 1 });
     assert.equal(store.schools.get("p2")?.status, "merged");

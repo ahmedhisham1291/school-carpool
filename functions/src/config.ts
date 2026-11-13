@@ -87,3 +87,21 @@ export const CLIENT_IP_HOP = defineInt("CLIENT_IP_HOP", { default: 1 });
  * rate limited so nobody can sweep the user list.
  */
 export const ADMIN_SEARCH_LIMIT = defineInt("ADMIN_SEARCH_LIMIT", { default: 30 });
+
+/**
+ * School search (F4). "fake" (dev and CI: the app searches the emulator's
+ * schools itself, nothing is sent to Algolia) or "algolia". COST MODE:
+ * Algolia's free Build plan; see docs/COSTS.md.
+ */
+export const SCHOOL_SEARCH_PROVIDER = defineString("SCHOOL_SEARCH_PROVIDER", { default: "fake" });
+/** Algolia application ID (not a secret). */
+export const ALGOLIA_APP_ID = defineString("ALGOLIA_APP_ID", { default: "" });
+/** One index per project (schools_dev, schools_staging, schools). */
+export const ALGOLIA_INDEX = defineString("ALGOLIA_INDEX", { default: "schools" });
+/** Key with addObject and deleteObject on the schools index only (Secret Manager). */
+export const ALGOLIA_WRITE_KEY = defineSecret("ALGOLIA_WRITE_KEY");
+/**
+ * Search-only key limited to the schools index (Secret Manager). Never sent
+ * to the app: the app gets a one-hour secured key derived from it.
+ */
+export const ALGOLIA_SEARCH_KEY = defineSecret("ALGOLIA_SEARCH_KEY");

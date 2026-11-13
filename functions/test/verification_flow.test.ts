@@ -40,7 +40,7 @@ function submission(overrides: Record<string, unknown> = {}): Record<string, unk
       idExpiry: "2030-05-01",
       livenessChallenge: "left",
     },
-    children: [{ ref: "c1", firstName: "Omar", age: 8, grade: "g3", schoolName: "Nile School" }],
+    children: [{ ref: "c1", firstName: "Omar", age: 8, grade: "g3", schoolId: "nile", schoolName: "Nile School" }],
     driver: null,
     consents: { ...VERIFICATION_CONSENT_VERSIONS },
     ...overrides,
@@ -131,8 +131,8 @@ describe("parseSubmission", () => {
   });
 
   it("checks children: age, grade, refs, count", () => {
-    const child = { ref: "c1", firstName: "Omar", age: 8, grade: "g3", schoolName: "Nile School" };
-    for (const bad of [{ age: 1 }, { age: 20 }, { age: 7.5 }, { grade: "g13" }, { ref: "C 1" }, { ref: "c11" }, { ref: "c0" }, { schoolName: "x" }, { childId: "a/b" }]) {
+    const child = { ref: "c1", firstName: "Omar", age: 8, grade: "g3", schoolId: "nile", schoolName: "Nile School" };
+    for (const bad of [{ age: 1 }, { age: 20 }, { age: 7.5 }, { grade: "g13" }, { ref: "C 1" }, { ref: "c11" }, { ref: "c0" }, { schoolName: "x" }, { schoolId: "a/b" }, { schoolId: undefined }, { schoolId: "" }, { childId: "a/b" }]) {
       assert.throws(() => parseSubmission(submission({ children: [{ ...child, ...bad }] }), { today, verified: false }), expectReason("invalid-child"));
     }
     assert.throws(() => parseSubmission(submission({ children: [child, child] }), { today, verified: false }), expectReason("invalid-child"));
@@ -340,8 +340,8 @@ describe("verified parent updates (F3)", () => {
     files.put(pendingPath("alice", "school_id_c3.jpg"));
     const { caseId } = await submitVerification(deps, "alice", {
       children: [
-        { ref: "c2", firstName: "Laila", age: 5, grade: "kg2", schoolName: "Nile School" },
-        { ref: "c3", childId, firstName: "Omar", age: 9, grade: "g4", schoolName: "Nile School" },
+        { ref: "c2", firstName: "Laila", age: 5, grade: "kg2", schoolId: "nile", schoolName: "Nile School" },
+        { ref: "c3", childId, firstName: "Omar", age: 9, grade: "g4", schoolId: "nile", schoolName: "Nile School" },
       ],
       consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
     });
@@ -367,10 +367,55 @@ describe("verified parent updates (F3)", () => {
     files.put(pendingPath("carol", "school_id_c1.jpg"));
     await assert.rejects(
       submitVerification(deps, "carol", {
-        children: [{ ref: "c1", childId, firstName: "Omar", age: 9, grade: "g4", schoolName: "Nile School" }],
+        children: [{ ref: "c1", childId, firstName: "Omar", age: 9, grade: "g4", schoolId: "nile", schoolName: "Nile School" }],
         consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
       }),
       expectReason("not-found"),
+    );
+  });
+});
+
+describe("the child's school (F4)", () => {
+  const pending = (id: string, addedBy: string, status = "awaiting_review", mergedInto: string | null = null) =>
+    store.schools.set(id, { id, nameAr: "مدرسة الزهور", nameEn: "مدرسة الزهور", status, addedBy, mergedInto });
+  const withSchool = (schoolId: string, schoolName = "Nile School") =>
+    submission({ children: [{ ref: "c1", firstName: "Omar", age: 8, grade: "g3", schoolId, schoolName }] });
+
+  it("links the child to the school and keeps the name the app showed", async () => {
+    uploadAll("alice");
+    const { caseId } = await submitVerification(deps, "alice", withSchool("nile"));
+    assert.deepEqual(
+      [store.cases.get(caseId)?.children[0].schoolId, store.cases.get(caseId)?.children[0].schoolName],
+      ["nile", "Nile School"],
+    );
+  });
+
+  it("a name that is not the school's is replaced by the school's Arabic name", async () => {
+    uploadAll("alice");
+    const { caseId } = await submitVerification(deps, "alice", withSchool("nile", "Something Else"));
+    assert.equal(store.cases.get(caseId)?.children[0].schoolName, "مدرسة النيل");
+  });
+
+  it("the parent's own school awaiting review is allowed; another parent's is not", async () => {
+    pending("p-alice", "alice");
+    pending("p-bob", "bob");
+    uploadAll("alice");
+    await assert.rejects(submitVerification(deps, "alice", withSchool("p-bob")), expectReason("unknown-school"));
+    await assert.rejects(submitVerification(deps, "alice", withSchool("missing")), expectReason("unknown-school"));
+    assert.equal(store.nationalIds.size, 0);
+    const { caseId } = await submitVerification(deps, "alice", withSchool("p-alice", "مدرسة الزهور"));
+    assert.equal(store.cases.get(caseId)?.children[0].schoolId, "p-alice");
+  });
+
+  it("a school merged meanwhile is followed to the school it was merged into", async () => {
+    pending("p-old", "alice", "merged", "nile");
+    pending("p-gone", "alice", "merged", "missing");
+    uploadAll("alice");
+    await assert.rejects(submitVerification(deps, "alice", withSchool("p-gone")), expectReason("unknown-school"));
+    const { caseId } = await submitVerification(deps, "alice", withSchool("p-old", "مدرسة الزهور"));
+    assert.deepEqual(
+      [store.cases.get(caseId)?.children[0].schoolId, store.cases.get(caseId)?.children[0].schoolName],
+      ["nile", "مدرسة النيل"],
     );
   });
 });
@@ -439,7 +484,7 @@ describe("no ID squatting (review fix)", () => {
   it("refusals for bad children or a pending case claim nothing either", async () => {
     uploadAll("bob");
     await assert.rejects(
-      submitVerification(deps, "bob", submission({ children: [{ ref: "c1", firstName: "O", age: 8, grade: "g3", schoolName: "x" }] })),
+      submitVerification(deps, "bob", submission({ children: [{ ref: "c1", firstName: "O", age: 8, grade: "g3", schoolId: "nile", schoolName: "x" }] })),
       expectReason("invalid-child"),
     );
     assert.equal(store.nationalIds.size, 0);
@@ -496,7 +541,7 @@ describe("claim before status (review fix)", () => {
     store.events.length = 0;
     files.put(pendingPath("alice", "school_id_c2.jpg"));
     const update = await submitVerification(deps, "alice", {
-      children: [{ ref: "c2", firstName: "Laila", age: 5, grade: "kg2", schoolName: "Nile School" }],
+      children: [{ ref: "c2", firstName: "Laila", age: 5, grade: "kg2", schoolId: "nile", schoolName: "Nile School" }],
       consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
     });
     await decideVerification(deps, "admin1", { caseId: update.caseId, decision: "approve", nameCheck: "match" });
