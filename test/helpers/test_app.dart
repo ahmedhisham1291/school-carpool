@@ -71,6 +71,35 @@ const Account testAccount = Account(
 
 const SessionState testUnverifiedSession = SessionSignedIn(uid: 'uid-1', account: testAccount);
 
+/// Signed in, email not confirmed yet: the router keeps the parent on the
+/// email step. Fake data only.
+const SessionState testEmailStageSession = SessionSignedIn(
+  uid: 'uid-1',
+  account: Account(
+    parentId: 'ABCD2345',
+    status: AccountStatus.unverified,
+    phone: '+201000000001',
+    email: null,
+    emailVerified: false,
+    termsAccepted: false,
+    language: 'ar',
+  ),
+);
+
+/// Signed in, email confirmed, terms not accepted yet: the terms step.
+const SessionState testTermsStageSession = SessionSignedIn(
+  uid: 'uid-1',
+  account: Account(
+    parentId: 'ABCD2345',
+    status: AccountStatus.unverified,
+    phone: '+201000000001',
+    email: 'parent@example.com',
+    emailVerified: true,
+    termsAccepted: false,
+    language: 'ar',
+  ),
+);
+
 const SessionState testVerifiedSession = SessionSignedIn(
   uid: 'uid-1',
   account: Account(

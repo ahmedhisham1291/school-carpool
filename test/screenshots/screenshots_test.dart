@@ -113,30 +113,53 @@ void main() {
     }
   }
 
-  // Sign-up screens (Prompt 2) and the screens of an unverified account.
-  const Map<String, String> signupScreens = <String, String>{
-    'welcome': AuthRoutes.welcome,
-    'phone': AuthRoutes.phone,
-    'code': AuthRoutes.code,
-    'email': AuthRoutes.email,
-    'terms': AuthRoutes.terms,
-    'verify_account': AuthRoutes.verifyAccount,
-    'profile_unverified': '/profile',
+  // Sign-up screens (Prompt 2) and the screens of an unverified account,
+  // each with the session the router lets onto that screen.
+  const Map<String, (String, SessionState)> signupScreens = <String, (String, SessionState)>{
+    'welcome': (AuthRoutes.welcome, SessionSignedOut()),
+    'phone': (AuthRoutes.phone, SessionSignedOut()),
+    'code': (AuthRoutes.code, SessionSignedOut()),
+    'email': (AuthRoutes.email, testEmailStageSession),
+    'terms': (AuthRoutes.terms, testTermsStageSession),
+    'verify_account': (AuthRoutes.verifyAccount, testUnverifiedSession),
+    'profile_unverified': ('/profile', testUnverifiedSession),
   };
-  for (final MapEntry<String, String> screen in signupScreens.entries) {
+  for (final MapEntry<String, (String, SessionState)> screen in signupScreens.entries) {
+    final (String location, SessionState session) = screen.value;
     for (final String locale in locales) {
       for (final String mode in modes) {
         final String name = 'signup_${screen.key}_${locale}_$mode';
         testWidgets(name, skip: skip, (WidgetTester tester) async {
           await _pumpScreen(
             tester,
-            location: screen.value,
+            location: location,
             locale: locale,
             themeMode: mode,
             direction: 'a',
             logicalSize: const Size(390, 844),
             pixelRatio: 3,
-            session: testUnverifiedSession,
+            session: session,
+          );
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+    // Small phone (320 dp), light, normal and 200 percent text: titles,
+    // labels and buttons stay on one line.
+    for (final double scale in <double>[1, 2]) {
+      for (final String locale in locales) {
+        final String name = 'signup_${screen.key}_${locale}_light_320_text${scale.round()}x';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: location,
+            locale: locale,
+            themeMode: 'light',
+            direction: 'a',
+            logicalSize: const Size(320, 640),
+            pixelRatio: 3,
+            session: session,
+            textScale: scale,
           );
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
         });
