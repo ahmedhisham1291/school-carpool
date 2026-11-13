@@ -1,8 +1,12 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
 /// Text input with a visible label, helper text and an error that says how
 /// to fix the problem. Validates as the parent types (after the first edit).
+///
+/// The label is one line ("Child's first name"); helper and error text are
+/// one short sentence (at most two lines).
 class AppTextField extends StatelessWidget {
   const AppTextField({
     required this.label,
@@ -48,7 +52,7 @@ class AppTextField extends StatelessWidget {
       controller: controller,
       initialValue: controller == null ? initialValue : null,
       decoration: InputDecoration(
-        labelText: label,
+        label: OneLineText(label),
         helperText: helperText,
         hintText: hintText,
         errorText: errorText,

@@ -1,9 +1,12 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
 /// One row of a list: optional leading icon, title, subtitle and trailing
 /// widget. Tappable rows show a chevron that points the reading direction
 /// (it mirrors automatically in Arabic).
+///
+/// The title is always one line; the subtitle may use two.
 class AppListRow extends StatelessWidget {
   const AppListRow({
     required this.title,
@@ -33,18 +36,18 @@ class AppListRow extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: AppSpacing.s64),
       child: Padding(
         padding: const EdgeInsetsDirectional.symmetric(
-          horizontal: AppSpacing.s16,
+          horizontal: AppSpacing.screenGutter,
           vertical: AppSpacing.s8,
         ),
         child: Row(
           children: <Widget>[
             if (lead != null) ...<Widget>[
               SizedBox.square(
-                dimension: AppSpacing.s40,
+                dimension: AppSpacing.iconTile,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: colors.secondaryContainer,
-                    shape: BoxShape.circle,
+                    borderRadius: AppRadii.control,
                   ),
                   child: Icon(lead, color: colors.onSecondaryContainer, size: AppSpacing.s24),
                 ),
@@ -56,10 +59,12 @@ class AppListRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Text(title, style: context.text.titleSmall),
+                  OneLineText(title, style: context.text.titleSmall),
                   if (sub != null)
                     Text(
                       sub,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: context.text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
                     ),
                 ],

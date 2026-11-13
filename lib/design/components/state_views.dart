@@ -1,10 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/app_button.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
-/// Shared layout for full-screen empty, error and offline states: an icon,
-/// a title, a line that says what to do, and at most one action.
+/// Shared layout for full-screen empty, error and offline states: a soft
+/// icon tile, a one-line title, one short sentence that says what to do, and
+/// at most one action.
 ///
 /// Scrolls when text is scaled up, so nothing is cut off at 200 percent.
 class AppStateView extends StatelessWidget {
@@ -25,11 +27,14 @@ class AppStateView extends StatelessWidget {
   final VoidCallback? onAction;
   final AppStateTone tone;
 
+  /// Keeps the sentence short and centred, even on wide screens.
+  static const double _bodyMaxWidth = AppSpacing.s64 * 5;
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme colors = context.colors;
     final (Color background, Color foreground) = switch (tone) {
-      AppStateTone.neutral => (colors.secondaryContainer, colors.onSecondaryContainer),
+      AppStateTone.neutral => (colors.surfaceContainerHigh, colors.onSurfaceVariant),
       AppStateTone.error => (colors.errorContainer, colors.onErrorContainer),
       AppStateTone.warning => (
         context.appColors.warningContainer,
@@ -49,23 +54,30 @@ class AppStateView extends StatelessWidget {
               SizedBox.square(
                 dimension: AppSpacing.s64,
                 child: DecoratedBox(
-                  decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: background, borderRadius: AppRadii.card),
                   child: Icon(icon, color: foreground, size: AppSpacing.s32),
                 ),
               ),
               const SizedBox(height: AppSpacing.s24),
               Semantics(
                 header: true,
-                child: Text(title, style: context.text.titleLarge, textAlign: TextAlign.center),
+                child: OneLineText(
+                  title,
+                  style: context.text.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
               ),
               const SizedBox(height: AppSpacing.s8),
-              Text(
-                body,
-                style: context.text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
-                textAlign: TextAlign.center,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _bodyMaxWidth),
+                child: Text(
+                  body,
+                  style: context.text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ),
               ),
               if (label != null && onAction != null) ...<Widget>[
-                const SizedBox(height: AppSpacing.s24),
+                const SizedBox(height: AppSpacing.s32),
                 AppButton(label: label, onPressed: onAction),
               ],
             ],

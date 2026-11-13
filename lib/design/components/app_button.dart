@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/one_line_text.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -17,7 +18,7 @@ enum AppButtonVariant {
 }
 
 enum AppButtonSize {
-  /// 48 dp minimum height.
+  /// 52 dp high.
   regular,
 
   /// 64 dp minimum height and larger text, for driver screens.
@@ -26,8 +27,10 @@ enum AppButtonSize {
 
 /// The only button used in screens.
 ///
-/// Labels wrap instead of being cut off, so text scaled to 200 percent still
-/// fits. While [loading] the button is disabled and announces "loading".
+/// The label is always one line (DESIGN rules): write two or three words,
+/// such as "Create carpool". Full width ([expand]) is the normal layout for
+/// the one primary action on phones. While [loading] the button is disabled
+/// and announces "loading".
 class AppButton extends StatelessWidget {
   const AppButton({
     required this.label,
@@ -56,7 +59,7 @@ class AppButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme colors = context.colors;
     final bool large = size == AppButtonSize.large;
-    final double minHeight = large ? AppSpacing.driverTouchTarget : AppSpacing.minTouchTarget;
+    final double minHeight = large ? AppSpacing.driverTouchTarget : AppSpacing.buttonHeight;
     final VoidCallback? handler = loading ? null : onPressed;
 
     ButtonStyle style = ButtonStyle(
@@ -115,7 +118,7 @@ class _ButtonContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget text = Flexible(child: Text(label, textAlign: TextAlign.center));
+    final Widget text = Flexible(child: OneLineText(label, textAlign: TextAlign.center));
     final Widget leading;
     if (loading) {
       leading = const SizedBox.square(
@@ -125,7 +128,7 @@ class _ButtonContent extends StatelessWidget {
     } else if (icon != null) {
       leading = Icon(icon, size: iconSize);
     } else {
-      return Text(label, textAlign: TextAlign.center);
+      return OneLineText(label, textAlign: TextAlign.center);
     }
     return Row(
       mainAxisSize: MainAxisSize.min,

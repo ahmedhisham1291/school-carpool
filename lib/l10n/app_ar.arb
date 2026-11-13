@@ -16,9 +16,9 @@
   "@tabChats": {
     "description": "Bottom tab: chats"
   },
-  "tabNotifications": "الإشعارات",
+  "tabNotifications": "التنبيهات",
   "@tabNotifications": {
-    "description": "Bottom tab: notifications"
+    "description": "Bottom tab: notifications. One short word; must fit one line at 320 dp."
   },
   "tabProfile": "حسابي",
   "@tabProfile": {
@@ -68,7 +68,7 @@
   "@settingsTheme": {
     "description": "Theme mode setting label"
   },
-  "themeSystem": "حسب الهاتف",
+  "themeSystem": "تلقائي",
   "@themeSystem": {
     "description": "Follow the phone's light or dark setting"
   },
@@ -88,11 +88,11 @@
   "@devDesignDirection": {
     "description": "Dev setting: which of the two design directions is shown"
   },
-  "directionA": "أ: أخضر مائي هادئ",
+  "directionA": "أ: أخضر مائي",
   "@directionA": {
     "description": "Design direction A name"
   },
-  "directionB": "ب: نيلي دافئ",
+  "directionB": "ب: نيلي",
   "@directionB": {
     "description": "Design direction B name"
   },
@@ -104,11 +104,11 @@
   "@devSendTestError": {
     "description": "Sends a test error to Sentry (dev only)"
   },
-  "devTestErrorSent": "تم إرسال خطأ تجريبي إلى Sentry.",
+  "devTestErrorSent": "تم إرسال خطأ تجريبي",
   "@devTestErrorSent": {
     "description": "Feedback after the test error was sent"
   },
-  "devSentryOff": "Sentry غير مفعّل في هذا الإصدار (لا يوجد DSN).",
+  "devSentryOff": "Sentry غير مفعّل",
   "@devSentryOff": {
     "description": "Feedback when Sentry has no DSN"
   },
@@ -116,7 +116,7 @@
   "@devSendFunctionTestError": {
     "description": "Calls the Cloud Function that throws a test error (dev only)"
   },
-  "devFunctionTestErrorDone": "استدعت الدالة الخطأ التجريبي. راجع Sentry.",
+  "devFunctionTestErrorDone": "تم إرسال خطأ الخادم",
   "@devFunctionTestErrorDone": {
     "description": "Feedback after the Cloud Function test error"
   },
@@ -134,7 +134,7 @@
       }
     }
   },
-  "stateEmptyTitle": "لا يوجد شيء هنا بعد",
+  "stateEmptyTitle": "لا شيء هنا بعد",
   "@stateEmptyTitle": {
     "description": "Default empty state title"
   },
@@ -146,15 +146,15 @@
   "@stateErrorTitle": {
     "description": "Default error state title"
   },
-  "stateErrorBody": "لم نتمكن من تحميل هذه الصفحة. حاول مرة أخرى بعد قليل.",
+  "stateErrorBody": "تعذّر التحميل. حاول مرة أخرى.",
   "@stateErrorBody": {
-    "description": "Default error state body, tells the user how to fix it"
+    "description": "Default error state body, tells the user how to fix it. Also used as a one-line snackbar: keep it short."
   },
-  "stateOfflineTitle": "لا يوجد اتصال بالإنترنت",
+  "stateOfflineTitle": "لا يوجد اتصال",
   "@stateOfflineTitle": {
     "description": "Offline state title"
   },
-  "stateOfflineBody": "تحقق من الواي فاي أو بيانات الهاتف. سنحدّث الصفحة عند عودة الاتصال.",
+  "stateOfflineBody": "تحقق من الواي فاي أو بيانات الهاتف.",
   "@stateOfflineBody": {
     "description": "Offline state body"
   },
@@ -170,7 +170,7 @@
   "@actionConfirm": {
     "description": "Confirm button"
   },
-  "galleryTitle": "معرض المكونات",
+  "galleryTitle": "المعرض",
   "@galleryTitle": {
     "description": "Component gallery screen title (dev only)"
   },
@@ -190,7 +190,7 @@
   "@gallerySectionListRows": {
     "description": "Gallery section"
   },
-  "gallerySectionSheets": "النوافذ السفلية والتأكيد",
+  "gallerySectionSheets": "النوافذ والتأكيد",
   "@gallerySectionSheets": {
     "description": "Gallery section"
   },
@@ -262,7 +262,7 @@
   "@sampleListSubtitle": {
     "description": "Gallery sample: list row subtitle"
   },
-  "sampleSheetOpen": "فتح نافذة سفلية",
+  "sampleSheetOpen": "فتح نافذة",
   "@sampleSheetOpen": {
     "description": "Gallery sample: opens a bottom sheet"
   },
@@ -274,7 +274,7 @@
   "@sampleSheetBody": {
     "description": "Gallery sample: sheet body"
   },
-  "sampleConfirmOpen": "فتح نافذة تأكيد",
+  "sampleConfirmOpen": "فتح التأكيد",
   "@sampleConfirmOpen": {
     "description": "Gallery sample: opens a confirmation dialog"
   },
@@ -289,5 +289,25 @@
   "sampleDone": "تم.",
   "@sampleDone": {
     "description": "Gallery sample: snackbar feedback"
+  },
+  "gallerySectionChips": "الاختيارات",
+  "@gallerySectionChips": {
+    "description": "Gallery section"
+  },
+  "gallerySectionNavigation": "التنقل",
+  "@gallerySectionNavigation": {
+    "description": "Gallery section"
+  },
+  "sampleChipMorning": "الصباح",
+  "@sampleChipMorning": {
+    "description": "Gallery sample: chip, school run direction"
+  },
+  "sampleChipAfternoon": "الظهر",
+  "@sampleChipAfternoon": {
+    "description": "Gallery sample: chip, school run direction"
+  },
+  "sampleChipBoth": "الاثنان",
+  "@sampleChipBoth": {
+    "description": "Gallery sample: chip, both directions"
   }
 }

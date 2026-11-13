@@ -87,6 +87,12 @@ class SkeletonBox extends StatelessWidget {
     this.borderRadius = AppRadii.smAll,
   });
 
+  /// A rounded square, shaped like a list row's icon tile.
+  const SkeletonBox.tile({super.key, double size = AppSpacing.iconTile})
+    : width = size,
+      height = size,
+      borderRadius = AppRadii.control;
+
   /// A round placeholder, for avatars.
   const SkeletonBox.circle({super.key, double size = AppSpacing.s40})
     : width = size,
@@ -122,12 +128,12 @@ class SkeletonListRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsetsDirectional.symmetric(
-        horizontal: AppSpacing.s16,
+        horizontal: AppSpacing.screenGutter,
         vertical: AppSpacing.s16,
       ),
       child: Row(
         children: <Widget>[
-          SkeletonBox.circle(),
+          SkeletonBox.tile(),
           SizedBox(width: AppSpacing.s16),
           Expanded(
             child: Column(
