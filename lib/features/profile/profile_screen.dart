@@ -1,0 +1,145 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/components.dart';
+import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/auth/account.dart';
+import 'package:school_carpool/features/auth/phone_number.dart';
+import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/onboarding/account_status_badge.dart';
+import 'package:school_carpool/features/onboarding/sign_out.dart';
+import 'package:school_carpool/features/settings/settings_section.dart';
+import 'package:school_carpool/l10n/l10n.dart';
+import 'package:school_carpool/router/session_redirect.dart';
+
+/// Profile tab (spec section 10): parent ID with a copy button (F44), the
+/// account's status, phone and email, settings and sign out. Children,
+/// vehicle and wallet come in later prompts.
+///
+/// States: loading (skeleton), empty (signed out or record not created
+/// yet), error and offline (full-screen with retry). Settings stay usable
+/// in every state.
+class ProfileScreen extends ConsumerWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppLocalizations l10n = context.l10n;
+    final SessionState session = ref.watch(sessionProvider);
+    void retry() => ref.invalidate(sessionStreamProvider);
+
+    final List<Widget> top = switch (session) {
+      SessionSignedIn(account: final Account account) => _accountSection(context, account),
+      SessionSignedIn() || SessionLoading() => const <Widget>[_ProfileSkeleton()],
+      SessionFailed(offline: true) => <Widget>[
+        SizedBox(height: _stateHeight, child: OfflineStateView(onRetry: retry)),
+      ],
+      SessionFailed() => <Widget>[
+        SizedBox(height: _stateHeight, child: ErrorStateView(onRetry: retry)),
+      ],
+      SessionSignedOut() => <Widget>[
+        SizedBox(
+          height: _stateHeight,
+          child: EmptyStateView(icon: Icons.person_outline_rounded, body: l10n.placeholderProfileBody),
+        ),
+      ],
+    };
+
+    return Scaffold(
+      appBar: AppBar(title: Semantics(header: true, child: Text(l10n.tabProfile))),
+      body: ListView(
+        padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),
+        children: <Widget>[
+          ...top,
+          const SettingsSection(),
+          if (session is SessionSignedIn)
+            Padding(
+              padding: AppSpacing.screenPadding,
+              child: AppButton(
+                key: const Key('profile.signOut'),
+                label: l10n.profileSignOut,
+                icon: Icons.logout_rounded,
+                variant: AppButtonVariant.secondary,
+                expand: true,
+                onPressed: () => unawaited(confirmAndSignOut(context, ref)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static const double _stateHeight = AppSpacing.s64 * 6;
+
+  List<Widget> _accountSection(BuildContext context, Account account) {
+    final AppLocalizations l10n = context.l10n;
+    final String? email = account.email;
+    return <Widget>[
+      if (account.status != AccountStatus.verified)
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            AppSpacing.screenGutter,
+            AppSpacing.s16,
+            AppSpacing.screenGutter,
+            0,
+          ),
+          child: AppCard(
+            onTap: () => context.go(AuthRoutes.verifyAccount),
+            child: Row(
+              children: <Widget>[
+                Expanded(child: Text(l10n.profileVerifyBanner, style: context.text.bodyMedium)),
+                const SizedBox(width: AppSpacing.s8),
+                Icon(Icons.chevron_right_rounded, color: context.colors.onSurfaceVariant),
+              ],
+            ),
+          ),
+        ),
+      Padding(
+        padding: AppSpacing.screenPadding,
+        child: AppCard(
+          child: AppCopyValue(
+            key: const Key('profile.parentId'),
+            label: l10n.profileParentIdLabel,
+            value: account.parentId,
+            helperText: l10n.profileParentIdHelper,
+          ),
+        ),
+      ),
+      AppSectionHeader(l10n.profileAccountSection),
+      AppListRow(
+        title: l10n.profileStatus,
+        leadingIcon: Icons.verified_user_outlined,
+        trailing: AccountStatusBadge(status: account.status),
+      ),
+      AppListRow(
+        title: l10n.profilePhone,
+        subtitle: EgyptPhone.display(account.phone),
+        leadingIcon: Icons.phone_iphone_rounded,
+      ),
+      AppListRow(
+        title: l10n.emailLabel,
+        subtitle: email == null ? l10n.profileEmailMissing : '⁦$email⁩',
+        leadingIcon: Icons.mail_outline_rounded,
+      ),
+    ];
+  }
+}
+
+class _ProfileSkeleton extends StatelessWidget {
+  const _ProfileSkeleton();
+
+  @override
+  Widget build(BuildContext context) => const Skeleton(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(padding: AppSpacing.screenPadding, child: SkeletonCard()),
+        SkeletonListRow(),
+        SkeletonListRow(),
+        SkeletonListRow(),
+      ],
+    ),
+  );
+}
