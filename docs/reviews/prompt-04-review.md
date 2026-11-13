@@ -308,3 +308,55 @@ blocking functions"
 firebase-tools issue #6235
 (https://github.com/firebase/firebase-tools/issues/6235). The Firebase-hosted
 blocking-functions pages could not be fetched (robots).
+
+---
+
+# Re-review 2 (head `a6d414d`)
+
+Reviewed 13 Nov 2026. This round checks the work after `f55384c`: the
+merges of `main` (design refresh and design follow-ups) in `d1b8758` and
+`0bb6466`, and the follow-up `a6d414d`. Only Prompt 4's own adaptation was
+reviewed, not the content merged from `main`.
+
+## Verdict
+
+**PASS.**
+
+## CI result
+
+Run `43452558092` (push, head `a6d414d`): **success**. All three jobs passed:
+Flutter analyze, tests and screenshots; Cloud Functions tests and rules
+tests (emulators); and the web, admin panel and Android compile.
+
+## Checks
+
+- **Behavior and security logic did not change.** The adaptation touched
+  none of `functions/`, `firestore.rules`, `storage.rules`, `tests/rules/` or
+  `firebase.json`, and `main` did not change them either. In `lib/admin`
+  (11 files, +222/-102) the changes are presentation only:
+  - `OneLine` became the shared `OneLineText`, with `scaleDown` for the
+    sign-in and setup titles and the rail labels;
+  - `adminToast` became `showAppSnackBar`;
+  - the app bar title became `AppBarTitle`;
+  - the `NavigationRail` is wrapped in
+    `MediaQuery.withClampedTextScaling(AppTypeScale.maxNavTextScale)`;
+  - list rows inside padded content use `inset: false`.
+
+  The router, session, idle timer and ping, the guards, the API calls, the
+  confirmations and the watermark painter are all unchanged.
+  `WatermarkedImage` changed only in the text component of its
+  "image missing" state.
+- **ARB parity.** 607 keys in each file and no missing keys. Every
+  `l10n.admin*` used in `lib/admin` exists. The label `adminNavOther`
+  changed from "New schools" / "مدارس جديدة" to "Other" / "أخرى", the same
+  in both languages. This matches the parents' "Other" choice in spec F4.
+- **One-line rule.** Every label in the panel now uses the shared
+  `OneLineText` or `AppBarTitle`. Rail labels scale down instead of
+  wrapping. The new `test/admin/admin_one_line_test.dart` checks this at
+  1024 px and 320 dp, and it passed in CI.
+
+## Non-blocking
+
+None new. The earlier non-blocking items and "Not verifiable" items still
+stand (TOTP `check-totp` on the dev project, the "Done when" flow with
+real TOTP, canvas drawing on the deployed renderer).
