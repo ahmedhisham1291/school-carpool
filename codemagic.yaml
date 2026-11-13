@@ -3,7 +3,12 @@
 #
 # COST MODE (free tier first, docs/COSTS.md):
 #   - `checks` runs analyze, tests, rules tests and the web and Android
-#     builds on a Linux machine for every push and pull request.
+#     builds on a Linux machine for every push and pull request, as the
+#     owner asked. NOTE: Codemagic gives free minutes on macOS M2 only;
+#     Linux is billed per minute (USD 0.045 in Nov 2026, about USD 0.50 to
+#     0.70 per run). To stay at zero cost, change `instance_type` of
+#     `checks` to mac_mini_m2 (uses the free 500 minutes) or move these
+#     checks to another CI; open question in docs/progress/prompt-01.md.
 #   - iOS builds run on macOS only for pushes to main and version tags
 #     (v*), or when started by hand. The free personal tier has 500 macOS
 #     minutes a month; one iOS build takes about 15 to 25 minutes.

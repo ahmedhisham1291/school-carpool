@@ -10,4 +10,3 @@ output-localization-file: app_localizations.dart
 output-class: AppLocalizations
 preferred-supported-locales: [ar, en]
 nullable-getter: false
-untranslated-messages-file: build/untranslated_messages.json
