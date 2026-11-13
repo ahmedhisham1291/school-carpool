@@ -1,0 +1,123 @@
+# Codemagic: iOS builds only (owner decision, Prompt 1 review). Analyze,
+# tests, screenshots, Functions and rules tests, and the web and Android
+# compile checks run on GitHub Actions (.github/workflows/checks.yml).
+# Web and Android release builds may move here in Stages 2 and 3.
+#
+# One-time setup in SETUP.md ("Codemagic"): App Store Connect API key
+# integration, environment groups and secrets.
+#
+# COST MODE (free tier first, docs/COSTS.md): the free personal tier has 500
+# macOS M2 minutes a month; one iOS build takes about 15 to 25 minutes.
+#   - ios-staging: pushes to main, version tags (v*) and manual starts.
+#   - ios-dev: manual starts only.
+#
+# Placeholders to replace:
+#   CodemagicASC               name of the App Store Connect key integration
+#   APP_STORE_APPLE_ID values  numeric Apple ID of each app in App Store
+#                              Connect; keep the quotes
+# Bundle ids use the owner's base org.schoolcarpool.app (.dev, .stg).
+
+definitions:
+  env_versions: &env_versions
+    flutter: stable
+    node: 22
+    java: 21
+  cache: &cache
+    cache_paths:
+      - $HOME/.pub-cache
+
+workflows:
+  ios-staging:
+    name: iOS staging to TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: CodemagicASC
+    environment:
+      <<: *env_versions
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: org.schoolcarpool.app.stg
+      groups:
+        # SENTRY_DSN_APP_STAGING, RECAPTCHA_SITE_KEY (web, later)
+        - staging_defines
+      vars:
+        APP_STORE_APPLE_ID: "0000000000"
+    cache: *cache
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+      tag_patterns:
+        - pattern: 'v*'
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Bootstrap (staging)
+        script: FLAVOR=staging tool/bootstrap.sh
+      - name: Use signing profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          flutter build ipa --release \
+            -t lib/main_staging.dart \
+            --build-number=$((LATEST + 1)) \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=SENTRY_DSN="${SENTRY_DSN_APP_STAGING:-}" \
+            --dart-define=SENTRY_SAMPLE_RATE=1.0
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+  ios-dev:
+    # Started by hand only (no triggering): a dev build with the gallery and
+    # developer tools on TestFlight, talking to the cloud dev project instead
+    # of local emulators (USE_EMULATORS=false). Needs the dev Firebase options.
+    name: iOS dev to TestFlight (manual)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: CodemagicASC
+    environment:
+      <<: *env_versions
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: org.schoolcarpool.app.dev
+      groups:
+        # SENTRY_DSN_APP_DEV
+        - dev_defines
+      vars:
+        APP_STORE_APPLE_ID: "0000000000"
+    cache: *cache
+    scripts:
+      - name: Bootstrap (dev)
+        script: FLAVOR=dev tool/bootstrap.sh
+      - name: Use signing profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          flutter build ipa --release \
+            -t lib/main_dev.dart \
+            --build-number=$((LATEST + 1)) \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=USE_EMULATORS=false \
+            --dart-define=SENTRY_DSN="${SENTRY_DSN_APP_DEV:-}" \
+            --dart-define=SENTRY_SAMPLE_RATE=1.0
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

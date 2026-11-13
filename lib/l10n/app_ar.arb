@@ -1,0 +1,293 @@
+{
+  "@@locale": "ar",
+  "appTitle": "مشوار المدرسة",
+  "@appTitle": {
+    "description": "App name shown in the app switcher and app bars. Working name, to be confirmed by the owner."
+  },
+  "tabHome": "الرئيسية",
+  "@tabHome": {
+    "description": "Bottom tab: home"
+  },
+  "tabCarpools": "المشاوير",
+  "@tabCarpools": {
+    "description": "Bottom tab: carpool groups"
+  },
+  "tabChats": "المحادثات",
+  "@tabChats": {
+    "description": "Bottom tab: chats"
+  },
+  "tabNotifications": "الإشعارات",
+  "@tabNotifications": {
+    "description": "Bottom tab: notifications"
+  },
+  "tabProfile": "حسابي",
+  "@tabProfile": {
+    "description": "Bottom tab: profile"
+  },
+  "placeholderHomeBody": "هنا ستجد مشاوير اليوم وأيام قيادتك القادمة والطلبات المنتظرة.",
+  "@placeholderHomeBody": {
+    "description": "Placeholder text on the Home tab"
+  },
+  "placeholderCarpoolsBody": "هنا ستجد مجموعات المشاوير الخاصة بك، والبحث، وإنشاء مجموعة جديدة.",
+  "@placeholderCarpoolsBody": {
+    "description": "Placeholder text on the Carpools tab"
+  },
+  "placeholderChatsBody": "هنا ستجد المحادثات الخاصة ومحادثات المدرسة والمنطقة والمشوار.",
+  "@placeholderChatsBody": {
+    "description": "Placeholder text on the Chats tab"
+  },
+  "placeholderNotificationsBody": "هنا ستجد طلبات التبديل وطلبات الانضمام والتذكيرات.",
+  "@placeholderNotificationsBody": {
+    "description": "Placeholder text on the Notifications tab"
+  },
+  "placeholderProfileBody": "هنا ستجد بياناتك ورقم ولي الأمر والأطفال والسيارة والمحفظة.",
+  "@placeholderProfileBody": {
+    "description": "Placeholder text on the Profile tab"
+  },
+  "comingSoon": "قريبًا",
+  "@comingSoon": {
+    "description": "Badge on placeholder screens"
+  },
+  "settingsTitle": "الإعدادات",
+  "@settingsTitle": {
+    "description": "Settings section title"
+  },
+  "settingsLanguage": "اللغة",
+  "@settingsLanguage": {
+    "description": "Language setting label"
+  },
+  "languageArabic": "العربية",
+  "@languageArabic": {
+    "description": "Arabic language option, always written in Arabic"
+  },
+  "languageEnglish": "English",
+  "@languageEnglish": {
+    "description": "English language option, always written in English"
+  },
+  "settingsTheme": "المظهر",
+  "@settingsTheme": {
+    "description": "Theme mode setting label"
+  },
+  "themeSystem": "حسب الهاتف",
+  "@themeSystem": {
+    "description": "Follow the phone's light or dark setting"
+  },
+  "themeLight": "فاتح",
+  "@themeLight": {
+    "description": "Light theme option"
+  },
+  "themeDark": "داكن",
+  "@themeDark": {
+    "description": "Dark theme option"
+  },
+  "devToolsTitle": "أدوات المطور",
+  "@devToolsTitle": {
+    "description": "Section shown only in the dev build"
+  },
+  "devDesignDirection": "اتجاه التصميم",
+  "@devDesignDirection": {
+    "description": "Dev setting: which of the two design directions is shown"
+  },
+  "directionA": "أ: أخضر مائي هادئ",
+  "@directionA": {
+    "description": "Design direction A name"
+  },
+  "directionB": "ب: نيلي دافئ",
+  "@directionB": {
+    "description": "Design direction B name"
+  },
+  "devOpenGallery": "معرض المكونات",
+  "@devOpenGallery": {
+    "description": "Opens the component gallery (dev only)"
+  },
+  "devSendTestError": "إرسال خطأ تجريبي",
+  "@devSendTestError": {
+    "description": "Sends a test error to Sentry (dev only)"
+  },
+  "devTestErrorSent": "تم إرسال خطأ تجريبي إلى Sentry.",
+  "@devTestErrorSent": {
+    "description": "Feedback after the test error was sent"
+  },
+  "devSentryOff": "Sentry غير مفعّل في هذا الإصدار (لا يوجد DSN).",
+  "@devSentryOff": {
+    "description": "Feedback when Sentry has no DSN"
+  },
+  "devSendFunctionTestError": "خطأ تجريبي من الخادم",
+  "@devSendFunctionTestError": {
+    "description": "Calls the Cloud Function that throws a test error (dev only)"
+  },
+  "devFunctionTestErrorDone": "استدعت الدالة الخطأ التجريبي. راجع Sentry.",
+  "@devFunctionTestErrorDone": {
+    "description": "Feedback after the Cloud Function test error"
+  },
+  "stateLoadingLabel": "جارٍ التحميل",
+  "@stateLoadingLabel": {
+    "description": "Screen reader label for skeleton placeholders"
+  },
+  "buttonLoadingLabel": "{label}، جارٍ التحميل",
+  "@buttonLoadingLabel": {
+    "description": "Screen reader label of a button that is busy",
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "حفظ"
+      }
+    }
+  },
+  "stateEmptyTitle": "لا يوجد شيء هنا بعد",
+  "@stateEmptyTitle": {
+    "description": "Default empty state title"
+  },
+  "stateEmptyBody": "عندما يصل شيء جديد سيظهر هنا.",
+  "@stateEmptyBody": {
+    "description": "Default empty state body"
+  },
+  "stateErrorTitle": "حدث خطأ",
+  "@stateErrorTitle": {
+    "description": "Default error state title"
+  },
+  "stateErrorBody": "لم نتمكن من تحميل هذه الصفحة. حاول مرة أخرى بعد قليل.",
+  "@stateErrorBody": {
+    "description": "Default error state body, tells the user how to fix it"
+  },
+  "stateOfflineTitle": "لا يوجد اتصال بالإنترنت",
+  "@stateOfflineTitle": {
+    "description": "Offline state title"
+  },
+  "stateOfflineBody": "تحقق من الواي فاي أو بيانات الهاتف. سنحدّث الصفحة عند عودة الاتصال.",
+  "@stateOfflineBody": {
+    "description": "Offline state body"
+  },
+  "actionRetry": "حاول مرة أخرى",
+  "@actionRetry": {
+    "description": "Retry button"
+  },
+  "actionCancel": "إلغاء",
+  "@actionCancel": {
+    "description": "Cancel button"
+  },
+  "actionConfirm": "تأكيد",
+  "@actionConfirm": {
+    "description": "Confirm button"
+  },
+  "galleryTitle": "معرض المكونات",
+  "@galleryTitle": {
+    "description": "Component gallery screen title (dev only)"
+  },
+  "gallerySectionButtons": "الأزرار",
+  "@gallerySectionButtons": {
+    "description": "Gallery section"
+  },
+  "gallerySectionInputs": "الحقول",
+  "@gallerySectionInputs": {
+    "description": "Gallery section"
+  },
+  "gallerySectionCards": "البطاقات",
+  "@gallerySectionCards": {
+    "description": "Gallery section"
+  },
+  "gallerySectionListRows": "صفوف القوائم",
+  "@gallerySectionListRows": {
+    "description": "Gallery section"
+  },
+  "gallerySectionSheets": "النوافذ السفلية والتأكيد",
+  "@gallerySectionSheets": {
+    "description": "Gallery section"
+  },
+  "gallerySectionSkeleton": "التحميل",
+  "@gallerySectionSkeleton": {
+    "description": "Gallery section"
+  },
+  "gallerySectionStates": "حالات الشاشة",
+  "@gallerySectionStates": {
+    "description": "Gallery section"
+  },
+  "gallerySectionTypography": "الخطوط",
+  "@gallerySectionTypography": {
+    "description": "Gallery section"
+  },
+  "gallerySectionColors": "الألوان",
+  "@gallerySectionColors": {
+    "description": "Gallery section"
+  },
+  "sampleButtonPrimary": "إنشاء مشوار",
+  "@sampleButtonPrimary": {
+    "description": "Gallery sample: primary button"
+  },
+  "sampleButtonSecondary": "البحث عن مشوار",
+  "@sampleButtonSecondary": {
+    "description": "Gallery sample: secondary button"
+  },
+  "sampleButtonTertiary": "عرض التفاصيل",
+  "@sampleButtonTertiary": {
+    "description": "Gallery sample: text button"
+  },
+  "sampleButtonDanger": "مغادرة المجموعة",
+  "@sampleButtonDanger": {
+    "description": "Gallery sample: destructive button"
+  },
+  "sampleButtonLoading": "جارٍ الحفظ",
+  "@sampleButtonLoading": {
+    "description": "Gallery sample: button in loading state"
+  },
+  "sampleFieldLabel": "الاسم الأول للطفل",
+  "@sampleFieldLabel": {
+    "description": "Gallery sample: text field label"
+  },
+  "sampleFieldHelper": "كما هو مكتوب في بطاقة المدرسة.",
+  "@sampleFieldHelper": {
+    "description": "Gallery sample: helper text"
+  },
+  "sampleFieldError": "اكتب حرفين على الأقل.",
+  "@sampleFieldError": {
+    "description": "Gallery sample: validation error that says how to fix it"
+  },
+  "sampleFieldShortValue": "س",
+  "@sampleFieldShortValue": {
+    "description": "Gallery sample: a one-letter value that fails validation"
+  },
+  "sampleCardTitle": "مشوار الصباح",
+  "@sampleCardTitle": {
+    "description": "Gallery sample: card title"
+  },
+  "sampleCardBody": "السائق اليوم: سارة. الانطلاق ٦:٤٥ صباحًا.",
+  "@sampleCardBody": {
+    "description": "Gallery sample: card body, fake data"
+  },
+  "sampleListTitle": "مدرسة النيل الدولية",
+  "@sampleListTitle": {
+    "description": "Gallery sample: list row title, fake school"
+  },
+  "sampleListSubtitle": "المعادي، القاهرة",
+  "@sampleListSubtitle": {
+    "description": "Gallery sample: list row subtitle"
+  },
+  "sampleSheetOpen": "فتح نافذة سفلية",
+  "@sampleSheetOpen": {
+    "description": "Gallery sample: opens a bottom sheet"
+  },
+  "sampleSheetTitle": "تبديل يوم القيادة",
+  "@sampleSheetTitle": {
+    "description": "Gallery sample: sheet title"
+  },
+  "sampleSheetBody": "اطلب من عضو آخر في المجموعة أن يقود بدلًا منك يوم الخميس.",
+  "@sampleSheetBody": {
+    "description": "Gallery sample: sheet body"
+  },
+  "sampleConfirmOpen": "فتح نافذة تأكيد",
+  "@sampleConfirmOpen": {
+    "description": "Gallery sample: opens a confirmation dialog"
+  },
+  "sampleConfirmTitle": "مغادرة المجموعة؟",
+  "@sampleConfirmTitle": {
+    "description": "Gallery sample: confirmation title"
+  },
+  "sampleConfirmBody": "لن ترى جدول هذه المجموعة بعد الآن. لا يمكن التراجع عن ذلك.",
+  "@sampleConfirmBody": {
+    "description": "Gallery sample: confirmation body"
+  },
+  "sampleDone": "تم.",
+  "@sampleDone": {
+    "description": "Gallery sample: snackbar feedback"
+  }
+}

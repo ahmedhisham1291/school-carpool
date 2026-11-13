@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "demo-school-carpool",
+    "dev": "REPLACE-school-carpool-dev",
+    "staging": "REPLACE-school-carpool-staging",
+    "prod": "REPLACE-school-carpool-prod"
+  }
+}

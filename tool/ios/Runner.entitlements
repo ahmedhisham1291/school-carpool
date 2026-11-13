@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Push notifications (Firebase Cloud Messaging through APNs).
+	     Xcode switches this to "production" when exporting for TestFlight. -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!-- App Check with App Attest. Release builds only; debug builds use the
+	     App Check debug provider. -->
+	<key>com.apple.developer.devicecheck.appattest-environment</key>
+	<string>production</string>
+</dict>
+</plist>

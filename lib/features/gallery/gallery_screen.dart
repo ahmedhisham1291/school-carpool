@@ -1,0 +1,392 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/components.dart';
+import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/l10n/l10n.dart';
+import 'package:school_carpool/settings/app_settings.dart';
+
+/// Dev-only catalogue of every design-system component, with switches for
+/// Arabic/English, light/dark and design direction A/B.
+///
+/// Token names in the color list are code identifiers, not user-facing text.
+class GalleryScreen extends ConsumerWidget {
+  const GalleryScreen({super.key});
+
+  static const double _stateViewHeight = AppSpacing.s64 * 6;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppLocalizations l10n = context.l10n;
+    final DesignDirection direction = ref.watch(designDirectionProvider);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.galleryTitle),
+        actions: <Widget>[
+          IconButton(
+            key: const Key('gallery.toggleLanguage'),
+            tooltip: l10n.settingsLanguage,
+            icon: const Icon(Icons.language_rounded),
+            onPressed: () => unawaited(ref.read(localeProvider.notifier).toggle()),
+          ),
+          IconButton(
+            key: const Key('gallery.toggleTheme'),
+            tooltip: l10n.settingsTheme,
+            icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+            onPressed: () => unawaited(
+              ref
+                  .read(themeModeProvider.notifier)
+                  .setThemeMode(isDark ? ThemeMode.light : ThemeMode.dark),
+            ),
+          ),
+          IconButton(
+            key: const Key('gallery.toggleDirection'),
+            tooltip: l10n.devDesignDirection,
+            icon: const Icon(Icons.palette_outlined),
+            onPressed: () => unawaited(
+              ref
+                  .read(designDirectionProvider.notifier)
+                  .setDirection(direction == DesignDirection.a ? DesignDirection.b : DesignDirection.a),
+            ),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s48),
+        children: <Widget>[
+          _Padded(
+            child: Text(
+              direction == DesignDirection.a ? l10n.directionA : l10n.directionB,
+              style: context.text.titleMedium,
+            ),
+          ),
+          AppSectionHeader(l10n.gallerySectionColors),
+          const _Padded(child: _ColorSwatches()),
+          AppSectionHeader(l10n.gallerySectionTypography),
+          const _Padded(child: _TypeSamples()),
+          AppSectionHeader(l10n.gallerySectionButtons),
+          const _Padded(child: _ButtonSamples()),
+          AppSectionHeader(l10n.gallerySectionInputs),
+          const _Padded(child: _InputSamples()),
+          AppSectionHeader(l10n.gallerySectionCards),
+          _Padded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                AppCard(child: _CardContent(title: l10n.sampleCardTitle, body: l10n.sampleCardBody)),
+                const SizedBox(height: AppSpacing.s16),
+                AppCard(
+                  elevation: AppElevation.medium,
+                  onTap: () => _done(context),
+                  child: _CardContent(title: l10n.sampleCardTitle, body: l10n.sampleCardBody),
+                ),
+              ],
+            ),
+          ),
+          AppSectionHeader(l10n.gallerySectionListRows),
+          AppListRow(
+            title: l10n.sampleListTitle,
+            subtitle: l10n.sampleListSubtitle,
+            leadingIcon: Icons.school_outlined,
+            onTap: () => _done(context),
+          ),
+          AppListRow(title: l10n.sampleListTitle, subtitle: l10n.sampleListSubtitle),
+          AppSectionHeader(l10n.gallerySectionSheets),
+          const _Padded(child: _SheetSamples()),
+          AppSectionHeader(l10n.gallerySectionSkeleton),
+          const Skeleton(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _Padded(child: SkeletonCard()),
+                SkeletonListRow(),
+                SkeletonListRow(),
+              ],
+            ),
+          ),
+          AppSectionHeader(l10n.gallerySectionStates),
+          SizedBox(
+            height: _stateViewHeight,
+            child: EmptyStateView(
+              actionLabel: l10n.sampleButtonPrimary,
+              onAction: () => _done(context),
+            ),
+          ),
+          const Divider(),
+          SizedBox(height: _stateViewHeight, child: ErrorStateView(onRetry: () => _done(context))),
+          const Divider(),
+          SizedBox(height: _stateViewHeight, child: OfflineStateView(onRetry: () => _done(context))),
+        ],
+      ),
+    );
+  }
+}
+
+void _done(BuildContext context) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(context.l10n.sampleDone)));
+}
+
+class _Padded extends StatelessWidget {
+  const _Padded({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.s16),
+    child: child,
+  );
+}
+
+class _CardContent extends StatelessWidget {
+  const _CardContent({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Text(title, style: context.text.titleMedium),
+      const SizedBox(height: AppSpacing.s8),
+      Text(body, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
+    ],
+  );
+}
+
+class _ColorSwatches extends StatelessWidget {
+  const _ColorSwatches();
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme c = context.colors;
+    final AppColors s = context.appColors;
+    final List<(String, Color, Color)> swatches = <(String, Color, Color)>[
+      ('primary', c.primary, c.onPrimary),
+      ('primaryContainer', c.primaryContainer, c.onPrimaryContainer),
+      ('secondaryContainer', c.secondaryContainer, c.onSecondaryContainer),
+      ('surface', c.surface, c.onSurface),
+      ('surfaceContainerLowest', c.surfaceContainerLowest, c.onSurface),
+      ('surfaceContainerHighest', c.surfaceContainerHighest, c.onSurfaceVariant),
+      ('error', c.error, c.onError),
+      ('success', s.success, s.onSuccess),
+      ('warning', s.warning, s.onWarning),
+    ];
+    return Wrap(
+      spacing: AppSpacing.s8,
+      runSpacing: AppSpacing.s8,
+      children: <Widget>[
+        for (final (String name, Color background, Color foreground) in swatches)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: AppRadii.mdAll,
+              border: Border.all(color: c.outlineVariant),
+            ),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.symmetric(
+                horizontal: AppSpacing.s16,
+                vertical: AppSpacing.s16,
+              ),
+              child: Text(
+                name,
+                textDirection: TextDirection.ltr,
+                style: context.text.labelMedium?.copyWith(color: foreground),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _TypeSamples extends StatelessWidget {
+  const _TypeSamples();
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme t = context.text;
+    final String sample = context.l10n.sampleCardBody;
+    final List<(String, TextStyle?)> styles = <(String, TextStyle?)>[
+      ('headlineMedium', t.headlineMedium),
+      ('titleLarge', t.titleLarge),
+      ('titleMedium', t.titleMedium),
+      ('bodyLarge', t.bodyLarge),
+      ('bodyMedium (16)', t.bodyMedium),
+      ('labelLarge', t.labelLarge),
+      ('bodySmall (captions)', t.bodySmall),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (final (String name, TextStyle? style) in styles) ...<Widget>[
+          Text(
+            name,
+            textDirection: TextDirection.ltr,
+            style: t.labelSmall?.copyWith(color: context.colors.onSurfaceVariant),
+          ),
+          Text(sample, style: style),
+          const SizedBox(height: AppSpacing.s8),
+        ],
+      ],
+    );
+  }
+}
+
+class _ButtonSamples extends StatefulWidget {
+  const _ButtonSamples();
+
+  @override
+  State<_ButtonSamples> createState() => _ButtonSamplesState();
+}
+
+class _ButtonSamplesState extends State<_ButtonSamples> {
+  bool _loading = false;
+
+  Future<void> _simulateSave() async {
+    setState(() => _loading = true);
+    await Future<void>.delayed(AppMotion.slow * 6);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _loading = false);
+    _done(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    const SizedBox gap = SizedBox(height: AppSpacing.s16);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        AppButton(
+          label: _loading ? l10n.sampleButtonLoading : l10n.sampleButtonPrimary,
+          icon: Icons.add_rounded,
+          loading: _loading,
+          expand: true,
+          onPressed: () => unawaited(_simulateSave()),
+        ),
+        gap,
+        AppButton(
+          label: l10n.sampleButtonSecondary,
+          variant: AppButtonVariant.secondary,
+          expand: true,
+          onPressed: () => _done(context),
+        ),
+        gap,
+        AppButton(
+          label: l10n.sampleButtonTertiary,
+          variant: AppButtonVariant.tertiary,
+          onPressed: () => _done(context),
+        ),
+        gap,
+        AppButton(
+          label: l10n.sampleButtonDanger,
+          variant: AppButtonVariant.danger,
+          expand: true,
+          onPressed: () => unawaited(_confirmLeave(context)),
+        ),
+        gap,
+        AppButton(
+          label: l10n.sampleButtonPrimary,
+          size: AppButtonSize.large,
+          expand: true,
+          onPressed: () => _done(context),
+        ),
+        gap,
+        AppButton(label: l10n.sampleButtonPrimary, expand: true, onPressed: null),
+      ],
+    );
+  }
+}
+
+Future<void> _confirmLeave(BuildContext context) async {
+  final AppLocalizations l10n = context.l10n;
+  final bool confirmed = await showConfirmDialog(
+    context: context,
+    title: l10n.sampleConfirmTitle,
+    body: l10n.sampleConfirmBody,
+    confirmLabel: l10n.sampleButtonDanger,
+    destructive: true,
+  );
+  if (confirmed && context.mounted) {
+    _done(context);
+  }
+}
+
+class _InputSamples extends StatelessWidget {
+  const _InputSamples();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        AppTextField(
+          label: l10n.sampleFieldLabel,
+          helperText: l10n.sampleFieldHelper,
+          textInputAction: TextInputAction.next,
+          validator: (String? value) =>
+              (value ?? '').trim().length < 2 ? l10n.sampleFieldError : null,
+        ),
+        const SizedBox(height: AppSpacing.s16),
+        AppTextField(
+          label: l10n.sampleFieldLabel,
+          initialValue: l10n.sampleFieldShortValue,
+          errorText: l10n.sampleFieldError,
+        ),
+        const SizedBox(height: AppSpacing.s16),
+        AppTextField(label: l10n.sampleFieldLabel, enabled: false),
+      ],
+    );
+  }
+}
+
+class _SheetSamples extends StatelessWidget {
+  const _SheetSamples();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        AppButton(
+          label: l10n.sampleSheetOpen,
+          variant: AppButtonVariant.secondary,
+          onPressed: () => unawaited(
+            showAppSheet<void>(
+              context: context,
+              title: l10n.sampleSheetTitle,
+              body: Text(l10n.sampleSheetBody),
+              primaryAction: Builder(
+                builder: (BuildContext sheetContext) => AppButton(
+                  label: l10n.actionConfirm,
+                  expand: true,
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    _done(context);
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s16),
+        AppButton(
+          label: l10n.sampleConfirmOpen,
+          variant: AppButtonVariant.secondary,
+          onPressed: () => unawaited(_confirmLeave(context)),
+        ),
+      ],
+    );
+  }
+}
