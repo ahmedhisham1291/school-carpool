@@ -1,0 +1,1081 @@
+{
+ "type": "FeatureCollection",
+ "name": "SAMPLE hotosm_egy_education_facilities_points (hand-written, not OSM data)",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Cairo American College",
+    "name:ar": "كلية القاهرة الأمريكية",
+    "name:en": "Cairo American College",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100001,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.264,
+     29.959
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدرسة المودرن إنجلش",
+    "name:ar": "مدرسة المودرن إنجلش",
+    "name:en": "Modern English School Cairo",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100002,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.438,
+     30.0155
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Lycée Français du Caire",
+    "name:ar": "الليسيه الفرنسية بالقاهرة",
+    "name:en": "Lycée Français du Caire",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100003,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.251,
+     29.962
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "المدرسة الألمانية الراهبات بباب اللوق",
+    "name:ar": "المدرسة الألمانية الراهبات بباب اللوق",
+    "name:en": "German School of the Borromean Sisters",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100004,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.239,
+     30.043
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Collège de la Sainte Famille",
+    "name:ar": "مدرسة العائلة المقدسة",
+    "name:en": "Collège de la Sainte Famille",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100005,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.258,
+     30.061
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدرسة بورسعيد بالزمالك",
+    "name:ar": "مدرسة بورسعيد بالزمالك",
+    "name:en": "Port Said School Zamalek",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": "الزمالك",
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100006,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.2185,
+     30.064
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Manor House School",
+    "name:ar": "مدرسة مانور هاوس",
+    "name:en": "Manor House School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100007,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.278,
+     29.969
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Cairo English School",
+    "name:ar": "مدرسة القاهرة الإنجليزية",
+    "name:en": "Cairo English School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100008,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.423,
+     30.029
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "New Cairo British International School",
+    "name:ar": "مدرسة القاهرة الجديدة البريطانية الدولية",
+    "name:en": "New Cairo British International School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100009,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.456,
+     30.024
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Hayah International Academy",
+    "name:ar": "أكاديمية حياة الدولية",
+    "name:en": "Hayah International Academy",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100010,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.491,
+     30.036
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "ليسيه الحرية مصر الجديدة",
+    "name:ar": "ليسيه الحرية مصر الجديدة",
+    "name:en": "Lycée La Liberté Héliopolis",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100011,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.324,
+     30.088
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدرسة سانت فاطيما",
+    "name:ar": "مدرسة سانت فاطيما للغات",
+    "name:en": "Saint Fatima Language School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100012,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.335,
+     30.096
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدارس منارة الفاروق",
+    "name:ar": "مدارس منارة الفاروق الإسلامية للغات",
+    "name:en": "Manarat Al Farouk Islamic Language School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100013,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.36,
+     30.056
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Victory College",
+    "name:ar": "مدرسة فيكتوري كوليدج",
+    "name:en": "Victory College",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100014,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.27,
+     29.961
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Malvern College Egypt",
+    "name:ar": "كلية مالفرن مصر",
+    "name:en": "Malvern College Egypt",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100015,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.493,
+     30.006
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Narmer American College",
+    "name:ar": "كلية نارمر الأمريكية",
+    "name:en": "Narmer American College",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100016,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.605,
+     30.122
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدرسة دار التربية",
+    "name:ar": "مدرسة دار التربية",
+    "name:en": "Dar El Tarbiah School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100017,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.231,
+     30.037
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدرسة القلب المقدس",
+    "name:ar": "مدرسة القلب المقدس",
+    "name:en": "Collège du Sacré-Cœur",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100018,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.269,
+     30.066
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "حضانة مونتيسوري المعادي",
+    "name:ar": "حضانة مونتيسوري المعادي",
+    "name:en": "Maadi Montessori Nursery",
+    "amenity": "kindergarten",
+    "building": null,
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100019,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.261,
+     29.9575
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "روضة براعم مدينة نصر",
+    "name:ar": "روضة براعم مدينة نصر",
+    "name:en": "Baraem Nasr City Kindergarten",
+    "amenity": "kindergarten",
+    "building": null,
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100020,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.342,
+     30.062
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "British International School Cairo",
+    "name:ar": "المدرسة البريطانية الدولية بالقاهرة",
+    "name:en": "British International School Cairo",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100030,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     30.983,
+     30.05
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "El Alsson British & American International School",
+    "name:ar": "مدرسة الألسن البريطانية والأمريكية الدولية",
+    "name:en": "El Alsson British & American International School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100031,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.144,
+     29.944
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدارس مصر للغات",
+    "name:ar": "مدارس مصر للغات",
+    "name:en": "Misr Language Schools",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100032,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.115,
+     29.985
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Deutsche Evangelische Oberschule",
+    "name:ar": "المدرسة الألمانية الإنجيلية",
+    "name:en": "German Evangelical School Cairo",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100033,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.211,
+     30.04
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدرسة الأورمان التجريبية للغات",
+    "name:ar": "مدرسة الأورمان التجريبية للغات",
+    "name:en": "Orman Experimental Language School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100034,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.212,
+     30.03
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "International School of Choueifat",
+    "name:ar": "مدرسة الشويفات الدولية",
+    "name:en": "International School of Choueifat - 6th of October",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100035,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     30.93,
+     29.96
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدرسة النيل المصرية",
+    "name:ar": "مدرسة النيل المصرية",
+    "name:en": "Nile Egyptian School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100036,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     30.95,
+     29.985
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "حضانة الشيخ زايد",
+    "name:ar": "حضانة نجوم الشيخ زايد",
+    "name:en": "Sheikh Zayed Stars Nursery",
+    "amenity": "kindergarten",
+    "building": null,
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100037,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     30.979,
+     30.023
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Victoria College",
+    "name:ar": "كلية فيكتوريا",
+    "name:en": "Victoria College",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100050,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     29.969,
+     31.242
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Schutz American School",
+    "name:ar": "مدرسة شوتز الأمريكية",
+    "name:en": "Schutz American School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100051,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     29.961,
+     31.241
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "كلية النصر للبنات",
+    "name:ar": "كلية النصر للبنات",
+    "name:en": "El Nasr Girls' College",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100052,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     29.948,
+     31.231
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Saint Mark's College",
+    "name:ar": "كلية سان مارك",
+    "name:en": "Saint Mark's College",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100053,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     29.915,
+     31.208
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "نوتردام دي سيون",
+    "name:ar": "مدرسة نوتردام دي سيون",
+    "name:en": "Notre Dame de Sion",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100054,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     29.94,
+     31.22
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "ليسيه الحرية بالإسكندرية",
+    "name:ar": "مدرسة ليسيه الحرية بالإسكندرية",
+    "name:en": "Lycée El Horreya Alexandria",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100055,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     29.92,
+     31.212
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "روضة أطفال سموحة",
+    "name:ar": "روضة أطفال سموحة",
+    "name:en": "Smouha Kids Kindergarten",
+    "amenity": "kindergarten",
+    "building": null,
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100056,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     29.947,
+     31.215
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدرسه بورسعيد التجريبيه",
+    "name:ar": "مدرسه بورسعيد التجريبيه",
+    "name:en": null,
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100060,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.2193,
+     30.0648
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدارس منارة الفاروق",
+    "name:ar": "مدارس منارة الفاروق الإسلامية للغات",
+    "name:en": "Manarat Al Farouk Islamic Language School",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100061,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.364,
+     30.062
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": null,
+    "name:ar": null,
+    "name:en": null,
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100090,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.24,
+     30.05
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Cairo University",
+    "name:ar": "جامعة القاهرة",
+    "name:en": "Cairo University",
+    "amenity": "university",
+    "building": null,
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100091,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.208,
+     30.026
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدرسة قيادة النصر",
+    "name:ar": "مدرسة قيادة النصر",
+    "name:en": null,
+    "amenity": "driving_school",
+    "building": null,
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100092,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.33,
+     30.057
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "مدرسة",
+    "name:ar": "مدرسة",
+    "name:en": null,
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100093,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.28,
+     30.07
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "American Community School Beirut",
+    "name:ar": null,
+    "name:en": "American Community School Beirut",
+    "amenity": "school",
+    "building": "school",
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100094,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     35.48,
+     33.899
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Arab Academy for Science and Technology",
+    "name:ar": "الأكاديمية العربية للعلوم والتكنولوجيا",
+    "name:en": "Arab Academy for Science and Technology",
+    "amenity": "college",
+    "building": null,
+    "operator:type": null,
+    "capacity:persons": null,
+    "addr:full": null,
+    "addr:city": null,
+    "source": null,
+    "isced:level": null,
+    "osm_id": 100095,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     30.064,
+     31.309
+    ]
+   }
+  }
+ ]
+}
