@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/shell/home_shell.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/settings/app_settings.dart';
 
@@ -24,7 +25,7 @@ class GalleryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.galleryTitle),
+        title: OneLineText(l10n.galleryTitle),
         actions: <Widget>[
           IconButton(
             key: const Key('gallery.toggleLanguage'),
@@ -57,10 +58,15 @@ class GalleryScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s48),
         children: <Widget>[
-          _Padded(
-            child: Text(
+          Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: AppSpacing.screenGutter,
+              end: AppSpacing.screenGutter,
+              top: AppSpacing.s16,
+            ),
+            child: OneLineText(
               direction == DesignDirection.a ? l10n.directionA : l10n.directionB,
-              style: context.text.titleMedium,
+              style: context.text.headlineSmall,
             ),
           ),
           AppSectionHeader(l10n.gallerySectionColors),
@@ -69,6 +75,8 @@ class GalleryScreen extends ConsumerWidget {
           const _Padded(child: _TypeSamples()),
           AppSectionHeader(l10n.gallerySectionButtons),
           const _Padded(child: _ButtonSamples()),
+          AppSectionHeader(l10n.gallerySectionChips),
+          const _Padded(child: _ChipSamples()),
           AppSectionHeader(l10n.gallerySectionInputs),
           const _Padded(child: _InputSamples()),
           AppSectionHeader(l10n.gallerySectionCards),
@@ -86,6 +94,8 @@ class GalleryScreen extends ConsumerWidget {
               ],
             ),
           ),
+          AppSectionHeader(l10n.gallerySectionNavigation),
+          const _NavigationSample(),
           AppSectionHeader(l10n.gallerySectionListRows),
           AppListRow(
             title: l10n.sampleListTitle,
@@ -125,11 +135,7 @@ class GalleryScreen extends ConsumerWidget {
   }
 }
 
-void _done(BuildContext context) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(context.l10n.sampleDone)));
-}
+void _done(BuildContext context) => showAppSnackBar(context, context.l10n.sampleDone);
 
 class _Padded extends StatelessWidget {
   const _Padded({required this.child});
@@ -138,7 +144,7 @@ class _Padded extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.s16),
+    padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter),
     child: child,
   );
 }
@@ -153,7 +159,7 @@ class _CardContent extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
-      Text(title, style: context.text.titleMedium),
+      OneLineText(title, style: context.text.titleMedium),
       const SizedBox(height: AppSpacing.s8),
       Text(body, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
     ],
@@ -163,6 +169,9 @@ class _CardContent extends StatelessWidget {
 class _ColorSwatches extends StatelessWidget {
   const _ColorSwatches();
 
+  static String _hex(Color color) =>
+      '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme c = context.colors;
@@ -170,10 +179,11 @@ class _ColorSwatches extends StatelessWidget {
     final List<(String, Color, Color)> swatches = <(String, Color, Color)>[
       ('primary', c.primary, c.onPrimary),
       ('primaryContainer', c.primaryContainer, c.onPrimaryContainer),
-      ('secondaryContainer', c.secondaryContainer, c.onSecondaryContainer),
       ('surface', c.surface, c.onSurface),
-      ('surfaceContainerLowest', c.surfaceContainerLowest, c.onSurface),
-      ('surfaceContainerHighest', c.surfaceContainerHighest, c.onSurfaceVariant),
+      ('surfaceRaised', s.surfaceRaised, c.onSurface),
+      ('onSurfaceVariant', c.surfaceContainerHigh, c.onSurfaceVariant),
+      ('outlineVariant', c.outlineVariant, c.onSurface),
+      ('outline', c.outline, c.surface),
       ('error', c.error, c.onError),
       ('success', s.success, s.onSuccess),
       ('warning', s.warning, s.onWarning),
@@ -186,24 +196,85 @@ class _ColorSwatches extends StatelessWidget {
           DecoratedBox(
             decoration: BoxDecoration(
               color: background,
-              borderRadius: AppRadii.mdAll,
+              borderRadius: AppRadii.control,
               border: Border.all(color: c.outlineVariant),
             ),
             child: Padding(
-              padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: AppSpacing.s16,
-                vertical: AppSpacing.s16,
-              ),
-              child: Text(
-                name,
-                textDirection: TextDirection.ltr,
-                style: context.text.labelMedium?.copyWith(color: foreground),
+              padding: const EdgeInsetsDirectional.all(AppSpacing.s16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    name,
+                    textDirection: TextDirection.ltr,
+                    style: context.text.labelMedium?.copyWith(color: foreground),
+                  ),
+                  Text(
+                    _hex(name == 'onSurfaceVariant' ? foreground : background),
+                    textDirection: TextDirection.ltr,
+                    style: context.text.labelSmall?.copyWith(color: foreground),
+                  ),
+                ],
               ),
             ),
           ),
       ],
     );
   }
+}
+
+class _ChipSamples extends StatefulWidget {
+  const _ChipSamples();
+
+  @override
+  State<_ChipSamples> createState() => _ChipSamplesState();
+}
+
+class _ChipSamplesState extends State<_ChipSamples> {
+  int _selected = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    final List<String> labels = <String>[
+      l10n.sampleChipMorning,
+      l10n.sampleChipAfternoon,
+      l10n.sampleChipBoth,
+    ];
+    return Wrap(
+      spacing: AppSpacing.s8,
+      runSpacing: AppSpacing.s8,
+      children: <Widget>[
+        for (int i = 0; i < labels.length; i++)
+          AppChip(
+            label: labels[i],
+            selected: i == _selected,
+            onSelected: (bool _) => setState(() => _selected = i),
+          ),
+        AppChip(label: l10n.sampleChipBoth, icon: Icons.block_rounded),
+      ],
+    );
+  }
+}
+
+/// The real bottom bar with the five tabs, for checking the one-line labels
+/// and the selected pill in every language and theme.
+class _NavigationSample extends StatefulWidget {
+  const _NavigationSample();
+
+  @override
+  State<_NavigationSample> createState() => _NavigationSampleState();
+}
+
+class _NavigationSampleState extends State<_NavigationSample> {
+  int _index = 3;
+
+  @override
+  Widget build(BuildContext context) => AppNavigationBar(
+    destinations: HomeShell.destinations(context.l10n),
+    selectedIndex: _index,
+    onDestinationSelected: (int index) => setState(() => _index = index),
+  );
 }
 
 class _TypeSamples extends StatelessWidget {
@@ -219,8 +290,10 @@ class _TypeSamples extends StatelessWidget {
       ('titleMedium', t.titleMedium),
       ('bodyLarge', t.bodyLarge),
       ('bodyMedium (16)', t.bodyMedium),
+      ('titleSmall', t.titleSmall),
       ('labelLarge', t.labelLarge),
       ('bodySmall (captions)', t.bodySmall),
+      ('labelSmall (tabs)', t.labelSmall),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -195,7 +195,6 @@ abstract final class AppTheme {
         // Helper and error text tell the parent what to do: body size (16).
         helperStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         errorStyle: text.bodyMedium?.copyWith(color: scheme.error),
-        hintMaxLines: 1,
         helperMaxLines: 2,
         errorMaxLines: 2,
       ),

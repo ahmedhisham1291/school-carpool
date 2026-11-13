@@ -26,7 +26,15 @@ void main() {
 
     test('touch targets are at least 48', () {
       expect(AppSpacing.minTouchTarget, greaterThanOrEqualTo(48));
+      expect(AppSpacing.buttonHeight, greaterThanOrEqualTo(AppSpacing.minTouchTarget));
+      expect(AppSpacing.navBarHeight, greaterThanOrEqualTo(AppSpacing.minTouchTarget));
       expect(AppSpacing.driverTouchTarget, greaterThan(AppSpacing.minTouchTarget));
+    });
+
+    test('buttons are 52 high in the theme', () {
+      final ThemeData theme = AppTheme.light(DesignDirection.a);
+      final Size? size = theme.filledButtonTheme.style!.minimumSize!.resolve(<WidgetState>{});
+      expect(size!.height, AppSpacing.buttonHeight);
     });
   });
 
@@ -39,10 +47,24 @@ void main() {
       expect(text.labelLarge!.fontSize, greaterThanOrEqualTo(AppTypeScale.minBodySize));
     });
 
+    test('clear hierarchy: titles are larger than body, labels never bold', () {
+      expect(text.titleLarge!.fontSize, greaterThan(text.titleMedium!.fontSize!));
+      expect(text.titleMedium!.fontSize, greaterThan(text.bodyMedium!.fontSize!));
+      expect(text.titleSmall!.fontWeight, AppTypeScale.semiBold);
+      expect(text.labelLarge!.fontWeight, AppTypeScale.medium);
+      // Comfortable Arabic line height for reading text.
+      expect(text.bodyMedium!.height, greaterThanOrEqualTo(1.5));
+    });
+
+    test('bottom navigation clamps text scaling at a sane value', () {
+      expect(AppTypeScale.maxNavTextScale, greaterThan(1));
+      expect(AppTypeScale.maxNavTextScale, lessThanOrEqualTo(1.5));
+    });
+
     test('no letter spacing (it breaks Arabic joins)', () {
       final List<TextStyle?> styles = <TextStyle?>[
         text.displayLarge, text.headlineMedium, text.titleLarge, text.titleMedium,
-        text.bodyLarge, text.bodyMedium, text.bodySmall, text.labelLarge,
+        text.bodyLarge, text.bodyMedium, text.bodySmall, text.labelLarge, text.labelSmall,
       ];
       for (final TextStyle? style in styles) {
         expect(style!.letterSpacing, 0);
@@ -57,6 +79,7 @@ void main() {
         final AppPalette p = direction.palette(brightness);
         final ColorScheme c = p.scheme;
         final StatusColors s = p.status;
+        final Color raised = AppColors.raisedSurfaceOf(c);
 
         test('${direction.name} ${brightness.name}', () {
           final Map<String, (Color, Color, double)> pairs = <String, (Color, Color, double)>{
@@ -67,6 +90,17 @@ void main() {
             'onSurfaceVariant/surface': (c.onSurfaceVariant, c.surface, 4.5),
             'onSurfaceVariant/highest': (c.onSurfaceVariant, c.surfaceContainerHighest, 4.5),
             'onSurfaceVariant/lowest': (c.onSurfaceVariant, c.surfaceContainerLowest, 4.5),
+            'onSurfaceVariant/high': (c.onSurfaceVariant, c.surfaceContainerHigh, 4.5),
+            // Text on cards, sheets, dialogs and the bottom bar.
+            'onSurface/raised': (c.onSurface, raised, 4.5),
+            'onSurfaceVariant/raised': (c.onSurfaceVariant, raised, 4.5),
+            'primary text/raised': (c.primary, raised, 4.5),
+            // Selected tab and chip: icon and label on the soft teal wash.
+            'primary/primaryContainer': (c.primary, c.primaryContainer, 3.0),
+            'onInverseSurface/inverseSurface': (c.onInverseSurface, c.inverseSurface, 4.5),
+            'inversePrimary/inverseSurface': (c.inversePrimary, c.inverseSurface, 4.5),
+            'onSuccess/success': (s.onSuccess, s.success, 4.5),
+            'onWarning/warning': (s.onWarning, s.warning, 4.5),
             'primary text/surface': (c.primary, c.surface, 4.5),
             'primary text/lowest': (c.primary, c.surfaceContainerLowest, 4.5),
             'onError/error': (c.onError, c.error, 4.5),
@@ -78,6 +112,8 @@ void main() {
             'onWarningContainer': (s.onWarningContainer, s.warningContainer, 4.5),
             // Borders of inputs are UI components: 3:1.
             'outline/surface': (c.outline, c.surface, 3.0),
+            'outline/raised': (c.outline, raised, 3.0),
+            'outline/low': (c.outline, c.surfaceContainerLow, 3.0),
           };
           pairs.forEach((String name, (Color, Color, double) pair) {
             final double ratio = contrast(pair.$1, pair.$2);
