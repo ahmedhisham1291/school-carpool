@@ -1,7 +1,7 @@
 // Sign-in policy: WhatsApp code (custom token) only. Run: npm test.
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { emailAllowed, emailConfirmationIsNew, signInMethodAllowed } from "../src/auth/sign_in_policy";
+import { emailAllowed, emailConfirmationIsNew, isAdminAccount, signInAllowed, signInMethodAllowed } from "../src/auth/sign_in_policy";
 
 describe("signInMethodAllowed", () => {
   it("refuses password, email link, SMS and anonymous sign-in", () => {
@@ -30,5 +30,28 @@ describe("emailConfirmationIsNew", () => {
   });
   it("is not new on a repeat call, so no second token is issued", () => {
     assert.equal(emailConfirmationIsNew({ email: "a@example.com", emailVerified: true }, "a@example.com"), false);
+  });
+});
+
+describe("admin sign-in (F14)", () => {
+  const admin = { customClaims: { admin: true }, phoneNumber: undefined, disabled: false };
+  it("allows a password only for an admin account: admin claim, no phone number, not disabled", () => {
+    assert.equal(isAdminAccount(admin), true);
+    assert.equal(signInAllowed("password", admin), true);
+    assert.equal(signInAllowed("password", { customClaims: { admin: true, superAdmin: true } }), true);
+  });
+  it("refuses a password for parents, even one who set a password on their own account", () => {
+    assert.equal(signInAllowed("password", { phoneNumber: "+201000000001", customClaims: { verified: true } }), false);
+    assert.equal(signInAllowed("password", { phoneNumber: "+201000000001", customClaims: { admin: true } }), false);
+    assert.equal(signInAllowed("password", { customClaims: { verified: true } }), false);
+    assert.equal(signInAllowed("password", { customClaims: null }), false);
+    assert.equal(signInAllowed("password", undefined), false);
+  });
+  it("refuses a disabled admin and keeps email links, SMS and anonymous closed for admins too", () => {
+    assert.equal(signInAllowed("password", { ...admin, disabled: true }), false);
+    for (const method of ["emailLink", "phone", "anonymous"]) assert.equal(signInAllowed(method, admin), false, method);
+  });
+  it("still allows the parents' custom token", () => {
+    assert.equal(signInAllowed("custom", { phoneNumber: "+201000000001" }), true);
   });
 });

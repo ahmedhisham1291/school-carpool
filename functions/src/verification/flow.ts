@@ -9,6 +9,7 @@ import {
   VerificationError,
   type ChildSubmission,
   type DriverSubmission,
+  type NameCheck,
   type RejectionReason,
   type Submission,
   type VerificationConsent,
@@ -80,6 +81,8 @@ export interface DecisionWrite {
   reviewerUid: string;
   reasonCode: RejectionReason | null;
   note: string | null;
+  /** Approve of a case with children: how the parent and child name check passed. */
+  nameCheck: NameCheck | null;
   decidedAtMs: number;
   /** When the scheduled job deletes the images (spec section 7: within 7 days). */
   purgeAtMs: number;
@@ -271,7 +274,7 @@ export async function submitVerification(deps: VerificationDeps, uid: string, da
 /** What a decision changes. Pure, unit-tested. */
 export function planDecision(
   record: CaseRecord,
-  decision: { approve: boolean; reasonCode: RejectionReason | null; note: string | null; ban: boolean },
+  decision: { approve: boolean; reasonCode: RejectionReason | null; note: string | null; ban: boolean; nameCheck?: NameCheck | null },
   reviewerUid: string,
   nowMs: number,
   ip: string | null,
@@ -288,6 +291,7 @@ export function planDecision(
     reviewerUid,
     reasonCode: decision.reasonCode,
     note: decision.note,
+    nameCheck: decision.approve ? (decision.nameCheck ?? null) : null,
     decidedAtMs: nowMs,
     purgeAtMs: nowMs + IMAGE_RETENTION_MS,
     userStatus,
@@ -313,6 +317,10 @@ export async function decideVerification(
   if (record.status !== "awaiting_review") throw new VerificationError("already-decided");
   if (record.uid === reviewerUid) throw new VerificationError("own-case");
   if (decision.ban && !record.nationalIdHash) throw new VerificationError("invalid-decision");
+  // The reviewer must confirm the parent and child name check (spec section 3).
+  if (decision.approve && record.children.length > 0 && decision.nameCheck === null) {
+    throw new VerificationError("name-check-missing");
+  }
 
   const write = planDecision(record, decision, reviewerUid, deps.now(), ip);
   await deps.store.saveDecision(write);

@@ -243,7 +243,7 @@ describe("decideVerification", () => {
 
   it("approve: verified status, claim set, children and vehicle approved, images kept until the purge time", async () => {
     const caseId = await submitted();
-    await decideVerification(deps, "admin1", { caseId, decision: "approve" });
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
     assert.equal(store.users.get("alice")?.status, "verified");
     assert.equal(claims.verified.get("alice"), true);
     assert.ok([...store.children.values()].every((c) => c.status === "approved"));
@@ -277,12 +277,20 @@ describe("decideVerification", () => {
     await assert.rejects(submitVerification(deps, "bob", submission()), expectReason("banned-id"));
   });
 
+  it("approve needs the parent and child name check when the case has children (spec section 3)", async () => {
+    const caseId = await submitted();
+    await assert.rejects(decideVerification(deps, "admin1", { caseId, decision: "approve" }), expectReason("name-check-missing"));
+    assert.equal(store.users.get("alice")?.status, "pending");
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "birth_certificate" });
+    assert.equal(store.users.get("alice")?.status, "verified");
+  });
+
   it("cannot decide twice, decide an own case, or decide an unknown case", async () => {
     const caseId = await submitted();
-    await assert.rejects(decideVerification(deps, "alice", { caseId, decision: "approve" }), expectReason("own-case"));
-    await decideVerification(deps, "admin1", { caseId, decision: "approve" });
+    await assert.rejects(decideVerification(deps, "alice", { caseId, decision: "approve", nameCheck: "match" }), expectReason("own-case"));
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
     await assert.rejects(decideVerification(deps, "admin1", { caseId, decision: "reject", reasonCode: "other", note: "x" }), expectReason("already-decided"));
-    await assert.rejects(decideVerification(deps, "admin1", { caseId: "nope", decision: "approve" }), expectReason("not-found"));
+    await assert.rejects(decideVerification(deps, "admin1", { caseId: "nope", decision: "approve", nameCheck: "match" }), expectReason("not-found"));
   });
 
   it("validates the decision", () => {
@@ -290,8 +298,15 @@ describe("decideVerification", () => {
     assert.throws(() => parseDecision({ caseId: "c1", decision: "reject" }), expectReason("invalid-decision"));
     assert.throws(() => parseDecision({ caseId: "c1", decision: "reject", reasonCode: "other" }), expectReason("invalid-decision"));
     assert.throws(() => parseDecision({ caseId: "c1", decision: "approve", ban: true }), expectReason("invalid-decision"));
+    assert.throws(() => parseDecision({ caseId: "c1", decision: "approve", nameCheck: "maybe" }), expectReason("invalid-decision"));
+    assert.throws(
+      () => parseDecision({ caseId: "c1", decision: "reject", reasonCode: "other", note: "x", nameCheck: "match" }),
+      expectReason("invalid-decision"),
+    );
+    assert.equal(parseDecision({ caseId: "c1", decision: "approve", nameCheck: "birth_certificate" }).nameCheck, "birth_certificate");
     assert.deepEqual(parseDecision({ caseId: "c1", decision: "reject", reasonCode: "other", note: " Blurry back " }), {
       caseId: "c1",
+      nameCheck: null,
       approve: false,
       reasonCode: "other",
       note: "Blurry back",
@@ -314,7 +329,7 @@ describe("verified parent updates (F3)", () => {
   async function verifiedAlice(): Promise<string> {
     uploadAll("alice");
     const { caseId } = await submitVerification(deps, "alice", submission());
-    await decideVerification(deps, "admin1", { caseId, decision: "approve" });
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
     return [...store.children.values()].find((c) => c.ownerUid === "alice")!.id;
   }
 
@@ -371,7 +386,7 @@ describe("purgeVerificationImages (retention job)", () => {
     assert.deepEqual(await purgeVerificationImages(deps), { cases: 0, files: 0 });
     assert.equal((await files.list(prefix)).length, 5);
 
-    await decideVerification(deps, "admin1", { caseId, decision: "approve" });
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
     const decidedAt = clock;
 
     clock = decidedAt + 4 * DAY_MS;

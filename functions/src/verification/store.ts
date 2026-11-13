@@ -2,6 +2,7 @@ import type { Auth } from "firebase-admin/auth";
 import { FieldValue, Timestamp, type DocumentData, type Firestore } from "firebase-admin/firestore";
 import type { Storage } from "firebase-admin/storage";
 import { USERS } from "../auth/accounts";
+import { nameSearchFields } from "../text/normalize";
 import type { KycOutcome, KycResult } from "./kyc";
 import { asKycResult } from "./kyc";
 import { VERIFICATION_CONSENT_VERSIONS, VerificationError, type DriverSubmission } from "./submission";
@@ -159,6 +160,8 @@ export class FirestoreVerificationStore implements VerificationStore {
       userUpdate.firstName = c.identity.firstName;
       userUpdate.lastName = c.identity.lastName;
       userUpdate.idExpiry = c.identity.idExpiry;
+      // Admin search by name (F14): normalized full name and its words.
+      Object.assign(userUpdate, nameSearchFields(c.identity.firstName, c.identity.lastName));
     }
     batch.update(userRef, userUpdate);
 
@@ -198,6 +201,7 @@ export class FirestoreVerificationStore implements VerificationStore {
         reviewerUid: w.reviewerUid,
         reasonCode: w.reasonCode,
         note: w.note,
+        nameCheck: w.nameCheck,
         decidedAt,
         purgeAt: Timestamp.fromMillis(w.purgeAtMs),
       });
@@ -240,6 +244,7 @@ export class FirestoreVerificationStore implements VerificationStore {
         action: w.banNationalIdHash ? "verification.ban" : `verification.${approved ? "approve" : "reject"}`,
         target: `${VERIFICATIONS}/${w.caseId}`,
         reasonCode: w.reasonCode,
+        details: { nameCheck: w.nameCheck },
         ip: w.ip,
         time: FieldValue.serverTimestamp(),
       });

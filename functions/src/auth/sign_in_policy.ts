@@ -17,6 +17,36 @@ export function signInMethodAllowed(method: string | undefined): boolean {
   return method === undefined || !BLOCKED_SIGN_IN_METHODS.has(method);
 }
 
+/** What the blocking function knows about the account signing in. */
+export interface SignInAccount {
+  phoneNumber?: string | null;
+  customClaims?: Record<string, unknown> | null;
+  disabled?: boolean;
+}
+
+/**
+ * Admin accounts (F14) are separate accounts: an email address, no phone
+ * number, and the "admin" custom claim, which only a super admin (the
+ * createAdmin function) or the bootstrap script sets. A parent account
+ * always has a phone number and never the claim, so a parent who sets a
+ * password on their own account still cannot sign in with it.
+ */
+export function isAdminAccount(account: SignInAccount | undefined): boolean {
+  if (!account || account.disabled === true) return false;
+  if (account.phoneNumber) return false;
+  return account.customClaims?.admin === true;
+}
+
+/**
+ * The full sign-in decision: a password is allowed only for an admin
+ * account (the panel then asks for the TOTP second factor); every other
+ * method follows signInMethodAllowed.
+ */
+export function signInAllowed(method: string | undefined, account: SignInAccount | undefined): boolean {
+  if (method === "password") return isAdminAccount(account);
+  return signInMethodAllowed(method);
+}
+
 /** Password reset and email sign-in links are never sent. */
 export function emailAllowed(emailType: string | undefined): boolean {
   return emailType !== "PASSWORD_RESET" && emailType !== "EMAIL_SIGN_IN";

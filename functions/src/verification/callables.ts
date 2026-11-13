@@ -2,9 +2,8 @@ import * as logger from "firebase-functions/logger";
 import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminAuth, adminDb, adminStorage } from "../admin";
-import { clientIp } from "../auth/client_ip";
+import { ipOf, requireAdminCaller } from "../admin_panel/access";
 import {
-  CLIENT_IP_HOP,
   ENFORCE_APP_CHECK,
   KYC_PROVIDER,
   NATIONAL_ID_HMAC_KEY,
@@ -61,6 +60,7 @@ const ERROR_CODES: Record<VerificationErrorReason, FunctionsErrorCode> = {
   "already-decided": "failed-precondition",
   "invalid-decision": "invalid-argument",
   "own-case": "permission-denied",
+  "name-check-missing": "failed-precondition",
   "not-admin": "permission-denied",
 };
 
@@ -137,15 +137,13 @@ function requireUid(request: CallableRequest): string {
   return uid;
 }
 
-/** Admins carry the "admin" custom claim, set only by a super admin (Prompt 4) or the admin script. */
+/**
+ * Admins carry the "admin" custom claim (set only by a super admin or the
+ * bootstrap script), signed in with a second factor, within the session
+ * limit (admin_panel/guard.ts).
+ */
 export function requireAdmin(request: CallableRequest): string {
-  const uid = requireUid(request);
-  if (request.auth?.token?.admin !== true) throw new VerificationError("not-admin");
-  return uid;
-}
-
-function ipOf(request: CallableRequest): string {
-  return clientIp(request.rawRequest.headers, request.rawRequest.ip, CLIENT_IP_HOP.value());
+  return requireAdminCaller(request).uid;
 }
 
 const options = { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [NATIONAL_ID_HMAC_KEY], timeoutSeconds: 120 };
@@ -183,7 +181,8 @@ export const openVerificationCase = onCall({ enforceAppCheck: ENFORCE_APP_CHECK 
 /**
  * Admin: approve or reject. The only way an account becomes verified and
  * gets the "verified" claim.
- * { caseId, decision: "approve" | "reject", reasonCode?, note?, ban? } -> { status }
+ * { caseId, decision: "approve" | "reject", nameCheck?, reasonCode?, note?, ban? } -> { status }
+ * nameCheck ("match" | "birth_certificate") is required to approve a case with children.
  */
 export const decideVerification = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("decideVerification", () => decideFlow(deps(false), requireAdmin(request), request.data, ipOf(request))),

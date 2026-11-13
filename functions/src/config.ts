@@ -81,3 +81,9 @@ export const OTP_MAX_SENDS_PER_IP = defineInt("OTP_MAX_SENDS_PER_IP", { default:
 
 /** Which X-Forwarded-For entry is the client, counted from the end (auth/client_ip.ts). */
 export const CLIENT_IP_HOP = defineInt("CLIENT_IP_HOP", { default: 1 });
+
+/**
+ * Admin panel user searches per admin per 10 minutes (F14). Searches are
+ * rate limited so nobody can sweep the user list.
+ */
+export const ADMIN_SEARCH_LIMIT = defineInt("ADMIN_SEARCH_LIMIT", { default: 30 });

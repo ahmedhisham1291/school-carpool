@@ -4,7 +4,7 @@
  * approval sets the "verified" status and custom claim exactly like the panel will.
  *
  *   npm --prefix functions run review:emulator -- queue
- *   npm --prefix functions run review:emulator -- approve <caseId>
+ *   npm --prefix functions run review:emulator -- approve <caseId> [match|birth_certificate]
  *   npm --prefix functions run review:emulator -- reject <caseId> <reason> [note]
  *   npm --prefix functions run review:emulator -- kyc <match|no_match|error>
  *   npm --prefix functions run review:emulator -- grant-admin <uid>
@@ -68,7 +68,8 @@ async function main(): Promise<void> {
       return;
     }
     case "approve":
-      console.log(await decideVerification(deps, REVIEWER, { caseId: arg1, decision: "approve" }));
+      // arg2: how the parent and child name check passed (match | birth_certificate).
+      console.log(await decideVerification(deps, REVIEWER, { caseId: arg1, decision: "approve", nameCheck: arg2 ?? "match" }));
       return;
     case "reject": {
       const note = rest.join(" ").trim();

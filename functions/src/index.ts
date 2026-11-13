@@ -38,5 +38,24 @@ export {
   submitVerification,
 } from "./verification/callables";
 
-// Only WhatsApp-code sign-in (custom token); no password or email-link sign-in.
+// Admin web panel (Prompt 4: F14). Verification review uses the functions above.
+export {
+  adminApproveSchool,
+  adminCreateAdmin,
+  adminGetSchool,
+  adminGetUser,
+  adminListAdmins,
+  adminListAuditLog,
+  adminListReports,
+  adminListSchools,
+  adminMergeSchool,
+  adminModerateUser,
+  adminSaveArea,
+  adminSaveSchool,
+  adminSearchUsers,
+  adminSetAdminDisabled,
+} from "./admin_panel/callables";
+
+// Parents: WhatsApp-code sign-in (custom token) only. Admins: email and
+// password for allow-listed admin accounts, then a TOTP second factor.
 export { blockNonCodeSignIn, blockSignInEmails } from "./auth/blocking";
