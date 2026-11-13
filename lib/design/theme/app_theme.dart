@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/theme/app_colors.dart';
 import 'package:school_carpool/design/theme/design_direction.dart';
+import 'package:school_carpool/design/tokens/app_borders.dart';
 import 'package:school_carpool/design/tokens/app_motion.dart';
 import 'package:school_carpool/design/tokens/app_palette.dart';
 import 'package:school_carpool/design/tokens/app_radii.dart';
@@ -27,11 +28,16 @@ abstract final class AppTheme {
   }) {
     final AppPalette palette = direction.palette(brightness);
     final ColorScheme scheme = palette.scheme;
+    final AppColors appColors = AppColors.fromPalette(palette);
+    final Color raised = appColors.surfaceRaised;
     final TextTheme text = AppTypeScale.textTheme(
       direction.fontFamily,
     ).apply(bodyColor: scheme.onSurface, displayColor: scheme.onSurface);
 
-    const Size minButtonSize = Size(AppSpacing.minTouchTarget, AppSpacing.minTouchTarget);
+    final BorderSide hairline = BorderSide(color: scheme.outlineVariant);
+    final BorderSide controlBorder = BorderSide(color: scheme.outline);
+
+    const Size minButtonSize = Size(AppSpacing.buttonHeight, AppSpacing.buttonHeight);
     const EdgeInsetsGeometry buttonPadding = EdgeInsetsDirectional.symmetric(
       horizontal: AppSpacing.s24,
       vertical: AppSpacing.s8,
@@ -39,10 +45,34 @@ abstract final class AppTheme {
     const OutlinedBorder buttonShape = RoundedRectangleBorder(borderRadius: AppRadii.control);
     final Duration buttonMotion = reduceMotion ? Duration.zero : AppMotion.fast;
 
-    OutlineInputBorder inputBorder(Color color, [double width = 1]) => OutlineInputBorder(
-      borderRadius: AppRadii.control,
-      borderSide: BorderSide(color: color, width: width),
+    // Subtle pressed state: a light veil of the label color, no ripple.
+    WidgetStateProperty<Color?> veil(Color color) =>
+        WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+          if (states.contains(WidgetState.pressed)) {
+            return color.withValues(alpha: 0.12);
+          }
+          if (states.contains(WidgetState.focused) || states.contains(WidgetState.hovered)) {
+            return color.withValues(alpha: 0.08);
+          }
+          return null;
+        });
+
+    ButtonStyle buttonBase(Color labelColor) => ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll<Size>(minButtonSize),
+      padding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(buttonPadding),
+      shape: const WidgetStatePropertyAll<OutlinedBorder>(buttonShape),
+      textStyle: WidgetStatePropertyAll<TextStyle?>(text.labelLarge),
+      overlayColor: veil(labelColor),
+      splashFactory: NoSplash.splashFactory,
+      elevation: const WidgetStatePropertyAll<double>(0),
+      animationDuration: buttonMotion,
     );
+
+    OutlineInputBorder inputBorder(Color color, [double width = AppBorders.hairline]) =>
+        OutlineInputBorder(
+          borderRadius: AppRadii.control,
+          borderSide: BorderSide(color: color, width: width),
+        );
 
     return ThemeData(
       colorScheme: scheme,
@@ -54,6 +84,7 @@ abstract final class AppTheme {
       dividerColor: scheme.outlineVariant,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,
+      splashFactory: NoSplash.splashFactory,
       pageTransitionsTheme: reduceMotion
           ? PageTransitionsTheme(
               builders: <TargetPlatform, PageTransitionsBuilder>{
@@ -62,104 +93,152 @@ abstract final class AppTheme {
               },
             )
           : null,
-      extensions: <ThemeExtension<dynamic>>[AppColors.fromPalette(palette)],
+      extensions: <ThemeExtension<dynamic>>[appColors],
       appBarTheme: AppBarThemeData(
-        backgroundColor: scheme.surface,
+        // Same tone as the page; one step raised once content scrolls under.
+        backgroundColor: WidgetStateColor.resolveWith(
+          (Set<WidgetState> states) =>
+              states.contains(WidgetState.scrolledUnder) ? scheme.surfaceContainerLow : scheme.surface,
+        ),
         foregroundColor: scheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: scheme.surfaceTint,
         centerTitle: false,
+        titleSpacing: AppSpacing.s24,
         titleTextStyle: text.titleLarge,
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: minButtonSize,
-          padding: buttonPadding,
-          shape: buttonShape,
-          textStyle: text.labelLarge,
-          animationDuration: buttonMotion,
+        style: buttonBase(scheme.onPrimary).merge(
+          FilledButton.styleFrom(
+            backgroundColor: scheme.primary,
+            foregroundColor: scheme.onPrimary,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          minimumSize: minButtonSize,
-          padding: buttonPadding,
-          shape: buttonShape,
-          textStyle: text.labelLarge,
-          side: BorderSide(color: scheme.outline),
-          animationDuration: buttonMotion,
+        style: buttonBase(scheme.primary).merge(
+          OutlinedButton.styleFrom(
+            foregroundColor: scheme.primary,
+            backgroundColor: raised,
+            side: controlBorder,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          minimumSize: minButtonSize,
-          padding: buttonPadding,
-          shape: buttonShape,
-          textStyle: text.labelLarge,
-          animationDuration: buttonMotion,
+        style: buttonBase(scheme.primary).merge(
+          TextButton.styleFrom(foregroundColor: scheme.primary),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(minimumSize: minButtonSize),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(AppSpacing.minTouchTarget, AppSpacing.minTouchTarget),
+          foregroundColor: scheme.onSurfaceVariant,
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll<Size>(
+            Size(AppSpacing.minTouchTarget, AppSpacing.minTouchTarget),
+          ),
+          textStyle: WidgetStatePropertyAll<TextStyle?>(text.labelLarge),
+          side: WidgetStatePropertyAll<BorderSide>(controlBorder),
+          splashFactory: NoSplash.splashFactory,
+          overlayColor: veil(scheme.primary),
+          backgroundColor: WidgetStateProperty.resolveWith<Color?>(
+            (Set<WidgetState> states) =>
+                states.contains(WidgetState.selected) ? scheme.primaryContainer : raised,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith<Color?>(
+            (Set<WidgetState> states) => states.contains(WidgetState.selected)
+                ? scheme.onPrimaryContainer
+                : scheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: raised,
+        selectedColor: scheme.primaryContainer,
+        disabledColor: scheme.surfaceContainerHigh,
+        side: controlBorder,
+        shape: const StadiumBorder(),
+        labelStyle: text.labelLarge?.copyWith(color: scheme.onSurface),
+        padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.s8),
+        showCheckmark: false,
+        elevation: 0,
+        pressElevation: 0,
       ),
       inputDecorationTheme: InputDecorationThemeData(
         filled: true,
-        fillColor: scheme.surfaceContainerLowest,
+        fillColor: raised,
         contentPadding: const EdgeInsetsDirectional.symmetric(
           horizontal: AppSpacing.s16,
           vertical: AppSpacing.s16,
         ),
         border: inputBorder(scheme.outline),
         enabledBorder: inputBorder(scheme.outline),
-        focusedBorder: inputBorder(scheme.primary, 2),
+        // Clear focus ring: the accent at two pixels.
+        focusedBorder: inputBorder(scheme.primary, AppBorders.focus),
         errorBorder: inputBorder(scheme.error),
-        focusedErrorBorder: inputBorder(scheme.error, 2),
+        focusedErrorBorder: inputBorder(scheme.error, AppBorders.focus),
         disabledBorder: inputBorder(scheme.outlineVariant),
         labelStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        floatingLabelStyle: WidgetStateTextStyle.resolveWith((Set<WidgetState> states) {
+          final Color color = states.contains(WidgetState.error)
+              ? scheme.error
+              : states.contains(WidgetState.focused)
+              ? scheme.primary
+              : scheme.onSurfaceVariant;
+          return (text.bodyMedium ?? const TextStyle()).copyWith(color: color);
+        }),
         hintStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         // Helper and error text tell the parent what to do: body size (16).
         helperStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         errorStyle: text.bodyMedium?.copyWith(color: scheme.error),
-        helperMaxLines: 3,
-        errorMaxLines: 3,
+        hintMaxLines: 1,
+        helperMaxLines: 2,
+        errorMaxLines: 2,
       ),
       cardTheme: CardThemeData(
-        color: scheme.surfaceContainerLowest,
+        color: raised,
         surfaceTintColor: scheme.surfaceTint,
+        shadowColor: scheme.shadow,
         elevation: 0,
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadii.card,
-          side: BorderSide(color: scheme.outlineVariant),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.card, side: hairline),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: scheme.surfaceContainerLow,
-        modalBackgroundColor: scheme.surfaceContainerLow,
+        backgroundColor: raised,
+        modalBackgroundColor: raised,
         surfaceTintColor: scheme.surfaceTint,
+        elevation: 0,
+        modalElevation: 0,
         showDragHandle: true,
         dragHandleColor: scheme.outline,
-        shape: const RoundedRectangleBorder(borderRadius: AppRadii.sheetTop),
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.sheetTop, side: hairline),
         clipBehavior: Clip.antiAlias,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: scheme.surfaceContainerLow,
+        backgroundColor: raised,
         surfaceTintColor: scheme.surfaceTint,
-        shape: const RoundedRectangleBorder(borderRadius: AppRadii.xlAll),
-        titleTextStyle: text.titleLarge,
-        contentTextStyle: text.bodyMedium,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.dialog, side: hairline),
+        titleTextStyle: text.titleMedium,
+        contentTextStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
       ),
+      // Kept for any stock NavigationBar; the app shell uses
+      // AppNavigationBar, which follows the same tokens.
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: scheme.surfaceContainerLowest,
+        backgroundColor: raised,
         surfaceTintColor: scheme.surfaceTint,
         indicatorColor: scheme.primaryContainer,
+        indicatorShape: const StadiumBorder(),
         elevation: 0,
-        height: AppSpacing.s64 + AppSpacing.s8,
+        height: AppSpacing.navBarHeight + AppSpacing.s8,
         labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((Set<WidgetState> states) {
           final bool selected = states.contains(WidgetState.selected);
-          return text.labelMedium?.copyWith(
+          return text.labelSmall?.copyWith(
             color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
             fontWeight: selected ? AppTypeScale.semiBold : AppTypeScale.medium,
           );
@@ -176,10 +255,23 @@ abstract final class AppTheme {
         backgroundColor: scheme.inverseSurface,
         contentTextStyle: text.bodyMedium?.copyWith(color: scheme.onInverseSurface),
         actionTextColor: scheme.inversePrimary,
-        shape: const RoundedRectangleBorder(borderRadius: AppRadii.mdAll),
+        elevation: 0,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadii.control),
       ),
-      dividerTheme: DividerThemeData(color: scheme.outlineVariant, thickness: 1, space: 1),
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary),
+      dividerTheme: DividerThemeData(
+        color: scheme.outlineVariant,
+        thickness: AppBorders.hairline,
+        space: AppBorders.hairline,
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: scheme.primary,
+        linearTrackColor: scheme.surfaceContainerHigh,
+      ),
+      listTileTheme: ListTileThemeData(
+        titleTextStyle: text.titleSmall,
+        subtitleTextStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        iconColor: scheme.onSurfaceVariant,
+      ),
     );
   }
 }
