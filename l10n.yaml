@@ -1,0 +1,13 @@
+# Flutter removed the synthetic `package:flutter_gen` (see
+# https://flutter.dev/to/flutter-gen-deprecation). Localizations are generated
+# into lib/l10n/gen and imported as
+#   package:school_carpool/l10n/gen/app_localizations.dart
+# The folder is not committed; tool/bootstrap.sh runs `flutter gen-l10n`.
+arb-dir: lib/l10n
+output-dir: lib/l10n/gen
+template-arb-file: app_ar.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+preferred-supported-locales: [ar, en]
+nullable-getter: false
+untranslated-messages-file: build/untranslated_messages.json
