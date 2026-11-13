@@ -253,10 +253,14 @@ void main() {
           consent: true,
         ),
       );
+      // Rebuild first: until then the button still has the disabled state of
+      // the empty draft, and the first tap would be lost (one step short).
+      await tester.pumpAndSettle();
       for (int i = 0; i < VerificationStep.values.length - 1; i++) {
         await tester.tap(find.byKey(const Key('verify.next')));
         await tester.pumpAndSettle();
       }
+      expect(find.text('Check and send'), findsOneWidget, reason: 'on the review step');
       await tester.tap(find.byKey(const Key('verify.next')));
       await tester.pumpAndSettle();
       expect(find.textContaining('already used by another account'), findsOneWidget);
