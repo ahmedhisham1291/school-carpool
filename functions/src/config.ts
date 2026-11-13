@@ -127,3 +127,22 @@ export const PLACES_PROVIDER = defineString("PLACES_PROVIDER", { default: "fake"
  * sent to the app. The app's map keys are separate (SETUP.md section 15).
  */
 export const MAPS_SERVER_KEY = defineSecret("MAPS_SERVER_KEY");
+
+/**
+ * Carpools (Prompt 6: F5, F6, F26, F31, F32). Limits per parent, counted on
+ * the server in carpoolLimits/{uid}.
+ */
+export const CARPOOL_CREATES_PER_DAY = defineInt("CARPOOL_CREATES_PER_DAY", { default: 3 });
+export const CARPOOL_SEARCHES_PER_HOUR = defineInt("CARPOOL_SEARCHES_PER_HOUR", { default: 30 });
+export const CARPOOL_JOIN_REQUESTS_PER_DAY = defineInt("CARPOOL_JOIN_REQUESTS_PER_DAY", { default: 10 });
+export const CARPOOL_INVITES_PER_DAY = defineInt("CARPOOL_INVITES_PER_DAY", { default: 20 });
+/** Low on purpose: invite codes must not be guessable by trying many. */
+export const CARPOOL_INVITE_OPENS_PER_HOUR = defineInt("CARPOOL_INVITE_OPENS_PER_HOUR", { default: 20 });
+export const CARPOOL_WANTED_SAVES_PER_DAY = defineInt("CARPOOL_WANTED_SAVES_PER_DAY", { default: 5 });
+export const CARPOOL_WANTED_LISTS_PER_HOUR = defineInt("CARPOOL_WANTED_LISTS_PER_HOUR", { default: 30 });
+/**
+ * Start of invite links (F31), the Hosting site that serves
+ * apple-app-site-association, for example https://<project>-links.web.app.
+ * Set per project in functions/.env.<alias> (SETUP.md section 16).
+ */
+export const INVITE_LINK_BASE = defineString("INVITE_LINK_BASE", { default: "https://demo-school-carpool-links.web.app" });
