@@ -292,18 +292,20 @@ void main() {
         for (final String key in <String>['other.name', 'other.governorate', 'other.pin', 'other.save']) {
           expectOneLine(
             tester,
-            find.descendant(of: find.byKey(Key(key)), matching: find.byType(OneLineText)).first,
+            find.descendant(of: find.byKey(Key(key)), matching: find.byType(OneLineText)),
             key,
           );
         }
 
+        // A fresh ProviderScope: the About app has fewer overrides than the picker's.
+        await tester.pumpWidget(const SizedBox());
         await tester.pumpWidget(buildTestApp(const AboutScreen(), locale: locale));
         await tester.pumpAndSettle();
         expectOneLine(tester, find.byType(AppBarTitle), 'About title');
         for (final String key in <String>['about.osmLink', 'about.licenses']) {
           expectOneLine(
             tester,
-            find.descendant(of: find.byKey(Key(key)), matching: find.byType(OneLineText)).first,
+            find.descendant(of: find.byKey(Key(key)), matching: find.byType(OneLineText)),
             key,
           );
         }

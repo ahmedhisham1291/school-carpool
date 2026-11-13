@@ -106,7 +106,8 @@ void main() {
       expect(found.single.id, 'osm-n1');
       expect(found.single.pending, isFalse);
       final (Uri url, Map<String, String> headers, String body) = sent.single;
-      expect(url.toString(), 'https://APP-dsn.algolia.net/1/indexes/schools/query');
+      // Hosts are case-insensitive; Uri lower-cases them.
+      expect(url.toString(), 'https://app-dsn.algolia.net/1/indexes/schools/query');
       expect(headers['X-Algolia-API-Key'], 'secured-1');
       final String params = (jsonDecode(body) as Map<String, Object?>)['params']! as String;
       expect(Uri.splitQueryString(params), <String, String>{'query': 'nile', 'hitsPerPage': '20', 'filters': 'governorate:cairo'});
