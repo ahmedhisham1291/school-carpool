@@ -59,7 +59,7 @@ void main() {
     });
 
     test('digits formatter converts Arabic digits and drops the rest', () {
-      expect(DigitsInputFormatter.normalize('٠١٠-۱۲ 3a'), '0101223');
+      expect(DigitsInputFormatter.normalize('٠١٠-۱۲ 3a'), '010123');
     });
   });
 

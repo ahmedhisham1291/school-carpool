@@ -61,7 +61,7 @@ void main() {
   group('phone step', () {
     testWidgets('the button stays off until the number is valid, then sends', (WidgetTester tester) async {
       final FakeAuthRepository repository = FakeAuthRepository();
-      final GoRouter router = await _pump(tester, location: AuthRoutes.phone, repository: repository);
+      await _pump(tester, location: AuthRoutes.phone, repository: repository);
 
       await tester.enterText(find.byKey(const Key('phone.field')), '0101234');
       await tester.pump();
@@ -81,7 +81,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       expect(repository.calls, <String>['requestCode']);
       expect(repository.lastPhone, '+201012345678');
-      expect(router.routerDelegate.currentConfiguration.uri.path, AuthRoutes.code);
+      // Pushed on top of the phone step: the code screen is showing.
+      expect(find.byKey(const Key('code.field')), findsOneWidget);
     });
 
     testWidgets('shows what to do when offline', (WidgetTester tester) async {
@@ -250,7 +251,8 @@ void main() {
         repository: repository,
         session: testUnverifiedSession,
       );
-      await tester.scrollUntilVisible(find.byKey(const Key('profile.signOut')), 200);
+      await tester.ensureVisible(find.byKey(const Key('profile.signOut')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('profile.signOut')));
       await tester.pumpAndSettle();
       expect(repository.calls, isEmpty);
