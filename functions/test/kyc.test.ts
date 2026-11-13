@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   asKycResult,
   createKycProvider,
+  kycConfigProblem,
   FakeKycProvider,
   KycNotConfiguredError,
   runKyc,
@@ -42,6 +43,16 @@ describe("FakeKycProvider", () => {
     assert.equal(asKycResult(undefined), "match");
     assert.equal(asKycResult("maybe"), "match");
     assert.equal(asKycResult("no_match"), "no_match");
+  });
+});
+
+describe("kycConfigProblem (checked at instance start)", () => {
+  it("refuses the fake in prod and unknown providers, accepts the rest", () => {
+    assert.match(kycConfigProblem("fake", "prod") ?? "", /not allowed in prod/);
+    assert.match(kycConfigProblem("other", "dev") ?? "", /unknown/);
+    assert.equal(kycConfigProblem("fake", "dev"), null);
+    assert.equal(kycConfigProblem("fake", "staging"), null);
+    assert.equal(kycConfigProblem("valify", "prod"), null);
   });
 });
 

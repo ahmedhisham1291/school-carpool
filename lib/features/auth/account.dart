@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 
@@ -32,6 +33,7 @@ class Account {
     required this.language,
     this.firstName,
     this.verification,
+    this.claimsUpdatedAtMs,
   });
 
   factory Account.fromMap(Map<String, dynamic> data) => Account(
@@ -44,6 +46,10 @@ class Account {
     language: data['language'] as String? ?? 'ar',
     firstName: data['firstName'] as String?,
     verification: VerificationSummary.fromMap(data['verification']),
+    claimsUpdatedAtMs: switch (data['claimsUpdatedAt']) {
+      final Timestamp t => t.toDate().millisecondsSinceEpoch,
+      _ => null,
+    },
   );
 
   /// Public 8-character parent ID (F44).
@@ -62,6 +68,10 @@ class Account {
 
   /// The latest submission for review, or null before the first one.
   final VerificationSummary? verification;
+
+  /// Set by Cloud Functions right after they change this account's custom
+  /// claims ("verified"). The app refreshes its ID token when it changes.
+  final int? claimsUpdatedAtMs;
 
   /// True while a submission waits for review: nothing new can be sent.
   bool get reviewPending => verification?.status == ReviewStatus.pending || status == AccountStatus.pending;
@@ -87,9 +97,10 @@ class Account {
       other.termsAccepted == termsAccepted &&
       other.language == language &&
       other.firstName == firstName &&
-      other.verification == verification;
+      other.verification == verification &&
+      other.claimsUpdatedAtMs == claimsUpdatedAtMs;
 
   @override
   int get hashCode =>
-      Object.hash(parentId, status, phone, email, emailVerified, termsAccepted, language, firstName, verification);
+      Object.hash(parentId, status, phone, email, emailVerified, termsAccepted, language, firstName, verification, claimsUpdatedAtMs);
 }

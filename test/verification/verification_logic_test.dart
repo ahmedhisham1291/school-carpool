@@ -3,6 +3,7 @@
 // the router gate. Written, not run here (no Flutter SDK in the build
 // workspace).
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -128,6 +129,18 @@ void main() {
       });
     });
 
+    test('child slots are c1 to c10, reusing freed ones', () {
+      final ProviderContainer container = ProviderContainer();
+      addTearDown(container.dispose);
+      final VerificationDraftController controller = container.read(verificationDraftProvider.notifier);
+      for (int i = 0; i < VerificationDraftController.maxChildren; i++) {
+        controller.saveChild(ChildDraft(ref: controller.newChildRef()!));
+      }
+      expect(controller.newChildRef(), isNull);
+      controller.removeChild('c4');
+      expect(controller.newChildRef(), 'c4');
+    });
+
     test('a retake forgets that the old photo was uploaded', () {
       final ProviderContainer container = ProviderContainer();
       addTearDown(container.dispose);
@@ -236,6 +249,59 @@ void main() {
       expect(child.status, ReviewStatus.approved);
       expect(parseIsoDate('2030-05-01'), DateTime(2030, 5));
       expect(isoDate(DateTime(2030, 5)), '2030-05-01');
+    });
+  });
+
+  group('token refresh after a decision (claims marker)', () {
+    Account withMarker(AccountStatus status, int? marker) => Account(
+      parentId: 'ABCD2345',
+      status: status,
+      phone: '+201000000001',
+      email: 'parent@example.com',
+      emailVerified: true,
+      termsAccepted: true,
+      language: 'ar',
+      claimsUpdatedAtMs: marker,
+    );
+
+    test('refreshes when the marker changes, not when only the status changes', () {
+      expect(
+        tokenRefreshFor(first: false, previousMarker: null, account: withMarker(AccountStatus.verified, null)),
+        TokenRefresh.none,
+      );
+      expect(
+        tokenRefreshFor(first: false, previousMarker: null, account: withMarker(AccountStatus.verified, 1000)),
+        TokenRefresh.force,
+      );
+      expect(
+        tokenRefreshFor(first: false, previousMarker: 1000, account: withMarker(AccountStatus.verified, 1000)),
+        TokenRefresh.none,
+      );
+      expect(
+        tokenRefreshFor(first: false, previousMarker: 1000, account: withMarker(AccountStatus.rejected, 2000)),
+        TokenRefresh.force,
+      );
+    });
+
+    test('the first record of a verified account checks the cached token', () {
+      expect(
+        tokenRefreshFor(first: true, previousMarker: null, account: withMarker(AccountStatus.verified, 1000)),
+        TokenRefresh.ifClaimMissing,
+      );
+      expect(
+        tokenRefreshFor(first: true, previousMarker: null, account: withMarker(AccountStatus.pending, null)),
+        TokenRefresh.none,
+      );
+      expect(tokenRefreshFor(first: false, previousMarker: null, account: null), TokenRefresh.none);
+    });
+
+    test('the marker is read from the record', () {
+      final Account a = Account.fromMap(<String, dynamic>{
+        'parentId': 'ABCD2345',
+        'status': 'verified',
+        'claimsUpdatedAt': Timestamp.fromMillisecondsSinceEpoch(5000),
+      });
+      expect(a.claimsUpdatedAtMs, 5000);
     });
   });
 

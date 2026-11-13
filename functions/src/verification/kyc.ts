@@ -119,6 +119,17 @@ export interface KycFactoryOptions {
   valify: ValifyConfig;
 }
 
+/**
+ * A configuration that must never run, described for the logs, or null.
+ * Checked when an instance starts (callables.ts) so a wrong prod setting is
+ * loud at once, not one failed submission at a time.
+ */
+export function kycConfigProblem(provider: string, appEnv: string): string | null {
+  if (provider !== "fake" && provider !== "valify") return `KYC_PROVIDER "${provider}" is unknown (use fake or valify).`;
+  if (provider === "fake" && appEnv === "prod") return "KYC_PROVIDER=fake is not allowed in prod: set KYC_PROVIDER=valify in functions/.env.prod.";
+  return null;
+}
+
 export function createKycProvider(options: KycFactoryOptions): KycProvider {
   if (options.provider === "valify") return new ValifyKycProvider(options.valify);
   if (options.provider !== "fake") throw new KycNotConfiguredError(`Unknown KYC provider "${options.provider}".`);

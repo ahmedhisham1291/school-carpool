@@ -23,7 +23,7 @@ class ChildDraft {
     this.schoolIdPhoto,
   });
 
-  /// Slot that names the school ID upload: lowercase letters and digits.
+  /// Slot that names the school ID upload: c1 to c10.
   final String ref;
 
   /// Set when a verified parent edits an existing child.
@@ -265,7 +265,9 @@ class VerificationDraftController extends Notifier<VerificationDraft> {
   VerificationDraftController([Random? random]) : _random = random ?? Random.secure();
 
   final Random _random;
-  int _nextRef = 1;
+
+  /// Child slots are c1 to c10 (the server and storage.rules allow no more).
+  static const int maxChildren = 10;
 
   @override
   VerificationDraft build() => VerificationDraft(
@@ -293,8 +295,16 @@ class VerificationDraftController extends Notifier<VerificationDraft> {
     };
   }
 
-  /// A fresh slot name for a new child.
-  String newChildRef() => 'c${_nextRef++}';
+  /// The first free slot name for a new child, or null when all 10 are used.
+  String? newChildRef() {
+    final Set<String> used = <String>{for (final ChildDraft c in state.children) c.ref};
+    for (int i = 1; i <= maxChildren; i++) {
+      if (!used.contains('c$i')) {
+        return 'c$i';
+      }
+    }
+    return null;
+  }
 
   /// Adds or replaces (same ref) a child.
   void saveChild(ChildDraft child) {
@@ -326,10 +336,7 @@ class VerificationDraftController extends Notifier<VerificationDraft> {
       state = state.copyWith(uploaded: <String>{...state.uploaded}..removeAll(names));
 
   /// Clears everything (after a successful submission or on sign-out).
-  void reset() {
-    _nextRef = 1;
-    state = build();
-  }
+  void reset() => state = build();
 }
 
 final NotifierProvider<VerificationDraftController, VerificationDraft> verificationDraftProvider =

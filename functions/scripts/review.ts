@@ -42,7 +42,7 @@ if (cloudProject) {
   if (!emulatorProject.startsWith("demo-")) refuse(`project "${emulatorProject}" is not a demo- project`);
 }
 
-initializeApp({ projectId, storageBucket: process.env.STORAGE_BUCKET ?? `${projectId}.appspot.com` });
+initializeApp({ projectId, storageBucket: process.env.STORAGE_BUCKET ?? (cloudProject ? `${projectId}.firebasestorage.app` : `${projectId}.appspot.com`) });
 const db = getFirestore();
 
 const deps: VerificationDeps = {

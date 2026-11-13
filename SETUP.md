@@ -387,7 +387,17 @@ emulators need none of this.
      (projects with "prod" in the name are refused).
    - To use the admin functions from a client, give an account the admin
      claim: `... -- grant-admin <uid>`.
-6. **Bucket:** the default Firebase bucket is private: no public access,
+6. **Turn off soft delete on the bucket** (each project). New Cloud
+   Storage buckets keep deleted files for 7 days by default, which would
+   keep verification images for up to 13 days after the decision (spec:
+   within 7 days, backups included):
+   `gcloud storage buckets update gs://<project-id>.firebasestorage.app --clear-soft-delete`
+   (older projects: `gs://<project-id>.appspot.com`). Check with
+   `gcloud storage buckets describe gs://<bucket> --format="value(soft_delete_policy)"`.
+7. **Prod uses `KYC_PROVIDER=valify`** (`functions/.env.prod`). With the
+   fake there, every instance logs a CONFIGURATION ERROR at start and
+   reports it to Sentry, and submissions answer "not configured".
+8. **Bucket:** the default Firebase bucket is private: no public access,
    and storage.rules let a parent only upload into their own
    `verification/{uid}/pending/` folder. Nobody reads images through the
    SDK; admins get 5-minute signed links from `openVerificationCase`.

@@ -24,6 +24,9 @@ abstract interface class VerificationRepository {
 
   Future<void> removeChild(String childId);
 
+  /// Takes a case out of the review queue (releases the ID claim on the server).
+  Future<void> withdraw(String caseId);
+
   Stream<List<ChildRecord>> children(String uid);
 
   Stream<VehicleRecord?> vehicle(String uid);
@@ -81,6 +84,15 @@ class FirebaseVerificationRepository implements VerificationRepository {
   Future<void> removeChild(String childId) async {
     try {
       await _functions.httpsCallable('removeChild').call<Object?>(<String, Object?>{'childId': childId});
+    } on Object catch (error, stackTrace) {
+      Error.throwWithStackTrace(VerificationFailure.from(error), stackTrace);
+    }
+  }
+
+  @override
+  Future<void> withdraw(String caseId) async {
+    try {
+      await _functions.httpsCallable('withdrawVerification').call<Object?>(<String, Object?>{'caseId': caseId});
     } on Object catch (error, stackTrace) {
       Error.throwWithStackTrace(VerificationFailure.from(error), stackTrace);
     }

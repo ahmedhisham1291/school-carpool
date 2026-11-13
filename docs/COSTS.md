@@ -61,6 +61,8 @@ Limits below are the public free allowances as understood in November 2026.
 - The deletion job is one Cloud Scheduler job (3 free per billing account)
   running once a day, minInstances 0. It lists the `verification/` prefix
   once per run (one Class A operation per 1,000 files).
+- Soft delete is turned off on the bucket (SETUP.md 12.6), so deleted
+  images are not kept (or billed) for 7 more days.
 - The fake ID check costs nothing. Valify is paid per check: it is off
   (`KYC_PROVIDER=fake`, `VALIFY_ENABLED=false`) until the contract.
 - Admin image links are V4 signed URLs: no extra service, but the

@@ -46,6 +46,11 @@ class FakeVerificationRepository implements VerificationRepository {
   @override
   Future<void> removeChild(String childId) async => removed.add(childId);
 
+  final List<String> withdrawn = <String>[];
+
+  @override
+  Future<void> withdraw(String caseId) async => withdrawn.add(caseId);
+
   @override
   Stream<List<ChildRecord>> children(String uid) => Stream<List<ChildRecord>>.value(childList);
 

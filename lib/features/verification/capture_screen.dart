@@ -183,7 +183,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
         }
       }
       return await compressor.compress(raw, document: !widget.request.isSelfie);
-    } on CameraException {
+    } on Object {
+      // Camera or compression failure: show the camera error with a retry.
       if (mounted) {
         setState(() => _phase = _Phase.failed);
       }

@@ -15,11 +15,13 @@ service firebase.storage {
 
     // The parent uploads (and may replace, for a retake) a known document
     // name into their own pending folder: JPEG only, at most 3 MB (the app
-    // compresses to well under that). No reads, no deletes, no listing.
+    // compresses to well under that). School ID slots are c1 to c10
+    // (MAX_CHILDREN), so the number of files per parent is bounded.
+    // No reads, no deletes, no listing.
     match /verification/{uid}/pending/{name} {
       allow create, update: if request.auth != null
         && request.auth.uid == uid
-        && name.matches('(id_front|id_back|selfie|selfie_turn|license|car_license|school_id_[a-z0-9]{1,20})[.]jpg')
+        && name.matches('(id_front|id_back|selfie|selfie_turn|license|car_license|school_id_c([1-9]|10))[.]jpg')
         && request.resource.size > 0
         && request.resource.size < 3 * 1024 * 1024
         && request.resource.contentType == 'image/jpeg';

@@ -132,7 +132,7 @@ describe("parseSubmission", () => {
 
   it("checks children: age, grade, refs, count", () => {
     const child = { ref: "c1", firstName: "Omar", age: 8, grade: "g3", schoolName: "Nile School" };
-    for (const bad of [{ age: 1 }, { age: 20 }, { age: 7.5 }, { grade: "g13" }, { ref: "C 1" }, { schoolName: "x" }, { childId: "a/b" }]) {
+    for (const bad of [{ age: 1 }, { age: 20 }, { age: 7.5 }, { grade: "g13" }, { ref: "C 1" }, { ref: "c11" }, { ref: "c0" }, { schoolName: "x" }, { childId: "a/b" }]) {
       assert.throws(() => parseSubmission(submission({ children: [{ ...child, ...bad }] }), { today, verified: false }), expectReason("invalid-child"));
     }
     assert.throws(() => parseSubmission(submission({ children: [child, child] }), { today, verified: false }), expectReason("invalid-child"));
