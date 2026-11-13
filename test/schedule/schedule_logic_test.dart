@@ -84,7 +84,6 @@ void main() {
       final ScheduleRun run = testRun(
         '2026-11-15',
         RunDirection.toSchool,
-        riders: const <Rider>[Rider(id: 'c1', firstName: 'Adam', parentUid: 'uid-1'), Rider(id: 'h1', firstName: 'Laila', parentUid: 'p1')],
         absent: const <Rider>[Rider(id: 'c2', firstName: 'Jana', parentUid: 'uid-1')],
       );
       expect(myChildrenOn(run, 'uid-1').map(((Rider, bool) x) => '${x.$1.id}:${x.$2}'), <String>['c1:false', 'c2:true']);
@@ -160,10 +159,10 @@ void main() {
         'driverUid': null,
         'swapId': 's1',
         'swapBy': 'p1',
-        'riders': <Object?>[
+        'riders': const <Object?>[
           <String, Object?>{'id': 'c1', 'firstName': 'Adam', 'parentUid': 'uid-1'},
         ],
-        'absent': <Object?>[],
+        'absent': const <Object?>[],
         'startAt': Timestamp.fromDate(DateTime.utc(2026, 11, 15, 5, 30)),
         'confirmBy': Timestamp.fromDate(DateTime.utc(2026, 11, 14, 19)),
       });
@@ -176,13 +175,13 @@ void main() {
     });
 
     test('a balance and an exception document', () {
-      final DriveBalance b = DriveBalance.fromDoc('2026-t1', <String, Object?>{
+      final DriveBalance b = DriveBalance.fromDoc('2026-t1', const <String, Object?>{
         'families': <String, Object?>{
           'p1': <String, Object?>{'firstName': 'Hoda', 'driven': 3, 'received': 1},
         },
       });
       expect(b.families.single.driven, 3);
-      final ScheduleException e = ScheduleException.fromDoc('x1', <String, Object?>{'kind': 'times', 'reason': 'ramadan', 'from': '2027-02-08', 'to': '2027-03-09', 'afternoon': '13:30'});
+      final ScheduleException e = ScheduleException.fromDoc('x1', const <String, Object?>{'kind': 'times', 'reason': 'ramadan', 'from': '2027-02-08', 'to': '2027-03-09', 'afternoon': '13:30'});
       expect(e.kind, ExceptionKind.times);
       expect(e.oneDay, isFalse);
       expect(e.morning, isNull);
