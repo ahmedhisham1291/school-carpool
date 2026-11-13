@@ -71,9 +71,15 @@ class AppListRow extends StatelessWidget {
               ),
             ),
             if (trail != null) ...<Widget>[const SizedBox(width: AppSpacing.s8), trail],
+            // A small chevron close to the text leaves the title more room
+            // on narrow phones (one-line rule at 320 dp).
             if (onTap != null && showChevron) ...<Widget>[
-              const SizedBox(width: AppSpacing.s8),
-              Icon(Icons.chevron_right_rounded, color: colors.onSurfaceVariant),
+              const SizedBox(width: AppSpacing.s4),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: colors.onSurfaceVariant,
+                size: AppSpacing.s16 + AppSpacing.s4,
+              ),
             ],
           ],
         ),
