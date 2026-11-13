@@ -140,7 +140,11 @@ export interface AdminsStore {
   listAdmins(): Promise<AdminRecord[]>;
   getAdmin(uid: string): Promise<AdminRecord | undefined>;
   saveAdmin(record: AdminRecord, createdBy: string, audit: AuditEntry): Promise<void>;
+  /** Disabling also sets revokedAt: tokens issued before it stop working at once. */
   setDisabled(uid: string, disabled: boolean, audit: AuditEntry): Promise<void>;
+  /** Removes the record of an admin whose creation failed part way. */
+  removeAdmin(uid: string): Promise<void>;
+  audit(entry: AuditEntry): Promise<void>;
 }
 
 /** Firebase Auth operations for admin accounts. */
@@ -151,6 +155,8 @@ export interface AdminAccounts {
   /** One-time link where the new admin sets their own password. */
   passwordSetupLink(email: string): Promise<string>;
   setDisabled(uid: string, disabled: boolean): Promise<void>;
+  /** Removes an account whose creation failed part way (no orphans). */
+  remove(uid: string): Promise<void>;
 }
 
 export interface ReportItem {
@@ -178,4 +184,5 @@ export interface ListsStore {
   listAudit(afterId: string | null, limit: number): Promise<AuditItem[]>;
   /** Display names of admins by uid (for the audit log). */
   adminNames(uids: string[]): Promise<Map<string, string>>;
+  audit(entry: AuditEntry): Promise<void>;
 }

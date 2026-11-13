@@ -49,28 +49,44 @@ export async function createAdmin(
 ): Promise<{ uid: string; setupLink: string }> {
   const input = parseNewAdmin(data);
   const uid = await deps.accounts.create(input.email, input.displayName);
-  await deps.accounts.setRole(uid, input.role);
-  const record: AdminRecord = {
-    uid,
-    email: input.email,
-    displayName: input.displayName,
-    role: input.role,
-    disabled: false,
-    createdAtMs: deps.now(),
-  };
-  await deps.store.saveAdmin(record, caller.uid, {
-    actorUid: caller.uid,
-    action: "admin.create",
-    target: `admins/${uid}`,
-    details: { role: input.role },
-    ip,
-  });
-  const setupLink = await deps.accounts.passwordSetupLink(input.email);
-  return { uid, setupLink };
+  let saved = false;
+  try {
+    await deps.accounts.setRole(uid, input.role);
+    const record: AdminRecord = {
+      uid,
+      email: input.email,
+      displayName: input.displayName,
+      role: input.role,
+      disabled: false,
+      createdAtMs: deps.now(),
+    };
+    await deps.store.saveAdmin(record, caller.uid, {
+      actorUid: caller.uid,
+      action: "admin.create",
+      target: `admins/${uid}`,
+      details: { role: input.role },
+      ip,
+    });
+    saved = true;
+    const setupLink = await deps.accounts.passwordSetupLink(input.email);
+    return { uid, setupLink };
+  } catch (error) {
+    // No half-made admin: remove the account (and record) so the email can
+    // be used again. A failure here is reported with the original error.
+    await deps.accounts.remove(uid).catch(() => undefined);
+    if (saved) await deps.store.removeAdmin(uid).catch(() => undefined);
+    throw error;
+  }
 }
 
-export async function listAdmins(deps: AdminsDeps): Promise<{ admins: AdminRecord[] }> {
-  return { admins: await deps.store.listAdmins() };
+export async function listAdmins(
+  deps: AdminsDeps,
+  caller: AdminCaller,
+  ip: string | null,
+): Promise<{ admins: AdminRecord[] }> {
+  const admins = await deps.store.listAdmins();
+  await deps.store.audit({ actorUid: caller.uid, action: "admin.list", target: "admins", details: { results: admins.length }, ip });
+  return { admins };
 }
 
 /** Disables (signs out everywhere) or enables an admin. Not the caller. */

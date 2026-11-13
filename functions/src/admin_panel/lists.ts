@@ -26,9 +26,12 @@ export async function listAuditLog(
   store: ListsStore,
   caller: AdminCaller,
   data: unknown,
+  ip: string | null = null,
 ): Promise<{ entries: AuditView[]; nextAfterId: string | null }> {
   const raw = record(data) ?? {};
   const afterId = raw.afterId === undefined || raw.afterId === null ? null : docId(raw.afterId);
+  // Lightweight: one entry per opening of the log, not per page.
+  if (afterId === null) await store.audit({ actorUid: caller.uid, action: "audit.view", target: "auditLog", ip });
   const limit = 50;
   const items = await store.listAudit(afterId, limit);
   const names = await store.adminNames([...new Set(items.map((item) => item.actorUid))]);

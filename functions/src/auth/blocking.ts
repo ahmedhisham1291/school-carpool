@@ -1,8 +1,8 @@
 import { FieldValue } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
-import { HttpsError, beforeEmailSent, beforeUserSignedIn } from "firebase-functions/v2/identity";
+import { HttpsError, beforeEmailSent, beforeUserCreated, beforeUserSignedIn } from "firebase-functions/v2/identity";
 import { adminDb } from "../admin";
-import { emailAllowed, isAdminAccount, signInAllowed } from "./sign_in_policy";
+import { creationAllowed, emailAllowed, isAdminAccount, signInAllowed } from "./sign_in_policy";
 
 /**
  * Identity Platform blocking functions (free tier). They run before every
@@ -34,6 +34,19 @@ export const blockNonCodeSignIn = beforeUserSignedIn(async (event) => {
     } catch (error) {
       logger.error("admin sign-in audit failed", { message: error instanceof Error ? error.message : "unknown" });
     }
+  }
+});
+
+/**
+ * No account is created from a client: a password sign-up
+ * (createUserWithEmailAndPassword), an email link or any other provider is
+ * refused before the account exists. Parents and admins are created by our
+ * functions with the Admin SDK (sign_in_policy.ts, creationAllowed).
+ */
+export const blockClientSignUps = beforeUserCreated((event) => {
+  const method = event.credential?.signInMethod ?? event.additionalUserInfo?.providerId;
+  if (!creationAllowed(method)) {
+    throw new HttpsError("permission-denied", "Accounts are not created here.");
   }
 });
 

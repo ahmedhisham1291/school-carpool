@@ -51,6 +51,7 @@ export {
   adminListSchools,
   adminMergeSchool,
   adminModerateUser,
+  adminPing,
   adminSaveArea,
   adminSaveSchool,
   adminSearchUsers,
@@ -59,4 +60,4 @@ export {
 
 // Parents: WhatsApp-code sign-in (custom token) only. Admins: email and
 // password for allow-listed admin accounts, then a TOTP second factor.
-export { blockNonCodeSignIn, blockSignInEmails } from "./auth/blocking";
+export { blockClientSignUps, blockNonCodeSignIn, blockSignInEmails } from "./auth/blocking";

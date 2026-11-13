@@ -73,7 +73,9 @@ function adminCall<T>(
   body: (caller: AdminCaller, request: CallableRequest) => Promise<T>,
   access: { superAdmin?: boolean } = {},
 ) {
-  return onCall(options, (request) => run(name, () => body(requireAdminCaller(request, access), request)));
+  return onCall(options, (request) =>
+    run(name, async () => body(await requireAdminCaller(request, access), request)),
+  );
 }
 
 function usersDeps(): UsersDeps {
@@ -152,7 +154,7 @@ export const adminListReports = adminCall("adminListReports", (_caller, request)
 
 /** { afterId? } -> { entries, nextAfterId }. IP addresses for super admins only. */
 export const adminListAuditLog = adminCall("adminListAuditLog", (caller, request) =>
-  listAuditFlow(new FirestoreListsStore(adminDb()), caller, request.data),
+  listAuditFlow(new FirestoreListsStore(adminDb()), caller, request.data, ipOf(request)),
 );
 
 // Admin accounts (super admin only) ------------------------------------
@@ -165,7 +167,18 @@ export const adminCreateAdmin = adminCall(
 );
 
 /** {} -> { admins } */
-export const adminListAdmins = adminCall("adminListAdmins", () => listAdminsFlow(adminsDeps()), { superAdmin: true });
+export const adminListAdmins = adminCall(
+  "adminListAdmins",
+  (caller, request) => listAdminsFlow(adminsDeps(), caller, ipOf(request)),
+  { superAdmin: true },
+);
+
+/**
+ * {} -> { ok }. The panel calls it at most every few minutes while the admin
+ * is active (clicks, keys, scrolling), so reading a long case does not
+ * count as idle on the server (15 minutes, admin_panel/guard.ts).
+ */
+export const adminPing = adminCall("adminPing", async () => ({ ok: true }));
 
 /** { uid, disabled } -> { disabled } */
 export const adminSetAdminDisabled = adminCall(

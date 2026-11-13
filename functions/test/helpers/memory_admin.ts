@@ -216,10 +216,18 @@ export class MemoryAdminsStore implements AdminsStore {
     this.admins.set(record.uid, record);
     this.log.add(audit);
   }
+  readonly revoked = new Set<string>();
   async setDisabled(uid: string, disabled: boolean, audit: AuditEntry) {
     const admin = this.admins.get(uid);
     if (admin) admin.disabled = disabled;
+    if (disabled) this.revoked.add(uid);
     this.log.add(audit);
+  }
+  async removeAdmin(uid: string) {
+    this.admins.delete(uid);
+  }
+  async audit(entry: AuditEntry) {
+    this.log.add(entry);
   }
 }
 
@@ -227,6 +235,13 @@ export class MemoryAdminAccounts implements AdminAccounts {
   readonly emails = new Map<string, string>();
   readonly roles = new Map<string, AdminRole>();
   readonly disabled = new Set<string>();
+  readonly removed: string[] = [];
+  /** Makes passwordSetupLink fail once (creation failing part way). */
+  failLink = false;
+  async remove(uid: string) {
+    this.removed.push(uid);
+    for (const [email, id] of this.emails) if (id === uid) this.emails.delete(email);
+  }
   async create(email: string) {
     if (this.emails.has(email)) throw new AdminError("already-exists");
     const uid = `adm${this.emails.size + 1}`;
@@ -237,6 +252,10 @@ export class MemoryAdminAccounts implements AdminAccounts {
     this.roles.set(uid, role);
   }
   async passwordSetupLink(email: string) {
+    if (this.failLink) {
+      this.failLink = false;
+      throw new Error("link service down");
+    }
     return `https://example.test/reset?for=${encodeURIComponent(email)}`;
   }
   async setDisabled(uid: string, disabled: boolean) {
@@ -246,15 +265,19 @@ export class MemoryAdminAccounts implements AdminAccounts {
 }
 
 export class MemoryListsStore implements ListsStore {
+  readonly logged: AuditEntry[] = [];
+  async audit(entry: AuditEntry) {
+    this.logged.push(entry);
+  }
   reports: ReportItem[] = [];
-  audit: AuditItem[] = [];
+  auditItems: AuditItem[] = [];
   names = new Map<string, string>();
   async listReports(status: string, limit: number) {
     return this.reports.filter((r) => r.status === status).slice(0, limit);
   }
   async listAudit(afterId: string | null, limit: number) {
-    const start = afterId ? this.audit.findIndex((a) => a.id === afterId) + 1 : 0;
-    return this.audit.slice(start, start + limit);
+    const start = afterId ? this.auditItems.findIndex((a) => a.id === afterId) + 1 : 0;
+    return this.auditItems.slice(start, start + limit);
   }
   async adminNames(uids: string[]) {
     return new Map([...this.names].filter(([uid]) => uids.includes(uid)));

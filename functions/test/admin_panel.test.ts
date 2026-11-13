@@ -3,7 +3,15 @@ import { strict as assert } from "node:assert";
 import { beforeEach, describe, it } from "node:test";
 import { createAdmin, listAdmins, parseNewAdmin, setAdminDisabled } from "../src/admin_panel/admins";
 import { AdminError, type AdminErrorReason } from "../src/admin_panel/errors";
-import { ADMIN_SESSION_MAX_SECONDS, adminAccess, adminRoleOf, type AdminCaller } from "../src/admin_panel/guard";
+import {
+  ADMIN_IDLE_MS,
+  ADMIN_SESSION_MAX_SECONDS,
+  adminAccess,
+  adminRecordAccess,
+  adminRoleOf,
+  shouldTouch,
+  type AdminCaller,
+} from "../src/admin_panel/guard";
 import { listAuditLog, listReports } from "../src/admin_panel/lists";
 import {
   approveSchool,
@@ -68,6 +76,38 @@ describe("adminAccess", () => {
   it("keeps the admin account functions for super admins", () => {
     assert.equal(adminAccess(token({ admin: true }), NOW_S, { requireMfa: true, superAdmin: true }), "not-super-admin");
     assert.equal(adminRoleOf(null), null);
+  });
+});
+
+describe("adminRecordAccess (disabled, revoked, idle)", () => {
+  const NOW_MS = NOW_S * 1000;
+  const token = { iat: NOW_S - 120, auth_time: NOW_S - 600 };
+  const active = { disabled: false, revokedAtMs: null, lastActiveAtMs: NOW_MS - 60_000 };
+
+  it("lets an active admin in", () => {
+    assert.equal(adminRecordAccess(active, token, NOW_MS), null);
+  });
+
+  it("refuses a missing or disabled admin record at once", () => {
+    assert.equal(adminRecordAccess(undefined, token, NOW_MS), "not-admin");
+    assert.equal(adminRecordAccess({ ...active, disabled: true }, token, NOW_MS), "not-admin");
+  });
+
+  it("refuses tokens issued before the revocation, accepts a newer sign-in", () => {
+    assert.equal(adminRecordAccess({ ...active, revokedAtMs: NOW_MS - 30_000 }, token, NOW_MS), "session-revoked");
+    assert.equal(adminRecordAccess({ ...active, revokedAtMs: NOW_MS - 900_000 }, token, NOW_MS), null);
+  });
+
+  it("ends a session idle for 15 minutes; a fresh sign-in counts as activity", () => {
+    const idle = { ...active, lastActiveAtMs: NOW_MS - ADMIN_IDLE_MS - 1 };
+    assert.equal(adminRecordAccess(idle, { iat: NOW_S, auth_time: NOW_S - 3600 }, NOW_MS), "session-idle");
+    assert.equal(adminRecordAccess(idle, { iat: NOW_S, auth_time: NOW_S - 60 }, NOW_MS), null);
+    assert.equal(adminRecordAccess({ ...active, lastActiveAtMs: null }, { iat: NOW_S, auth_time: NOW_S - 3600 }, NOW_MS), "session-idle");
+  });
+
+  it("records activity at most once a minute", () => {
+    assert.equal(shouldTouch(active, NOW_MS), true);
+    assert.equal(shouldTouch({ ...active, lastActiveAtMs: NOW_MS - 10_000 }, NOW_MS), false);
   });
 });
 
@@ -332,13 +372,30 @@ describe("admin accounts", () => {
       createAdmin(deps(), SUPER, { email: "rev@example.com", displayName: "Again", role: "admin" }, null),
       expectReason("already-exists"),
     );
-    assert.equal((await listAdmins(deps())).admins.length, 1);
+    assert.equal((await listAdmins(deps(), SUPER, "1.2.3.4")).admins.length, 1);
+    assert.deepEqual(store.log.entries.at(-1), {
+      actorUid: "super1",
+      action: "admin.list",
+      target: "admins",
+      details: { results: 1 },
+      ip: "1.2.3.4",
+    });
+  });
+
+  it("a creation that fails part way leaves no account behind", async () => {
+    accounts.failLink = true;
+    await assert.rejects(createAdmin(deps(), SUPER, { email: "rev@example.com", displayName: "Reviewer", role: "admin" }, null));
+    assert.equal(accounts.removed.length, 1);
+    assert.equal(store.admins.size, 0);
+    const again = await createAdmin(deps(), SUPER, { email: "rev@example.com", displayName: "Reviewer", role: "admin" }, null);
+    assert.match(again.setupLink, /^https:/);
   });
 
   it("disables and enables another admin, never the caller", async () => {
     const { uid } = await createAdmin(deps(), SUPER, { email: "rev@example.com", displayName: "Reviewer", role: "admin" }, null);
     await setAdminDisabled(deps(), SUPER, { uid, disabled: true }, null);
     assert.ok(accounts.disabled.has(uid));
+    assert.ok(store.revoked.has(uid), "revokedAt set so open tokens stop at once");
     assert.equal(store.admins.get(uid)?.disabled, true);
     await setAdminDisabled(deps(), SUPER, { uid, disabled: false }, null);
     assert.equal(accounts.disabled.has(uid), false);
@@ -360,12 +417,13 @@ describe("reports and audit log", () => {
 
   it("names the actor and shows IP addresses to super admins only", async () => {
     const store = new MemoryListsStore();
-    store.audit = [{ id: "l1", actorUid: "admin1", action: "user.view", target: "users/u1", reasonCode: null, ip: "1.2.3.4", timeMs: 1 }];
+    store.auditItems = [{ id: "l1", actorUid: "admin1", action: "user.view", target: "users/u1", reasonCode: null, ip: "1.2.3.4", timeMs: 1 }];
     store.names.set("admin1", "Reviewer");
     const forAdmin = await listAuditLog(store, ADMIN, {});
     assert.equal(forAdmin.entries[0].actorName, "Reviewer");
     assert.equal(forAdmin.entries[0].ip, null);
     assert.equal((await listAuditLog(store, SUPER, {})).entries[0].ip, "1.2.3.4");
     assert.equal(forAdmin.nextAfterId, null);
+    assert.equal(store.logged.filter((e) => e.action === "audit.view").length, 2, "one entry per opening");
   });
 });

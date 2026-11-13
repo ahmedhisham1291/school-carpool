@@ -165,8 +165,8 @@ function requireUid(request: CallableRequest): string {
  * bootstrap script), signed in with a second factor, within the session
  * limit (admin_panel/guard.ts).
  */
-export function requireAdmin(request: CallableRequest): string {
-  return requireAdminCaller(request).uid;
+export async function requireAdmin(request: CallableRequest): Promise<string> {
+  return (await requireAdminCaller(request)).uid;
 }
 
 const options = { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [NATIONAL_ID_HMAC_KEY], timeoutSeconds: 120 };
@@ -199,14 +199,14 @@ export const withdrawVerification = onCall({ enforceAppCheck: ENFORCE_APP_CHECK 
 /** Admin: oldest cases first. {} -> { cases: [...] } */
 export const listVerificationQueue = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("listVerificationQueue", async () => {
-    requireAdmin(request);
+    await requireAdmin(request);
     return { cases: await deps(false).store.queue(50) };
   }),
 );
 
 /** Admin: one case with 5-minute image links; the view is logged. { caseId } -> case */
 export const openVerificationCase = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
-  run("openVerificationCase", () => openFlow(deps(false), requireAdmin(request), request.data, ipOf(request))),
+  run("openVerificationCase", async () => openFlow(deps(false), await requireAdmin(request), request.data, ipOf(request))),
 );
 
 /**
@@ -216,7 +216,7 @@ export const openVerificationCase = onCall({ enforceAppCheck: ENFORCE_APP_CHECK 
  * nameCheck ("match" | "birth_certificate") is required to approve a case with children.
  */
 export const decideVerification = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
-  run("decideVerification", () => decideFlow(deps(false), requireAdmin(request), request.data, ipOf(request))),
+  run("decideVerification", async () => decideFlow(deps(false), await requireAdmin(request), request.data, ipOf(request))),
 );
 
 /**

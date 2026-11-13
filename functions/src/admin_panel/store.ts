@@ -388,9 +388,20 @@ export class FirestoreAdminsStore implements AdminsStore {
 
   async setDisabled(uid: string, disabled: boolean, audit: AuditEntry): Promise<void> {
     const batch = this.db.batch();
-    batch.update(this.db.collection(ADMINS).doc(uid), { disabled, updatedAt: FieldValue.serverTimestamp() });
+    const update: DocumentData = { disabled, updatedAt: FieldValue.serverTimestamp() };
+    // Tokens issued before this moment are refused by the functions and rules.
+    if (disabled) update.revokedAt = FieldValue.serverTimestamp();
+    batch.update(this.db.collection(ADMINS).doc(uid), update);
     batch.create(this.db.collection(AUDIT_LOG).doc(), auditDoc(audit));
     await batch.commit();
+  }
+
+  async removeAdmin(uid: string): Promise<void> {
+    await this.db.collection(ADMINS).doc(uid).delete();
+  }
+
+  async audit(entry: AuditEntry): Promise<void> {
+    await this.db.collection(AUDIT_LOG).doc().create(auditDoc(entry));
   }
 }
 
@@ -422,6 +433,10 @@ export class FirebaseAdminAccounts implements AdminAccounts {
   async setDisabled(uid: string, disabled: boolean): Promise<void> {
     await this.auth.updateUser(uid, { disabled });
     if (disabled) await this.auth.revokeRefreshTokens(uid);
+  }
+
+  async remove(uid: string): Promise<void> {
+    await this.auth.deleteUser(uid);
   }
 }
 
@@ -458,6 +473,10 @@ export class FirestoreListsStore implements ListsStore {
       ip: str(doc.get("ip")),
       timeMs: millis(doc.get("time")),
     }));
+  }
+
+  async audit(entry: AuditEntry): Promise<void> {
+    await this.db.collection(AUDIT_LOG).doc().create(auditDoc(entry));
   }
 
   async adminNames(uids: string[]): Promise<Map<string, string>> {

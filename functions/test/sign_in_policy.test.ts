@@ -1,7 +1,14 @@
 // Sign-in policy: WhatsApp code (custom token) only. Run: npm test.
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { emailAllowed, emailConfirmationIsNew, isAdminAccount, signInAllowed, signInMethodAllowed } from "../src/auth/sign_in_policy";
+import {
+  creationAllowed,
+  emailAllowed,
+  emailConfirmationIsNew,
+  isAdminAccount,
+  signInAllowed,
+  signInMethodAllowed,
+} from "../src/auth/sign_in_policy";
 
 describe("signInMethodAllowed", () => {
   it("refuses password, email link, SMS and anonymous sign-in", () => {
@@ -53,5 +60,17 @@ describe("admin sign-in (F14)", () => {
   });
   it("still allows the parents' custom token", () => {
     assert.equal(signInAllowed("custom", { phoneNumber: "+201000000001" }), true);
+  });
+});
+
+describe("creationAllowed (beforeUserCreated)", () => {
+  it("refuses every account a client tries to create", () => {
+    for (const method of ["password", "emailLink", "phone", "anonymous", "google.com", "apple.com"]) {
+      assert.equal(creationAllowed(method), false, method);
+    }
+  });
+  it("allows accounts made on the server with the Admin SDK (no client credential)", () => {
+    assert.equal(creationAllowed(undefined), true);
+    assert.equal(creationAllowed("custom"), true);
   });
 });
