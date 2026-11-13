@@ -262,8 +262,9 @@ class PendingInvite extends Notifier<String?> {
 
 final NotifierProvider<PendingInvite, String?> pendingInviteProvider = NotifierProvider<PendingInvite, String?>(PendingInvite.new);
 
-/// The invite code in a link path `/c/<code>`, or null.
+/// The invite code in a link path `/c/<code>` (or the in-app
+/// `/carpools/invite/<code>`), or null.
 String? inviteCodeFromPath(String path) {
-  final RegExpMatch? m = RegExp(r'^/c/([2-9A-HJ-NP-Za-hj-np-z]{10})/?$').firstMatch(path);
+  final RegExpMatch? m = RegExp(r'^/(?:c|carpools/invite)/([2-9A-HJ-NP-Za-hj-np-z]{10})/?$').firstMatch(path);
   return m?[1]?.toUpperCase();
 }

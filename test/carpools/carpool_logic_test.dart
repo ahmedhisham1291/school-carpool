@@ -193,11 +193,15 @@ void main() {
       expect(inviteCodeFromPath('/c/ABCDEFGH2'), isNull);
       expect(inviteCodeFromPath('/c/ABCDEFGH0O'), isNull, reason: 'no 0 or O');
       expect(inviteCodeFromPath('/carpools/k1'), isNull);
+      expect(inviteCodeFromPath('/carpools/invite/ABCDEFGH23'), 'ABCDEFGH23');
+      expect(CarpoolRoutes.link('ABCDEFGH23'), '/c/ABCDEFGH23');
+      expect(CarpoolRoutes.invite('ABCDEFGH23'), '/carpools/invite/ABCDEFGH23');
     });
 
     test('the link screen is open to signed-in parents (it says to verify first); signed out goes to Welcome', () {
       expect(sessionRedirect(testVerifiedSession, '/c/ABCDEFGH23'), isNull);
       expect(sessionRedirect(testUnverifiedSession, '/c/ABCDEFGH23'), isNull);
+      expect(sessionRedirect(testUnverifiedSession, '/carpools/invite/ABCDEFGH23'), isNull);
       expect(sessionRedirect(const SessionSignedOut(), '/c/ABCDEFGH23'), AuthRoutes.welcome);
       expect(sessionRedirect(testEmailStageSession, '/c/ABCDEFGH23'), AuthRoutes.email);
       // The carpool screens themselves stay verified-only.

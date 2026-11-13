@@ -12,7 +12,7 @@ import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 
-/// An invite link `/c/<code>` (F31), opened by a universal link or from
+/// An invite link `/c/<code>` (F31; shown at `/carpools/invite/<code>`), opened by a universal link or from
 /// the Carpools tab. The parent must be verified before anything is shown:
 /// until then the code waits on the phone and this screen says to verify
 /// first. A verified parent goes on to the carpool, where joining still

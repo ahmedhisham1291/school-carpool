@@ -80,12 +80,19 @@ abstract final class CarpoolRoutes {
   static const String create = '/carpools/$createSegment';
   static const String looking = '/carpools/$lookingSegment';
 
-  /// Invite links: `https://<links site>/c/<code>` (universal links on iPhone).
-  static const String invitePattern = '/c/:code';
+  /// Invite links: `https://<links site>/c/<code>` (universal links on
+  /// iPhone). The router sends them to [invite], inside the Carpools tab,
+  /// so opening the carpool afterwards stays in the same tab shell.
+  static const String linkPattern = '/c/:code';
+  static const String inviteSegment = 'invite/:code';
 
   static String detail(String carpoolId) => '/carpools/$carpoolId';
 
-  static String invite(String code) => '/c/$code';
+  /// The shared link path.
+  static String link(String code) => '/c/$code';
+
+  /// The invite screen inside the Carpools tab.
+  static String invite(String code) => '/carpools/invite/$code';
 
   /// The nearby map's Join (F22): that parent's carpools at one school.
   static String searchParent({required String schoolId, required String parentUid, required String parentName}) => Uri(
@@ -149,9 +156,9 @@ GoRouter buildAppRouter({
           },
     routes: <RouteBase>[
       GoRoute(
-        path: CarpoolRoutes.invitePattern,
-        builder: (BuildContext context, GoRouterState state) =>
-            InviteScreen(code: (state.pathParameters['code'] ?? '').toUpperCase()),
+        path: CarpoolRoutes.linkPattern,
+        redirect: (BuildContext context, GoRouterState state) =>
+            CarpoolRoutes.invite((state.pathParameters['code'] ?? '').toUpperCase()),
       ),
       GoRoute(
         path: AuthRoutes.starting,
@@ -233,6 +240,11 @@ GoRouter buildAppRouter({
                       GoRoute(
                         path: CarpoolRoutes.lookingSegment,
                         builder: (BuildContext context, GoRouterState state) => const LookingScreen(),
+                      ),
+                      GoRoute(
+                        path: CarpoolRoutes.inviteSegment,
+                        builder: (BuildContext context, GoRouterState state) =>
+                            InviteScreen(code: (state.pathParameters['code'] ?? '').toUpperCase()),
                       ),
                       GoRoute(
                         path: ':carpoolId',

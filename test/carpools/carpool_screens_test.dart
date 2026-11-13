@@ -119,6 +119,9 @@ String _path(GoRouter router) => router.routerDelegate.currentConfiguration.uri.
 Future<void> _tapVisible(WidgetTester tester, String key) async {
   final Finder f = find.byKey(Key(key));
   await tester.scrollUntilVisible(f, 200, scrollable: find.byType(Scrollable).first);
+  // Lazy lists build a little beyond the screen: bring it fully on screen.
+  await tester.ensureVisible(f);
+  await tester.pumpAndSettle();
   await tester.tap(f);
   await tester.pumpAndSettle();
 }
@@ -512,7 +515,8 @@ void main() {
   group('invite links (F31)', () {
     testWidgets('a verified parent goes straight to the carpool', (WidgetTester tester) async {
       final FakeCarpoolRepository carpools = FakeCarpoolRepository();
-      final GoRouter router = await _pump(tester, CarpoolRoutes.invite('ABCDEFGH23'), overrides: _overrides(carpools: carpools));
+      // The shared link /c/<code> leads to the invite screen in the Carpools tab.
+      final GoRouter router = await _pump(tester, CarpoolRoutes.link('abcdefgh23'), overrides: _overrides(carpools: carpools));
       expect(carpools.calls, contains('open:ABCDEFGH23'));
       expect(_path(router), '/carpools/k1');
     });
@@ -522,7 +526,7 @@ void main() {
       final InMemorySettingsStore store = InMemorySettingsStore();
       await _pump(
         tester,
-        CarpoolRoutes.invite('ABCDEFGH23'),
+        CarpoolRoutes.link('ABCDEFGH23'),
         overrides: _overrides(carpools: carpools, session: testUnverifiedSession, store: store),
       );
       expect(find.byKey(const Key('invite.verifyFirst')), findsOneWidget);
