@@ -310,6 +310,14 @@ emulators need none of this.
    (sign-up)" and "Enable delete"**, so no account can be made outside our
    functions. Optional: **Templates > Email address verification** to set
    the sender name and the Arabic text.
+   With this provider on, a password reset sent to a parent's inbox could
+   otherwise open the account without the phone. The functions
+   `blockNonCodeSignIn` and `blockSignInEmails` (Identity Platform
+   blocking functions, free tier) refuse every password, email-link, SMS
+   and anonymous sign-in and never send password-reset or sign-in emails.
+   They register themselves on deploy; check **Authentication > Settings >
+   Blocking functions** shows them for "Before sign in" and "Before email
+   sent". Only the WhatsApp code (custom token) signs in.
 4. **Auto-delete old sign-in records** (Firestore TTL, free):
 
    ```sh
@@ -334,6 +342,13 @@ emulators need none of this.
       already set for prod; the fake sender is refused there.
 6. **Deploy** as in step 3.10. The new functions are `requestCode`,
    `verifyCode`, `confirmEmail` and `acceptConsents`.
+
+7. **Check the per-IP limit sees real client addresses** (once per
+   project, after the first deploy). Ask for a code once on Wi-Fi and once
+   on mobile data. Logs Explorer, filter `requestCode`: the two log lines
+   must show different `ipKeyPrefix` values (a hash, not the IP). If they
+   are the same, set `CLIENT_IP_HOP=2` in `functions/.env.<alias>` and
+   deploy again. The cap itself is `OTP_MAX_SENDS_PER_IP` (60 an hour).
 
 **Where to find the code and the email link while testing**
 

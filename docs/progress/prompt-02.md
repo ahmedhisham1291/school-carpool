@@ -3,8 +3,10 @@
 Branch: `prompt-02-whatsapp-signup` (from `main` after Prompt 1). Date: 13 Nov 2026.
 The coordinator gave "go" on the owner's behalf (CLAUDE.md environment note).
 
-**Status: code complete, not compiled.** No Flutter SDK or package registry
-here. See "Verified here vs not run" at the end.
+**Status: review round 1 fixed (see the last section), waiting for CI.**
+No Flutter SDK or package registry here. CI run `43424836743` on the
+first version: Functions tests 66/66 and rules tests 85/85 passed, web and
+Android compiled, `flutter analyze` failed (fixed below).
 
 ## Plan that was followed
 
@@ -42,9 +44,10 @@ the verification screen and the Profile tab ("Profile only", spec section
 
 **Limits** (`DEFAULT_OTP_LIMITS`): 60 s between codes for one number; per
 rolling hour at most 5 codes per number, 10 per device, 60 per IP; 5 tries
-per code; 10 wrong codes in an hour lock the number (no codes, no checks)
-for an hour. The IP cap is high on purpose: Egyptian mobile carriers put
-many users behind one IP.
+per code; 10 wrong codes in an hour from **one device** lock that number
+**on that device** (no codes, no checks) for an hour. The IP cap is high on
+purpose (Egyptian mobile carriers put many users behind one IP) and is a
+param, `OTP_MAX_SENDS_PER_IP`.
 
 ### Data model
 
@@ -82,9 +85,21 @@ many users behind one IP.
 
 1. **Email confirmation with `verifyBeforeUpdateEmail`** (Firebase Auth,
    free). The address is set on the Auth user only after the parent opens
-   the link; `confirmEmail` then copies it to the user record. The app
-   never writes `email` or `emailVerified`. Needs the Email/Password
-   provider on, with sign-up from outside switched off (SETUP.md 11.3).
+   the link; the server then copies it to the user record. The app never
+   writes `email` or `emailVerified`. Needs the Email/Password provider
+   on, with sign-up from outside switched off (SETUP.md 11.3).
+   Opening the link changes the account's email, and Firebase revokes the
+   app's session when that happens. So (review round 1):
+   - the app no longer calls `reload()` (it fails on a revoked session);
+     `confirmEmail` reads the truth from Auth with the Admin SDK;
+   - a confirmed answer carries a **fresh custom token**, and the app signs
+     in with it, so the parent keeps going without a new code;
+   - the email screen checks once when it opens and when the app comes
+     back from the mail app;
+   - if the session is already gone, the screen says "Your session ended
+     ... sign in again" with a **Sign in again** button. After the new
+     WhatsApp code, `verifyCode` copies the confirmed email inside the
+     account transaction, so the router goes straight to the terms.
 2. **No new dependency.** Offline is detected from the error (Functions
    `unavailable`, Auth `network-request-failed`, Firestore `unavailable`),
    so `connectivity_plus` was not needed. Clipboard and random IDs use the
@@ -92,9 +107,17 @@ many users behind one IP.
 3. **Device limit uses a random install ID** (saved with the other
    settings), not a hardware ID. Easy to reset by reinstalling, so the
    number and IP limits plus App Check carry most of the weight.
-4. **Client IP = last `X-Forwarded-For` entry** (Cloud Run appends the
-   address it sees; a caller can only prepend). Community-confirmed, not
-   in Google's docs: check once after the first deploy.
+4. **Client IP = an `X-Forwarded-For` entry counted from the end**
+   (`CLIENT_IP_HOP`, default 1 = last: Cloud Run appends the address it
+   sees, and a caller can only add entries in front). Community-confirmed,
+   not in Google's docs, so SETUP.md 11.7 has a two-network check (the log
+   shows a hash prefix, never the IP) and the hop can be changed without
+   code.
+12. **Lockout per number and device**, not per number: a stranger who knows
+    a parent's number can only lock their own device. Guessing stays
+    capped by 5 codes per number per hour times 5 tries per code (25
+    guesses out of a million an hour), whatever the number of devices.
+13. **10-second timeout** on the WhatsApp Cloud API call.
 5. **WhatsApp alerts consent is optional and unticked.** Codes always go
    by WhatsApp (the parent asked for one). See open question 2.
 6. **Consent versions** are dates (`2026-11-13`) in
@@ -155,7 +178,11 @@ firestore:rules,functions --project dev`). Or use a Mac with the emulators
 7. Type the right code. The app moves to **email**.
 8. Type your email, tap **Send confirmation link**, open the email on the
    phone and tap the link. Back in the app tap **I have confirmed my
-   email** (or just return to the app; it checks by itself).
+   email** (or just return to the app; it checks by itself). You go on to
+   the terms. **Please report** if instead you see "Your session ended":
+   tap **Sign in again**, enter the new code, and you should land on the
+   terms directly (this is the path for a session ended by the email
+   change).
 9. **Terms:** tap **Read** on each, tick the three boxes (WhatsApp is
    optional), tap **Accept and continue**.
 10. You land on **Verify your account** with the status "Not verified".
@@ -170,7 +197,8 @@ firestore:rules,functions --project dev`). Or use a Mac with the emulators
     accepted document.
 
 Lockout check (optional): 10 wrong codes within an hour lock the number
-for an hour ("Sign-in for this number is paused...").
+on this phone for an hour ("Sign-in for this number is paused..."). The
+same number still works from another phone.
 
 ## Tests
 
@@ -180,17 +208,19 @@ for an hour ("Sign-in for this number is paused...").
 | `functions/test/phone.test.ts`: Egyptian numbers, Arabic digits, masking | **Run here: pass** |
 | `functions/test/otp_flow.test.ts`: hash only stored (no code, number, device or IP in clear), right code once, **wrong and expired codes refused**, replacement, tries per code, **lockout**, cooldown, caps per number, device and IP, send failure, suspended | **Run here: pass** |
 | `functions/test/whatsapp.test.ts`: fake logs masked number, Meta request body, error without the number, fake refused in prod | **Run here: pass** |
-| `functions/test/consents.test.ts`: consent validation, new user record | Written, not run here (imports firebase-admin) |
+| `functions/test/consents.test.ts`: consent validation, new user record, confirmed-email copy rule | Passed in CI (first version); new case written, not run here |
+| `functions/test/client_ip.test.ts`: X-Forwarded-For hop, fallbacks | **Run here: pass** |
+| `functions/test/emulator/accounts.emulator.test.ts`: user record and parent ID in one transaction, same parent ID on sign-in again, taken ID skipped, 30 parallel accounts get 30 IDs, confirmed email copied, same number gives the same account and a custom token | Written, not run here (CI step "Cloud Functions tests on the emulators") |
 | `tests/rules/users.test.ts`: owner reads own record only; **cannot change status, parentId, role**, email, emailVerified, phone, terms or WhatsApp fields; may change language to ar/en only; cannot create or delete; consents read-only; parentIds, otpCodes, otpLimits closed to everyone incl. admin claim | Written, not run here |
 | `tests/rules/deny_all.test.ts`: updated (`users/alice` moved to users.test.ts) | Written, not run here |
 | `test/auth/auth_logic_test.dart`: phone parsing, account, error mapping, install ID, **router gate** | Written, not run here |
-| `test/auth/signup_screens_test.dart`: phone validation and offline, wrong and expired code, resend countdown, terms required boxes, **parent ID shown and copied**, sign-out confirmation, verify screen | Written, not run here |
+| `test/auth/signup_screens_test.dart`: phone validation and offline, wrong and expired code, resend countdown, **email check on open, "sign in again", link sent then not yet confirmed**, terms required boxes, **parent ID shown and copied**, sign-out confirmation, verify screen | Written, not run here |
 | Prompt 1 tests updated (router, locale switch, screenshots) for the session | Written, not run here |
 | Screenshots: welcome, phone, code, email, terms, verify account, unverified profile in AR/EN, light/dark (28 images, CI artifact) | Written, not run here |
 
 ## Verified here vs not run
 
-Run here: the 50 Functions unit tests above (Node 22 with type stripping,
+Run here: the Functions unit tests above (58 after review round 1) (Node 22 with type stripping,
 on copies of the sources); `tsc` 6.0 strict type-check of all Functions
 code against stand-in type stubs for firebase-admin, firebase-functions
 and Sentry (no errors in Prompt 2 code); ARB parity (167 keys each);
@@ -223,3 +253,64 @@ CI run.
   them with the ID check.
 - The intermediate commit `F1: sign-up screens...` references the profile
   screen added in the next commit; the branch head compiles as a whole.
+
+## Review round 1 (docs/reviews/prompt-02-review.md)
+
+Fixed:
+- 1 (blocking) the 17 `flutter analyze` issues: direction marks now come
+  from one helper, `ltrIsolate` in `lib/design/bidi.dart` (built from code
+  points, no invisible characters in the source); unused `firebase_core`
+  import removed; positional initializing formals in
+  `FirebaseAuthRepository`; null-aware list element; const test literal.
+- 2 (blocking) email step after the session is revoked: decision 1 above.
+  Widget tests cover the check on open and "Sign in again"; an emulator
+  test covers the server copying the confirmed email on sign-in.
+- 3 lockout counted per number and device (decision 12), with a test that
+  a stranger's lock does not stop the parent's phone.
+- 4 client IP hop and per-IP cap are params, `clientIp` has unit tests,
+  and SETUP.md 11.7 explains the two-network check.
+- 6 timeout on the WhatsApp call, with a test.
+- 9 emulator tests for `ensureUserRecord` and `FirebaseAccountService`,
+  run by a new CI step (`firebase emulators:exec --only firestore,auth`).
+- 10 (part) email screen widget tests.
+
+Deferred:
+- 5 App Check replay protection (`consumeAppCheckToken` on `requestCode`
+  plus limited-use tokens in the app): before prod, with the first real
+  WhatsApp sends.
+- 7 server-side order check in `acceptConsents` (email first) and
+  repeated calls: with consent withdrawal (privacy screen).
+- 8 staging logs show valid codes for tester numbers (fake data only):
+  keep the Logs Viewer role to the team (no code change).
+- 10 (rest) welcome and terms error/offline widget tests: next prompt that
+  touches them.
+- 12 check the code screen at 200 % text on a small iPhone once the
+  screenshots exist.
+- The flow on a real iPhone, including that the fresh token after the
+  email link works as described (Firebase documents the revocation, not
+  the exact client behaviour): owner test step 8 above.
+
+## Review round 1, second part (coordinator, 13 Nov)
+
+- CI run `43427592161`: analyze clean; Functions, rules and emulator tests
+  pass. Four `flutter test` failures were test mistakes, now fixed: wrong
+  expected string in the formatter test, a pushed-route check that does
+  not reflect `push` (now checks the code screen is shown), an ambiguous
+  scrollable in the sign-out test, and the language switch below the fold
+  on the longer Profile (the test scrolls to it first).
+- `confirmEmail` writes and returns a fresh custom token **only on the
+  change to confirmed** (record not yet confirmed, or another address); a
+  repeat call returns `{ verified: true }` without a token. Unit-tested.
+- **Account takeover through the Email/Password provider closed:**
+  blocking functions `blockNonCodeSignIn` (refuses password, email link,
+  SMS and anonymous sign-in) and `blockSignInEmails` (no password-reset or
+  sign-in emails). Unknown methods are allowed on purpose so custom-token
+  sign-in can never be blocked by a value we did not foresee. The policy
+  is unit-tested; the blocking functions themselves only run in the cloud
+  (the emulator does not call them for custom tokens). SETUP.md 11.3.
+- **Daily cap per number across devices:** 30 wrong codes a day close the
+  number for every device until the day window ends (on top of the
+  per-device hour lock). A stranger needs at least 6 codes over 6 hours
+  to reach it. Unit-tested.
+- Still to check on a real project: that "Before sign in" does not block
+  the custom-token sign-in (owner test step 7 covers it).

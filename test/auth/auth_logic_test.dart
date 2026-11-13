@@ -7,6 +7,7 @@ import 'dart:math';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:school_carpool/design/bidi.dart';
 import 'package:school_carpool/design/components/digits_input_formatter.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
@@ -54,17 +55,17 @@ void main() {
     });
 
     test('displays left to right with spaces', () {
-      expect(EgyptPhone.display('+201012345678'), '⁦+20 10 1234 5678⁩');
+      expect(EgyptPhone.display('+201012345678'), ltrIsolate('+20 10 1234 5678'));
     });
 
     test('digits formatter converts Arabic digits and drops the rest', () {
-      expect(DigitsInputFormatter.normalize('٠١٠-۱۲ 3a'), '0101223');
+      expect(DigitsInputFormatter.normalize('٠١٠-۱۲ 3a'), '010123');
     });
   });
 
   group('Account', () {
     test('reads the record written by the server', () {
-      final Account account = Account.fromMap(<String, dynamic>{
+      final Account account = Account.fromMap(const <String, dynamic>{
         'parentId': 'WXYZ6789',
         'status': 'pending',
         'phone': '+201000000002',
@@ -113,6 +114,17 @@ void main() {
       expect(
         AuthFailure.from(functionsError('resource-exhausted', <String, Object?>{'reason': 'too-soon'})).kind,
         AuthFailureKind.rateLimited,
+      );
+    });
+
+    test('an ended session asks to sign in again', () {
+      expect(
+        AuthFailure.from(FirebaseAuthException(code: 'user-token-expired')).kind,
+        AuthFailureKind.signInAgain,
+      );
+      expect(
+        AuthFailure.from(functionsError('unauthenticated', <String, Object?>{})).kind,
+        AuthFailureKind.signInAgain,
       );
     });
 

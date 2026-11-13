@@ -3,9 +3,11 @@ import * as logger from "firebase-functions/logger";
 import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { adminAuth, adminDb } from "../admin";
 import {
+  CLIENT_IP_HOP,
   ENFORCE_APP_CHECK,
   MIN_INSTANCES_SIGNIN,
   OTP_HMAC_KEY,
+  OTP_MAX_SENDS_PER_IP,
   WHATSAPP_ACCESS_TOKEN,
   WHATSAPP_API_VERSION,
   WHATSAPP_CODE_TEMPLATE,
@@ -16,10 +18,20 @@ import {
 } from "../config";
 import { reportError } from "../sentry";
 import { asLanguage, createWhatsAppSender, type WhatsAppSender } from "../whatsapp/sender";
-import { FirebaseAccountService, USERS } from "./accounts";
+import { FirebaseAccountService, USERS, verifiedEmail } from "./accounts";
+import { clientIp } from "./client_ip";
 import { ConsentError, parseConsentRequest, recordConsents } from "./consents";
-import { OtpError, requestCode as requestCodeFlow, verifyCode as verifyCodeFlow, type OtpDeps, type OtpErrorReason } from "./otp_flow";
+import {
+  DEFAULT_OTP_LIMITS,
+  OtpError,
+  ipKey,
+  requestCode as requestCodeFlow,
+  verifyCode as verifyCodeFlow,
+  type OtpDeps,
+  type OtpErrorReason,
+} from "./otp_flow";
 import { FirestoreOtpStore } from "./otp_store";
+import { emailConfirmationIsNew } from "./sign_in_policy";
 
 /**
  * Callable functions for sign-up and sign-in (F1). App Check is enforced in
@@ -53,21 +65,6 @@ export function toHttpsError(error: unknown): HttpsError {
     return new HttpsError(code, error.reason, { reason: error.reason });
   }
   return new HttpsError("internal", "Something went wrong.");
-}
-
-/**
- * Client IP for the per-IP limit. On Cloud Run the platform appends the
- * address it sees as the last X-Forwarded-For entry; a caller can only add
- * entries before it. Falls back to the socket address (emulator).
- */
-export function clientIp(headers: Record<string, string | string[] | undefined>, fallback?: string): string {
-  const raw = headers["x-forwarded-for"];
-  const joined = Array.isArray(raw) ? raw.join(",") : (raw ?? "");
-  const parts = joined
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
-  return parts.length > 0 ? parts[parts.length - 1] : (fallback ?? "unknown");
 }
 
 function otpHmacKey(): string {
@@ -104,6 +101,7 @@ function otpDeps(): OtpDeps {
     accounts: new FirebaseAccountService(adminAuth(), db),
     hmacKey: otpHmacKey(),
     now: () => Date.now(),
+    limits: { ...DEFAULT_OTP_LIMITS, maxSendsPerIp: OTP_MAX_SENDS_PER_IP.value() },
     reportError: (error) => {
       logger.error("WhatsApp send failed", { message: error instanceof Error ? error.message : "unknown" });
       void reportError(error);
@@ -143,22 +141,30 @@ const signInOptions = {
 
 /** { phone, deviceId, language } -> { expiresInSeconds, resendAfterSeconds } */
 export const requestCode = onCall(signInOptions, (request) =>
-  run("requestCode", () =>
-    requestCodeFlow(otpDeps(), {
+  run("requestCode", async () => {
+    const deps = otpDeps();
+    const ip = clientIp(request.rawRequest.headers, request.rawRequest.ip, CLIENT_IP_HOP.value());
+    if (process.env.APP_ENV !== "prod") {
+      // A hash prefix, not the IP: lets the owner check that two networks
+      // give two different keys (SETUP.md 11.7).
+      logger.info("requestCode", { ipKeyPrefix: ipKey(deps.hmacKey, ip).slice(0, 10) });
+    }
+    return requestCodeFlow(deps, {
       phone: field(request, "phone"),
       deviceId: field(request, "deviceId"),
-      ip: clientIp(request.rawRequest.headers, request.rawRequest.ip),
+      ip,
       language: asLanguage(field(request, "language")),
-    }),
-  ),
+    });
+  }),
 );
 
-/** { phone, code, language } -> { token } (a Firebase custom token) */
+/** { phone, code, deviceId, language } -> { token } (a Firebase custom token) */
 export const verifyCode = onCall(signInOptions, (request) =>
   run("verifyCode", async () => {
     const result = await verifyCodeFlow(otpDeps(), {
       phone: field(request, "phone"),
       code: field(request, "code"),
+      deviceId: field(request, "deviceId"),
       language: asLanguage(field(request, "language")),
     });
     return { token: result.token };
@@ -167,20 +173,30 @@ export const verifyCode = onCall(signInOptions, (request) =>
 
 /**
  * Copies a confirmed email from Firebase Auth to the user record. The app
- * sends the confirmation link with verifyBeforeUpdateEmail; Auth sets
- * emailVerified only after the parent opens the link.
- * {} -> { verified }
+ * sends the link with verifyBeforeUpdateEmail; Auth sets emailVerified only
+ * after the parent opens it. Opening the link changes the account's email,
+ * and Firebase then revokes the app's session, so a verified answer also
+ * carries a fresh custom token for the app to sign in with again, but only
+ * on the change to confirmed.
+ * {} -> { verified, token? }
  */
 export const confirmEmail = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("confirmEmail", async () => {
     const uid = requireUid(request);
-    const user = await adminAuth().getUser(uid);
-    if (!user.email || !user.emailVerified) return { verified: false };
+    const auth = adminAuth();
+    const email = verifiedEmail(await auth.getUser(uid));
+    if (!email) return { verified: false };
     const ref = adminDb().collection(USERS).doc(uid);
     const snap = await ref.get();
     if (!snap.exists) throw new HttpsError("failed-precondition", "No account record.");
-    await ref.update({ email: user.email, emailVerified: true, updatedAt: FieldValue.serverTimestamp() });
-    return { verified: true };
+    if (snap.get("status") === "suspended") throw new HttpsError("permission-denied", "suspended", { reason: "suspended" });
+    // Only the change to "confirmed" writes and mints a token; a repeat
+    // call (the app checks on open and on resume) gets no token.
+    if (!emailConfirmationIsNew({ email: snap.get("email"), emailVerified: snap.get("emailVerified") }, email)) {
+      return { verified: true };
+    }
+    await ref.update({ email, emailVerified: true, updatedAt: FieldValue.serverTimestamp() });
+    return { verified: true, token: await auth.createCustomToken(uid) };
   }),
 );
 

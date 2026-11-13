@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/bidi.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
@@ -121,7 +122,7 @@ class ProfileScreen extends ConsumerWidget {
       ),
       AppListRow(
         title: l10n.emailLabel,
-        subtitle: email == null ? l10n.profileEmailMissing : '\u2066$email\u2069',
+        subtitle: email == null ? l10n.profileEmailMissing : ltrIsolate(email),
         leadingIcon: Icons.mail_outline_rounded,
       ),
       AppSectionHeader(l10n.profileFamilySection),

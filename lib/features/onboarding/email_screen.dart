@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/bidi.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/auth_repository.dart';
+import 'package:school_carpool/features/auth/signup_flow.dart';
 import 'package:school_carpool/features/onboarding/onboarding_layout.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -15,9 +17,16 @@ final RegExp kEmailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
 /// Step 3: email with a confirmation link (spec section 3, step 2).
 ///
 /// Two parts: enter the address (checked as typed), then "check your inbox"
-/// with "I have confirmed", resend and change. The app also checks again
-/// when the parent comes back from the mail app. Loading is the button
-/// spinner; errors and offline show under the content.
+/// with "I have confirmed", resend and change. The app also checks when the
+/// screen opens (a parent who opened the link and signed in again moves on
+/// to the terms) and when the parent comes back from the mail app.
+///
+/// Opening the link changes the account's email, and Firebase then ends
+/// the app's session. The server's answer to a confirmed check carries a
+/// fresh sign-in, and if the session is already gone the screen offers
+/// "Sign in again" (a new WhatsApp code; the server then finishes the email
+/// step by itself). Loading is the button spinner; errors and offline show
+/// under the content.
 class EmailScreen extends ConsumerStatefulWidget {
   const EmailScreen({super.key});
 
@@ -39,6 +48,12 @@ class _EmailScreenState extends ConsumerState<EmailScreen> with WidgetsBindingOb
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _controller.addListener(_onChanged);
+    // One quiet check on open, after the first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_check(silent: true));
+      }
+    });
   }
 
   @override
@@ -54,7 +69,7 @@ class _EmailScreenState extends ConsumerState<EmailScreen> with WidgetsBindingOb
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _sentTo != null && !_busy) {
+    if (state == AppLifecycleState.resumed && !_busy) {
       unawaited(_check(silent: true));
     }
   }
@@ -120,13 +135,27 @@ class _EmailScreenState extends ConsumerState<EmailScreen> with WidgetsBindingOb
         setState(() => _notYet = true);
       }
     } on AuthFailure catch (failure) {
-      if (mounted && !silent) {
+      // A quiet check stays quiet, except when the session has ended: the
+      // parent must know how to continue.
+      if (mounted && (!silent || failure.kind == AuthFailureKind.signInAgain)) {
         setState(() => _failure = failure);
       }
     } finally {
       if (mounted) {
         setState(() => _busy = false);
       }
+    }
+  }
+
+  /// Signs out without asking (the session is already gone); the router
+  /// opens the welcome screen for a new WhatsApp code.
+  Future<void> _signInAgain() async {
+    final AuthRepository repository = ref.read(authRepositoryProvider);
+    ref.read(signupFlowProvider.notifier).reset();
+    try {
+      await repository.signOut();
+    } on AuthFailure {
+      // Already signed out: the router moves on by itself.
     }
   }
 
@@ -142,6 +171,17 @@ class _EmailScreenState extends ConsumerState<EmailScreen> with WidgetsBindingOb
           child: AppInlineMessage(message: l10n.emailNotYet, icon: Icons.schedule_rounded),
         ),
       if (failure != null) FailureMessage(message: failure.message(l10n), offline: failure.isOffline),
+      if (failure?.kind == AuthFailureKind.signInAgain)
+        Padding(
+          padding: const EdgeInsetsDirectional.only(top: AppSpacing.s8),
+          child: AppButton(
+            key: const Key('email.signInAgain'),
+            label: l10n.actionSignInAgain,
+            variant: AppButtonVariant.secondary,
+            expand: true,
+            onPressed: () => unawaited(_signInAgain()),
+          ),
+        ),
     ];
 
     if (sentTo == null) {
@@ -179,7 +219,7 @@ class _EmailScreenState extends ConsumerState<EmailScreen> with WidgetsBindingOb
     return OnboardingLayout(
       step: 3,
       title: l10n.emailCheckTitle,
-      body: l10n.emailCheckBody('⁦$sentTo⁩'),
+      body: l10n.emailCheckBody(ltrIsolate(sentTo)),
       primary: AppButton(
         key: const Key('email.confirmed'),
         label: l10n.emailConfirmed,

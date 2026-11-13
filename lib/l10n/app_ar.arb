@@ -1373,5 +1373,13 @@
   "profileDrivingHelper": "مطلوبة فقط إذا كنت ستقود",
   "@profileDrivingHelper": {
     "description": "Row helper"
+  },
+  "errorSignInAgain": "انتهت جلستك بعد تأكيد البريد. سجّل الدخول مرة أخرى برقمك للمتابعة.",
+  "@errorSignInAgain": {
+    "description": "The session was revoked (for example after the email link)"
+  },
+  "actionSignInAgain": "تسجيل الدخول مرة أخرى",
+  "@actionSignInAgain": {
+    "description": "Button that signs out and opens the welcome screen"
   }
 }

@@ -72,3 +72,12 @@ export const VALIFY_BUNDLE_KEY = defineString("VALIFY_BUNDLE_KEY", { default: ""
  */
 export const VALIFY_CLIENT_SECRET_NAME = "VALIFY_CLIENT_SECRET";
 export const VALIFY_PASSWORD_NAME = "VALIFY_PASSWORD";
+
+/**
+ * Codes per IP address per hour. High because Egyptian mobile carriers put
+ * many users behind one address; a param so it can change per project.
+ */
+export const OTP_MAX_SENDS_PER_IP = defineInt("OTP_MAX_SENDS_PER_IP", { default: 60 });
+
+/** Which X-Forwarded-For entry is the client, counted from the end (auth/client_ip.ts). */
+export const CLIENT_IP_HOP = defineInt("CLIENT_IP_HOP", { default: 1 });

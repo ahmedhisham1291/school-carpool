@@ -35,6 +35,8 @@ abstract interface class AuthRepository {
   Future<void> sendEmailLink(String email);
 
   /// True once the parent has opened the link; the server then saves it.
+  /// Opening the link revokes the session (email change), so a confirmed
+  /// answer carries a fresh token that this method signs in with.
   Future<bool> confirmEmail();
 
   /// Records acceptance of the terms, privacy policy and code of conduct,
@@ -47,15 +49,7 @@ abstract interface class AuthRepository {
 }
 
 class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository({
-    required FirebaseAuth auth,
-    required FirebaseFunctions functions,
-    required FirebaseFirestore db,
-    required String installId,
-  }) : _auth = auth,
-       _functions = functions,
-       _db = db,
-       _installId = installId;
+  FirebaseAuthRepository(this._auth, this._functions, this._db, this._installId);
 
   final FirebaseAuth _auth;
   final FirebaseFunctions _functions;
@@ -116,6 +110,7 @@ class FirebaseAuthRepository implements AuthRepository {
     final Map<Object?, Object?> data = await _call('verifyCode', <String, Object?>{
       'phone': phoneE164,
       'code': code,
+      'deviceId': _installId,
       'language': language,
     });
     final Object? token = data['token'];
@@ -131,9 +126,20 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<bool> confirmEmail() async {
-    await _guard(() => _currentUser().reload());
+    if (_auth.currentUser == null) {
+      throw const AuthFailure(AuthFailureKind.signInAgain);
+    }
+    // No reload() here: after the link the old session is revoked and
+    // reload() would fail. The server reads the truth from Firebase Auth.
     final Map<Object?, Object?> data = await _call('confirmEmail', <String, Object?>{});
-    return data['verified'] == true;
+    if (data['verified'] != true) {
+      return false;
+    }
+    final Object? token = data['token'];
+    if (token is String && token.isNotEmpty) {
+      await _guard(() => _auth.signInWithCustomToken(token));
+    }
+    return true;
   }
 
   @override
@@ -157,9 +163,9 @@ class FirebaseAuthRepository implements AuthRepository {
 
 final Provider<AuthRepository> authRepositoryProvider = Provider<AuthRepository>(
   (Ref ref) => FirebaseAuthRepository(
-    auth: ref.watch(firebaseAuthProvider),
-    functions: functionsClient(),
-    db: ref.watch(firestoreProvider),
-    installId: ref.watch(installIdProvider),
+    ref.watch(firebaseAuthProvider),
+    functionsClient(),
+    ref.watch(firestoreProvider),
+    ref.watch(installIdProvider),
   ),
 );

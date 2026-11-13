@@ -77,7 +77,7 @@ describe("sign-in codes", () => {
 
   const ask = (overrides: Partial<{ phone: unknown; deviceId: unknown; ip: string }> = {}) =>
     requestCode(deps, { phone: PHONE, deviceId: DEVICE, ip: "10.0.0.1", language: "ar", ...overrides });
-  const check = (code: string) => verifyCode(deps, { phone: PHONE, code, language: "ar" });
+  const check = (code: string, deviceId: string = DEVICE) => verifyCode(deps, { phone: PHONE, code, deviceId, language: "ar" });
 
   it("sends a 6-digit code by WhatsApp and stores only its hash", async () => {
     deps.newCode = undefined;
@@ -160,6 +160,23 @@ describe("sign-in codes", () => {
     assert.ok((await check(sender.sent[sender.sent.length - 1].code)).token);
   });
 
+  it("a lock on one device does not lock the number on the parent's phone", async () => {
+    const STRANGER = "eeeeeeeeeeeeeeee";
+    // The stranger fails 10 times from their device (2 codes, 5 tries each).
+    for (let round = 0; round < 2; round++) {
+      now += 61_000;
+      await ask({ deviceId: STRANGER });
+      for (let i = 0; i < DEFAULT_OTP_LIMITS.maxAttemptsPerCode; i++) {
+        await check("000000", STRANGER).catch(() => undefined);
+      }
+    }
+    now += 61_000;
+    await expectReason(ask({ deviceId: STRANGER }), "locked");
+    // The parent asks for a code on their own phone and signs in.
+    await ask();
+    assert.ok((await check(sender.sent[sender.sent.length - 1].code)).token);
+  });
+
   it("waits a minute between two codes for the same number", async () => {
     await ask();
     now += 30_000;
@@ -196,7 +213,8 @@ describe("sign-in codes", () => {
   it("refuses bad input before touching the store", async () => {
     await expectReason(ask({ phone: "12345" }), "invalid-phone");
     await expectReason(ask({ deviceId: "not-hex!" }), "invalid-request");
-    await expectReason(verifyCode(deps, { phone: PHONE, code: "12ab56", language: "ar" }), "invalid-request");
+    await expectReason(verifyCode(deps, { phone: PHONE, code: "12ab56", deviceId: DEVICE, language: "ar" }), "invalid-request");
+    await expectReason(verifyCode(deps, { phone: PHONE, code: "123456", deviceId: "nope", language: "ar" }), "invalid-request");
     assert.equal(store.limits.size, 0);
   });
 
@@ -206,6 +224,32 @@ describe("sign-in codes", () => {
     deps.reportError = (error) => reported.push(error);
     await expectReason(ask(), "send-failed");
     assert.equal(reported.length, 1);
+  });
+
+  it("closes the number for the day after too many wrong codes across devices", async () => {
+    let failures = 0;
+    let device = 0;
+    while (failures < DEFAULT_OTP_LIMITS.maxFailuresPerPhonePerDay) {
+      now += 3600_000; // next hour: fresh send window and device lock
+      const id = `${String(device++).padStart(4, "0")}cccccccccccccccc`;
+      await ask({ deviceId: id });
+      for (let i = 0; i < DEFAULT_OTP_LIMITS.maxAttemptsPerCode && failures < DEFAULT_OTP_LIMITS.maxFailuresPerPhonePerDay; i++) {
+        await check("000000", id).catch(() => undefined);
+        failures++;
+      }
+    }
+    now += 61_000;
+    await expectReason(ask({ deviceId: "dddddddddddddddd" }), "locked");
+    await expectReason(check("123456", "dddddddddddddddd"), "locked");
+    now += 24 * 3600_000;
+    await ask({ deviceId: "dddddddddddddddd" });
+  });
+
+  it("stores no plain value in the lock key either", async () => {
+    await ask();
+    await expectReason(check("000000"), "wrong-code");
+    const stored = JSON.stringify([...store.limits.keys()]);
+    assert.ok(!stored.includes("1012345678") && !stored.includes(DEVICE));
   });
 
   it("refuses a suspended account after a right code", async () => {

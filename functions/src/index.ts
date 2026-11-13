@@ -37,3 +37,6 @@ export {
   removeChild,
   submitVerification,
 } from "./verification/callables";
+
+// Only WhatsApp-code sign-in (custom token); no password or email-link sign-in.
+export { blockNonCodeSignIn, blockSignInEmails } from "./auth/blocking";

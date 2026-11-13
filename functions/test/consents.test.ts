@@ -1,7 +1,7 @@
 // Consent requests and new user records (F1, F44). Run: npm test.
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { newUserRecord } from "../src/auth/accounts";
+import { newUserRecord, verifiedEmail } from "../src/auth/accounts";
 import { CONSENT_VERSIONS, ConsentError, parseConsentRequest } from "../src/auth/consents";
 
 const current = { terms: CONSENT_VERSIONS.terms, privacy: CONSENT_VERSIONS.privacy, conduct: CONSENT_VERSIONS.conduct };
@@ -46,5 +46,13 @@ describe("newUserRecord", () => {
     assert.equal(record.emailVerified, false);
     assert.equal(record.termsAcceptedAt, null);
     assert.equal(record.language, "en");
+  });
+});
+
+describe("verifiedEmail", () => {
+  it("copies an email only once Auth marks it verified", () => {
+    assert.equal(verifiedEmail({ email: "parent@example.com", emailVerified: true }), "parent@example.com");
+    assert.equal(verifiedEmail({ email: "parent@example.com", emailVerified: false }), null);
+    assert.equal(verifiedEmail({ email: undefined, emailVerified: true }), null);
   });
 });

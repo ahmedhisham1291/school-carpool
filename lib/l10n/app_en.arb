@@ -318,5 +318,7 @@
   "reviewApproved": "Approved",
   "profileFamilySection": "Family and car",
   "profileChildrenHelper": "Children and their school ID check",
-  "profileDrivingHelper": "Needed only if you drive"
+  "profileDrivingHelper": "Needed only if you drive",
+  "errorSignInAgain": "Your session ended after the email change. Sign in again with your number to continue.",
+  "actionSignInAgain": "Sign in again"
 }

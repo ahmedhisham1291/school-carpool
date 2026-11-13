@@ -91,7 +91,7 @@ class OnboardingLayout extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[if (main != null) main, ...secondary],
+                    children: <Widget>[?main, ...secondary],
                   ),
                 ),
               ),

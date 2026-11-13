@@ -58,6 +58,21 @@ describe("MetaWhatsAppSender", () => {
   });
 });
 
+describe("MetaWhatsAppSender timeout", () => {
+  it("gives up when the Graph API does not answer in time", async () => {
+    const hangingFetch = ((_url: string, init?: { signal?: AbortSignal }) =>
+      new Promise<Response>((_resolve, reject) => {
+        // AbortSignal.timeout does not keep Node alive; this timer does.
+        const keepAlive = setTimeout(() => reject(new Error("no abort")), 5000);
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(keepAlive);
+          reject(new Error("aborted"));
+        });
+      })) as unknown as typeof fetch;
+    await assert.rejects(new MetaWhatsAppSender(meta, hangingFetch, 20).sendCode("+201012345678", "1", "ar"), /aborted/);
+  });
+});
+
 describe("createWhatsAppSender", () => {
   const log = () => undefined;
   it("returns the fake sender in dev and staging", () => {
