@@ -108,7 +108,13 @@ class GalleryScreen extends ConsumerWidget {
             ),
           ),
           AppSectionHeader(l10n.gallerySectionStates),
-          SizedBox(height: _stateViewHeight, child: EmptyStateView(onAction: () => _done(context), actionLabel: l10n.sampleButtonPrimary)),
+          SizedBox(
+            height: _stateViewHeight,
+            child: EmptyStateView(
+              actionLabel: l10n.sampleButtonPrimary,
+              onAction: () => _done(context),
+            ),
+          ),
           const Divider(),
           SizedBox(height: _stateViewHeight, child: ErrorStateView(onRetry: () => _done(context))),
           const Divider(),
@@ -334,7 +340,7 @@ class _InputSamples extends StatelessWidget {
         const SizedBox(height: AppSpacing.s16),
         AppTextField(
           label: l10n.sampleFieldLabel,
-          initialValue: 'س',
+          initialValue: l10n.sampleFieldShortValue,
           errorText: l10n.sampleFieldError,
         ),
         const SizedBox(height: AppSpacing.s16),

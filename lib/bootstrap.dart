@@ -54,6 +54,8 @@ class StartupErrorApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      // No saved settings can be read here, so use the app default.
+      locale: AppLocales.arabic,
       supportedLocales: AppLocales.supported,
       localizationsDelegates: AppLocales.delegates,
       theme: AppTheme.light(DesignDirection.a),

@@ -124,6 +124,16 @@
   "@stateLoadingLabel": {
     "description": "Screen reader label for skeleton placeholders"
   },
+  "buttonLoadingLabel": "{label}، جارٍ التحميل",
+  "@buttonLoadingLabel": {
+    "description": "Screen reader label of a button that is busy",
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "حفظ"
+      }
+    }
+  },
   "stateEmptyTitle": "لا يوجد شيء هنا بعد",
   "@stateEmptyTitle": {
     "description": "Default empty state title"
@@ -159,10 +169,6 @@
   "actionConfirm": "تأكيد",
   "@actionConfirm": {
     "description": "Confirm button"
-  },
-  "actionClose": "إغلاق",
-  "@actionClose": {
-    "description": "Close button"
   },
   "galleryTitle": "معرض المكونات",
   "@galleryTitle": {
@@ -235,6 +241,10 @@
   "sampleFieldError": "اكتب حرفين على الأقل.",
   "@sampleFieldError": {
     "description": "Gallery sample: validation error that says how to fix it"
+  },
+  "sampleFieldShortValue": "س",
+  "@sampleFieldShortValue": {
+    "description": "Gallery sample: a one-letter value that fails validation"
   },
   "sampleCardTitle": "مشوار الصباح",
   "@sampleCardTitle": {
