@@ -68,8 +68,9 @@ export interface RunRecord {
   fallback: boolean;
   /** True after a swap or a take (another driver than the rotation's). */
   swapped: boolean;
-  /** The open swap request of this run, if any. */
+  /** The open swap request of this run, if any, and who asked for it. */
   swapId: string | null;
+  swapBy: string | null;
   /** The pickup list (F27: absent children move to [absent]). */
   riders: Rider[];
   absent: Rider[];
@@ -416,6 +417,7 @@ export function proposeWeek(input: RotationInput): RotationResult {
             fallback: false,
             swapped: false,
             swapId: null,
+            swapBy: null,
             riders,
             absent: [],
             weekStart: input.weekStart,

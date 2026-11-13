@@ -38,6 +38,8 @@ import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
+import 'package:school_carpool/features/schedule/schedule_models.dart';
+import 'package:school_carpool/features/schedule/schedule_repository.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
 import 'package:school_carpool/features/schools/school_picker_screen.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
@@ -51,6 +53,7 @@ import '../helpers/admin_fakes.dart';
 import '../helpers/carpool_fakes.dart';
 import '../helpers/fonts.dart';
 import '../helpers/map_fakes.dart';
+import '../helpers/schedule_fakes.dart';
 import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
 import '../helpers/verification_fakes.dart';
@@ -68,6 +71,7 @@ Future<void> _pumpScreen(
   List<Override> extraOverrides = const <Override>[],
   MapRepository? maps,
   CarpoolRepository? carpools,
+  ScheduleRepository? schedule,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -91,7 +95,7 @@ Future<void> _pumpScreen(
           }),
         ),
         routerProvider.overrideWithValue(router),
-        ...authOverrides(session: session, maps: maps, carpools: carpools),
+        ...authOverrides(session: session, maps: maps, carpools: carpools, schedule: schedule),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
         ...extraOverrides,
       ],
@@ -531,6 +535,71 @@ void main() {
             ),
           );
           // Searches and lists load after the first frame.
+          await tester.pump(const Duration(milliseconds: 400));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Schedule (Prompt 7): the week plan with every run status, days off and
+  // times (a holiday and Ramadan times), and the drive balance. Fake data.
+  final FakeScheduleRepository schedule = FakeScheduleRepository(
+    weeks: <String, List<ScheduleRun>>{
+      '2026-11-14': <ScheduleRun>[
+        testRun('2026-11-15', RunDirection.toSchool),
+        testRun('2026-11-15', RunDirection.toHome, status: RunStatus.confirmed, driverUid: 'p1', driverFirstName: 'Hoda'),
+        testRun('2026-11-16', RunDirection.toSchool, status: RunStatus.open, driverUid: null, swapId: 's1', swapBy: 'p1'),
+        testRun('2026-11-16', RunDirection.toHome, status: RunStatus.confirmed),
+        testRun('2026-11-17', RunDirection.toSchool, status: RunStatus.cancelled, driverUid: null),
+        testRun('2026-11-17', RunDirection.toHome, status: RunStatus.cancelled, driverUid: null),
+      ],
+    },
+    exceptions: <ScheduleException>[
+      ScheduleException(id: 'x1', kind: ExceptionKind.noSchool, reason: ExceptionReason.holiday, from: DateTime(2026, 11, 17), to: DateTime(2026, 11, 17)),
+      ScheduleException(
+        id: 'x2',
+        kind: ExceptionKind.times,
+        reason: ExceptionReason.ramadan,
+        from: DateTime(2027, 2, 8),
+        to: DateTime(2027, 3, 9),
+        morning: '08:30',
+        afternoon: '13:30',
+      ),
+    ],
+    balance: const DriveBalance(
+      termId: '2026-t1',
+      families: <FamilyBalance>[
+        FamilyBalance(uid: 'p1', firstName: 'Hoda', driven: 6, received: 2),
+        FamilyBalance(uid: 'uid-1', firstName: 'Mona', driven: 3, received: 5),
+      ],
+    ),
+  );
+  final Map<String, String> scheduleScreens = <String, String>{
+    'week': CarpoolRoutes.schedule('k1'),
+    'exceptions': CarpoolRoutes.exceptions('k1'),
+    'balance': CarpoolRoutes.balance('k1'),
+  };
+  for (final MapEntry<String, String> screen in scheduleScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'schedule_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: screen.value,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            carpools: FakeCarpoolRepository(
+              memberships: const <Membership>[Membership(carpoolId: 'k1', status: MembershipStatus.approved, isAdmin: true)],
+              members: members,
+            ),
+            schedule: schedule,
+            extraOverrides: verificationOverrides(repository: FakeVerificationRepository()),
+          );
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
         });

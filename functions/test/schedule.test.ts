@@ -504,6 +504,7 @@ describe("swaps (F11)", () => {
     const open = store.runs.get(k)?.get(run.id) as RunRecord;
     assert.equal(open.status, "open");
     assert.equal(open.driverUid, null);
+    assert.equal(open.swapBy, "alice");
     assert.equal(store.events.at(-1)?.type, "swap-requested");
     assert.deepEqual(store.events.at(-1)?.recipients, ["bob", "cara"]);
     // Cara has no car; Alice asked for it (she cancels instead).

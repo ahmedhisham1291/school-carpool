@@ -255,7 +255,7 @@ export async function requestSwap(deps: CarpoolDeps, caller: Caller, data: unkno
       createdAtMs: nowMs,
       updatedAtMs: nowMs,
     };
-    tx.putRun(released.run);
+    tx.putRun({ ...released.run, swapBy: released.run.swapId ? caller.uid : null });
     tx.putSwap(swap);
     tx.addEvent({ ...released.event, actorUid: caller.uid });
     return swap;
@@ -287,6 +287,7 @@ export async function cancelSwap(deps: CarpoolDeps, caller: Caller, data: unknow
       driverUid: caller.uid,
       driverFirstName: m.firstName,
       swapId: null,
+      swapBy: null,
       confirmedAtMs: status === "confirmed" ? nowMs : null,
       updatedAtMs: nowMs,
     };
@@ -330,6 +331,7 @@ export async function takeRun(deps: CarpoolDeps, caller: Caller, data: unknown):
       swapped: true,
       fallback: false,
       swapId: null,
+      swapBy: null,
       confirmedAtMs: nowMs,
       updatedAtMs: nowMs,
     };

@@ -29,6 +29,9 @@ import 'package:school_carpool/features/onboarding/verify_account_screen.dart';
 import 'package:school_carpool/features/onboarding/welcome_screen.dart';
 import 'package:school_carpool/features/placeholder/placeholder_tab_screen.dart';
 import 'package:school_carpool/features/profile/profile_screen.dart';
+import 'package:school_carpool/features/schedule/balance_screen.dart';
+import 'package:school_carpool/features/schedule/exceptions_screen.dart';
+import 'package:school_carpool/features/schedule/schedule_screen.dart';
 import 'package:school_carpool/features/shell/home_shell.dart';
 import 'package:school_carpool/features/verification/children_screen.dart';
 import 'package:school_carpool/features/verification/driving_screen.dart';
@@ -87,6 +90,14 @@ abstract final class CarpoolRoutes {
   static const String inviteSegment = 'invite/:code';
 
   static String detail(String carpoolId) => '/carpools/$carpoolId';
+
+  /// Prompt 7: the week plan, days off and times, and the drive balance.
+  static const String scheduleSegment = 'schedule';
+  static const String exceptionsSegment = 'exceptions';
+  static const String balanceSegment = 'balance';
+  static String schedule(String carpoolId) => '/carpools/$carpoolId/$scheduleSegment';
+  static String exceptions(String carpoolId) => '/carpools/$carpoolId/$exceptionsSegment';
+  static String balance(String carpoolId) => '/carpools/$carpoolId/$balanceSegment';
 
   /// The shared link path.
   static String link(String code) => '/c/$code';
@@ -250,6 +261,23 @@ GoRouter buildAppRouter({
                         path: ':carpoolId',
                         builder: (BuildContext context, GoRouterState state) =>
                             CarpoolDetailScreen(carpoolId: state.pathParameters['carpoolId'] ?? ''),
+                        routes: <RouteBase>[
+                          GoRoute(
+                            path: CarpoolRoutes.scheduleSegment,
+                            builder: (BuildContext context, GoRouterState state) =>
+                                ScheduleScreen(carpoolId: state.pathParameters['carpoolId'] ?? ''),
+                          ),
+                          GoRoute(
+                            path: CarpoolRoutes.exceptionsSegment,
+                            builder: (BuildContext context, GoRouterState state) =>
+                                ExceptionsScreen(carpoolId: state.pathParameters['carpoolId'] ?? ''),
+                          ),
+                          GoRoute(
+                            path: CarpoolRoutes.balanceSegment,
+                            builder: (BuildContext context, GoRouterState state) =>
+                                BalanceScreen(carpoolId: state.pathParameters['carpoolId'] ?? ''),
+                          ),
+                        ],
                       ),
                     ],
                     if (tab == AppTab.profile) ...<RouteBase>[
