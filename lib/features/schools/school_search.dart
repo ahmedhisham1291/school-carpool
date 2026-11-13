@@ -4,7 +4,6 @@ import 'dart:io' show HttpClient, HttpClientRequest, HttpClientResponse, HttpExc
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/config/flavor.dart';
@@ -54,7 +53,7 @@ class InMemorySchoolSearch implements SchoolSearch {
 /// Firestore once (the emulator's seed and the sample import, at most
 /// [limit], as firestore.rules allow) and matches on the phone.
 class FirestoreSchoolSearch implements SchoolSearch {
-  FirestoreSchoolSearch(this._db, {DateTime Function() now = DateTime.now}) : _now = now;
+  FirestoreSchoolSearch(this._db, {this._now = DateTime.now});
 
   final FirebaseFirestore _db;
   final DateTime Function() _now;
@@ -155,12 +154,10 @@ Future<Map<String, Object?>> httpAlgoliaTransport(Uri url, Map<String, String> h
 /// else). The key is fetched again shortly before it expires.
 class AlgoliaSchoolSearch implements SchoolSearch {
   AlgoliaSchoolSearch({
-    required Future<SearchKey> Function() fetchKey,
-    AlgoliaTransport transport = httpAlgoliaTransport,
-    DateTime Function() now = DateTime.now,
-  }) : _fetchKey = fetchKey,
-       _transport = transport,
-       _now = now;
+    required this._fetchKey,
+    this._transport = httpAlgoliaTransport,
+    this._now = DateTime.now,
+  });
 
   final Future<SearchKey> Function() _fetchKey;
   final AlgoliaTransport _transport;
