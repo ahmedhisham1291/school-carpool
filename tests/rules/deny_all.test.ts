@@ -49,13 +49,20 @@ const paths = [
   // Active schools are readable since Prompt 4B (schools.test.ts); s1 has
   // no status, so it stays hidden.
   "schools/s1",
-  "areas/a1",
+  // areas/{id} and carpools/{id} are readable since Prompt 6
+  // (carpools.test.ts); their writes and the carpool subcollections are
+  // tested there and below.
   "searchKeyLimits/alice",
   // children/{id} is readable by its owner since Prompt 3
   // (verification.test.ts); c1 does not exist, so every read is denied.
   "children/c1",
-  "carpools/k1",
   "memberships/m1",
+  "carpools/k1/members/bob",
+  "carpools/k1/requests/bob",
+  "carpools/k1/driverConsents/bob_alice",
+  "carpoolInvites/ABCDEFGH23",
+  "carpoolLimits/alice",
+  "carpoolWanted/bob",
   // Prompt 5 (maps.test.ts): homes/alice is readable by alice only;
   // parentLocations and the rest stay closed to everyone.
   "homes/bob",

@@ -9,7 +9,7 @@
 // - carpools/{id}/pickupPoints/{uid} (an EXACT pickup point the parent
 //   chose to share) is readable only by its owner and by verified parents
 //   who are approved members of the same carpool, with seeded memberships
-//   (memberships/{carpoolId}_{uid}, created by Cloud Functions in Prompt 6).
+//   (memberships/{carpoolId}_{uid}, created by Cloud Functions since Prompt 6).
 // - Nothing here is written by the app.
 //
 // Runs only against the emulators. Written, not run here (no npm registry
@@ -180,11 +180,12 @@ describe("pickup points: approved members of the same carpool only", () => {
     await assertFails(db.doc("carpools/k1/pickupPoints/alice").delete());
   });
 
-  it("memberships and carpools stay closed to the app until Prompt 6", async () => {
+  it("memberships are never written by the app; a forged one gives nothing (Prompt 6 opens reads, carpools.test.ts)", async () => {
     const db = as("alice").firestore();
-    await assertFails(db.doc("memberships/k1_alice").get());
+    await assertSucceeds(db.doc("memberships/k1_alice").get());
+    await assertFails(db.doc("memberships/k1_bob").get());
     await assertFails(db.doc("memberships/k1_alice").set({ carpoolId: "k1", uid: "alice", status: "approved" }));
     await assertFails(db.doc("memberships/k3_alice").set({ carpoolId: "k3", uid: "alice", status: "approved" }));
-    await assertFails(db.doc("carpools/k1").get());
+    await assertFails(db.doc("carpools/k1").set({ status: "active" }));
   });
 });
