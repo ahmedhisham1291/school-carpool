@@ -1,5 +1,4 @@
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -19,6 +18,7 @@ import 'package:school_carpool/l10n/l10n.dart';
 
 import '../helpers/fonts.dart';
 import '../helpers/map_fakes.dart';
+import '../helpers/one_line.dart';
 import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
 import '../helpers/verification_fakes.dart';
@@ -410,22 +410,6 @@ void main() {
   });
 
   group('one line at 320 dp', () {
-    void expectOneLine(WidgetTester tester, Finder finder, String where) {
-      for (final Element e in find.descendant(of: finder, matching: find.byType(RichText), matchRoot: true).evaluate()) {
-        final RenderParagraph p = e.renderObject! as RenderParagraph;
-        final String text = p.text.toPlainText();
-        if (text.isEmpty) {
-          continue;
-        }
-        final double half = p.size.height / 2;
-        final bool wraps = p
-            .getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: text.length))
-            .any((TextBox box) => box.top >= half);
-        expect(wraps, isFalse, reason: '"$text" wraps ($where)');
-        expect(p.didExceedMaxLines, isFalse, reason: '"$text" is cut off ($where)');
-      }
-    }
-
     Finder oneLineIn(String key) => find.descendant(of: find.byKey(Key(key)), matching: find.byType(OneLineText));
 
     for (final Locale locale in AppLocales.supported) {
@@ -433,35 +417,35 @@ void main() {
 
       testWidgets('[$lang] home picker and location screen', (WidgetTester tester) async {
         await _pump(tester, const HomeLocationScreen(), locale: locale, width: 320, height: 720);
-        expectOneLine(tester, find.byType(AppBarTitle), 'home title');
-        expectOneLine(tester, oneLineIn('home.search'), 'search label');
-        expectOneLine(tester, oneLineIn('home.save'), 'save');
+        expectOneLine(find.byType(AppBarTitle), 'home title');
+        expectOneLine(oneLineIn('home.search'), 'search label');
+        expectOneLine(oneLineIn('home.save'), 'save');
         await tester.tap(find.byKey(const Key('home.myLocation')));
         await tester.pumpAndSettle();
-        expectOneLine(tester, find.byType(AppBarTitle), 'location title');
-        expectOneLine(tester, oneLineIn('location.continue'), 'continue');
-        expectOneLine(tester, oneLineIn('location.notNow'), 'not now');
+        expectOneLine(find.byType(AppBarTitle), 'location title');
+        expectOneLine(oneLineIn('location.continue'), 'continue');
+        expectOneLine(oneLineIn('location.notNow'), 'not now');
       });
 
       testWidgets('[$lang] nearby map, chips, card and radius sheet', (WidgetTester tester) async {
         await _pump(tester, const NearbyParentsScreen(), locale: locale, maps: FakeMapRepository(home: _savedHome), width: 320, height: 720);
-        expectOneLine(tester, find.byType(AppBarTitle), 'nearby title');
-        expectOneLine(tester, find.byKey(const Key('nearby.radiusChip')), 'radius chip');
+        expectOneLine(find.byType(AppBarTitle), 'nearby title');
+        expectOneLine(find.byKey(const Key('nearby.radiusChip')), 'radius chip');
         await tester.tap(find.byKey(const Key('map.area.p1')));
         await tester.pumpAndSettle();
-        expectOneLine(tester, oneLineIn('parent.join'), 'join');
-        expectOneLine(tester, oneLineIn('parent.message'), 'message');
+        expectOneLine(oneLineIn('parent.join'), 'join');
+        expectOneLine(oneLineIn('parent.message'), 'message');
         await tester.tapAt(const Offset(10, 10));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('nearby.radiusChip')));
         await tester.pumpAndSettle();
-        expectOneLine(tester, find.byKey(const Key('nearby.radiusValue')), 'radius value');
-        expectOneLine(tester, oneLineIn('nearby.radiusDone'), 'apply');
+        expectOneLine(find.byKey(const Key('nearby.radiusValue')), 'radius value');
+        expectOneLine(oneLineIn('nearby.radiusDone'), 'apply');
       });
 
       testWidgets('[$lang] nearby empty states', (WidgetTester tester) async {
         await _pump(tester, const NearbyParentsScreen(), locale: locale, width: 320, height: 720);
-        expectOneLine(tester, find.descendant(of: find.byKey(const Key('nearby.noHome')), matching: find.byType(OneLineText)), 'no home');
+        expectOneLine(find.descendant(of: find.byKey(const Key('nearby.noHome')), matching: find.byType(OneLineText)), 'no home');
         await tester.pumpWidget(const SizedBox());
         await _pump(
           tester,
@@ -471,15 +455,15 @@ void main() {
           width: 320,
           height: 720,
         );
-        expectOneLine(tester, find.descendant(of: find.byKey(const Key('nearby.empty')), matching: find.byType(OneLineText)), 'empty');
+        expectOneLine(find.descendant(of: find.byKey(const Key('nearby.empty')), matching: find.byType(OneLineText)), 'empty');
       });
 
       testWidgets('[$lang] settings switches and driving schools', (WidgetTester tester) async {
         await _pump(tester, const DrivingSchoolsScreen(), locale: locale, maps: FakeMapRepository(home: _savedHome), width: 320, height: 720);
-        expectOneLine(tester, find.byType(AppBarTitle), 'driving title');
-        expectOneLine(tester, find.byType(AppSectionHeader), 'sections');
-        expectOneLine(tester, oneLineIn('driving.add'), 'add');
-        expectOneLine(tester, oneLineIn('driving.child.nile'), 'child school');
+        expectOneLine(find.byType(AppBarTitle), 'driving title');
+        expectOneLine(find.byType(AppSectionHeader), 'sections');
+        expectOneLine(oneLineIn('driving.add'), 'add');
+        expectOneLine(oneLineIn('driving.child.nile'), 'child school');
 
         await tester.pumpWidget(const SizedBox());
         await _pump(
@@ -489,9 +473,9 @@ void main() {
           maps: FakeMapRepository(home: _savedHome),
           width: 320,
         );
-        expectOneLine(tester, oneLineIn('settings.showOnMap'), 'show on map');
-        expectOneLine(tester, oneLineIn('settings.newParentAlerts'), 'alerts');
-        expectOneLine(tester, find.byType(AppSectionHeader), 'map section');
+        expectOneLine(oneLineIn('settings.showOnMap'), 'show on map');
+        expectOneLine(oneLineIn('settings.newParentAlerts'), 'alerts');
+        expectOneLine(find.byType(AppSectionHeader), 'map section');
       });
     }
   });

@@ -1,4 +1,3 @@
-import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +12,7 @@ import 'package:school_carpool/features/schools/school_search.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 import '../helpers/fonts.dart';
+import '../helpers/one_line.dart';
 import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
 
@@ -253,46 +253,24 @@ void main() {
   });
 
   group('one line at 320 dp', () {
-    void expectOneLine(WidgetTester tester, Finder finder, String where) {
-      for (final Element e in find.descendant(of: finder, matching: find.byType(RichText), matchRoot: true).evaluate()) {
-        final RenderParagraph p = e.renderObject! as RenderParagraph;
-        final String text = p.text.toPlainText();
-        if (text.isEmpty) {
-          continue;
-        }
-        final double half = p.size.height / 2;
-        final bool wraps = p
-            .getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: text.length))
-            .any((TextBox box) => box.top >= half);
-        expect(wraps, isFalse, reason: '"$text" wraps ($where)');
-        expect(p.didExceedMaxLines, isFalse, reason: '"$text" is cut off ($where)');
-      }
-    }
-
     for (final Locale locale in AppLocales.supported) {
       final String lang = locale.languageCode;
       testWidgets('[$lang] picker, "Other" form and About labels fit one line', (WidgetTester tester) async {
         await _pumpPicker(tester, locale: locale, width: 320);
-        expectOneLine(tester, find.byType(AppBarTitle), 'picker title');
-        expectOneLine(tester, find.byKey(const Key('school.governorate')), 'governorate chip');
-        expectOneLine(
-          tester,
-          find.descendant(of: find.byKey(const Key('school.other')), matching: find.byType(OneLineText)),
+        expectOneLine(find.byType(AppBarTitle), 'picker title');
+        expectOneLine(find.byKey(const Key('school.governorate')), 'governorate chip');
+        expectOneLine(find.descendant(of: find.byKey(const Key('school.other')), matching: find.byType(OneLineText)),
           'Other row',
         );
-        expectOneLine(
-          tester,
-          find.descendant(of: find.byKey(const Key('school.search')), matching: find.byType(OneLineText)),
+        expectOneLine(find.descendant(of: find.byKey(const Key('school.search')), matching: find.byType(OneLineText)),
           'search label',
         );
 
         await tester.tap(find.byKey(const Key('school.other')));
         await tester.pumpAndSettle();
-        expectOneLine(tester, find.byType(AppBarTitle), 'Other title');
+        expectOneLine(find.byType(AppBarTitle), 'Other title');
         for (final String key in <String>['other.name', 'other.governorate', 'other.pin', 'other.save']) {
-          expectOneLine(
-            tester,
-            find.descendant(of: find.byKey(Key(key)), matching: find.byType(OneLineText)),
+          expectOneLine(find.descendant(of: find.byKey(Key(key)), matching: find.byType(OneLineText)),
             key,
           );
         }
@@ -301,15 +279,13 @@ void main() {
         await tester.pumpWidget(const SizedBox());
         await tester.pumpWidget(buildTestApp(const AboutScreen(), locale: locale));
         await tester.pumpAndSettle();
-        expectOneLine(tester, find.byType(AppBarTitle), 'About title');
+        expectOneLine(find.byType(AppBarTitle), 'About title');
         for (final String key in <String>['about.osmLink', 'about.licenses']) {
-          expectOneLine(
-            tester,
-            find.descendant(of: find.byKey(Key(key)), matching: find.byType(OneLineText)),
+          expectOneLine(find.descendant(of: find.byKey(Key(key)), matching: find.byType(OneLineText)),
             key,
           );
         }
-        expectOneLine(tester, find.byType(AppSectionHeader), 'About sections');
+        expectOneLine(find.byType(AppSectionHeader), 'About sections');
       });
     }
   });
