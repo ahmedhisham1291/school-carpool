@@ -108,6 +108,39 @@ export interface QueueEntry {
   driver: boolean;
 }
 
+export interface SchoolChoice {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  status: string;
+  addedBy: string | null;
+  mergedInto: string | null;
+}
+
+/**
+ * The school a child of [uid] is linked to: an active school, or the
+ * parent's own "Other" school still awaiting review. A school merged
+ * meanwhile is followed to the school it was merged into. Undefined when
+ * the parent may not use it.
+ */
+export async function resolveChildSchool(
+  store: Pick<VerificationStore, "getSchool">,
+  uid: string,
+  schoolId: string,
+): Promise<SchoolChoice | undefined> {
+  let school = await store.getSchool(schoolId);
+  if (school?.status === "merged" && school.mergedInto) school = await store.getSchool(school.mergedInto);
+  if (!school) return undefined;
+  if (school.status === "active") return school;
+  if (school.status === "awaiting_review" && school.addedBy === uid) return school;
+  return undefined;
+}
+
+/** Keeps the name the app showed when it is one of the school's names, else the Arabic name. */
+export function childSchoolName(school: SchoolChoice, shown: string): string {
+  return shown && (shown === school.nameAr || shown === school.nameEn) ? shown : school.nameAr || school.nameEn;
+}
+
 export interface VerificationStore {
   newId(): string;
   getUser(uid: string): Promise<UserSnapshot | undefined>;
@@ -131,6 +164,8 @@ export interface VerificationStore {
    */
   saveDecision(write: DecisionWrite): Promise<void>;
   queue(limit: number): Promise<QueueEntry[]>;
+  /** A school a child may be linked to (F4), or undefined. */
+  getSchool(id: string): Promise<SchoolChoice | undefined>;
   removeChild(uid: string, childId: string): Promise<void>;
   appendAudit(entry: { actorUid: string; action: string; target: string; ip: string | null }): Promise<void>;
   casesDueForPurge(nowMs: number, limit: number): Promise<Array<{ id: string; uid: string }>>;
@@ -216,6 +251,13 @@ export async function submitVerification(deps: VerificationDeps, uid: string, da
     if (own.status === "pending") throw new VerificationError("case-open");
   }
 
+  const schools = new Map<string, SchoolChoice>();
+  for (const child of submission.children) {
+    const school = await resolveChildSchool(deps.store, uid, child.schoolId);
+    if (!school) throw new VerificationError("unknown-school", { ref: child.ref });
+    schools.set(child.ref, school);
+  }
+
   const names = requiredFiles(submission);
   const missing: string[] = [];
   for (const name of names) {
@@ -245,7 +287,8 @@ export async function submitVerification(deps: VerificationDeps, uid: string, da
     firstName: child.firstName,
     age: child.age,
     grade: child.grade,
-    schoolName: child.schoolName,
+    schoolId: schools.get(child.ref)?.id ?? child.schoolId,
+    schoolName: childSchoolName(schools.get(child.ref) as SchoolChoice, child.schoolName),
     file: `${prefix}school_id_${child.ref}.jpg`,
   }));
 

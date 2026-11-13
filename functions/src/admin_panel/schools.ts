@@ -203,8 +203,11 @@ export async function approveSchool(
   const existing = await deps.store.getSchool(input.id);
   if (!existing) throw new AdminError("not-found");
   if (existing.status !== "awaiting_review") throw new AdminError("invalid-state");
+  // Approved schools are readable by every parent (firestore.rules) and
+  // indexed for search: the parent who typed it is no longer recorded on
+  // the school (the audit entry keeps the decision).
   await deps.store.saveSchool(
-    { ...existing, ...input, id: existing.id, status: "active", mergedInto: null },
+    { ...existing, ...input, id: existing.id, status: "active", addedBy: null, mergedInto: null },
     false,
     { actorUid: caller.uid, action: "school.approve", target: `schools/${existing.id}`, ip },
   );

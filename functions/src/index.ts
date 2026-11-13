@@ -61,3 +61,6 @@ export {
 // Parents: WhatsApp-code sign-in (custom token) only. Admins: email and
 // password for allow-listed admin accounts, then a TOTP second factor.
 export { blockClientSignUps, blockNonCodeSignIn, blockSignInEmails } from "./auth/blocking";
+
+// Schools list (Prompt 4B: F4): "Other" schools, the search key and the index sync.
+export { addOtherSchool, getSchoolSearchKey, syncSchoolToSearch } from "./schools/callables";

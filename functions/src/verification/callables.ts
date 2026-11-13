@@ -50,6 +50,7 @@ const ERROR_CODES: Record<VerificationErrorReason, FunctionsErrorCode> = {
   "invalid-expiry": "invalid-argument",
   "id-expired": "invalid-argument",
   "invalid-child": "invalid-argument",
+  "unknown-school": "failed-precondition",
   "invalid-driver": "invalid-argument",
   "license-expired": "invalid-argument",
   "missing-children": "invalid-argument",

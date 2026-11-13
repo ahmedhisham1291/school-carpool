@@ -13,6 +13,7 @@ import type {
   ChildSnapshot,
   ClaimsService,
   DecisionWrite,
+  SchoolChoice,
   QueueEntry,
   StoredFile,
   SubmissionWrite,
@@ -136,6 +137,7 @@ export class FirestoreVerificationStore implements VerificationStore {
         firstName: child.firstName,
         age: child.age,
         grade: child.grade,
+        schoolId: child.schoolId,
         schoolName: child.schoolName,
         status: "pending",
         schoolIdChecked: false,
@@ -144,7 +146,7 @@ export class FirestoreVerificationStore implements VerificationStore {
         updatedAt: now,
       };
       const ref = this.db.collection(CHILDREN).doc(child.childId);
-      if (child.isNew) tx.set(ref, { ownerUid: c.uid, schoolId: null, createdAt: now, ...fields });
+      if (child.isNew) tx.set(ref, { ownerUid: c.uid, createdAt: now, ...fields });
       else tx.update(ref, fields);
     }
 
@@ -301,6 +303,20 @@ export class FirestoreVerificationStore implements VerificationStore {
         time: FieldValue.serverTimestamp(),
       });
     });
+  }
+
+  async getSchool(id: string): Promise<SchoolChoice | undefined> {
+    const snap = await this.db.collection("schools").doc(id).get();
+    if (!snap.exists) return undefined;
+    const d = snap.data() ?? {};
+    return {
+      id,
+      nameAr: typeof d.nameAr === "string" ? d.nameAr : "",
+      nameEn: typeof d.nameEn === "string" ? d.nameEn : "",
+      status: typeof d.status === "string" ? d.status : "",
+      addedBy: typeof d.addedBy === "string" ? d.addedBy : null,
+      mergedInto: typeof d.mergedInto === "string" ? d.mergedInto : null,
+    };
   }
 
   async queue(limit: number): Promise<QueueEntry[]> {

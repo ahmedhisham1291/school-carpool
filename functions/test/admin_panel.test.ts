@@ -323,7 +323,8 @@ describe("schools", () => {
     await approveSchool(deps, ADMIN, { ...school, id: "p1" }, null);
     assert.equal(store.schools.get("p1")?.status, "active");
     assert.equal(store.schools.get("p1")?.nameEn, "Nile School");
-    assert.equal(store.schools.get("p1")?.addedBy, "u1");
+    // The parent's uid leaves the school once every parent can read it.
+    assert.equal(store.schools.get("p1")?.addedBy, null);
 
     assert.deepEqual(await mergeSchool(deps, ADMIN, { schoolId: "p2", intoId: "p1" }, null), { id: "p1", childrenMoved: 1 });
     assert.equal(store.schools.get("p2")?.status, "merged");
