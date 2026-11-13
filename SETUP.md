@@ -561,7 +561,14 @@ The report lists schools per governorate, what was dropped and why
 (no name, only "school" as a name, universities and courses, outside
 Egypt...), the duplicates it merged (same or similar name within about
 300 m, Arabic spelling differences ignored), and **likely duplicates** it
-did not merge, for you to check. Running it again on the same files gives
+did not merge, for you to check. Schools of a different stage (KG,
+primary, preparatory, secondary) or for boys and for girls are never
+merged, even with the same name; a pair where only one name says the
+stage, where one name is inside the other, or where a person's name
+differs ("الشهيد أحمد" / "الشهيد محمد") is listed, not merged. CSV files
+saved by Excel (UTF-8 with BOM, "Unicode text", older Arabic Windows
+encoding, comma, semicolon or tab) are read; a file that cannot be read
+is listed under "Problems with the input files". Running it again on the same files gives
 the same IDs.
 
 Try it first with the hand-written sample (not real data):
@@ -593,7 +600,11 @@ sample into prod.
 3. In Algolia > API keys, create two keys **limited to that index**:
    - a **write** key with `addObject` and `deleteObject` only;
    - a **search-only** key with `search` only, max hits per query 20 and
-     max queries per IP per hour 2000.
+     max queries per IP per hour **100**. The app's keys carry a user
+     token, so Algolia counts this limit per parent, not per IP address
+     (many phones share one address on Egyptian mobile networks). Each
+     parent gets at most 6 keys a day (`searchKeyLimits`), so one account
+     can make at most about 600 search requests a day.
 4. Store them in Secret Manager for the project:
    `firebase functions:secrets:set ALGOLIA_WRITE_KEY --project staging` and
    `firebase functions:secrets:set ALGOLIA_SEARCH_KEY --project staging`.
@@ -602,7 +613,9 @@ sample into prod.
    `SCHOOL_SEARCH_PROVIDER=algolia`, `ALGOLIA_APP_ID=<app id>`,
    `ALGOLIA_INDEX=schools_staging`. Deploy the functions.
 
-From then on `syncSchoolToSearch` keeps the index in step: active schools
+The prod project refuses `SCHOOL_SEARCH_PROVIDER=fake` (the function
+answers "not configured" and reports to Sentry): set up Algolia before
+prod. From then on `syncSchoolToSearch` keeps the index in step: active schools
 are indexed with their names and places only; schools awaiting review and
 merged schools are not. The app never holds an Algolia secret: it asks
 `getSchoolSearchKey` for a key that can only search that index and expires

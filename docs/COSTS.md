@@ -103,6 +103,13 @@ Limits below are the public free allowances as understood in November 2026.
   indexed fields change, so loading the same file again costs nothing.
   The first import sends every school once.
 - **Search key:** one `getSchoolSearchKey` call per app session per hour.
+- **Per-parent limits:** the secured keys carry a hashed user token, so
+  Algolia's limit of 100 searches an hour counts per parent (not per IP
+  address), and each parent gets at most 6 keys a day: at most about 600
+  requests a day for one account, so one abusive account needs many days
+  (and a verified identity soon after sign-up) to use up the free month.
+  Answers are cached on the phone for 10 minutes. The fake search is
+  refused in prod.
 - **Firestore:** the loader reads every school once per run (about 30,000
   reads, inside the free 50,000 a day; run it at most once a day) and
   writes only new or changed schools. The dev fake reads at most 200

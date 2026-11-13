@@ -102,7 +102,7 @@ void main() {
         },
         now: () => now,
       );
-      final List<SchoolOption> found = await search.search(' nile ', governorate: 'cairo');
+      final List<SchoolOption> found = await search.search(' Nile ', governorate: 'cairo');
       expect(found.single.id, 'osm-n1');
       expect(found.single.pending, isFalse);
       final (Uri url, Map<String, String> headers, String body) = sent.single;
@@ -112,13 +112,43 @@ void main() {
       final String params = (jsonDecode(body) as Map<String, Object?>)['params']! as String;
       expect(Uri.splitQueryString(params), <String, String>{'query': 'nile', 'hitsPerPage': '20', 'filters': 'governorate:cairo'});
 
+      // Typing back to a recent query costs no request (cached answer).
+      await search.search('Nile ', governorate: 'cairo');
+      expect(sent, hasLength(1));
+
       // The key is reused, then fetched again shortly before it expires.
       await search.search('nile');
       expect(keys, 1);
+      expect(sent, hasLength(2));
       now = now.add(const Duration(minutes: 59, seconds: 30));
       await search.search('nile');
       expect(keys, 2);
       expect(sent.last.$2['X-Algolia-API-Key'], 'secured-2');
+    });
+
+    test('the query is sent normalized, like the index search keys', () async {
+      String? sentQuery;
+      final AlgoliaSchoolSearch search = AlgoliaSchoolSearch(
+        fetchKey: () async => const SearchKey(provider: 'algolia', appId: 'APP', indexName: 'schools', key: 'k'),
+        transport: (Uri url, Map<String, String> headers, String body) async {
+          final String params = (jsonDecode(body) as Map<String, Object?>)['params']! as String;
+          sentQuery = Uri.splitQueryString(params)['query'];
+          return const <String, Object?>{'hits': <Object?>[]};
+        },
+      );
+      await search.search('مدرسة الأورمان');
+      expect(sentQuery, 'مدرسه الاورمان');
+    });
+
+    test('prod never falls back to the fake search', () async {
+      final ServerSelectedSchoolSearch search = ServerSelectedSchoolSearch(
+        fetchKey: () async => const SearchKey(provider: 'fake'),
+        fallback: const UnavailableSchoolSearch(),
+      );
+      await expectLater(
+        search.search('Nile'),
+        throwsA(isA<SchoolSearchFailure>().having((SchoolSearchFailure f) => f.isOffline, 'offline', isFalse)),
+      );
     });
 
     test('the server picks the fake search until Algolia is set up', () async {

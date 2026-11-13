@@ -162,11 +162,11 @@ keys before staging).
 
 | Test | Status |
 | --- | --- |
-| `tools/import_schools/test_schools_import.py`: normalization, generic words, similarity, governorate names, nearest town, boundaries, stable IDs, drop reasons, names/city/governorate, merge within 300 m only, list entries without a pin, Arabic-header CSV, OSM CSV in a zip, the sample end to end, identical output twice, CLI | **Run here: 18 pass** (Python 3.13) |
+| `tools/import_schools/test_schools_import.py`: normalization, generic words, similarity, governorate names, nearest town, boundaries, stable IDs, drop reasons, names/city/governorate, merge within 300 m only, list entries without a pin, Arabic-header CSV, OSM CSV in a zip, the sample end to end, identical output twice, CLI | **Run here: 30 pass** (Python 3.13), incl. every review case (stage, gender, person names, containment, no chains) and Excel CSVs |
 | `functions/test/schools.test.ts`: normalization cases, import plan (create, second run writes nothing, match by source key, admin edits/merged/pending left alone, never deletes, one write per target), index record has no parent data, sync actions, secured key (HMAC checked), REST calls, "Other" parsing, dedupe, limits, refusals | **Run here: pass** |
 | `functions/test/verification_flow.test.ts`: child needs a school; own pending allowed, another parent's refused, merged followed, name kept or replaced | **Run here: pass** |
 | `functions/test/admin_panel.test.ts`: approve clears `addedBy` | **Run here: pass** |
-| All Functions unit tests | **Run here: 186 pass** (Node 22, `tsc` with stand-in type stubs and small runtime stubs, as in earlier prompts) |
+| All Functions unit tests | **Run here: 188 pass** (Node 22, `tsc` with stand-in type stubs and small runtime stubs, as in earlier prompts) |
 | Sample `schools.json` → loader plan twice | **Run here**: 41 created, then 0 created, 0 changed, 41 unchanged |
 | `tests/rules/schools.test.ts` (+ `admin.test.ts`, `deny_all.test.ts` updated) | Written, not run here (CI) |
 | CI step: Python tests, sample import, load twice into the emulator, second load writes nothing | Written, not run here |
@@ -177,9 +177,9 @@ keys before staging).
 
 ## Verified here vs not run
 
-Run here: the Python tool and its 18 tests; Functions type-check (only the
+Run here: the Python tool and its 30 tests; Functions type-check (only the
 known stub gaps for `initializeApp(options)` and Sentry types remain) and
-186 unit tests; the loader plan on the sample output; ARB parity (644 keys
+188 unit tests; the loader plan on the sample output; ARB parity (644 keys
 each; every `l10n.*` used exists); import order and bidi-character scan of
 the changed Dart files.
 
@@ -188,6 +188,49 @@ screenshots, the rules tests and the CI emulator step. Expect small
 analyzer fixes on the first CI run. Checked against sources: Algolia's
 secured-key scheme and Build plan terms (1M records, 10,000 searches a
 month, evaluation only).
+
+## Fixes after the validator review (docs/reviews/prompt-04b-review.md)
+
+Blocking:
+
+1. **Merging only the same school** (`tools/import_schools/schools_import.py`).
+   Stage words (KG, ابتدائي, إعدادي, ثانوي, primary, preparatory,
+   secondary...) and gender words (بنين, بنات, boys, girls) are compared
+   separately: different stage, gender or kind is never merged; when only
+   one name says it, the pair is reported. A one-letter slip counts only in
+   words of 6+ letters and never in a person's name (common given names,
+   and words after الشهيد / martyr / دكتور...). A merge needs the same
+   words (similarity 1.0); one name inside the other and pairs with half
+   the words alike go to the report. Groups grow only by single entries
+   that also match the group's main entry within 300 m (no chains). Every
+   case from the review is a test. Sample: 4 merged groups (El Alsson is
+   now reported), 3 likely duplicates.
+2. **Per-user search limit.** Secured keys carry `userToken` (a hash of the
+   uid, so Algolia never sees our user IDs); the parent key's limit is now
+   100 searches an hour, counted per user. `getSchoolSearchKey` gives at
+   most 6 keys a day per parent (`searchKeyLimits/{uid}`, functions only,
+   closed in the rules): about 600 requests a day for one account at most.
+   Tests check the HMAC'd parameters include `userToken`, the daily cap,
+   and the next-day reset.
+
+Non-blocking, done: Excel CSVs (UTF-8 BOM, UTF-16, Windows-1256, comma,
+semicolon and tab), unreadable files reported instead of crashing; list
+rows without an ID get a stable hash of name, governorate and city; OSM
+types like `nodes`/`ways_poly` keep their prefix; admin-created schools
+carry no uid (`addedBy: null`); the app sends the normalized query, caches
+answers for 10 minutes (50 entries), and Enter no longer sends the query
+twice (stale answers were already dropped); prod refuses the fake search
+on the server (reported to Sentry) and in the app ("unavailable", never
+the 200-school fallback). Picker titles stay one line with an ellipsis;
+the second line shows the area and governorate (screen readers read the
+full name).
+
+Deferred (non-blocking): Dart normalizer has no NFKC (presentation forms;
+item 8); state views in the picker have a fixed height (item 10, check at
+200 % on the screenshots); `addOtherSchool` check-then-create outside a
+transaction (item 11; the same-name dedupe limits it to a rare double
+tap); a reject action for junk "Other" schools (item 12, owner question
+6); approving with corrected names does not rename linked children.
 
 ## Learned from earlier reviews
 
@@ -210,6 +253,11 @@ month, evaluation only).
 4. **Website search:** the website uses the fake fallback until Stage 2.
    OK?
 5. **Pending limit:** 5 "Other" schools per parent waiting at once. OK?
+6. **Reject "Other":** should admins be able to reject a junk "Other"
+   school (it now stays until approved or merged and counts toward the
+   parent's 5)?
+7. **Search limits:** 100 searches an hour and 6 keys a day per parent.
+   OK, or tighter for the free month?
 
 ## Not done / known gaps
 

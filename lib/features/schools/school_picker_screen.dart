@@ -259,7 +259,11 @@ class _SchoolPickerScreenState extends ConsumerState<SchoolPickerScreen> {
                 autofocus: true,
                 textInputAction: TextInputAction.search,
                 onChanged: _onChanged,
-                onFieldSubmitted: (String _) => unawaited(_search()),
+                onFieldSubmitted: (String _) {
+                  // Search now, once: the pending debounce would send the same query again.
+                  _timer?.cancel();
+                  unawaited(_search());
+                },
               ),
             ),
             Padding(
