@@ -320,6 +320,7 @@ class _SchoolFormState extends ConsumerState<_SchoolForm> {
             for (final Area a in widget.areas)
               AppListRow(
                 key: Key('area.${a.id}'),
+                inset: false,
                 title: arabic ? a.nameAr : a.nameEn,
                 subtitle: ltrIsolate(formatPin(a.center)),
                 leadingIcon: Icons.place_outlined,
@@ -426,6 +427,7 @@ class _MergePickerState extends ConsumerState<_MergePicker> {
                 for (final School s in shown)
                   AppListRow(
                     key: Key('merge.${s.id}'),
+                    inset: false,
                     title: arabic ? s.nameAr : s.nameEn,
                     subtitle: s.city,
                     leadingIcon: Icons.school_outlined,

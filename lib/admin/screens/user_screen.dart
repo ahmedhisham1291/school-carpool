@@ -137,6 +137,7 @@ class _UserScreenState extends ConsumerState<UserScreen> {
               else
                 for (final CaseHistory c in d.cases)
                   AppListRow(
+                    inset: false,
                     title: c.identity ? l10n.adminCaseNew : l10n.adminCaseUpdate,
                     subtitle: <String>[
                       adminDateTime(context, c.submittedAt),
@@ -161,6 +162,7 @@ class _UserScreenState extends ConsumerState<UserScreen> {
               else
                 for (final ActionHistory a in d.actions)
                   AppListRow(
+                    inset: false,
                     title: auditActionLabel(l10n, a.action),
                     subtitle: <String>[
                       adminDateTime(context, a.time),
