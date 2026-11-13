@@ -3,10 +3,11 @@
 Branch: `prompt-01-foundation`. Date: 13 Nov 2026.
 The coordinator gave "go" on the owner's behalf (CLAUDE.md environment note).
 
-**Status: code complete, not yet compiled.** This workspace has no Flutter
-SDK and no package registry, so `flutter analyze`, `flutter test`, the
-Functions build and the rules tests are **written, not run here**. They run
-in the Codemagic `checks` workflow. The first CI run is the real check; expect
+**Status: code complete, validator review round 1 fixed, not yet
+compiled.** This workspace has no Flutter SDK and no package registry, so
+`flutter analyze`, `flutter test`, the Functions build and the rules tests
+are **written, not run here**. They run in GitHub Actions
+(`.github/workflows/checks.yml`). The first CI run is the real check; expect
 to fix small compile errors there.
 
 ## Plan that was followed
@@ -24,7 +25,8 @@ to fix small compile errors there.
 8. Cloud Functions (TypeScript, 2nd gen): Sentry, scrubber, `debugTestError`,
    emulator seed script.
 9. `tool/bootstrap.sh` with the iOS and Android overrides.
-10. Codemagic CI, SETUP.md, docs/COSTS.md, this note.
+10. CI (GitHub Actions checks, Codemagic iOS), SETUP.md, docs/COSTS.md,
+    this note.
 
 No data model changes (no app collections yet; the seed writes fake
 `schools`, `areas`, `users`, `parentLocations` and `children` to the emulator
@@ -36,7 +38,7 @@ only).
 | --- | --- |
 | Flavors | `lib/main_dev.dart`, `main_staging.dart`, `main_prod.dart` (`main.dart` = dev), `lib/bootstrap.dart`, `lib/config/flavor.dart` |
 | Firebase | `lib/firebase/firebase_setup.dart` (emulators in dev, App Check otherwise), `demo_firebase_options.dart`, placeholders `firebase_options_{dev,staging,prod}.dart`, `firebase.json`, `.firebaserc`, `firestore.rules`, `storage.rules`, `firestore.indexes.json` |
-| Localization | `l10n.yaml`, `lib/l10n/app_ar.arb` (template, default), `app_en.arb` (70 strings each, same keys), `lib/l10n/l10n.dart` |
+| Localization | `l10n.yaml`, `lib/l10n/app_ar.arb` (template, default), `app_en.arb` (71 strings each, same keys), `lib/l10n/l10n.dart` |
 | Settings | `lib/settings/` language, theme mode and design direction, saved on the phone |
 | Design system | `lib/design/tokens/*` (colors, type scale, 8-point spacing, radii, shadows, motion), `lib/design/theme/*` (Material 3 themes, `AppColors` extension), `lib/design/components/*` |
 | Navigation | `lib/router/app_router.dart` (go_router, `StatefulShellRoute` with 5 tabs; gallery route only in dev), `lib/features/shell/home_shell.dart`, `lib/features/placeholder/placeholder_tab_screen.dart` |
@@ -46,17 +48,31 @@ only).
 | Seed | `functions/scripts/seed.ts` (`npm --prefix functions run seed:emulator`): 4 schools, 8 areas, 8 parents (mixed statuses), 12 children, all fake; refuses to run outside the emulators or on a non-`demo-` project |
 | Rules tests | `tests/rules/deny_all.test.ts`: signed-out, signed-in, verified and admin-claim users cannot read, write, list or delete anything in Firestore or Storage |
 | Native | `tool/bootstrap.sh`, `tool/patch_native.py`, `tool/ios/` (entitlements, ar/en `InfoPlist.strings`, `configure_xcode.rb`) |
-| CI | `codemagic.yaml` |
+| CI | `.github/workflows/checks.yml` (checks, screenshots), `codemagic.yaml` (iOS to TestFlight) |
 | Docs | `README.md`, `SETUP.md`, `docs/COSTS.md` |
-| Tests | `test/design/tokens_test.dart`, `test/settings/locale_switch_test.dart`, `test/router/router_test.dart`, `test/observability/pii_scrubber_test.dart`, `functions/test/scrub.test.ts` |
+| Tests | `test/screenshots/screenshots_test.dart`, `test/design/tokens_test.dart`, `test/settings/locale_switch_test.dart`, `test/router/router_test.dart`, `test/observability/pii_scrubber_test.dart`, `functions/test/scrub.test.ts` |
 
-## Two design directions (choose one)
+## Owner decisions (recorded 13 Nov 2026)
+
+1. **Design direction A (calm teal)** is the default everywhere. B stays
+   only behind the dev setting (Profile > Developer tools) for comparison;
+   staging and prod always use A (`lib/app.dart`).
+2. **Bundle id base `org.schoolcarpool.app`** (`.dev`, `.stg`, none for
+   prod).
+3. **Firebase region `europe-west1`** for Functions and the databases.
+4. **`shared_preferences` approved.**
+5. **CI:** analyze, tests, screenshots, Functions tests and rules tests run
+   on **GitHub Actions** (free Linux minutes). Codemagic only builds the
+   iPhone app (main, tags, manual); web and Android release builds may move
+   there later.
+
+## Two design directions
 
 Both follow the DESIGN rules: one accent color, calm neutrals, rounded cards
 (16 px), soft shadows in light mode, body text 16 or larger, zero letter
 spacing (it breaks Arabic letter joins), 8-point grid. Switch between them in
 the dev build: **Profile tab > Developer tools > Design direction**, or the
-palette button in the gallery's top bar. Default is **A**.
+palette button in the gallery's top bar. Default is **A** (owner decision).
 
 | | **A: Calm teal** | **B: Warm indigo** |
 | --- | --- | --- |
@@ -72,23 +88,29 @@ Every text/background pair used by the themes was checked at AA (4.5:1 for
 text, 3:1 for input borders) in both directions and both brightnesses (the
 numbers were computed here; `tokens_test.dart` repeats the check in CI).
 
-**Screenshots:** not possible in this workspace (no Flutter SDK, no
-simulator). To compare: install the dev build (steps below), open
-Profile > Developer tools > Component gallery and press the palette, globe
-and moon buttons.
+**Screenshots:** this workspace cannot render, so CI does it.
+`test/screenshots/screenshots_test.dart` renders the tab shell (Home and
+Profile) and the whole gallery in Arabic and English, light and dark, and
+the gallery in both directions, with the real bundled fonts. GitHub Actions
+uploads the 16 PNGs as the **screenshots** artifact of every run (SETUP.md
+section 7).
 
-Recommendation: **A**. IBM Plex Sans Arabic has more weights (a true
-SemiBold for titles), stays legible at 200 percent text size, and the teal
-reads as "safe" without the "bank app" feel of blue. Once you choose, the
-other direction and its font are deleted.
+A was recommended (more weights, legible at 200 percent text, teal reads
+as "safe") and chosen. B and the Tajawal font can be deleted in a later
+prompt once nobody needs the comparison.
 
 ## Decisions
 
-1. **Material from `material_ui`.** Flutter 3.47 deprecated
-   `package:flutter/material.dart`; Material now ships as the `material_ui`
-   package (current stable is 3.50.0). go_router 18 and Sentry 10 already
-   use it, so the app imports `package:material_ui/material_ui.dart`
-   everywhere and takes its localizations delegates from `material_ui`.
+1. **Material from `material_ui`.** The `material_ui` package was published
+   with Flutter 3.47 (opt-in), and the in-SDK `package:flutter/material.dart`
+   is formally deprecated in Flutter 3.50 (current stable, 3.50.0). go_router
+   18 already uses `material_ui`; **sentry_flutter 10 still imports
+   `package:flutter/material.dart`** internally (it only detects taps on
+   `material_ui` widgets since 10.3). That does not affect us: the app
+   passes no Material types to Sentry. The app imports
+   `package:material_ui/material_ui.dart` everywhere and takes its
+   localizations delegates from `material_ui`. The pubspec requires Flutter
+   3.50 or newer (Dart 3.13).
 2. **Generated localizations in source.** The synthetic `flutter_gen`
    package was removed from Flutter. Code is generated into
    `lib/l10n/gen/` (not committed; `tool/bootstrap.sh` runs
@@ -124,7 +146,7 @@ other direction and its font are deleted.
    minimum), `flutter_riverpod ^3.0.0`, `go_router ^18.0.0`,
    `sentry_flutter ^10.0.0` (needs Android `minSdk 26` = Android 8, which
    matches the spec, and Swift Package Manager on iOS, which is Flutter's
-   default now), `firebase-functions ^7`, `firebase-admin ^14`,
+   default now; it still uses the in-SDK Material library internally), `firebase-functions ^7`, `firebase-admin ^14`,
    `@sentry/node ^11`, TypeScript 5.9. Rules tests use
    `@firebase/rules-unit-testing ^5` with `firebase ^12` because version 6
    needs Node 24 and our runtime is Node 22.
@@ -135,33 +157,34 @@ other direction and its font are deleted.
     breadcrumb scrubbed of phone numbers (including Arabic digits), 14-digit
     IDs, coordinates, emails and message text, plus sensitive keys. The
     same scrubber exists in Dart and TypeScript.
-11. **Cost mode** (owner decision during this prompt): `MIN_INSTANCES=0`
+11. **Text sizes:** body, input helper and input error text are 16 or more
+    (helper and error text tell the parent how to fix a field, so they use
+    the body size). Bottom-tab labels stay at the Material 3 label size (14,
+    medium weight): they sit under an icon, pass contrast, and scale with
+    the phone's text size. Gallery type labels (13) are dev-only.
+12. **Reduce motion:** Android "Remove animations" and iOS "Reduce Motion"
+    (which Flutter reports separately as `reduceMotion`) both switch off
+    skeleton pulsing, button animations, theme cross-fades and page
+    transitions.
+13. **Cost mode** (owner decision during this prompt): `MIN_INSTANCES=0`
     as a parameter, `maxInstances` 10, PITR off and daily backups in prod
     only (SETUP.md step 5), Sentry free plan, iOS CI builds only on `main`,
     tags or by hand. See docs/COSTS.md.
 
 ## Open questions for the owner
 
-1. **Design direction:** A or B?
-2. **Bundle id base:** what reverse domain do you own? Placeholder is
-   `org.schoolcarpool.app` (in `tool/bootstrap.sh` and `codemagic.yaml`).
-3. **App name:** working name "مشوار المدرسة" / "School Carpool". Final?
-4. **CI cost:** Codemagic has free minutes on macOS only; Linux is billed
-   (about USD 0.045 a minute, roughly USD 0.50 to 0.70 per `checks` run). You
-   asked for checks on Linux. Options: (a) keep Linux and accept a few
-   dollars a month, (b) switch `checks` to `mac_mini_m2` and share the 500
-   free minutes with iOS builds (about 25 to 35 runs a month in total),
-   (c) run the checks on GitHub Actions, which has free Linux minutes for
-   this repository (a new tool, so it needs your yes).
-5. **Region:** keep `europe-west1` for now, or wait for the lawyer before
-   creating the staging and prod databases (the location cannot change)?
-6. **Firebase project ids** for `.firebaserc`.
-7. **`shared_preferences`**: OK to keep this dependency?
+1. **App name:** working name "مشوار المدرسة" / "School Carpool". Final?
+2. **Firebase project ids** for `.firebaserc` (step 3 of SETUP.md).
+3. **iOS builds on branches:** Prompt 1 asked for iPhone builds on every
+   push; COST MODE limits them to `main`, tags and manual starts, so a
+   branch is iOS-compiled only after merge. A cheap
+   `flutter build ios --no-codesign` on pull requests to `main` could be
+   added later if the macOS minutes allow. OK as is?
 
 ## How to test on your iPhone (the "Done when" check)
 
 Prerequisites: SETUP.md steps 1, 2, 3 (dev project, including "Connect the
-app"), 6 and 7. Then:
+app"), 6, 7 and 8. Then:
 
 1. Codemagic: start **iOS dev to TestFlight (manual)**. Wait for the build
    and for TestFlight processing.
@@ -184,10 +207,11 @@ app"), 6 and 7. Then:
 8. Profile > Developer tools > **Server test error** (needs the functions
    deployed to the dev project, SETUP.md step 3.10, with the functions DSN).
    The error appears in Sentry project carpool-functions.
-9. Codemagic: the latest **Checks** build is green.
+9. GitHub > Actions: the latest **checks** run is green. Download the
+   **screenshots** artifact to see every screen in AR/EN, light/dark.
 
 From a Mac you can do the same against the local emulators: SETUP.md
-section 8B.
+section 9B.
 
 ## Verified here vs not run
 
@@ -202,20 +226,64 @@ Run in this workspace:
 - `tool/patch_native.py` on the real Flutter 3.50 iOS and Android templates
   (twice, to prove it is idempotent).
 - `codemagic.yaml` parses and its anchors resolve; Ruby and shell scripts
-  pass syntax checks; Arabic and English ARB files have the same 70 keys.
+  pass syntax checks; Arabic and English ARB files have the same 71 keys.
 - APIs used were checked against the current sources of FlutterFire,
   Sentry Dart, go_router, material_ui, Riverpod, firebase-functions and
   rules-unit-testing.
 
-Written, not run here: `flutter analyze`, `flutter test` (4 test files),
-`npm test` in functions, the rules tests on the emulators, every build.
+- The fixed rules test file against a stand-in for rules-unit-testing whose
+  setup takes 300 ms (the validator's reproduction): all 56 cases register
+  and pass, so the ordering bug is gone. The real emulator run is in CI.
+
+Written, not run here: `flutter analyze`, `flutter test` (5 test files,
+including the screenshot test), `npm test` in functions, the rules tests on
+the emulators, every build.
+
+## Review round 1 (docs/reviews/prompt-01-review.md)
+
+Fixed:
+- 1 (blocking) compile error in `settings_section.dart`: the message now
+  comes from a helper that returns from `try`/`catch`.
+- 2 (blocking) rules tests: contexts are created inside each test.
+- 3 Flutter `>=3.50.0` in the pubspec and README.
+- 4 Material and Sentry claims corrected (decision 1 above, pubspec comment).
+- 6 committed `.pyc` removed; `__pycache__/` and `*.pyc` ignored.
+- 7 Apple ID placeholders quoted in `codemagic.yaml`.
+- 8, 18 Linux checks moved from Codemagic to GitHub Actions (push only, no
+  double runs).
+- 10 start-up error screen in Arabic.
+- 12 long gallery line reformatted.
+- 13 input helper and error text at 16 (decision 11 above).
+- 14 reduce motion, including iOS Reduce Motion (decision 12 above).
+- 15 loading-button screen-reader label is now an ARB message (Arabic comma
+  "،"); the gallery sample value moved to the ARB files.
+- 16 unused `actionClose` removed (71 keys in each ARB file now).
+- 17 screenshots via the CI artifact.
+- 20 SETUP.md explains how to fill the Firebase options by hand without a
+  computer that has Flutter.
+- 21 SETUP.md step 4 restricts the Firebase API keys.
+
+Deferred:
+- 5 lockfiles (`pubspec.lock`, `package-lock.json`): they can only be
+  generated with the package registries. Commit them from the first green
+  CI run (next prompt), or have the owner's Mac run `flutter pub get` and
+  `npm install` once.
+- 9 `ios-staging` on pushes to `main`: kept as the owner asked; SETUP.md
+  section 8 says how to pause it until staging is set up.
+- 11 Dart scrubber does not yet clean `event.contexts` and exception
+  mechanism data (device name is not sent because `sendDefaultPii` is off;
+  Sentry's server-side scrubbing is the second layer). To do in Prompt 12
+  ("Sentry: a test proves...").
+- 19 iOS builds only after merge (open question 3).
+- 22 offline detection (with the first data screen).
 
 ## Not done / known risks
 
 - **Not compiled.** First CI run may show small analyzer issues (the lint
   set is strict and analyze fails on infos).
-- **Screenshots** of the screens in Arabic and English are missing (rule 4);
-  they need a simulator. Golden tests come with the first real screens.
+- **Screenshots** come from CI (artifact), not from this workspace. The
+  screenshot test writes images only; real golden comparisons (that fail
+  on visual changes) come with the first real screens.
 - **Firebase options** are placeholders until you run `flutterfire
   configure`; without them a staging or cloud-dev build opens an error
   screen instead of the app.
