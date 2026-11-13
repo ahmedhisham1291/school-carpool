@@ -289,5 +289,441 @@
   "sampleDone": "تم.",
   "@sampleDone": {
     "description": "Gallery sample: snackbar feedback"
+  },
+  "actionContinue": "متابعة",
+  "@actionContinue": {
+    "description": "Generic continue button"
+  },
+  "stepProgress": "الخطوة {current} من {total}",
+  "@stepProgress": {
+    "description": "Progress of a multi-step form",
+    "placeholders": {
+      "current": {
+        "type": "int",
+        "example": "2"
+      },
+      "total": {
+        "type": "int",
+        "example": "4"
+      }
+    }
+  },
+  "copyTooltip": "نسخ {label}",
+  "@copyTooltip": {
+    "description": "Tooltip and screen reader label of a copy button",
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "رقم ولي الأمر"
+      }
+    }
+  },
+  "copiedToClipboard": "تم النسخ.",
+  "@copiedToClipboard": {
+    "description": "Snack bar after copying"
+  },
+  "welcomeTitle": "مشاوير المدرسة، مع أهالي تثق بهم",
+  "@welcomeTitle": {
+    "description": "Welcome screen headline"
+  },
+  "welcomeBody": "تطبيق مجاني وغير ربحي. يتم التحقق من هوية كل ولي أمر قبل أن يرى أي مجموعة.",
+  "@welcomeBody": {
+    "description": "Welcome screen text"
+  },
+  "welcomeStart": "ابدأ",
+  "@welcomeStart": {
+    "description": "Welcome screen main button"
+  },
+  "welcomeSignInHint": "مسجّل من قبل؟ استخدم نفس الرقم وسيصلك رمز جديد.",
+  "@welcomeSignInHint": {
+    "description": "Welcome screen hint for returning parents"
+  },
+  "phoneTitle": "رقم موبايلك",
+  "@phoneTitle": {
+    "description": "Phone step title"
+  },
+  "phoneBody": "سنرسل لك رمزًا من 6 أرقام على واتساب.",
+  "@phoneBody": {
+    "description": "Phone step text"
+  },
+  "phoneLabel": "رقم الموبايل",
+  "@phoneLabel": {
+    "description": "Phone field label"
+  },
+  "phoneHelper": "رقم مصري عليه واتساب، مثل 010 1234 5678",
+  "@phoneHelper": {
+    "description": "Phone field helper"
+  },
+  "phoneErrorInvalid": "اكتب 11 رقمًا تبدأ بـ 010 أو 011 أو 012 أو 015.",
+  "@phoneErrorInvalid": {
+    "description": "Phone field error that says how to fix it"
+  },
+  "phoneSendCode": "أرسل الرمز",
+  "@phoneSendCode": {
+    "description": "Phone step main button"
+  },
+  "phoneWhatsAppNote": "عند المتابعة سيصلك رمز الدخول في رسالة واتساب.",
+  "@phoneWhatsAppNote": {
+    "description": "Note under the phone field"
+  },
+  "codeTitle": "اكتب الرمز",
+  "@codeTitle": {
+    "description": "Code step title"
+  },
+  "codeBody": "أرسلنا رمزًا من 6 أرقام على واتساب إلى {phone}.",
+  "@codeBody": {
+    "description": "Code step text",
+    "placeholders": {
+      "phone": {
+        "type": "String",
+        "example": "+20 10 1234 5678"
+      }
+    }
+  },
+  "codeLabel": "رمز الدخول",
+  "@codeLabel": {
+    "description": "Code field label"
+  },
+  "codeHelper": "الرمز صالح لمدة 5 دقائق.",
+  "@codeHelper": {
+    "description": "Code field helper"
+  },
+  "codeVerify": "تأكيد",
+  "@codeVerify": {
+    "description": "Code step main button"
+  },
+  "codeResend": "أرسل رمزًا جديدًا",
+  "@codeResend": {
+    "description": "Resend code button"
+  },
+  "codeResendIn": "يمكنك طلب رمز جديد بعد {time}",
+  "@codeResendIn": {
+    "description": "Countdown before a new code can be requested",
+    "placeholders": {
+      "time": {
+        "type": "String",
+        "example": "0:45"
+      }
+    }
+  },
+  "codeChangeNumber": "تغيير الرقم",
+  "@codeChangeNumber": {
+    "description": "Button to go back and edit the phone number"
+  },
+  "codeSent": "تم إرسال رمز جديد.",
+  "@codeSent": {
+    "description": "Snack bar after resending a code"
+  },
+  "emailTitle": "بريدك الإلكتروني",
+  "@emailTitle": {
+    "description": "Email step title"
+  },
+  "emailBody": "سنرسل لك رابط تأكيد. نستخدم البريد للتنبيهات المهمة واسترجاع الحساب.",
+  "@emailBody": {
+    "description": "Email step text"
+  },
+  "emailLabel": "البريد الإلكتروني",
+  "@emailLabel": {
+    "description": "Email field label"
+  },
+  "emailHelper": "مثل name@example.com",
+  "@emailHelper": {
+    "description": "Email field helper"
+  },
+  "emailErrorInvalid": "اكتب بريدًا صحيحًا مثل name@example.com.",
+  "@emailErrorInvalid": {
+    "description": "Email field error"
+  },
+  "emailSendLink": "أرسل رابط التأكيد",
+  "@emailSendLink": {
+    "description": "Email step main button"
+  },
+  "emailCheckTitle": "افتح بريدك",
+  "@emailCheckTitle": {
+    "description": "Title after the link was sent"
+  },
+  "emailCheckBody": "أرسلنا رابطًا إلى {email}. افتحه ثم ارجع إلى هنا.",
+  "@emailCheckBody": {
+    "description": "Text after the link was sent",
+    "placeholders": {
+      "email": {
+        "type": "String",
+        "example": "name@example.com"
+      }
+    }
+  },
+  "emailConfirmed": "أكدت بريدي",
+  "@emailConfirmed": {
+    "description": "Button to check the email confirmation"
+  },
+  "emailResend": "أرسل الرابط مرة أخرى",
+  "@emailResend": {
+    "description": "Resend link button"
+  },
+  "emailChange": "تغيير البريد",
+  "@emailChange": {
+    "description": "Button to edit the email"
+  },
+  "emailNotYet": "لم يتم التأكيد بعد. افتح الرابط في البريد ثم حاول مرة أخرى.",
+  "@emailNotYet": {
+    "description": "Shown when the email is not confirmed yet"
+  },
+  "emailLinkSent": "تم إرسال الرابط.",
+  "@emailLinkSent": {
+    "description": "Snack bar after sending the link"
+  },
+  "emailSpamHint": "لم يصلك؟ راجع مجلد الرسائل غير المرغوب فيها.",
+  "@emailSpamHint": {
+    "description": "Hint while waiting for the email"
+  },
+  "termsTitle": "الشروط والخصوصية",
+  "@termsTitle": {
+    "description": "Terms step title"
+  },
+  "termsBody": "اقرأ كل مستند ووافق عليه للمتابعة.",
+  "@termsBody": {
+    "description": "Terms step text"
+  },
+  "termsDocTerms": "شروط الاستخدام",
+  "@termsDocTerms": {
+    "description": "Document title"
+  },
+  "termsDocPrivacy": "سياسة الخصوصية",
+  "@termsDocPrivacy": {
+    "description": "Document title"
+  },
+  "termsDocConduct": "قواعد السلوك",
+  "@termsDocConduct": {
+    "description": "Document title"
+  },
+  "termsAcceptTerms": "أوافق على شروط الاستخدام",
+  "@termsAcceptTerms": {
+    "description": "Checkbox"
+  },
+  "termsAcceptPrivacy": "أوافق على سياسة الخصوصية",
+  "@termsAcceptPrivacy": {
+    "description": "Checkbox"
+  },
+  "termsAcceptConduct": "أوافق على قواعد السلوك",
+  "@termsAcceptConduct": {
+    "description": "Checkbox"
+  },
+  "termsRead": "اقرأ",
+  "@termsRead": {
+    "description": "Link that opens a document"
+  },
+  "termsWhatsApp": "أرسلوا لي التنبيهات المهمة على واتساب (اختياري)",
+  "@termsWhatsApp": {
+    "description": "Optional WhatsApp consent checkbox"
+  },
+  "termsWhatsAppHelper": "يمكنك تغيير ذلك لاحقًا. رموز الدخول تصل دائمًا على واتساب.",
+  "@termsWhatsAppHelper": {
+    "description": "Helper under the WhatsApp checkbox"
+  },
+  "termsAcceptButton": "موافقة ومتابعة",
+  "@termsAcceptButton": {
+    "description": "Terms step main button"
+  },
+  "termsRequiredHint": "وافق على المستندات الثلاثة للمتابعة.",
+  "@termsRequiredHint": {
+    "description": "Shown while a required document is not accepted"
+  },
+  "termsDraftNotice": "نص مبدئي. سيعتمد المستشار القانوني النص النهائي قبل الإطلاق.",
+  "@termsDraftNotice": {
+    "description": "Notice on draft legal texts"
+  },
+  "termsTermsText": "التطبيق مجاني وغير ربحي ويساعد الأهالي الموثّقين على تنظيم مشاوير المدرسة بالتناوب. كل ولي أمر مسؤول عن قيادته وعن الالتزام بقواعد المرور. التطبيق لا يأخذ أي رسوم أو عمولة. يمكننا إيقاف أي حساب يخالف هذه الشروط أو قواعد السلوك. يمكنك حذف حسابك في أي وقت.",
+  "@termsTermsText": {
+    "description": "Draft terms of use"
+  },
+  "termsPrivacyText": "نجمع فقط ما نحتاجه لتوثيق الأهالي وتنظيم المشاوير: رقم الموبايل والبريد، ثم لاحقًا صورة البطاقة والسيلفي وبيانات الأطفال. صور التوثيق تُحذف بعد المراجعة. لا يرى الأهالي الآخرون إلا اسمك الأول والمدرسة والمنطقة وعلامة التوثيق. لا نبيع بياناتك. يمكنك رؤية بياناتك وتصحيحها وحذفها وسحب موافقتك.",
+  "@termsPrivacyText": {
+    "description": "Draft privacy policy summary"
+  },
+  "termsConductText": "احترم الأهالي الآخرين والأطفال. التزم بمواعيدك وأبلغ المجموعة مبكرًا إذا لم تستطع القيادة. لا تشارك بيانات أو صور الأطفال خارج المجموعة. قُد بأمان وبحزام أمان لكل طفل. أبلغ عن أي سلوك غير آمن.",
+  "@termsConductText": {
+    "description": "Draft code of conduct"
+  },
+  "verifyTitle": "وثّق حسابك",
+  "@verifyTitle": {
+    "description": "Verification screen title"
+  },
+  "verifyBody": "لحماية الأطفال، لا يرى أحد المجموعات أو المحادثات أو الأهالي الآخرين قبل توثيق حسابه.",
+  "@verifyBody": {
+    "description": "Verification screen text"
+  },
+  "verifyStepsTitle": "ما ستحتاجه",
+  "@verifyStepsTitle": {
+    "description": "Section title"
+  },
+  "verifyStepId": "البطاقة الشخصية من الأمام والخلف",
+  "@verifyStepId": {
+    "description": "Verification step"
+  },
+  "verifyStepSelfie": "صورة سيلفي داخل التطبيق",
+  "@verifyStepSelfie": {
+    "description": "Verification step"
+  },
+  "verifyStepChild": "بيانات طفلك وصورة كارنيه المدرسة",
+  "@verifyStepChild": {
+    "description": "Verification step"
+  },
+  "verifyStepDriver": "رخصة القيادة وبيانات السيارة إذا كنت ستقود",
+  "@verifyStepDriver": {
+    "description": "Verification step"
+  },
+  "verifyComingSoon": "خطوات التوثيق ستتاح في التحديث القادم من التطبيق.",
+  "@verifyComingSoon": {
+    "description": "Shown until Prompt 3 adds verification"
+  },
+  "verifyOpenProfile": "افتح حسابي",
+  "@verifyOpenProfile": {
+    "description": "Verification screen main button"
+  },
+  "verifyPendingBody": "مستنداتك قيد المراجعة. سنخبرك عند الانتهاء.",
+  "@verifyPendingBody": {
+    "description": "Status text: pending"
+  },
+  "verifyRejectedBody": "لم نتمكن من توثيق حسابك. ستتمكن من إعادة الإرسال قريبًا.",
+  "@verifyRejectedBody": {
+    "description": "Status text: rejected"
+  },
+  "suspendedTitle": "حسابك موقوف",
+  "@suspendedTitle": {
+    "description": "Suspended screen title"
+  },
+  "suspendedBody": "لا يمكنك استخدام التطبيق حاليًا. تواصل مع الدعم لمعرفة السبب.",
+  "@suspendedBody": {
+    "description": "Suspended screen text"
+  },
+  "statusUnverified": "غير موثّق",
+  "@statusUnverified": {
+    "description": "Account status"
+  },
+  "statusPending": "قيد المراجعة",
+  "@statusPending": {
+    "description": "Account status"
+  },
+  "statusVerified": "موثّق",
+  "@statusVerified": {
+    "description": "Account status"
+  },
+  "statusRejected": "لم يُقبل",
+  "@statusRejected": {
+    "description": "Account status"
+  },
+  "statusSuspended": "موقوف",
+  "@statusSuspended": {
+    "description": "Account status"
+  },
+  "startingSettingUp": "نجهّز حسابك...",
+  "@startingSettingUp": {
+    "description": "Shown while the account record is being created"
+  },
+  "profileParentIdLabel": "رقم ولي الأمر",
+  "@profileParentIdLabel": {
+    "description": "Label of the public parent ID"
+  },
+  "profileParentIdHelper": "شاركه مع الأهالي ليجدوك. لا يكشف رقم موبايلك.",
+  "@profileParentIdHelper": {
+    "description": "Helper under the parent ID"
+  },
+  "profileAccountSection": "بيانات الحساب",
+  "@profileAccountSection": {
+    "description": "Profile section title"
+  },
+  "profileStatus": "حالة التوثيق",
+  "@profileStatus": {
+    "description": "Profile row label"
+  },
+  "profilePhone": "الموبايل",
+  "@profilePhone": {
+    "description": "Profile row label"
+  },
+  "profileEmailMissing": "لم يُضف بعد",
+  "@profileEmailMissing": {
+    "description": "Shown when no email is saved"
+  },
+  "profileSignOut": "تسجيل الخروج",
+  "@profileSignOut": {
+    "description": "Sign out button"
+  },
+  "profileSignOutConfirmTitle": "تسجيل الخروج؟",
+  "@profileSignOutConfirmTitle": {
+    "description": "Confirmation title"
+  },
+  "profileSignOutConfirmBody": "ستحتاج رمزًا جديدًا على واتساب للدخول مرة أخرى.",
+  "@profileSignOutConfirmBody": {
+    "description": "Confirmation text"
+  },
+  "profileVerifyBanner": "حسابك غير موثّق بعد. التوثيق يفتح المجموعات والمحادثات.",
+  "@profileVerifyBanner": {
+    "description": "Banner on the profile of an unverified parent"
+  },
+  "errorWrongCode": "{count, plural, =0{الرمز غير صحيح.} =1{الرمز غير صحيح. باقي محاولة واحدة.} =2{الرمز غير صحيح. باقي محاولتان.} few{الرمز غير صحيح. باقي {count} محاولات.} other{الرمز غير صحيح. باقي {count} محاولة.}}",
+  "@errorWrongCode": {
+    "description": "Wrong sign-in code",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "errorExpiredCode": "انتهت صلاحية الرمز. اطلب رمزًا جديدًا.",
+  "@errorExpiredCode": {
+    "description": "Expired code"
+  },
+  "errorTooManyAttempts": "محاولات كثيرة لهذا الرمز. اطلب رمزًا جديدًا.",
+  "@errorTooManyAttempts": {
+    "description": "Code used up"
+  },
+  "errorLocked": "{minutes, plural, =1{أوقفنا الدخول بهذا الرقم مؤقتًا بعد محاولات كثيرة. حاول بعد دقيقة.} =2{أوقفنا الدخول بهذا الرقم مؤقتًا بعد محاولات كثيرة. حاول بعد دقيقتين.} few{أوقفنا الدخول بهذا الرقم مؤقتًا بعد محاولات كثيرة. حاول بعد {minutes} دقائق.} other{أوقفنا الدخول بهذا الرقم مؤقتًا بعد محاولات كثيرة. حاول بعد {minutes} دقيقة.}}",
+  "@errorLocked": {
+    "description": "Lockout",
+    "placeholders": {
+      "minutes": {
+        "type": "int",
+        "example": "60"
+      }
+    }
+  },
+  "errorRateLimited": "{minutes, plural, =1{طلبت رموزًا كثيرة. حاول بعد دقيقة.} =2{طلبت رموزًا كثيرة. حاول بعد دقيقتين.} few{طلبت رموزًا كثيرة. حاول بعد {minutes} دقائق.} other{طلبت رموزًا كثيرة. حاول بعد {minutes} دقيقة.}}",
+  "@errorRateLimited": {
+    "description": "Too many codes",
+    "placeholders": {
+      "minutes": {
+        "type": "int",
+        "example": "20"
+      }
+    }
+  },
+  "errorSendFailed": "لم نتمكن من إرسال رسالة واتساب. تأكد أن الرقم عليه واتساب ثم حاول مرة أخرى.",
+  "@errorSendFailed": {
+    "description": "WhatsApp send failed"
+  },
+  "errorSuspended": "هذا الحساب موقوف. تواصل مع الدعم.",
+  "@errorSuspended": {
+    "description": "Suspended account at sign-in"
+  },
+  "errorEmailInUse": "هذا البريد مستخدم في حساب آخر. استخدم بريدًا مختلفًا.",
+  "@errorEmailInUse": {
+    "description": "Email already used"
+  },
+  "errorOutdatedTerms": "تم تحديث الشروط. حدّث التطبيق ثم حاول مرة أخرى.",
+  "@errorOutdatedTerms": {
+    "description": "Old terms version"
+  },
+  "errorOffline": "لا يوجد اتصال بالإنترنت. حاول مرة أخرى عند عودة الاتصال.",
+  "@errorOffline": {
+    "description": "Offline error on a form"
+  },
+  "errorGeneric": "حدث خطأ. حاول مرة أخرى بعد قليل.",
+  "@errorGeneric": {
+    "description": "Unknown error on a form"
+  },
+  "gallerySectionSignup": "مكونات التسجيل",
+  "@gallerySectionSignup": {
+    "description": "Gallery section"
   }
 }

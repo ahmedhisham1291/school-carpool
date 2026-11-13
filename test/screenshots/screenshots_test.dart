@@ -133,7 +133,7 @@ void main() {
             locale: locale,
             themeMode: mode,
             direction: direction,
-            logicalSize: const Size(390, 5200),
+            logicalSize: const Size(390, 6600),
             pixelRatio: 2,
           );
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
