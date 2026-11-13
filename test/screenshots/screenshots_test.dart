@@ -1,12 +1,13 @@
 // Screenshots for the owner (no Mac needed). Written, not run here.
 //
 // Renders the tab shell, the sign-up screens (Prompt 2), the verification
-// screens (Prompt 3) and the component gallery in Arabic and English, light
-// and dark (gallery also in design directions A and B) with the real
-// bundled fonts, and writes PNGs to test/screenshots/goldens/. The shell,
-// the sign-up and the verification screens are also
-// rendered on a small 320 dp phone, at normal and at 200 percent text, to
-// show that tab labels, titles and buttons stay on one line.
+// screens (Prompt 3), the admin web panel (Prompt 4) and the component
+// gallery in Arabic and English, light and dark (gallery also in design
+// directions A and B) with the real bundled fonts, and writes PNGs to
+// test/screenshots/goldens/. The shell, the sign-up and the verification
+// screens are also rendered on a small 320 dp phone, at normal and at 200
+// percent text, to show that tab labels, titles and buttons stay on one
+// line; the admin panel also at 1024 px and at 200 percent text.
 //
 // These tests only run with --update-goldens (they are skipped in a plain
 // `flutter test`, so there are no committed images to compare against):
@@ -21,6 +22,8 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/admin/auth/admin_session.dart';
+import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/app.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/features/auth/account.dart';
@@ -32,6 +35,7 @@ import 'package:school_carpool/router/session_redirect.dart';
 import 'package:school_carpool/settings/app_settings.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
+import '../helpers/admin_fakes.dart';
 import '../helpers/fonts.dart';
 import '../helpers/test_app.dart';
 import '../helpers/verification_fakes.dart';
@@ -305,6 +309,46 @@ void main() {
               children: sampleChildren,
             ),
           );
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Admin web panel (Prompt 4, F14): desktop size, fake data.
+  final Map<String, (String, AdminSessionState, Size)> adminScreens = <String, (String, AdminSessionState, Size)>{
+    'sign_in': (AdminRoutes.signIn, const AdminSignedOut(), const Size(1280, 800)),
+    'two_step_setup': (AdminRoutes.twoStepSetup, const AdminNeedsSecondFactor(testReviewer), const Size(1280, 800)),
+    'queue': (AdminRoutes.queue, const AdminSignedIn(testReviewer), const Size(1280, 800)),
+    'case': ('/queue/case1', const AdminSignedIn(testReviewer), const Size(1280, 1500)),
+    'users': (AdminRoutes.users, const AdminSignedIn(testReviewer), const Size(1280, 800)),
+    'user': ('/users/parent1', const AdminSignedIn(testReviewer), const Size(1280, 1000)),
+    'schools': (AdminRoutes.schools, const AdminSignedIn(testReviewer), const Size(1280, 800)),
+    'school_new': (AdminRoutes.newSchool, const AdminSignedIn(testReviewer), const Size(1280, 1000)),
+    'school_edit': ('/schools/s1', const AdminSignedIn(testReviewer), const Size(1280, 1100)),
+    'other_schools': (AdminRoutes.otherSchools, const AdminSignedIn(testReviewer), const Size(1280, 800)),
+    'other_school_review': ('/other-schools/p1', const AdminSignedIn(testReviewer), const Size(1280, 1100)),
+    'reports': (AdminRoutes.reports, const AdminSignedIn(testReviewer), const Size(1280, 800)),
+    'audit': (AdminRoutes.audit, const AdminSignedIn(testSuperAdmin), const Size(1280, 800)),
+    'admins': (AdminRoutes.admins, const AdminSignedIn(testSuperAdmin), const Size(1280, 800)),
+    'gallery': (AdminRoutes.gallery, const AdminSignedIn(testReviewer), const Size(1280, 1600)),
+  };
+  for (final MapEntry<String, (String, AdminSessionState, Size)> screen in adminScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'admin_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await pumpAdminPanel(
+            tester,
+            session: screen.value.$2,
+            location: screen.value.$1,
+            locale: locale,
+            themeMode: mode,
+            size: screen.value.$3,
+          );
+          for (int i = 0; i < 4; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
         });
       }

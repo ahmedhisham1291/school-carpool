@@ -13,7 +13,9 @@
  */
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { GeoPoint, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { FieldValue, GeoPoint, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { nameSearchFields } from "../src/text/normalize";
 
 const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCLOUD_PROJECT_ID ?? "";
 
@@ -29,6 +31,7 @@ if (!projectId.startsWith("demo-")) refuse(`project "${projectId}" is not a demo
 initializeApp({ projectId });
 const db = getFirestore();
 const auth = getAuth();
+const bucket = getStorage().bucket(process.env.STORAGE_BUCKET ?? `${projectId}.appspot.com`);
 
 // --- Fake data ---------------------------------------------------------------
 
@@ -66,7 +69,7 @@ interface SeedSchool {
 const schools: SeedSchool[] = [
   {
     id: "school-nile-intl", nameAr: "مدرسة النيل الدولية (تجريبية)", nameEn: "Nile International School (test)",
-    governorate: "Cairo", city: "Maadi", lat: 29.9602, lng: 31.2569,
+    governorate: "cairo", city: "Maadi", lat: 29.9602, lng: 31.2569,
     areas: [
       { id: "area-maadi-degla", nameAr: "دجلة", nameEn: "Degla", lat: 29.9590, lng: 31.2700 },
       { id: "area-maadi-sarayat", nameAr: "السرايات", nameEn: "Sarayat", lat: 29.9650, lng: 31.2500 },
@@ -74,7 +77,7 @@ const schools: SeedSchool[] = [
   },
   {
     id: "school-pyramids-lang", nameAr: "مدرسة الأهرام للغات (تجريبية)", nameEn: "Pyramids Language School (test)",
-    governorate: "Giza", city: "6th of October", lat: 29.9727, lng: 30.9430,
+    governorate: "giza", city: "6th of October", lat: 29.9727, lng: 30.9430,
     areas: [
       { id: "area-october-h1", nameAr: "الحي الأول", nameEn: "District 1", lat: 29.9700, lng: 30.9500 },
       { id: "area-october-zayed", nameAr: "الشيخ زايد", nameEn: "Sheikh Zayed", lat: 30.0200, lng: 30.9800 },
@@ -82,7 +85,7 @@ const schools: SeedSchool[] = [
   },
   {
     id: "school-heliopolis-kg", nameAr: "حضانة مصر الجديدة (تجريبية)", nameEn: "Heliopolis Kindergarten (test)",
-    governorate: "Cairo", city: "Heliopolis", lat: 30.0911, lng: 31.3220,
+    governorate: "cairo", city: "Heliopolis", lat: 30.0911, lng: 31.3220,
     areas: [
       { id: "area-helio-korba", nameAr: "الكوربة", nameEn: "Korba", lat: 30.0900, lng: 31.3200 },
       { id: "area-helio-nozha", nameAr: "النزهة", nameEn: "Nozha", lat: 30.1100, lng: 31.3400 },
@@ -90,7 +93,7 @@ const schools: SeedSchool[] = [
   },
   {
     id: "school-newcairo-amer", nameAr: "مدرسة القاهرة الجديدة الأمريكية (تجريبية)", nameEn: "New Cairo American School (test)",
-    governorate: "Cairo", city: "New Cairo", lat: 30.0300, lng: 31.4700,
+    governorate: "cairo", city: "New Cairo", lat: 30.0300, lng: 31.4700,
     areas: [
       { id: "area-newcairo-rehab", nameAr: "الرحاب", nameEn: "Rehab", lat: 30.0600, lng: 31.4900 },
       { id: "area-newcairo-5th", nameAr: "التجمع الخامس", nameEn: "Fifth Settlement", lat: 30.0100, lng: 31.4300 },
@@ -101,7 +104,21 @@ const schools: SeedSchool[] = [
 const firstNames = ["Sara", "Omar", "Mona", "Karim", "Laila", "Youssef", "Nour", "Hany"];
 const firstNamesAr = ["سارة", "عمر", "منى", "كريم", "ليلى", "يوسف", "نور", "هاني"];
 const childNames = ["Adam", "Malak", "Ziad", "Farida", "Ali", "Jana", "Hamza", "Salma", "Yassin", "Habiba"];
-const statuses = ["verified", "verified", "verified", "pending", "unverified", "verified", "rejected", "verified"];
+// Parents 4 and 5 have a verification case waiting in the admin panel queue.
+const statuses = ["verified", "verified", "verified", "pending", "pending", "verified", "rejected", "verified"];
+
+/** A gray "FAKE TEST DOCUMENT" picture used for every seeded document image. */
+const FAKE_DOCUMENT_JPEG = Buffer.from(
+  "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",
+  "base64",
+);
+
+/** Dev-only admin accounts for the admin panel (emulators only; no TOTP there). */
+const DEV_ADMIN_PASSWORD = "dev-only-password";
+const devAdmins = [
+  { uid: "seed-super-admin", email: "superadmin@example.com", displayName: "Super Admin (test)", role: "superAdmin" },
+  { uid: "seed-admin", email: "reviewer@example.com", displayName: "Reviewer (test)", role: "admin" },
+] as const;
 
 /** Rounds to about 500 m, like the server will for real homes (Prompt 5). */
 function roundCoord(value: number): number {
@@ -160,6 +177,7 @@ async function main(): Promise<void> {
       firstName: firstNames[i],
       firstNameAr: firstNamesAr[i],
       lastName: "Test",
+      ...nameSearchFields(firstNames[i], "Test"),
       phone,
       email,
       status,
@@ -180,11 +198,15 @@ async function main(): Promise<void> {
     for (let k = 0; k < kids; k++) {
       const childId = `seed-child-${i + 1}-${k + 1}`;
       batch.set(db.collection("children").doc(childId), {
-        parentId: uid,
+        // Same shape as submitVerification writes (Prompt 3).
+        ownerUid: uid,
         firstName: childNames[childCount % childNames.length],
         age: 5 + ((i + k) % 9),
-        grade: `G${1 + ((i + k) % 8)}`,
+        grade: `g${1 + ((i + k) % 8)}`,
+        schoolName: school.nameEn,
         schoolId: school.id,
+        status: status === "verified" ? "approved" : "pending",
+        caseId: status === "pending" ? `seed-case-${i + 1}` : null,
         schoolIdChecked: status === "verified",
         createdAt: now,
       });
@@ -192,7 +214,110 @@ async function main(): Promise<void> {
     }
   }
 
+  // "Other" schools waiting for review (Prompt 4B adds them from the app).
+  const typedSchools = [
+    { id: "school-other-1", nameAr: "مدرسه النيل الدوليه", nameEn: "nile intl school", city: "maadi", by: "seed-parent-2" },
+    { id: "school-other-2", nameAr: "مدرسة الزهور (تجريبية)", nameEn: "Al Zohour School (test)", city: "Nasr City", by: "seed-parent-3" },
+  ];
+  for (const t of typedSchools) {
+    batch.set(db.collection("schools").doc(t.id), {
+      nameAr: t.nameAr,
+      nameEn: t.nameEn,
+      governorate: "cairo",
+      city: t.city,
+      location: null,
+      source: "parent",
+      status: "awaiting_review",
+      addedBy: t.by,
+      mergedInto: null,
+      createdAt: now,
+    });
+  }
+
+  // Reports queue (the list only until chat, Prompt 9).
+  const reportReasons = ["spam", "harassment", "fake_profile"];
+  reportReasons.forEach((reason, i) => {
+    batch.set(db.collection("reports").doc(`seed-report-${i + 1}`), {
+      reporterId: `seed-parent-${i + 1}`,
+      targetType: i === 2 ? "group" : "user",
+      targetId: i === 2 ? "seed-carpool-1" : `seed-parent-${i + 6}`,
+      reason,
+      status: "open",
+      handledBy: null,
+      createdAt: Timestamp.fromMillis(now.toMillis() - i * 3_600_000),
+    });
+  });
+
+  // Verification cases for parents 4 and 5, shaped like submitVerification
+  // writes them, with fake document images in the Storage emulator.
+  for (const i of [3, 4]) {
+    const uid = `seed-parent-${i + 1}`;
+    const caseId = `seed-case-${i + 1}`;
+    const prefix = `verification/${uid}/cases/${caseId}/`;
+    const names = ["id_front.jpg", "id_back.jpg", "selfie.jpg", "selfie_turn.jpg", "school_id_c1.jpg"];
+    for (const name of names) {
+      await bucket.file(prefix + name).save(FAKE_DOCUMENT_JPEG, { contentType: "image/jpeg" });
+    }
+    batch.set(db.collection("verifications").doc(caseId), {
+      uid,
+      scope: "identity",
+      status: "awaiting_review",
+      nationalIdHash: `seed-hash-${i + 1}`,
+      identity: { firstName: firstNames[i], lastName: "Test", idExpiry: "2030-01-31", livenessChallenge: i % 2 ? "left" : "right" },
+      children: [
+        {
+          ref: "c1",
+          childId: `seed-child-${i + 1}-1`,
+          isNew: false,
+          firstName: `${childNames[i]} ${firstNames[i]} Test`,
+          age: 8,
+          grade: "g3",
+          schoolName: schools[i % schools.length].nameEn,
+          file: `${prefix}school_id_c1.jpg`,
+        },
+      ],
+      driver: null,
+      files: names.map((name) => prefix + name),
+      kyc: { provider: "fake", result: i === 3 ? "match" : "no_match", score: i === 3 ? 0.93 : 0.41, reference: null },
+      submittedAt: Timestamp.fromMillis(now.toMillis() - (5 - i) * 3_600_000),
+      decidedAt: null,
+      reviewerUid: null,
+      reasonCode: null,
+      note: null,
+      purgeAt: null,
+      imagesDeletedAt: null,
+    });
+    batch.set(db.collection("nationalIds").doc(`seed-hash-${i + 1}`), { uid, createdAt: now });
+    batch.set(
+      db.collection("users").doc(uid),
+      {
+        emailVerified: true,
+        termsAcceptedAt: now,
+        verification: { caseId, scope: "identity", status: "pending", reasonCode: null, note: null, submittedAt: now, decidedAt: null },
+      },
+      { merge: true },
+    );
+  }
+
+  for (const a of devAdmins) {
+    try {
+      await auth.updateUser(a.uid, { email: a.email, displayName: a.displayName, password: DEV_ADMIN_PASSWORD, emailVerified: true });
+    } catch {
+      await auth.createUser({ uid: a.uid, email: a.email, displayName: a.displayName, password: DEV_ADMIN_PASSWORD, emailVerified: true });
+    }
+    await auth.setCustomUserClaims(a.uid, a.role === "superAdmin" ? { admin: true, superAdmin: true } : { admin: true });
+    batch.set(db.collection("admins").doc(a.uid), {
+      email: a.email,
+      displayName: a.displayName,
+      role: a.role,
+      disabled: false,
+      createdBy: "seed",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
   await batch.commit();
+  console.log(`seed: admin panel sign-in ${devAdmins.map((a) => a.email).join(", ")} / ${DEV_ADMIN_PASSWORD}`);
   console.log(
     `seed: ${schools.length} schools, ${schools.length * 2} areas, ${firstNames.length} parents, ${childCount} children in ${projectId}`,
   );

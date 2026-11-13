@@ -4,10 +4,12 @@
  * approval sets the "verified" status and custom claim exactly like the panel will.
  *
  *   npm --prefix functions run review:emulator -- queue
- *   npm --prefix functions run review:emulator -- approve <caseId>
+ *   npm --prefix functions run review:emulator -- approve <caseId> [match|birth_certificate]
  *   npm --prefix functions run review:emulator -- reject <caseId> <reason> [note]
  *   npm --prefix functions run review:emulator -- kyc <match|no_match|error>
- *   npm --prefix functions run review:emulator -- grant-admin <uid>
+ *   npm --prefix functions run review:emulator -- grant-admin <uid> --allow
+ *     (an email account with no phone number only; logged in the audit log.
+ *     Prefer `admins:* -- create-super-admin` and the panel's Admins page.)
  *
  * Reasons: photo_unclear, id_mismatch, selfie_mismatch, liveness_failed,
  * id_expired, school_id_unclear, child_name_mismatch, license_invalid, other
@@ -19,7 +21,7 @@
  */
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { decideVerification, type VerificationDeps } from "../src/verification/flow";
 import { CloudStorageFiles, CONFIG, FirebaseClaimsService, FirestoreVerificationStore } from "../src/verification/store";
@@ -68,7 +70,8 @@ async function main(): Promise<void> {
       return;
     }
     case "approve":
-      console.log(await decideVerification(deps, REVIEWER, { caseId: arg1, decision: "approve" }));
+      // arg2: how the parent and child name check passed (match | birth_certificate).
+      console.log(await decideVerification(deps, REVIEWER, { caseId: arg1, decision: "approve", nameCheck: arg2 ?? "match" }));
       return;
     case "reject": {
       const note = rest.join(" ").trim();
@@ -84,14 +87,32 @@ async function main(): Promise<void> {
       return;
     case "grant-admin": {
       if (!arg1) refuse("give the uid");
+      if (arg2 !== "--allow") refuse("add --allow to confirm: grant-admin <uid> --allow");
       const auth = getAuth();
       const user = await auth.getUser(arg1);
+      // Admins are separate accounts: never a parent (parents have a phone number).
+      if (user.phoneNumber) refuse("this account has a phone number (a parent account); admins are separate email accounts");
+      if (!user.email) refuse("this account has no email; admins sign in with email and password");
       await auth.setCustomUserClaims(arg1, { ...(user.customClaims ?? {}), admin: true });
-      console.log(`review: ${arg1} is an admin (sign in again to refresh the token)`);
+      // The panel's functions and rules need the admin record too.
+      await db.collection("admins").doc(arg1).set(
+        { email: user.email, displayName: user.displayName ?? user.email, role: "admin", disabled: false, createdBy: REVIEWER, createdAt: FieldValue.serverTimestamp() },
+        { merge: true },
+      );
+      await db.collection("auditLog").doc().create({
+        actorUid: REVIEWER,
+        action: "admin.create",
+        target: `admins/${arg1}`,
+        reasonCode: null,
+        details: { role: "admin", via: "grant-admin" },
+        ip: null,
+        time: FieldValue.serverTimestamp(),
+      });
+      console.log(`review: ${arg1} is an admin (logged; sign in again to refresh the token)`);
       return;
     }
     default:
-      refuse("commands: queue | approve <caseId> | reject <caseId> <reason> [note] | kyc <result> | grant-admin <uid>");
+      refuse("commands: queue | approve <caseId> | reject <caseId> <reason> [note] | kyc <result> | grant-admin <uid> --allow");
   }
 }
 

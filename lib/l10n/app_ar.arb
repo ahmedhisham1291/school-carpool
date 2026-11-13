@@ -1457,5 +1457,1098 @@
   "errorOfflineShort": "لا يوجد اتصال. حاول مرة أخرى.",
   "@errorOfflineShort": {
     "description": "Short one-line snackbar when an action failed because the phone is offline"
+  },
+  "adminPanelTitle": "لوحة الإدارة",
+  "@adminPanelTitle": {
+    "description": "Admin panel: app name in the browser tab and sign-in card"
+  },
+  "adminNavQueue": "المراجعة",
+  "@adminNavQueue": {
+    "description": "Admin panel: rail label, verification queue (one line)"
+  },
+  "adminNavUsers": "المستخدمون",
+  "@adminNavUsers": {
+    "description": "Admin panel: rail label (one line)"
+  },
+  "adminNavSchools": "المدارس",
+  "@adminNavSchools": {
+    "description": "Admin panel: rail label (one line)"
+  },
+  "adminNavOther": "أخرى",
+  "@adminNavOther": {
+    "description": "Admin panel: rail label, schools typed under Other (one line)"
+  },
+  "adminNavReports": "البلاغات",
+  "@adminNavReports": {
+    "description": "Admin panel: rail label (one line)"
+  },
+  "adminNavAudit": "السجل",
+  "@adminNavAudit": {
+    "description": "Admin panel: rail label, audit log (one line)"
+  },
+  "adminNavAdmins": "المشرفون",
+  "@adminNavAdmins": {
+    "description": "Admin panel: rail label, admin accounts (one line)"
+  },
+  "adminSignInBody": "لحسابات المشرفين فقط. ادخل ببريدك وكلمة المرور، ثم الرمز من تطبيق المصادقة.",
+  "@adminSignInBody": {
+    "description": "Admin panel: sign-in intro"
+  },
+  "adminSignInCodeBody": "افتح تطبيق المصادقة واكتب الرمز المكوّن من 6 أرقام الخاص بلوحة الإدارة.",
+  "@adminSignInCodeBody": {
+    "description": "Admin panel: second step intro"
+  },
+  "adminEmailLabel": "البريد الإلكتروني",
+  "@adminEmailLabel": {
+    "description": "Admin panel: field label"
+  },
+  "adminEmailError": "اكتب بريدًا كاملًا مثل name@example.com",
+  "@adminEmailError": {
+    "description": "Admin panel: email field error"
+  },
+  "adminPasswordLabel": "كلمة المرور",
+  "@adminPasswordLabel": {
+    "description": "Admin panel: field label"
+  },
+  "adminCodeLabel": "الرمز (6 أرقام)",
+  "@adminCodeLabel": {
+    "description": "Admin panel: code field label"
+  },
+  "adminCodeHelper": "يتغير الرمز كل 30 ثانية.",
+  "@adminCodeHelper": {
+    "description": "Admin panel: code helper"
+  },
+  "adminSignIn": "متابعة",
+  "@adminSignIn": {
+    "description": "Admin panel: button, first step"
+  },
+  "adminVerifyCode": "دخول",
+  "@adminVerifyCode": {
+    "description": "Admin panel: button, second step"
+  },
+  "adminBack": "رجوع",
+  "@adminBack": {
+    "description": "Admin panel: button"
+  },
+  "adminSignedOutIdle": "تم تسجيل خروجك بعد 15 دقيقة دون نشاط.",
+  "@adminSignedOutIdle": {
+    "description": "Admin panel: note on sign-in"
+  },
+  "adminSignedOutExpired": "انتهت جلستك. ادخل مرة أخرى بالخطوتين.",
+  "@adminSignedOutExpired": {
+    "description": "Admin panel: note on sign-in"
+  },
+  "adminSetupTitle": "إضافة الدخول بخطوتين",
+  "@adminSetupTitle": {
+    "description": "Admin panel: authenticator setup title (one line)"
+  },
+  "adminSetupBody": "في تطبيق مصادقة (Google أو Microsoft Authenticator) أضف حسابًا بكتابة هذا المفتاح، ثم اكتب الرمز الذي يظهر. بعدها ستدخل مرة أخرى بالخطوتين.",
+  "@adminSetupBody": {
+    "description": "Admin panel: authenticator setup body"
+  },
+  "adminSetupKey": "مفتاح الإعداد",
+  "@adminSetupKey": {
+    "description": "Admin panel: label of the secret key"
+  },
+  "adminSetupCodeHelper": "الرمز الظاهر الآن في تطبيق المصادقة.",
+  "@adminSetupCodeHelper": {
+    "description": "Admin panel: helper"
+  },
+  "adminSetupDone": "تفعيل",
+  "@adminSetupDone": {
+    "description": "Admin panel: button"
+  },
+  "adminErrWrongPassword": "البريد أو كلمة المرور غير صحيحة. راجعهما وحاول مرة أخرى.",
+  "@adminErrWrongPassword": {
+    "description": "Admin panel: error"
+  },
+  "adminErrWrongCode": "الرمز غير صحيح. اكتب الرمز الظاهر الآن.",
+  "@adminErrWrongCode": {
+    "description": "Admin panel: error"
+  },
+  "adminErrTooMany": "محاولات كثيرة. انتظر بضع دقائق ثم حاول مرة أخرى.",
+  "@adminErrTooMany": {
+    "description": "Admin panel: error"
+  },
+  "adminErrNotAdmin": "هذا الحساب لا يمكنه فتح لوحة الإدارة.",
+  "@adminErrNotAdmin": {
+    "description": "Admin panel: error, parents and others"
+  },
+  "adminErrMfa": "ادخل مرة أخرى بالخطوتين.",
+  "@adminErrMfa": {
+    "description": "Admin panel: error"
+  },
+  "adminErrSession": "انتهت جلستك. ادخل مرة أخرى.",
+  "@adminErrSession": {
+    "description": "Admin panel: error"
+  },
+  "adminErrNotSuper": "هذا الإجراء للمشرف العام فقط.",
+  "@adminErrNotSuper": {
+    "description": "Admin panel: error"
+  },
+  "adminErrRateLimited": "عمليات بحث كثيرة. انتظر 10 دقائق ثم ابحث مرة أخرى.",
+  "@adminErrRateLimited": {
+    "description": "Admin panel: error"
+  },
+  "adminErrInvalid": "بعض البيانات غير صحيحة. راجع الحقول وحاول مرة أخرى.",
+  "@adminErrInvalid": {
+    "description": "Admin panel: error"
+  },
+  "adminErrNotFound": "غير موجود. ربما تم حذفه.",
+  "@adminErrNotFound": {
+    "description": "Admin panel: error"
+  },
+  "adminErrExists": "يوجد حساب بهذا البريد بالفعل.",
+  "@adminErrExists": {
+    "description": "Admin panel: error"
+  },
+  "adminErrState": "تغيّر هذا في الأثناء. حدّث الصفحة وراجع مرة أخرى.",
+  "@adminErrState": {
+    "description": "Admin panel: error"
+  },
+  "adminErrOwn": "لا يمكنك فعل ذلك لحسابك أو طلبك.",
+  "@adminErrOwn": {
+    "description": "Admin panel: error"
+  },
+  "adminErrTargetAdmin": "حسابات المشرفين تُدار من صفحة المشرفين.",
+  "@adminErrTargetAdmin": {
+    "description": "Admin panel: error"
+  },
+  "adminErrDecided": "تم البت في هذا الطلب بالفعل.",
+  "@adminErrDecided": {
+    "description": "Admin panel: error / note"
+  },
+  "adminErrNameCheck": "اختر نتيجة مطابقة الاسم قبل القبول.",
+  "@adminErrNameCheck": {
+    "description": "Admin panel: error"
+  },
+  "adminErrOffline": "لا يوجد اتصال. تحقق من الإنترنت وحاول مرة أخرى.",
+  "@adminErrOffline": {
+    "description": "Admin panel: error"
+  },
+  "adminRefresh": "تحديث",
+  "@adminRefresh": {
+    "description": "Admin panel: tooltip"
+  },
+  "adminSave": "حفظ",
+  "@adminSave": {
+    "description": "Admin panel: button"
+  },
+  "adminSaved": "تم الحفظ",
+  "@adminSaved": {
+    "description": "Admin panel: toast"
+  },
+  "adminSearch": "بحث",
+  "@adminSearch": {
+    "description": "Admin panel: button"
+  },
+  "adminLoadMore": "عرض المزيد",
+  "@adminLoadMore": {
+    "description": "Admin panel: button"
+  },
+  "adminReasonLabel": "السبب",
+  "@adminReasonLabel": {
+    "description": "Admin panel: field label"
+  },
+  "adminNoteLabel": "ملاحظة (اختيارية)",
+  "@adminNoteLabel": {
+    "description": "Admin panel: field label"
+  },
+  "adminNoteRequired": "اكتب ملاحظة عند اختيار \"سبب آخر\".",
+  "@adminNoteRequired": {
+    "description": "Admin panel: field error"
+  },
+  "adminNoteParentSees": "يرى ولي الأمر هذه الملاحظة.",
+  "@adminNoteParentSees": {
+    "description": "Admin panel: helper"
+  },
+  "adminNoteInternal": "لا يرى هذه الملاحظة إلا المشرفون.",
+  "@adminNoteInternal": {
+    "description": "Admin panel: helper"
+  },
+  "adminNoName": "لا يوجد اسم بعد",
+  "@adminNoName": {
+    "description": "Admin panel: user without a name"
+  },
+  "adminScript": "سكربت الإعداد",
+  "@adminScript": {
+    "description": "Admin panel: audit actor that is a script"
+  },
+  "adminGalleryTitle": "مكوّنات لوحة الإدارة",
+  "@adminGalleryTitle": {
+    "description": "Admin panel: dev gallery title"
+  },
+  "adminQueueTitle": "طلبات التوثيق",
+  "@adminQueueTitle": {
+    "description": "Admin panel: page title (one line)"
+  },
+  "adminQueueEmptyTitle": "لا توجد طلبات",
+  "@adminQueueEmptyTitle": {
+    "description": "Admin panel: empty title"
+  },
+  "adminQueueEmptyBody": "ستظهر طلبات التوثيق الجديدة هنا، الأقدم أولًا.",
+  "@adminQueueEmptyBody": {
+    "description": "Admin panel: empty body"
+  },
+  "adminCaseNew": "حساب جديد",
+  "@adminCaseNew": {
+    "description": "Admin panel: case kind (one line)"
+  },
+  "adminCaseUpdate": "تحديث طفل أو سيارة",
+  "@adminCaseUpdate": {
+    "description": "Admin panel: case kind (one line)"
+  },
+  "adminChildrenCount": "{count, plural, =0{لا أطفال} =1{طفل واحد} =2{طفلان} few{{count} أطفال} many{{count} طفلًا} other{{count} طفل}}",
+  "@adminChildrenCount": {
+    "description": "Admin panel: number of children in a case",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminHasCar": "سيارة",
+  "@adminHasCar": {
+    "description": "Admin panel: case includes a car"
+  },
+  "adminKycMatch": "الفحص: مطابق",
+  "@adminKycMatch": {
+    "description": "Admin panel: badge (one line)"
+  },
+  "adminKycNoMatch": "الفحص: غير مطابق",
+  "@adminKycNoMatch": {
+    "description": "Admin panel: badge (one line)"
+  },
+  "adminKycError": "الفحص: تعذّر",
+  "@adminKycError": {
+    "description": "Admin panel: badge (one line)"
+  },
+  "adminKycNone": "بدون فحص",
+  "@adminKycNone": {
+    "description": "Admin panel: badge (one line)"
+  },
+  "adminKycLabel": "الفحص الآلي (استرشادي)",
+  "@adminKycLabel": {
+    "description": "Admin panel: label"
+  },
+  "adminCaseTitle": "مراجعة الطلب",
+  "@adminCaseTitle": {
+    "description": "Admin panel: page title"
+  },
+  "adminReloadImages": "إعادة تحميل الصور (الروابط صالحة 5 دقائق)",
+  "@adminReloadImages": {
+    "description": "Admin panel: tooltip"
+  },
+  "adminCaseDetails": "التفاصيل",
+  "@adminCaseDetails": {
+    "description": "Admin panel: section header"
+  },
+  "adminCaseKind": "نوع الطلب",
+  "@adminCaseKind": {
+    "description": "Admin panel: fact label"
+  },
+  "adminNameOnId": "الاسم كما في البطاقة",
+  "@adminNameOnId": {
+    "description": "Admin panel: fact label"
+  },
+  "adminIdExpiry": "انتهاء البطاقة",
+  "@adminIdExpiry": {
+    "description": "Admin panel: fact label"
+  },
+  "adminHeadTurn": "اتجاه الالتفات المطلوب",
+  "@adminHeadTurn": {
+    "description": "Admin panel: fact label"
+  },
+  "adminTurnLeft": "يسار",
+  "@adminTurnLeft": {
+    "description": "Admin panel: value"
+  },
+  "adminTurnRight": "يمين",
+  "@adminTurnRight": {
+    "description": "Admin panel: value"
+  },
+  "adminSubmitted": "أُرسل",
+  "@adminSubmitted": {
+    "description": "Admin panel: fact label"
+  },
+  "adminChildName": "الطفل (الاسم في كارنيه المدرسة)",
+  "@adminChildName": {
+    "description": "Admin panel: fact label"
+  },
+  "adminChildDetails": "السن والصف والمدرسة",
+  "@adminChildDetails": {
+    "description": "Admin panel: fact label"
+  },
+  "adminCar": "السيارة",
+  "@adminCar": {
+    "description": "Admin panel: fact label"
+  },
+  "adminSeats": "مقاعد الركاب",
+  "@adminSeats": {
+    "description": "Admin panel: fact label"
+  },
+  "adminLicenseExpiry": "انتهاء رخصة القيادة",
+  "@adminLicenseExpiry": {
+    "description": "Admin panel: fact label"
+  },
+  "adminCarLicenseExpiry": "انتهاء رخصة السيارة",
+  "@adminCarLicenseExpiry": {
+    "description": "Admin panel: fact label"
+  },
+  "adminChecks": "التحقق",
+  "@adminChecks": {
+    "description": "Admin panel: section header"
+  },
+  "adminCheckPhotos": "كل الصور واضحة وكاملة",
+  "@adminCheckPhotos": {
+    "description": "Admin panel: checkbox"
+  },
+  "adminCheckSelfie": "السيلفي يطابق صورة البطاقة",
+  "@adminCheckSelfie": {
+    "description": "Admin panel: checkbox"
+  },
+  "adminCheckHeadTurn": "الالتفات في الاتجاه المطلوب",
+  "@adminCheckHeadTurn": {
+    "description": "Admin panel: checkbox"
+  },
+  "adminCheckIdValid": "البطاقة سارية والاسم مطابق",
+  "@adminCheckIdValid": {
+    "description": "Admin panel: checkbox"
+  },
+  "adminCheckLicense": "الرخص سارية وواضحة",
+  "@adminCheckLicense": {
+    "description": "Admin panel: checkbox"
+  },
+  "adminNameCheck": "مطابقة اسم ولي الأمر والطفل",
+  "@adminNameCheck": {
+    "description": "Admin panel: field label"
+  },
+  "adminNameCheckHelp": "يجب أن يحتوي اسم الطفل الكامل في كارنيه المدرسة على اسم الأب من البطاقة (للأم: اسم الزوج على ظهر بطاقتها). وإن لم يحتوه يعرض ولي الأمر شهادة الميلاد: اطّلع عليها ولا تحتفظ بها.",
+  "@adminNameCheckHelp": {
+    "description": "Admin panel: helper (spec section 3)"
+  },
+  "adminNameCheckMatch": "الاسم يحتوي اسم الأب",
+  "@adminNameCheckMatch": {
+    "description": "Admin panel: option (one line)"
+  },
+  "adminNameCheckBirth": "تم الاطلاع على شهادة الميلاد",
+  "@adminNameCheckBirth": {
+    "description": "Admin panel: option (one line)"
+  },
+  "adminTickAll": "حدّد كل بنود التحقق للقبول.",
+  "@adminTickAll": {
+    "description": "Admin panel: hint"
+  },
+  "adminApprove": "قبول",
+  "@adminApprove": {
+    "description": "Admin panel: button"
+  },
+  "adminApproveTitle": "قبول ولي الأمر؟",
+  "@adminApproveTitle": {
+    "description": "Admin panel: dialog title"
+  },
+  "adminApproveBody": "سيُوثَّق الحساب ويفتح التطبيق بالكامل.",
+  "@adminApproveBody": {
+    "description": "Admin panel: dialog body"
+  },
+  "adminApproved": "تم القبول",
+  "@adminApproved": {
+    "description": "Admin panel: toast"
+  },
+  "adminReject": "رفض",
+  "@adminReject": {
+    "description": "Admin panel: button"
+  },
+  "adminRejectTitle": "الرفض مع ذكر السبب",
+  "@adminRejectTitle": {
+    "description": "Admin panel: sheet title"
+  },
+  "adminRejected": "تم الرفض",
+  "@adminRejected": {
+    "description": "Admin panel: toast"
+  },
+  "adminBanCheck": "حظر رقم البطاقة أيضًا",
+  "@adminBanCheck": {
+    "description": "Admin panel: checkbox"
+  },
+  "adminBanHelp": "يُوقف الحساب ولا يمكن التسجيل بهذه البطاقة أبدًا.",
+  "@adminBanHelp": {
+    "description": "Admin panel: helper"
+  },
+  "adminBanTitle": "حظر هذا الشخص؟",
+  "@adminBanTitle": {
+    "description": "Admin panel: dialog title"
+  },
+  "adminBanBody": "سيُوقف الحساب ويُسجَّل خروجه، ويُضاف رقم البطاقة لقائمة الحظر. لا يمكن التراجع من هنا.",
+  "@adminBanBody": {
+    "description": "Admin panel: dialog body"
+  },
+  "adminImagesDeleted": "حُذفت الصور بعد القرار (قاعدة الاحتفاظ).",
+  "@adminImagesDeleted": {
+    "description": "Admin panel: note"
+  },
+  "adminImageGone": "لا توجد صورة",
+  "@adminImageGone": {
+    "description": "Admin panel: image missing"
+  },
+  "adminImageError": "لم تُحمَّل الصورة. أعد تحميل الصور.",
+  "@adminImageError": {
+    "description": "Admin panel: image error"
+  },
+  "adminDocIdFront": "وجه البطاقة",
+  "@adminDocIdFront": {
+    "description": "Admin panel: document label"
+  },
+  "adminDocIdBack": "ظهر البطاقة",
+  "@adminDocIdBack": {
+    "description": "Admin panel: document label"
+  },
+  "adminDocSelfie": "السيلفي",
+  "@adminDocSelfie": {
+    "description": "Admin panel: document label"
+  },
+  "adminDocHeadTurn": "الالتفات",
+  "@adminDocHeadTurn": {
+    "description": "Admin panel: document label"
+  },
+  "adminDocSchoolId": "كارنيه المدرسة: {name}",
+  "@adminDocSchoolId": {
+    "description": "Admin panel: document label",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminDocLicense": "رخصة القيادة",
+  "@adminDocLicense": {
+    "description": "Admin panel: document label"
+  },
+  "adminDocCarLicense": "رخصة السيارة",
+  "@adminDocCarLicense": {
+    "description": "Admin panel: document label"
+  },
+  "adminRejPhotoUnclear": "صورة غير واضحة",
+  "@adminRejPhotoUnclear": {
+    "description": "Admin panel: rejection reason option (one line)"
+  },
+  "adminRejIdMismatch": "البيانات لا تطابق البطاقة",
+  "@adminRejIdMismatch": {
+    "description": "Admin panel: rejection reason option (one line)"
+  },
+  "adminRejSelfieMismatch": "السيلفي غير مطابق",
+  "@adminRejSelfieMismatch": {
+    "description": "Admin panel: rejection reason option (one line)"
+  },
+  "adminRejLiveness": "الالتفات غير صحيح",
+  "@adminRejLiveness": {
+    "description": "Admin panel: rejection reason option (one line)"
+  },
+  "adminRejIdExpired": "البطاقة منتهية",
+  "@adminRejIdExpired": {
+    "description": "Admin panel: rejection reason option (one line)"
+  },
+  "adminRejSchoolId": "كارنيه المدرسة غير واضح",
+  "@adminRejSchoolId": {
+    "description": "Admin panel: rejection reason option (one line)"
+  },
+  "adminRejChildName": "اسم الطفل غير مطابق",
+  "@adminRejChildName": {
+    "description": "Admin panel: rejection reason option (one line)"
+  },
+  "adminRejLicense": "الرخصة غير مقبولة",
+  "@adminRejLicense": {
+    "description": "Admin panel: rejection reason option (one line)"
+  },
+  "adminRejOther": "سبب آخر (اكتب ملاحظة)",
+  "@adminRejOther": {
+    "description": "Admin panel: rejection reason option (one line)"
+  },
+  "adminUsersTitle": "المستخدمون",
+  "@adminUsersTitle": {
+    "description": "Admin panel: page title"
+  },
+  "adminUsersSearchLabel": "الاسم أو الهاتف أو كود ولي الأمر",
+  "@adminUsersSearchLabel": {
+    "description": "Admin panel: field label (one line)"
+  },
+  "adminUsersSearchHelp": "30 عملية بحث كل 10 دقائق. كل بحث مسجّل.",
+  "@adminUsersSearchHelp": {
+    "description": "Admin panel: helper"
+  },
+  "adminUsersStartTitle": "ابحث عن ولي أمر",
+  "@adminUsersStartTitle": {
+    "description": "Admin panel: before search title"
+  },
+  "adminUsersStartBody": "ابحث بالاسم أو رقم الهاتف أو كود ولي الأمر. لا يُعرض شيء قبل البحث.",
+  "@adminUsersStartBody": {
+    "description": "Admin panel: before search body"
+  },
+  "adminUsersNoneTitle": "لا نتائج",
+  "@adminUsersNoneTitle": {
+    "description": "Admin panel: empty title"
+  },
+  "adminUsersNoneBody": "راجع الكتابة أو جرّب رقم الهاتف أو كود ولي الأمر.",
+  "@adminUsersNoneBody": {
+    "description": "Admin panel: empty body"
+  },
+  "adminStatusBanned": "محظور",
+  "@adminStatusBanned": {
+    "description": "Admin panel: status badge"
+  },
+  "adminUserTitle": "ولي الأمر",
+  "@adminUserTitle": {
+    "description": "Admin panel: page title"
+  },
+  "adminParentId": "كود ولي الأمر",
+  "@adminParentId": {
+    "description": "Admin panel: fact label"
+  },
+  "adminPhone": "الهاتف (مخفي)",
+  "@adminPhone": {
+    "description": "Admin panel: fact label"
+  },
+  "adminJoined": "تاريخ التسجيل",
+  "@adminJoined": {
+    "description": "Admin panel: fact label"
+  },
+  "adminVerificationHistory": "سجل التوثيق",
+  "@adminVerificationHistory": {
+    "description": "Admin panel: section header"
+  },
+  "adminModerationHistory": "الإجراءات على الحساب",
+  "@adminModerationHistory": {
+    "description": "Admin panel: section header"
+  },
+  "adminNoHistory": "لا شيء بعد.",
+  "@adminNoHistory": {
+    "description": "Admin panel: empty history"
+  },
+  "adminActionSuspend": "إيقاف",
+  "@adminActionSuspend": {
+    "description": "Admin panel: button / action"
+  },
+  "adminActionUnsuspend": "رفع الإيقاف",
+  "@adminActionUnsuspend": {
+    "description": "Admin panel: button / action"
+  },
+  "adminActionBan": "حظر",
+  "@adminActionBan": {
+    "description": "Admin panel: button / action"
+  },
+  "adminSuspendTitle": "إيقاف هذا الحساب؟",
+  "@adminSuspendTitle": {
+    "description": "Admin panel: dialog title"
+  },
+  "adminSuspendBody": "سيُسجَّل خروج ولي الأمر ولن يستطيع استخدام التطبيق حتى رفع الإيقاف.",
+  "@adminSuspendBody": {
+    "description": "Admin panel: dialog body"
+  },
+  "adminUnsuspendTitle": "رفع الإيقاف؟",
+  "@adminUnsuspendTitle": {
+    "description": "Admin panel: dialog title"
+  },
+  "adminUnsuspendBody": "يعود الحساب إلى حالته السابقة.",
+  "@adminUnsuspendBody": {
+    "description": "Admin panel: dialog body"
+  },
+  "adminBanUserBody": "يُوقف الحساب نهائيًا ويُضاف رقم البطاقة لقائمة الحظر. لا يمكن التراجع من هنا.",
+  "@adminBanUserBody": {
+    "description": "Admin panel: dialog body"
+  },
+  "adminModReports": "بلاغات من أولياء الأمور",
+  "@adminModReports": {
+    "description": "Admin panel: moderation reason (one line)"
+  },
+  "adminModFakeDocs": "مستندات مزيفة",
+  "@adminModFakeDocs": {
+    "description": "Admin panel: moderation reason (one line)"
+  },
+  "adminModUnsafeDriving": "قيادة غير آمنة",
+  "@adminModUnsafeDriving": {
+    "description": "Admin panel: moderation reason (one line)"
+  },
+  "adminModHarassment": "إساءة أو تحرش",
+  "@adminModHarassment": {
+    "description": "Admin panel: moderation reason (one line)"
+  },
+  "adminModDuplicate": "حساب مكرر",
+  "@adminModDuplicate": {
+    "description": "Admin panel: moderation reason (one line)"
+  },
+  "adminModOther": "سبب آخر (اكتب ملاحظة)",
+  "@adminModOther": {
+    "description": "Admin panel: moderation reason (one line)"
+  },
+  "adminSchoolsTitle": "المدارس",
+  "@adminSchoolsTitle": {
+    "description": "Admin panel: page title"
+  },
+  "adminAddSchool": "إضافة مدرسة",
+  "@adminAddSchool": {
+    "description": "Admin panel: button (one line)"
+  },
+  "adminSchoolsEmptyTitle": "لا توجد مدارس بعد",
+  "@adminSchoolsEmptyTitle": {
+    "description": "Admin panel: empty title"
+  },
+  "adminSchoolsEmptyBody": "أضف مدرسة أو غيّر فلتر المحافظة.",
+  "@adminSchoolsEmptyBody": {
+    "description": "Admin panel: empty body"
+  },
+  "adminGovernorate": "المحافظة",
+  "@adminGovernorate": {
+    "description": "Admin panel: field label"
+  },
+  "adminAllGovernorates": "كل المحافظات",
+  "@adminAllGovernorates": {
+    "description": "Admin panel: filter option"
+  },
+  "adminNewSchoolTitle": "مدرسة جديدة",
+  "@adminNewSchoolTitle": {
+    "description": "Admin panel: page title"
+  },
+  "adminEditSchoolTitle": "تعديل المدرسة",
+  "@adminEditSchoolTitle": {
+    "description": "Admin panel: page title"
+  },
+  "adminReviewSchoolTitle": "مراجعة مدرسة جديدة",
+  "@adminReviewSchoolTitle": {
+    "description": "Admin panel: page title"
+  },
+  "adminReviewSchoolNote": "كتب ولي أمر هذه المدرسة. صحّح الأسماء وراجع الموقع ثم اقبلها، أو ادمجها إن كانت موجودة.",
+  "@adminReviewSchoolNote": {
+    "description": "Admin panel: note"
+  },
+  "adminNameAr": "الاسم بالعربية",
+  "@adminNameAr": {
+    "description": "Admin panel: field label"
+  },
+  "adminNameEn": "الاسم بالإنجليزية",
+  "@adminNameEn": {
+    "description": "Admin panel: field label"
+  },
+  "adminNameError": "استخدم من 2 إلى 120 حرفًا.",
+  "@adminNameError": {
+    "description": "Admin panel: field error"
+  },
+  "adminCity": "المدينة أو الحي",
+  "@adminCity": {
+    "description": "Admin panel: field label"
+  },
+  "adminPinLabel": "الموقع (خط العرض، خط الطول)",
+  "@adminPinLabel": {
+    "description": "Admin panel: field label (one line)"
+  },
+  "adminPinHelp": "في خرائط Google اضغط بالزر الأيمن على البوابة وانسخ الأرقام.",
+  "@adminPinHelp": {
+    "description": "Admin panel: helper"
+  },
+  "adminPinHint": "29.96020, 31.25690",
+  "@adminPinHint": {
+    "description": "Admin panel: example coordinates"
+  },
+  "adminPinFormatError": "اكتب رقمين مثل 29.9602, 31.2569",
+  "@adminPinFormatError": {
+    "description": "Admin panel: field error"
+  },
+  "adminPinEgyptError": "هذه النقطة خارج مصر. راجع الترتيب: خط العرض أولًا.",
+  "@adminPinEgyptError": {
+    "description": "Admin panel: field error"
+  },
+  "adminMapPlaceholder": "معاينة الخريطة بعد تفعيل الخرائط للويب",
+  "@adminMapPlaceholder": {
+    "description": "Admin panel: placeholder title (one line)"
+  },
+  "adminNoPin": "لا يوجد موقع بعد",
+  "@adminNoPin": {
+    "description": "Admin panel: placeholder value"
+  },
+  "adminApproveSchool": "قبول كمدرسة جديدة",
+  "@adminApproveSchool": {
+    "description": "Admin panel: button (one line)"
+  },
+  "adminSchoolApproved": "تم قبول المدرسة",
+  "@adminSchoolApproved": {
+    "description": "Admin panel: toast"
+  },
+  "adminMergeInto": "دمج مع مدرسة موجودة",
+  "@adminMergeInto": {
+    "description": "Admin panel: button (one line)"
+  },
+  "adminMergeTitle": "الدمج مع",
+  "@adminMergeTitle": {
+    "description": "Admin panel: sheet title"
+  },
+  "adminMerge": "دمج",
+  "@adminMerge": {
+    "description": "Admin panel: button"
+  },
+  "adminMergeConfirmTitle": "دمج المدرستين؟",
+  "@adminMergeConfirmTitle": {
+    "description": "Admin panel: dialog title"
+  },
+  "adminMergeConfirmBody": "ينتقل الأطفال المسجلون بالمدرسة المكتوبة إلى {name}، وتُغلق المدرسة المكتوبة.",
+  "@adminMergeConfirmBody": {
+    "description": "Admin panel: dialog body",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSchoolMerged": "تم الدمج",
+  "@adminSchoolMerged": {
+    "description": "Admin panel: toast"
+  },
+  "adminFilterSchools": "تصفية بالاسم",
+  "@adminFilterSchools": {
+    "description": "Admin panel: field label"
+  },
+  "adminNoSchoolsFound": "لا توجد مدرسة مطابقة. جرّب اسمًا آخر.",
+  "@adminNoSchoolsFound": {
+    "description": "Admin panel: empty"
+  },
+  "adminAreas": "المناطق",
+  "@adminAreas": {
+    "description": "Admin panel: section header"
+  },
+  "adminAddArea": "إضافة منطقة",
+  "@adminAddArea": {
+    "description": "Admin panel: button (one line)"
+  },
+  "adminEditArea": "تعديل المنطقة",
+  "@adminEditArea": {
+    "description": "Admin panel: sheet title"
+  },
+  "adminAreaCenter": "مركز المنطقة (خط العرض، خط الطول)",
+  "@adminAreaCenter": {
+    "description": "Admin panel: field label"
+  },
+  "adminNoAreas": "لا توجد مناطق بعد.",
+  "@adminNoAreas": {
+    "description": "Admin panel: empty"
+  },
+  "adminOtherTitle": "مدارس جديدة للمراجعة",
+  "@adminOtherTitle": {
+    "description": "Admin panel: page title (one line)"
+  },
+  "adminOtherEmptyTitle": "لا يوجد ما يُراجع",
+  "@adminOtherEmptyTitle": {
+    "description": "Admin panel: empty title"
+  },
+  "adminOtherEmptyBody": "ستظهر هنا المدارس التي يكتبها أولياء الأمور تحت \"أخرى\".",
+  "@adminOtherEmptyBody": {
+    "description": "Admin panel: empty body"
+  },
+  "adminReportsTitle": "البلاغات",
+  "@adminReportsTitle": {
+    "description": "Admin panel: page title"
+  },
+  "adminReportsEmptyTitle": "لا توجد بلاغات مفتوحة",
+  "@adminReportsEmptyTitle": {
+    "description": "Admin panel: empty title"
+  },
+  "adminReportsEmptyBody": "ستظهر بلاغات أولياء الأمور هنا. الهدف الرد خلال 24 ساعة.",
+  "@adminReportsEmptyBody": {
+    "description": "Admin panel: empty body"
+  },
+  "adminOverdue": "أكثر من 24 ساعة",
+  "@adminOverdue": {
+    "description": "Admin panel: badge (one line)"
+  },
+  "adminReportUser": "ولي أمر",
+  "@adminReportUser": {
+    "description": "Admin panel: report target"
+  },
+  "adminReportMessage": "رسالة",
+  "@adminReportMessage": {
+    "description": "Admin panel: report target"
+  },
+  "adminReportGroup": "مجموعة",
+  "@adminReportGroup": {
+    "description": "Admin panel: report target"
+  },
+  "adminReportSpam": "رسائل مزعجة",
+  "@adminReportSpam": {
+    "description": "Admin panel: report reason"
+  },
+  "adminReportFake": "حساب مزيف",
+  "@adminReportFake": {
+    "description": "Admin panel: report reason"
+  },
+  "adminAuditTitle": "سجل الإجراءات",
+  "@adminAuditTitle": {
+    "description": "Admin panel: page title"
+  },
+  "adminAuditEmptyTitle": "لا توجد سجلات بعد",
+  "@adminAuditEmptyTitle": {
+    "description": "Admin panel: empty title"
+  },
+  "adminAuditEmptyBody": "يظهر هنا كل إجراء للمشرفين وكل اطلاع على مستند.",
+  "@adminAuditEmptyBody": {
+    "description": "Admin panel: empty body"
+  },
+  "adminAuditSignIn": "دخول مشرف",
+  "@adminAuditSignIn": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditAdminCreate": "إضافة مشرف",
+  "@adminAuditAdminCreate": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditAdminDisable": "تعطيل مشرف",
+  "@adminAuditAdminDisable": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditAdminEnable": "تفعيل مشرف",
+  "@adminAuditAdminEnable": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditCaseView": "فتح طلب",
+  "@adminAuditCaseView": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditApprove": "قبول طلب",
+  "@adminAuditApprove": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditReject": "رفض طلب",
+  "@adminAuditReject": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditCaseBan": "رفض وحظر",
+  "@adminAuditCaseBan": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditUserSearch": "بحث عن مستخدم",
+  "@adminAuditUserSearch": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditUserView": "فتح مستخدم",
+  "@adminAuditUserView": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditSchoolCreate": "إضافة مدرسة",
+  "@adminAuditSchoolCreate": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditSchoolUpdate": "تعديل مدرسة",
+  "@adminAuditSchoolUpdate": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditSchoolApprove": "قبول مدرسة",
+  "@adminAuditSchoolApprove": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditSchoolMerge": "دمج مدرسة",
+  "@adminAuditSchoolMerge": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditAreaCreate": "إضافة منطقة",
+  "@adminAuditAreaCreate": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAuditAreaUpdate": "تعديل منطقة",
+  "@adminAuditAreaUpdate": {
+    "description": "Admin panel: audit action (one line)"
+  },
+  "adminAdminsTitle": "المشرفون",
+  "@adminAdminsTitle": {
+    "description": "Admin panel: page title"
+  },
+  "adminAddAdmin": "إضافة مشرف",
+  "@adminAddAdmin": {
+    "description": "Admin panel: button (one line)"
+  },
+  "adminNameLabel": "الاسم",
+  "@adminNameLabel": {
+    "description": "Admin panel: field label"
+  },
+  "adminNameHelp": "يظهر على كل مستند يفتحه هذا المشرف.",
+  "@adminNameHelp": {
+    "description": "Admin panel: helper"
+  },
+  "adminRoleLabel": "الدور",
+  "@adminRoleLabel": {
+    "description": "Admin panel: field label"
+  },
+  "adminRoleAdmin": "مشرف",
+  "@adminRoleAdmin": {
+    "description": "Admin panel: role"
+  },
+  "adminRoleSuper": "مشرف عام",
+  "@adminRoleSuper": {
+    "description": "Admin panel: role"
+  },
+  "adminCreate": "إنشاء الحساب",
+  "@adminCreate": {
+    "description": "Admin panel: button"
+  },
+  "adminLinkTitle": "أرسل هذا الرابط بنفسك",
+  "@adminLinkTitle": {
+    "description": "Admin panel: sheet title"
+  },
+  "adminLinkBody": "أعطِ هذا الرابط لمرة واحدة للمشرف الجديد مباشرة. صالح لمدة ساعة. يضع فيه كلمة مروره، ثم يضيف تطبيق المصادقة عند أول دخول. لن يظهر الرابط مرة أخرى.",
+  "@adminLinkBody": {
+    "description": "Admin panel: sheet body"
+  },
+  "adminLinkLabel": "رابط الإعداد",
+  "@adminLinkLabel": {
+    "description": "Admin panel: label"
+  },
+  "adminActive": "نشط",
+  "@adminActive": {
+    "description": "Admin panel: badge"
+  },
+  "adminDisabled": "معطّل",
+  "@adminDisabled": {
+    "description": "Admin panel: badge"
+  },
+  "adminDisable": "تعطيل",
+  "@adminDisable": {
+    "description": "Admin panel: button"
+  },
+  "adminEnable": "تفعيل",
+  "@adminEnable": {
+    "description": "Admin panel: button"
+  },
+  "adminDisableTitle": "تعطيل {name}؟",
+  "@adminDisableTitle": {
+    "description": "Admin panel: dialog title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminEnableTitle": "تفعيل {name}؟",
+  "@adminEnableTitle": {
+    "description": "Admin panel: dialog title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminDisableBody": "سيُسجَّل خروجه من كل مكان ولن يستطيع الدخول حتى يُفعَّل مرة أخرى.",
+  "@adminDisableBody": {
+    "description": "Admin panel: dialog body"
+  },
+  "adminEnableBody": "يمكنه الدخول مرة أخرى بالخطوتين.",
+  "@adminEnableBody": {
+    "description": "Admin panel: dialog body"
+  },
+  "adminGovAlexandria": "الإسكندرية",
+  "@adminGovAlexandria": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovAswan": "أسوان",
+  "@adminGovAswan": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovAsyut": "أسيوط",
+  "@adminGovAsyut": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovBeheira": "البحيرة",
+  "@adminGovBeheira": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovBeniSuef": "بني سويف",
+  "@adminGovBeniSuef": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovCairo": "القاهرة",
+  "@adminGovCairo": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovDakahlia": "الدقهلية",
+  "@adminGovDakahlia": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovDamietta": "دمياط",
+  "@adminGovDamietta": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovFaiyum": "الفيوم",
+  "@adminGovFaiyum": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovGharbia": "الغربية",
+  "@adminGovGharbia": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovGiza": "الجيزة",
+  "@adminGovGiza": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovIsmailia": "الإسماعيلية",
+  "@adminGovIsmailia": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovKafrElSheikh": "كفر الشيخ",
+  "@adminGovKafrElSheikh": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovLuxor": "الأقصر",
+  "@adminGovLuxor": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovMatruh": "مطروح",
+  "@adminGovMatruh": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovMinya": "المنيا",
+  "@adminGovMinya": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovMonufia": "المنوفية",
+  "@adminGovMonufia": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovNewValley": "الوادي الجديد",
+  "@adminGovNewValley": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovNorthSinai": "شمال سيناء",
+  "@adminGovNorthSinai": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovPortSaid": "بورسعيد",
+  "@adminGovPortSaid": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovQalyubia": "القليوبية",
+  "@adminGovQalyubia": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovQena": "قنا",
+  "@adminGovQena": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovRedSea": "البحر الأحمر",
+  "@adminGovRedSea": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovSharqia": "الشرقية",
+  "@adminGovSharqia": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovSohag": "سوهاج",
+  "@adminGovSohag": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovSouthSinai": "جنوب سيناء",
+  "@adminGovSouthSinai": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminGovSuez": "السويس",
+  "@adminGovSuez": {
+    "description": "Admin panel: governorate name"
+  },
+  "adminWithdrawn": "سحبه ولي الأمر",
+  "@adminWithdrawn": {
+    "description": "Admin panel: case the parent withdrew before review (badge, audit action; one line)"
   }
 }

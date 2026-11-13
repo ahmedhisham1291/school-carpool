@@ -69,6 +69,25 @@ Limits below are the public free allowances as understood in November 2026.
   functions' service account needs "Service Account Token Creator" on
   itself (already required for custom tokens, SETUP.md section 11).
 
+## Admin panel (Prompt 4)
+
+- **Two-step sign-in (TOTP):** part of Identity Platform; only SMS
+  messages are charged per message, and we send none. Admin accounts count
+  as monthly active users in the free 50,000.
+- **Hosting:** one more Hosting site per project (the panel's web build,
+  a few MB); inside the free 10 GB stored and 360 MB a day transfer.
+- **Functions:** 14 small callables, `minInstances` 0; a handful of calls
+  per review. Signed image links are created per case opening.
+- **Firestore:** user search reads at most about 25 documents per search
+  and is capped at 30 searches per admin per 10 minutes
+  (`ADMIN_SEARCH_LIMIT`). The audit log grows by one small document per
+  admin action or view; set a retention period with the lawyer (open
+  question).
+- **App Check on the web:** reCAPTCHA Enterprise has a free monthly
+  allowance (check the current number on Google's pricing page); admins
+  make few calls.
+- **Upgrade when:** never needed for the panel alone at pilot size.
+
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub

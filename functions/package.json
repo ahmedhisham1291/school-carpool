@@ -13,6 +13,8 @@
     "seed:emulator": "npm run build && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 GCLOUD_PROJECT=demo-school-carpool node lib/scripts/seed.js",
     "review:emulator": "npm run build && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 GCLOUD_PROJECT=demo-school-carpool node lib/scripts/review.js",
     "review:cloud": "npm run build && node lib/scripts/review.js",
+    "admins:emulator": "npm run build && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 GCLOUD_PROJECT=demo-school-carpool node lib/scripts/admins.js",
+    "admins:cloud": "npm run build && node lib/scripts/admins.js",
     "serve": "npm run build && firebase emulators:start --project demo-school-carpool",
     "deploy:dev": "firebase deploy --only functions --project dev",
     "deploy:staging": "firebase deploy --only functions --project staging",

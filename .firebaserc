@@ -4,5 +4,14 @@
     "dev": "REPLACE-school-carpool-dev",
     "staging": "REPLACE-school-carpool-staging",
     "prod": "REPLACE-school-carpool-prod"
+  },
+  "targets": {
+    "demo-school-carpool": {
+      "hosting": {
+        "admin": [
+          "demo-school-carpool-admin"
+        ]
+      }
+    }
   }
 }

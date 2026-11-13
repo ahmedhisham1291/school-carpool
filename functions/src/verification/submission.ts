@@ -29,6 +29,7 @@ export type VerificationErrorReason =
   | "already-decided"
   | "invalid-decision"
   | "own-case"
+  | "name-check-missing"
   | "not-admin";
 
 export class VerificationError extends Error {
@@ -275,8 +276,19 @@ export const REJECTION_REASONS = [
 ] as const;
 export type RejectionReason = (typeof REJECTION_REASONS)[number];
 
+/**
+ * Parent and child name check (spec section 3): the child's full name on
+ * the school ID contains the father's name from the national ID (for a
+ * mother, the husband's name on the back of her ID), or the parent showed
+ * a birth certificate, which is viewed and not stored.
+ */
+export const NAME_CHECKS = ["match", "birth_certificate"] as const;
+export type NameCheck = (typeof NAME_CHECKS)[number];
+
 export interface Decision {
   caseId: string;
+  /** Approve only; required by decideVerification when the case has children. */
+  nameCheck: NameCheck | null;
   approve: boolean;
   reasonCode: RejectionReason | null;
   note: string | null;
@@ -296,10 +308,20 @@ export function parseDecision(data: unknown): Decision {
   const ban = raw.ban === true;
   if (decision === "approve") {
     if (raw.reasonCode != null || ban) throw new VerificationError("invalid-decision");
-    return { caseId: raw.caseId, approve: true, reasonCode: null, note: note === null ? null : note.trim(), ban: false };
+    const nameCheck = raw.nameCheck == null ? null : raw.nameCheck;
+    if (nameCheck !== null && !NAME_CHECKS.includes(nameCheck as NameCheck)) throw new VerificationError("invalid-decision");
+    return {
+      caseId: raw.caseId,
+      nameCheck: nameCheck as NameCheck | null,
+      approve: true,
+      reasonCode: null,
+      note: note === null ? null : note.trim(),
+      ban: false,
+    };
   }
+  if (raw.nameCheck != null) throw new VerificationError("invalid-decision");
   const reasonCode = REJECTION_REASONS.includes(raw.reasonCode as RejectionReason) ? (raw.reasonCode as RejectionReason) : null;
   if (!reasonCode) throw new VerificationError("invalid-decision");
   if (reasonCode === "other" && note === null) throw new VerificationError("invalid-decision");
-  return { caseId: raw.caseId, approve: false, reasonCode, note: note === null ? null : note.trim(), ban };
+  return { caseId: raw.caseId, nameCheck: null, approve: false, reasonCode, note: note === null ? null : note.trim(), ban };
 }

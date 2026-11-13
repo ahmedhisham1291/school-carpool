@@ -60,7 +60,7 @@ jobs:
         run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
 
   builds:
-    name: Web and Android compile (staging)
+    name: Web, admin panel and Android compile (staging)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -78,6 +78,10 @@ jobs:
         run: FLAVOR=staging tool/bootstrap.sh
       - name: Build web
         run: flutter build web --release -t lib/main_staging.dart
+      - name: Build admin panel (web, Prompt 4)
+        run: |
+          flutter build web --release -t lib/admin/main_admin_staging.dart
+          rm -rf build/admin_web && mv build/web build/admin_web
       - name: Build Android APK (debug-signed until Stage 3)
         run: flutter build apk --release -t lib/main_staging.dart
 

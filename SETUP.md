@@ -401,3 +401,119 @@ emulators need none of this.
    and storage.rules let a parent only upload into their own
    `verification/{uid}/pending/` folder. Nobody reads images through the
    SDK; admins get 5-minute signed links from `openVerificationCase`.
+
+## 13. Admin web panel (Prompt 4)
+
+The panel is a Flutter web app in this repository
+(`lib/admin/main_admin_<flavor>.dart`) on its own Firebase Hosting site.
+Admins are separate email accounts (no phone number) with the `admin`
+custom claim (`superAdmin` too for super admins), a password and a TOTP
+authenticator app. Parents cannot sign in there: their accounts have no
+password and the blocking function refuses a password for any account
+without the claim.
+
+### 13.1 Turn on two-step sign-in (each cloud project, once)
+
+1. Authentication must be on the Identity Platform tier (step 3). TOTP has
+   no per-message charge (only SMS does, and we use none).
+2. In Authentication > Sign-in method, Email/Password stays **on** (it is
+   already on for the email confirmation link). Email link sign-in stays off.
+3. `gcloud auth application-default login`, then
+   `ADMIN_PROJECT=<project id> npm --prefix functions run admins:cloud -- enable-totp`.
+4. **Check it:** `ADMIN_PROJECT=<project id> npm --prefix functions run admins:cloud -- check-totp`
+   must print "OK, TOTP is on". In the printed settings,
+   `multiFactorConfig.state` is `DISABLED`: that switch is for **SMS**
+   second factors (kept off; the Admin SDK requires the field, so it
+   cannot be left out), and the `providerConfigs` entry with
+   `totpProviderConfig` has state `ENABLED`. Also look in the Firebase
+   console: Authentication > Settings > Multi-factor authentication should
+   show TOTP on and SMS off.
+
+### 13.2 The first super admin (each cloud project, once)
+
+`ADMIN_PROJECT=<project id> npm --prefix functions run admins:cloud -- create-super-admin you@example.com "Your Name"`
+
+It prints a one-time link (valid 1 hour) where that person sets their
+password. For a project with "prod" in its id add `CONFIRM_PROD=yes`.
+Every later admin is created in the panel (Admins page, super admins only):
+the panel shows the new admin's one-time link once; pass it on directly.
+At first sign-in the panel asks the admin to add the authenticator app
+(Google or Microsoft Authenticator: type the setup key), then to sign in
+again with both steps.
+
+The old `review ... grant-admin <uid> --allow` command (Prompt 3) now
+refuses parent accounts (any account with a phone number), needs the
+`--allow` flag, writes the admin record and logs itself in the audit log.
+Prefer the commands above.
+
+### 13.3 Hosting site for the panel (each cloud project, once)
+
+1. Firebase console > Hosting > Add another site, for example
+   `<project id>-admin`.
+2. `firebase target:apply hosting admin <site id> --project dev` (writes
+   the mapping into `.firebaserc`; the emulator project is mapped already).
+3. Build and deploy:
+   ```
+   FLAVOR=dev tool/bootstrap.sh
+   flutter build web --release -t lib/admin/main_admin_dev.dart \
+     --dart-define=USE_EMULATORS=false --dart-define=RECAPTCHA_SITE_KEY=<key>
+   rm -rf build/admin_web && mv build/web build/admin_web
+   firebase deploy --only hosting:admin --project dev
+   ```
+   `firebase.json` sends security headers for the site (no framing,
+   no-referrer, no indexing by search engines).
+4. **App Check on the web:** create a reCAPTCHA Enterprise key for the
+   admin site's domain and register it in Firebase App Check (Web app).
+   Pass it as `RECAPTCHA_SITE_KEY`. Without it the admin functions refuse
+   calls in staging and prod (`ENFORCE_APP_CHECK=true`).
+5. **Authorized domains:** Authentication > Settings > Authorized domains:
+   add the admin site's domains (`<site id>.web.app`, `<site id>.firebaseapp.com`).
+6. **Images in the panel (Storage CORS):** the panel draws document images
+   on the canvas (never as a downloadable `<img>`), which needs CORS on the
+   bucket for the admin site only. Put the site's domains in
+   `tool/storage_cors.json`, then
+   `gsutil cors set tool/storage_cors.json gs://<bucket>`.
+7. **Deploy the rules, indexes and functions:**
+   `firebase deploy --only firestore:rules,firestore:indexes,functions --project dev`.
+
+### 13.4 On the emulators (dev)
+
+1. `firebase emulators:start --project demo-school-carpool`
+2. `npm --prefix functions run seed:emulator`: adds two dev admins
+   (`superadmin@example.com` and `reviewer@example.com`, password
+   `dev-only-password`), two cases waiting for review with fake document
+   images, two "Other" schools and three reports.
+3. `flutter run -d chrome -t lib/admin/main_admin_dev.dart`
+4. The Auth emulator has no TOTP, so on the emulators only the second step
+   is skipped (in the panel and in the functions). Cloud projects always
+   require it; there is no setting that turns it off.
+
+### 13.5 Sessions and access
+
+- The sign-in lasts only as long as the browser tab (session persistence).
+- 15 minutes without a click, key press or scroll: the panel signs out.
+  The functions enforce the same limit on their side: every admin call
+  checks `admins/{uid}.lastActiveAt` (written at most once a minute) and
+  the sign-in time; while the admin is active the panel calls `adminPing`
+  at most every 5 minutes, so reading a long case is not idle.
+- The functions and the rules refuse a sign-in older than 8 hours.
+- Disabling an admin revokes their refresh tokens and sets
+  `admins/{uid}.revokedAt`; the functions and the rules refuse any token
+  issued before it, so access ends at once (not when the 1-hour ID token
+  expires). The rules do not check idle time (the panel never reads
+  Firestore directly; the functions do).
+- No account can be created from a client: the `blockClientSignUps`
+  blocking function (beforeUserCreated) refuses password sign-ups, email
+  links and every other provider. Parents and admins are created by our
+  functions with the Admin SDK. After deploying, check in Authentication >
+  Settings > Blocking functions that it is set for "Before account
+  creation".
+
+### 13.6 Maps in the panel (later)
+
+School and area pins are typed as "latitude, longitude" (copied from
+Google Maps) with a placeholder where the map goes. To show a real map:
+a Maps JavaScript API key restricted to the admin site's domain, the
+`google_maps_flutter` package (with its web implementation) and the
+script tag in `web/index.html` (added by tool/bootstrap.sh). Owner decision
+(open question in docs/progress/prompt-04.md).
