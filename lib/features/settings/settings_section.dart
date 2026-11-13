@@ -155,16 +155,20 @@ class _DevTools extends ConsumerWidget {
   Future<void> _sendFunctionTestError(BuildContext context) async {
     final AppLocalizations l10n = context.l10n;
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    final String feedback;
+    final String feedback = await _callFunctionTestError(l10n);
+    messenger.showSnackBar(SnackBar(content: Text(feedback)));
+  }
+
+  /// Returns the message to show. The function throws on purpose, so a
+  /// [FirebaseFunctionsException] is the expected outcome.
+  Future<String> _callFunctionTestError(AppLocalizations l10n) async {
     try {
       await functionsClient().httpsCallable('debugTestError').call<void>();
-      feedback = l10n.devFunctionTestErrorDone;
+      return l10n.devFunctionTestErrorDone;
     } on FirebaseFunctionsException {
-      // Expected: the function throws on purpose and reports to Sentry.
-      feedback = l10n.devFunctionTestErrorDone;
+      return l10n.devFunctionTestErrorDone;
     } on Exception {
-      feedback = l10n.stateErrorBody;
+      return l10n.stateErrorBody;
     }
-    messenger.showSnackBar(SnackBar(content: Text(feedback)));
   }
 }
