@@ -56,20 +56,24 @@ const paths = [
   "anything/else",
 ];
 
-function contexts(): Array<[string, RulesTestContext]> {
-  return [
-    ["signed out", env.unauthenticatedContext()],
-    ["signed in", env.authenticatedContext("alice")],
-    ["verified", env.authenticatedContext("alice", { verified: true })],
-    ["admin claim", env.authenticatedContext("admin1", { verified: true, admin: true })],
-  ];
-}
+// Identities to test. Contexts are created inside each test: `env` only
+// exists after the async before() hook, which runs after the describe
+// callbacks have registered the tests.
+const users: Array<{ who: string; make: () => RulesTestContext }> = [
+  { who: "signed out", make: () => env.unauthenticatedContext() },
+  { who: "signed in", make: () => env.authenticatedContext("alice") },
+  { who: "verified", make: () => env.authenticatedContext("alice", { verified: true }) },
+  {
+    who: "admin claim",
+    make: () => env.authenticatedContext("admin1", { verified: true, admin: true }),
+  },
+];
 
 describe("firestore.rules deny everything", () => {
-  for (const [who, ctx] of contexts()) {
+  for (const { who, make } of users) {
     for (const path of paths) {
       it(`${who}: cannot read, create, update or delete ${path}`, async () => {
-        const d = ctx.firestore().doc(path);
+        const d = make().firestore().doc(path);
         await assertFails(d.get());
         await assertFails(d.set({ status: "verified", role: "admin" }));
         await assertFails(d.update({ status: "verified" }));
@@ -77,15 +81,15 @@ describe("firestore.rules deny everything", () => {
       });
     }
     it(`${who}: cannot list a collection`, async () => {
-      await assertFails(ctx.firestore().collection("users").get());
+      await assertFails(make().firestore().collection("users").get());
     });
   }
 });
 
 describe("storage.rules deny everything", () => {
-  for (const [who, ctx] of contexts()) {
+  for (const { who, make } of users) {
     it(`${who}: cannot read, upload or delete files`, async () => {
-      const storage = ctx.storage();
+      const storage = make().storage();
       await assertFails(storage.ref("verification/alice/id-front.jpg").getDownloadURL());
       await assertFails(storage.ref("verification/alice/id-front.jpg").getMetadata());
       await assertFails(storage.ref("verification/alice/selfie.jpg").putString("x").then(() => undefined));
