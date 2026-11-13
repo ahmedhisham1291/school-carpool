@@ -159,3 +159,50 @@ look at `shell_home_a_*_320_text2x.png` and `gallery_a_*_dark.png`.
   `AppColors.surfaceRaised`, `AppTypeScale.maxNavTextScale`.
 - CLAUDE.md and AGENTS.md gain two DESIGN bullets; feature branches that
   edited those files will need a trivial merge.
+
+## Re-review (4cfd782)
+
+Diff `7ee384f..4cfd782` (24 files, +323 / -123). CI run 43437848591 on
+`4cfd782`: **success** (all three jobs). `flutter analyze`: "No issues
+found!"; `flutter test`: "+53 ~20: All tests passed!", including the new
+`[ar]`/`[en] at 200 percent text, buttons and titles shrink, never cut
+words`; screenshots "+20: All tests passed!".
+
+### Verdict: PASS
+
+Blocking items:
+1. **Fixed.** `AppBarTitle` (one line, header semantics, `scaleDown`) is
+   used by the placeholder tabs, the gallery and the one-line tests;
+   DESIGN.md says app bars never take a plain `Text`.
+2. **Fixed.** Settings segment labels and `_LabeledControl` use
+   `OneLineText`; settings snackbars go through the new
+   `showAppSnackBarOn` (keeps the messenger lookup before the `await`).
+
+Non-blocking items from round 1:
+- 200 percent text: `OneLineText(scaleDown: true)` in buttons, app bar,
+  sheet and dialog titles shrinks instead of hiding words; the new test
+  checks one line at x2 and that button labels shrink no more than 25
+  percent. Fixed.
+- Pill contrast claim: doc and test corrected (pill not relied on;
+  `primary text/primaryContainer` now at 4.5). Fixed.
+- Dark separation: page `#0F1514`, raised `#19211F` (1.12:1), hairline
+  `#323C3A` (1.44:1 on raised, was 1.27). Better.
+- Tokens: `AppOpacity`, `AppIconSize`, `AppSpacing.maxSentenceWidth`
+  replace the literals. Fixed. Tab labels back to 13 px. Light paper is
+  now the cooler `#F4F7F6`; state views drop the icon tile. Both taken
+  from the elegance suggestions. DESIGN.md hex table matches the palette.
+
+Remaining notes (non-blocking, for later prompts):
+- Segment labels are one line only because each call site uses
+  `OneLineText`; an `AppSegmentedButton` would enforce it for new
+  screens. Add one when the next screen needs segments.
+- The x2 test does not check how much the dialog title shrinks (only
+  that it stays on one line); fine while titles stay short.
+- Not done, by agreement: the bold "today's run" card (feature screen)
+  and the long-press large tab label.
+
+Merge notes above still apply. Add one: `AppBarTitle`,
+`showAppSnackBarOn`, `AppIconSize`, `AppOpacity` and
+`AppSpacing.maxSentenceWidth` are new public API, and feature screens on
+prompt 03/04 should switch their app bar titles to `AppBarTitle` and their
+icon sizes to `AppIconSize` when merged.
