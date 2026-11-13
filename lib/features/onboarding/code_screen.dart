@@ -202,7 +202,6 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
           key: const Key('code.field'),
           label: l10n.codeLabel,
           controller: _controller,
-          length: _codeLength,
           helperText: l10n.codeHelper,
           enabled: !_verifying,
           autofocus: true,

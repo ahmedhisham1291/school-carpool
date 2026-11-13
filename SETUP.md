@@ -74,7 +74,7 @@ and staging, ever.
 6. **Build > Authentication > Get started**, then **Settings > Upgrade to
    Identity Platform** (free tier: 50,000 monthly active users). Then
    **Settings > SMS region policy > Deny all regions**: we never send SMS,
-   and this blocks SMS fraud bills. Sign-in methods come in Prompt 2.
+   and this blocks SMS fraud bills. Sign-in settings: section 11.
 7. **Project settings > Cloud Messaging > Apple app configuration**: upload
    the APNs `.p8` from step 1.3 with its Key ID and Team ID.
 8. **App Check** (Build > App Check):
@@ -281,3 +281,67 @@ COST MODE: point-in-time recovery (PITR) **off** for now; daily backups
 4. Separate Xcode schemes per flavor are not needed: the flavor is chosen
    by the Dart entry point (`-t lib/main_<flavor>.dart`) and the bundle id by
    `FLAVOR=<flavor> tool/bootstrap.sh`.
+
+## 11. Sign-in with a WhatsApp code (Prompt 2)
+
+Do steps 1 to 4 in **each** cloud project (dev, staging, prod). The local
+emulators need none of this.
+
+1. **Secrets** (Secret Manager). On any machine with `firebase-tools`:
+
+   ```sh
+   # A long random key for the keyed hashes of codes, numbers, devices, IPs.
+   openssl rand -hex 32 | firebase functions:secrets:set OTP_HMAC_KEY --data-file=- --project dev
+   # WhatsApp token. In dev and staging (fake sender) any text will do:
+   echo unused | firebase functions:secrets:set WHATSAPP_ACCESS_TOKEN --data-file=- --project dev
+   ```
+
+   Never reuse the prod `OTP_HMAC_KEY` elsewhere, and never change it while
+   codes are pending (they would stop matching for 5 minutes, nothing more).
+2. **Custom tokens.** `verifyCode` signs a Firebase custom token, which needs
+   the role **Service Account Token Creator** for the functions' service
+   account. Google Cloud console > IAM > find
+   `<project-number>-compute@developer.gserviceaccount.com` > Edit > Add
+   role "Service Account Token Creator". Without it, sign-in fails with
+   "internal" after a correct code.
+3. **Authentication > Sign-in method > Email/Password: enable** (the email
+   confirmation link needs it; nobody signs in with a password). Then
+   **Authentication > Settings > User actions: untick "Enable create
+   (sign-up)" and "Enable delete"**, so no account can be made outside our
+   functions. Optional: **Templates > Email address verification** to set
+   the sender name and the Arabic text.
+4. **Auto-delete old sign-in records** (Firestore TTL, free):
+
+   ```sh
+   gcloud firestore fields ttls update expireAt --collection-group=otpCodes --enable-ttl --project <id>
+   gcloud firestore fields ttls update expireAt --collection-group=otpLimits --enable-ttl --project <id>
+   ```
+5. **Real WhatsApp (prod; staging only if you want to test it).**
+   1. business.facebook.com > create a Business portfolio, verify the
+      business (needs the operator entity, spec section 7).
+   2. developers.facebook.com > create an app of type Business > add
+      **WhatsApp**. Add a phone number that is not used on a phone's
+      WhatsApp app.
+   3. WhatsApp Manager > **Message templates > Create > Authentication**,
+      name `login_code`, "Copy code" button, languages **Arabic (ar)** and
+      **English (en)**. Wait for approval.
+   4. Create a **system user** with a permanent token (permission
+      `whatsapp_business_messaging`) and store it:
+      `firebase functions:secrets:set WHATSAPP_ACCESS_TOKEN --project prod`.
+   5. Put the **Phone number ID** (not the number) in `functions/.env.prod`
+      as `WHATSAPP_PHONE_NUMBER_ID`. If the template languages differ, set
+      `WHATSAPP_TEMPLATE_LANG_AR` / `_EN`. `WHATSAPP_PROVIDER=meta` is
+      already set for prod; the fake sender is refused there.
+6. **Deploy** as in step 3.10. The new functions are `requestCode`,
+   `verifyCode`, `confirmEmail` and `acceptConsents`.
+
+**Where to find the code and the email link while testing**
+
+- Local emulators: the terminal running `firebase emulators:start` prints
+  `[fake WhatsApp] sign-in code 123456 for +20********01`. The Auth
+  emulator prints the email confirmation link in the same terminal; open
+  it in the Mac's browser. Optional: copy `functions/.secret.local.example`
+  to `functions/.secret.local`.
+- Cloud dev or staging (fake sender): Google Cloud console > **Logging >
+  Logs Explorer**, filter `"fake WhatsApp"`. The confirmation email is
+  really sent by Firebase, so use an inbox you can open.
