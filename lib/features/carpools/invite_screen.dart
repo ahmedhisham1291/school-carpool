@@ -41,13 +41,13 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
     final PendingInvite pending = ref.read(pendingInviteProvider.notifier);
     try {
       final String carpoolId = await ref.read(carpoolRepositoryProvider).openInvite(widget.code);
-      await pending.set(null);
+      await pending.save(null);
       if (mounted) {
         context.go(CarpoolRoutes.detail(carpoolId));
       }
     } on CarpoolFailure catch (failure) {
       if (failure.kind == CarpoolFailureKind.inviteInvalid) {
-        await pending.set(null);
+        await pending.save(null);
       }
       if (mounted) {
         setState(() => _failure = failure);
@@ -69,7 +69,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
     }
     if (!verified && ref.read(pendingInviteProvider) != widget.code) {
       // Kept until the parent is verified (shown on the Carpools tab).
-      WidgetsBinding.instance.addPostFrameCallback((Duration _) => unawaited(ref.read(pendingInviteProvider.notifier).set(widget.code)));
+      WidgetsBinding.instance.addPostFrameCallback((Duration _) => unawaited(ref.read(pendingInviteProvider.notifier).save(widget.code)));
     }
 
     final CarpoolFailure? failure = _failure;

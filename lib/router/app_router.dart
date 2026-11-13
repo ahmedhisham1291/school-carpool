@@ -290,7 +290,7 @@ final Provider<GoRouter> routerProvider = Provider<GoRouter>((Ref ref) {
     // Kept on the phone until opened (after sign-up and verification).
     onInviteLink: (String code) => unawaited(Future<void>.microtask(() async {
       if (ref.read(pendingInviteProvider) != code) {
-        await ref.read(pendingInviteProvider.notifier).set(code);
+        await ref.read(pendingInviteProvider.notifier).save(code);
       }
     })),
   );

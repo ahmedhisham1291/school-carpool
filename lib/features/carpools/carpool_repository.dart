@@ -254,7 +254,7 @@ class PendingInvite extends Notifier<String?> {
   @override
   String? build() => ref.watch(settingsStoreProvider).read(storageKey);
 
-  Future<void> set(String? code) async {
+  Future<void> save(String? code) async {
     state = code;
     await ref.read(settingsStoreProvider).write(storageKey, code);
   }
