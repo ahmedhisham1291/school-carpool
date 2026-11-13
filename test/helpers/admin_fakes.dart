@@ -183,9 +183,9 @@ class FakeAdminApi implements AdminApi {
   }
 
   @override
-  Future<AdminPage<School>> schools({required SchoolStatus status, String? governorate, String? afterId}) async {
+  Future<PagedResult<School>> schools({required SchoolStatus status, String? governorate, String? afterId}) async {
     await _maybeFail('schools:${status.code}');
-    return AdminPage<School>(status == SchoolStatus.active ? sampleSchools : sampleOtherSchools, null);
+    return PagedResult<School>(status == SchoolStatus.active ? sampleSchools : sampleOtherSchools, null);
   }
 
   @override
@@ -235,9 +235,9 @@ class FakeAdminApi implements AdminApi {
   }
 
   @override
-  Future<AdminPage<AuditEntry>> audit({String? afterId}) async {
+  Future<PagedResult<AuditEntry>> audit({String? afterId}) async {
     await _maybeFail('audit');
-    return AdminPage<AuditEntry>(<AuditEntry>[
+    return PagedResult<AuditEntry>(<AuditEntry>[
       AuditEntry(
         id: 'l1',
         actorUid: 'admin1',

@@ -378,7 +378,7 @@ class _MergePicker extends ConsumerStatefulWidget {
 
 class _MergePickerState extends ConsumerState<_MergePicker> {
   final TextEditingController _filter = TextEditingController();
-  late final Future<AdminPage<School>> _schools = ref
+  late final Future<PagedResult<School>> _schools = ref
       .read(adminApiProvider)
       .schools(status: SchoolStatus.active, governorate: widget.governorate);
 
@@ -403,13 +403,13 @@ class _MergePickerState extends ConsumerState<_MergePicker> {
       children: <Widget>[
         AppTextField(label: l10n.adminFilterSchools, controller: _filter, prefixIcon: Icons.search),
         const SizedBox(height: AppSpacing.s8),
-        FutureBuilder<AdminPage<School>>(
+        FutureBuilder<PagedResult<School>>(
           future: _schools,
-          builder: (BuildContext context, AsyncSnapshot<AdminPage<School>> snap) {
+          builder: (BuildContext context, AsyncSnapshot<PagedResult<School>> snap) {
             if (snap.hasError) {
               return AppInlineMessage(message: AdminFailure.from(snap.error!).message(l10n), tone: AppStateTone.error);
             }
-            final AdminPage<School>? page = snap.data;
+            final PagedResult<School>? page = snap.data;
             if (page == null) {
               return const AdminSkeletonList(rows: 3);
             }

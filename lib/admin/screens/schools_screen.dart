@@ -47,7 +47,7 @@ class _SchoolListState extends ConsumerState<SchoolList> {
       }
     });
     try {
-      final AdminPage<School> page = await ref
+      final PagedResult<School> page = await ref
           .read(adminApiProvider)
           .schools(status: widget.status, governorate: _governorate, afterId: more ? _next : null);
       if (!mounted) {

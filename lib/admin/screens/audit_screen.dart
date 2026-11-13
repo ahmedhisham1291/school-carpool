@@ -46,7 +46,7 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
       }
     });
     try {
-      final AdminPage<AuditEntry> page = await ref.read(adminApiProvider).audit(afterId: more ? _next : null);
+      final PagedResult<AuditEntry> page = await ref.read(adminApiProvider).audit(afterId: more ? _next : null);
       if (mounted) {
         setState(() {
           final List<AuditEntry> before = more ? (_entries.value ?? const <AuditEntry>[]) : const <AuditEntry>[];

@@ -29,7 +29,7 @@ abstract interface class AdminApi {
     String? note,
   });
 
-  Future<AdminPage<School>> schools({required SchoolStatus status, String? governorate, String? afterId});
+  Future<PagedResult<School>> schools({required SchoolStatus status, String? governorate, String? afterId});
   Future<(School, List<Area>)> school(String id);
   Future<String> saveSchool(SchoolInput input);
   Future<String> saveArea({
@@ -43,7 +43,7 @@ abstract interface class AdminApi {
   Future<int> mergeSchool({required String schoolId, required String intoId});
 
   Future<List<ReportItem>> reports();
-  Future<AdminPage<AuditEntry>> audit({String? afterId});
+  Future<PagedResult<AuditEntry>> audit({String? afterId});
 
   Future<List<AdminAccount>> admins();
 
@@ -119,13 +119,13 @@ class FirebaseAdminApi implements AdminApi {
   }
 
   @override
-  Future<AdminPage<School>> schools({required SchoolStatus status, String? governorate, String? afterId}) async {
+  Future<PagedResult<School>> schools({required SchoolStatus status, String? governorate, String? afterId}) async {
     final Json j = await _call('adminListSchools', <String, Object?>{
       'status': status.code,
       'governorate': ?governorate,
       'afterId': ?afterId,
     });
-    return AdminPage<School>(j.list('schools').map(School.fromJson).toList(), j.strOrNull('nextAfterId'));
+    return PagedResult<School>(j.list('schools').map(School.fromJson).toList(), j.strOrNull('nextAfterId'));
   }
 
   @override
@@ -166,9 +166,9 @@ class FirebaseAdminApi implements AdminApi {
       (await _call('adminListReports', <String, Object?>{'status': 'open'})).list('reports').map(ReportItem.fromJson).toList();
 
   @override
-  Future<AdminPage<AuditEntry>> audit({String? afterId}) async {
+  Future<PagedResult<AuditEntry>> audit({String? afterId}) async {
     final Json j = await _call('adminListAuditLog', <String, Object?>{'afterId': ?afterId});
-    return AdminPage<AuditEntry>(j.list('entries').map(AuditEntry.fromJson).toList(), j.strOrNull('nextAfterId'));
+    return PagedResult<AuditEntry>(j.list('entries').map(AuditEntry.fromJson).toList(), j.strOrNull('nextAfterId'));
   }
 
   @override

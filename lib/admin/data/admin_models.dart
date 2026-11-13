@@ -74,8 +74,8 @@ class AdminUser {
 
 /// One page of a longer list.
 @immutable
-class AdminPage<T> {
-  const AdminPage(this.items, this.nextAfterId);
+class PagedResult<T> {
+  const PagedResult(this.items, this.nextAfterId);
 
   final List<T> items;
   final String? nextAfterId;

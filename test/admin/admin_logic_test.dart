@@ -97,7 +97,7 @@ void main() {
   group('parsing', () {
     test('a case with identity, children and signed links', () {
       final CaseDetail c = CaseDetail.fromJson(
-        Json.of(<Object?, Object?>{
+        Json.of(const <Object?, Object?>{
           'caseId': 'c1',
           'uid': 'p1',
           'scope': 'identity',
@@ -122,7 +122,7 @@ void main() {
 
     test('a user summary keeps the phone masked as sent', () {
       final UserSummary u = UserSummary.fromJson(
-        Json.of(<Object?, Object?>{'uid': 'p1', 'parentId': 'ABCD2345', 'status': 'suspended', 'banned': true, 'phone': '+20********01'}),
+        Json.of(const <Object?, Object?>{'uid': 'p1', 'parentId': 'ABCD2345', 'status': 'suspended', 'banned': true, 'phone': '+20********01'}),
       );
       expect(u.status, AccountStatus.suspended);
       expect(u.banned, isTrue);
