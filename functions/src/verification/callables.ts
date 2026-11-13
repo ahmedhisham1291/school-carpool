@@ -22,6 +22,7 @@ import {
   openVerificationCase as openFlow,
   purgeVerificationImages,
   removeChild as removeChildFlow,
+  withdrawVerification as withdrawFlow,
   submitVerification as submitFlow,
   type VerificationDeps,
 } from "./flow";
@@ -163,6 +164,14 @@ export const submitVerification = onCall(options, (request) =>
 export const removeChild = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("removeChild", async () => {
     await removeChildFlow(deps(false), requireUid(request), request.data);
+    return { ok: true };
+  }),
+);
+
+/** Parent: withdraw the case waiting for review (releases the ID claim). { caseId } -> { ok } */
+export const withdrawVerification = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+  run("withdrawVerification", async () => {
+    await withdrawFlow(deps(false), requireUid(request), request.data);
     return { ok: true };
   }),
 );
