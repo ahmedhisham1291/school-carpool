@@ -16,6 +16,19 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    // Prompt 4 (F14): an admin of the panel. The "admin" custom claim is
+    // set only by a super admin (createAdmin function) or the bootstrap
+    // script; the sign-in used a second factor (TOTP); and the sign-in is
+    // less than 8 hours old (keep in sync with ADMIN_SESSION_MAX_SECONDS in
+    // functions/src/admin_panel/guard.ts). Parents never have the claim.
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.admin == true
+        && 'sign_in_second_factor' in request.auth.token.firebase
+        && request.auth.token.auth_time is int
+        && request.time < timestamp.value(request.auth.token.auth_time * 1000) + duration.value(8, 'h');
+    }
+
     // Prompt 2 (F1, F44): the parent's own record. Created only by the
     // verifyCode function (status "unverified" and the parent ID). The
     // parent can read it and change only the app language.
@@ -62,7 +75,36 @@ service cloud.firestore {
     match /config/{name} {
       allow read, write: if false;
     }
+    // Audit log (Prompt 3, Prompt 4): written only by Cloud Functions.
+    // Admins signed in with two steps may read it; nobody edits or deletes
+    // an entry, admins included.
     match /auditLog/{entryId} {
+      allow get, list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // Prompt 4 (F14): admin accounts, search limits, moderation records
+    // (with the admin's note) and the reports queue. Cloud Functions only;
+    // the panel reads them through the admin functions.
+    match /admins/{uid} {
+      allow read, write: if false;
+    }
+    match /adminLimits/{uid} {
+      allow read, write: if false;
+    }
+    match /moderations/{id} {
+      allow read, write: if false;
+    }
+    match /reports/{id} {
+      allow read, write: if false;
+    }
+
+    // Schools and areas: written only by Cloud Functions (admin panel,
+    // Prompt 4; import, Prompt 4B). Parent reads open in Prompt 4B.
+    match /schools/{id} {
+      allow read, write: if false;
+    }
+    match /areas/{id} {
       allow read, write: if false;
     }
 

@@ -183,7 +183,7 @@ describe("firestore: users verification fields", () => {
 describe("firestore: server-only collections", () => {
   const paths = ["verifications/case1", "nationalIds/h", "bannedIds/b", "config/kyc", "auditLog/l1"];
   for (const path of paths) {
-    it(`nobody reads or writes ${path}, admins included`, async () => {
+    it(`nobody reads or writes ${path} (an admin claim without two-step sign-in included)`, async () => {
       for (const make of [asAlice, asBob, asAdmin, signedOut]) {
         const doc = make().firestore().doc(path);
         await assertFails(doc.get());
