@@ -3,9 +3,11 @@ import * as logger from "firebase-functions/logger";
 import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { adminAuth, adminDb } from "../admin";
 import {
+  CLIENT_IP_HOP,
   ENFORCE_APP_CHECK,
   MIN_INSTANCES_SIGNIN,
   OTP_HMAC_KEY,
+  OTP_MAX_SENDS_PER_IP,
   WHATSAPP_ACCESS_TOKEN,
   WHATSAPP_API_VERSION,
   WHATSAPP_CODE_TEMPLATE,
@@ -17,8 +19,17 @@ import {
 import { reportError } from "../sentry";
 import { asLanguage, createWhatsAppSender, type WhatsAppSender } from "../whatsapp/sender";
 import { FirebaseAccountService, USERS, verifiedEmail } from "./accounts";
+import { clientIp } from "./client_ip";
 import { ConsentError, parseConsentRequest, recordConsents } from "./consents";
-import { OtpError, requestCode as requestCodeFlow, verifyCode as verifyCodeFlow, type OtpDeps, type OtpErrorReason } from "./otp_flow";
+import {
+  DEFAULT_OTP_LIMITS,
+  OtpError,
+  ipKey,
+  requestCode as requestCodeFlow,
+  verifyCode as verifyCodeFlow,
+  type OtpDeps,
+  type OtpErrorReason,
+} from "./otp_flow";
 import { FirestoreOtpStore } from "./otp_store";
 
 /**
@@ -55,21 +66,6 @@ export function toHttpsError(error: unknown): HttpsError {
   return new HttpsError("internal", "Something went wrong.");
 }
 
-/**
- * Client IP for the per-IP limit. On Cloud Run the platform appends the
- * address it sees as the last X-Forwarded-For entry; a caller can only add
- * entries before it. Falls back to the socket address (emulator).
- */
-export function clientIp(headers: Record<string, string | string[] | undefined>, fallback?: string): string {
-  const raw = headers["x-forwarded-for"];
-  const joined = Array.isArray(raw) ? raw.join(",") : (raw ?? "");
-  const parts = joined
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
-  return parts.length > 0 ? parts[parts.length - 1] : (fallback ?? "unknown");
-}
-
 function otpHmacKey(): string {
   const key = OTP_HMAC_KEY.value();
   if (key) return key;
@@ -104,6 +100,7 @@ function otpDeps(): OtpDeps {
     accounts: new FirebaseAccountService(adminAuth(), db),
     hmacKey: otpHmacKey(),
     now: () => Date.now(),
+    limits: { ...DEFAULT_OTP_LIMITS, maxSendsPerIp: OTP_MAX_SENDS_PER_IP.value() },
     reportError: (error) => {
       logger.error("WhatsApp send failed", { message: error instanceof Error ? error.message : "unknown" });
       void reportError(error);
@@ -143,22 +140,30 @@ const signInOptions = {
 
 /** { phone, deviceId, language } -> { expiresInSeconds, resendAfterSeconds } */
 export const requestCode = onCall(signInOptions, (request) =>
-  run("requestCode", () =>
-    requestCodeFlow(otpDeps(), {
+  run("requestCode", async () => {
+    const deps = otpDeps();
+    const ip = clientIp(request.rawRequest.headers, request.rawRequest.ip, CLIENT_IP_HOP.value());
+    if (process.env.APP_ENV !== "prod") {
+      // A hash prefix, not the IP: lets the owner check that two networks
+      // give two different keys (SETUP.md 11.7).
+      logger.info("requestCode", { ipKeyPrefix: ipKey(deps.hmacKey, ip).slice(0, 10) });
+    }
+    return requestCodeFlow(deps, {
       phone: field(request, "phone"),
       deviceId: field(request, "deviceId"),
-      ip: clientIp(request.rawRequest.headers, request.rawRequest.ip),
+      ip,
       language: asLanguage(field(request, "language")),
-    }),
-  ),
+    });
+  }),
 );
 
-/** { phone, code, language } -> { token } (a Firebase custom token) */
+/** { phone, code, deviceId, language } -> { token } (a Firebase custom token) */
 export const verifyCode = onCall(signInOptions, (request) =>
   run("verifyCode", async () => {
     const result = await verifyCodeFlow(otpDeps(), {
       phone: field(request, "phone"),
       code: field(request, "code"),
+      deviceId: field(request, "deviceId"),
       language: asLanguage(field(request, "language")),
     });
     return { token: result.token };

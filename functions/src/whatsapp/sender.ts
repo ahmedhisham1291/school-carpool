@@ -58,6 +58,8 @@ export class MetaWhatsAppSender implements WhatsAppSender {
   constructor(
     private readonly config: MetaConfig,
     private readonly fetchFn: typeof fetch = fetch,
+    /** A slow Graph API must not hold the function until its own timeout. */
+    private readonly timeoutMs = 10_000,
   ) {}
 
   /**
@@ -93,7 +95,7 @@ export class MetaWhatsAppSender implements WhatsAppSender {
 
   async sendCode(toE164: string, code: string, language: Language): Promise<void> {
     const { url, init } = this.buildRequest(toE164, code, language);
-    const response = await this.fetchFn(url, init);
+    const response = await this.fetchFn(url, { ...init, signal: AbortSignal.timeout(this.timeoutMs) });
     if (response.ok) return;
     // Only Meta's numeric error codes go into the message: never the body,
     // which could echo the recipient.

@@ -48,3 +48,12 @@ export const WHATSAPP_API_VERSION = defineString("WHATSAPP_API_VERSION", { defau
 export const WHATSAPP_CODE_TEMPLATE = defineString("WHATSAPP_CODE_TEMPLATE", { default: "login_code" });
 export const WHATSAPP_TEMPLATE_LANG_AR = defineString("WHATSAPP_TEMPLATE_LANG_AR", { default: "ar" });
 export const WHATSAPP_TEMPLATE_LANG_EN = defineString("WHATSAPP_TEMPLATE_LANG_EN", { default: "en" });
+
+/**
+ * Codes per IP address per hour. High because Egyptian mobile carriers put
+ * many users behind one address; a param so it can change per project.
+ */
+export const OTP_MAX_SENDS_PER_IP = defineInt("OTP_MAX_SENDS_PER_IP", { default: 60 });
+
+/** Which X-Forwarded-For entry is the client, counted from the end (auth/client_ip.ts). */
+export const CLIENT_IP_HOP = defineInt("CLIENT_IP_HOP", { default: 1 });

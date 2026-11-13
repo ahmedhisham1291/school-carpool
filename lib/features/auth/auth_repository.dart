@@ -110,6 +110,7 @@ class FirebaseAuthRepository implements AuthRepository {
     final Map<Object?, Object?> data = await _call('verifyCode', <String, Object?>{
       'phone': phoneE164,
       'code': code,
+      'deviceId': _installId,
       'language': language,
     });
     final Object? token = data['token'];
