@@ -53,6 +53,20 @@ Limits below are the public free allowances as understood in November 2026.
 - `requestCode` and `verifyCode` read `MIN_INSTANCES_SIGNIN` (0 now). Set it
   to 1 in `functions/.env.prod` only if cold starts make sign-in slow.
 
+## Verification (Prompt 3)
+
+- Images are compressed on the phone (about 200 to 500 KB each, 5 to 9 per
+  parent) and deleted within 7 days of the decision, so stored volume
+  stays at a few hundred MB even with thousands of parents.
+- The deletion job is one Cloud Scheduler job (3 free per billing account)
+  running once a day, minInstances 0. It lists the `verification/` prefix
+  once per run (one Class A operation per 1,000 files).
+- The fake ID check costs nothing. Valify is paid per check: it is off
+  (`KYC_PROVIDER=fake`, `VALIFY_ENABLED=false`) until the contract.
+- Admin image links are V4 signed URLs: no extra service, but the
+  functions' service account needs "Service Account Token Creator" on
+  itself (already required for custom tokens, SETUP.md section 11).
+
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub

@@ -15,19 +15,23 @@
 
 import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/app.dart';
 import 'package:school_carpool/config/flavor.dart';
+import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
+import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 import 'package:school_carpool/settings/app_settings.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
 import '../helpers/test_app.dart';
+import '../helpers/verification_fakes.dart';
 
 Future<void> _loadFont(String family, List<String> assets) async {
   final FontLoader loader = FontLoader(family);
@@ -66,6 +70,7 @@ Future<void> _pumpScreen(
   required Size logicalSize,
   required double pixelRatio,
   SessionState session = testVerifiedSession,
+  List<Override> extraOverrides = const <Override>[],
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -89,6 +94,7 @@ Future<void> _pumpScreen(
         routerProvider.overrideWithValue(router),
         ...authOverrides(session: session),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
+        ...extraOverrides,
       ],
       child: const CarpoolApp(),
     ),
@@ -180,8 +186,77 @@ void main() {
             locale: locale,
             themeMode: mode,
             direction: direction,
-            logicalSize: const Size(390, 6600),
+            logicalSize: const Size(390, 7800),
             pixelRatio: 2,
+          );
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+  // Verification (Prompt 3): the first step, pending, rejected with a
+  // reason, children and driving. The camera screen needs a real camera and
+  // is not rendered here (see docs/progress/prompt-03.md).
+  SessionState withStatus(AccountStatus status, VerificationSummary? summary) => SessionSignedIn(
+    uid: 'uid-1',
+    account: Account(
+      parentId: 'ABCD2345',
+      status: status,
+      phone: '+201000000001',
+      email: 'parent@example.com',
+      emailVerified: true,
+      termsAccepted: true,
+      language: 'ar',
+      firstName: 'Mona',
+      verification: summary,
+    ),
+  );
+  const List<ChildRecord> sampleChildren = <ChildRecord>[
+    ChildRecord(id: 'k1', firstName: 'Omar', age: 8, grade: Grade.g3, schoolName: 'Nile School', status: ReviewStatus.approved),
+    ChildRecord(
+      id: 'k2',
+      firstName: 'Laila',
+      age: 5,
+      grade: Grade.kg2,
+      schoolName: 'Nile School',
+      status: ReviewStatus.rejected,
+      reason: RejectionReason.schoolIdUnclear,
+    ),
+  ];
+  final Map<String, (String, SessionState)> verificationScreens = <String, (String, SessionState)>{
+    'verify_details': (AuthRoutes.verifySubmit, withStatus(AccountStatus.unverified, null)),
+    'verify_pending': (
+      AuthRoutes.verifyAccount,
+      withStatus(AccountStatus.pending, const VerificationSummary(caseId: 'c1', status: ReviewStatus.pending)),
+    ),
+    'verify_rejected': (
+      AuthRoutes.verifyAccount,
+      withStatus(
+        AccountStatus.rejected,
+        const VerificationSummary(caseId: 'c1', status: ReviewStatus.rejected, reason: RejectionReason.selfieMismatch),
+      ),
+    ),
+    'children': (ProfileRoutes.children, withStatus(AccountStatus.verified, null)),
+    'driving': (ProfileRoutes.driving, withStatus(AccountStatus.verified, null)),
+  };
+  for (final MapEntry<String, (String, SessionState)> screen in verificationScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'verification_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: screen.value.$1,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            session: screen.value.$2,
+            extraOverrides: verificationOverrides(
+              repository: FakeVerificationRepository(),
+              children: sampleChildren,
+            ),
           );
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
         });

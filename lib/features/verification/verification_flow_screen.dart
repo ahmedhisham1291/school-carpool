@@ -490,7 +490,7 @@ class _ReviewSummary extends StatelessWidget {
           ),
           AppListRow(
             title: l10n.idNumberLabel,
-            subtitle: '⁦$masked⁩',
+            subtitle: '\u2066$masked\u2069',
             leadingIcon: Icons.badge_outlined,
           ),
           AppListRow(

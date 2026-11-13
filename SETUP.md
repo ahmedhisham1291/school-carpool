@@ -345,3 +345,34 @@ emulators need none of this.
 - Cloud dev or staging (fake sender): Google Cloud console > **Logging >
   Logs Explorer**, filter `"fake WhatsApp"`. The confirmation email is
   really sent by Firebase, so use an inbox you can open.
+
+## 12. Identity verification (Prompt 3)
+
+1. **Secret for the ID number hash** (each cloud project; never rotate it
+   without re-hashing, the ban list depends on it):
+   `openssl rand -hex 32 | firebase functions:secrets:set NATIONAL_ID_HMAC_KEY --project dev --data-file=-`
+   The emulators use a fixed dev key when it is not set.
+2. **Provider settings** in `functions/.env.<alias>`: `KYC_PROVIDER=fake`
+   (default; refused when `APP_ENV=prod`) or `valify` once the contract is
+   signed (`VALIFY_ENABLED=true`, `VALIFY_BASE_URL`, `VALIFY_USERNAME`,
+   `VALIFY_CLIENT_ID`, `VALIFY_BUNDLE_KEY`, and the secrets
+   `VALIFY_CLIENT_SECRET`, `VALIFY_PASSWORD`). The Valify class is a stub
+   that fails closed (result "error", manual review) until then.
+3. **Fake check result:** Firestore document `config/kyc` with
+   `fakeResult` = `match` | `no_match` | `error`, or
+   `npm --prefix functions run review:emulator -- kyc no_match`.
+4. **Deploy:** `firebase deploy --only firestore:rules,firestore:indexes,storage,functions --project dev`.
+   The deploy creates the daily Cloud Scheduler job
+   (`purgeVerificationImagesDaily`, 03:10 Cairo time).
+5. **Review a case before the admin panel (Prompt 4):**
+   - Emulators: `npm --prefix functions run review:emulator -- queue`, then
+     `... -- approve <caseId>` or `... -- reject <caseId> selfie_mismatch [note]`.
+   - Cloud dev project: `gcloud auth application-default login`, then
+     `REVIEW_PROJECT=<dev project id> npm --prefix functions run review:cloud -- queue`
+     (projects with "prod" in the name are refused).
+   - To use the admin functions from a client, give an account the admin
+     claim: `... -- grant-admin <uid>`.
+6. **Bucket:** the default Firebase bucket is private: no public access,
+   and storage.rules let a parent only upload into their own
+   `verification/{uid}/pending/` folder. Nobody reads images through the
+   SDK; admins get 5-minute signed links from `openVerificationCase`.
