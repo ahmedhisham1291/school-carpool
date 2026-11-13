@@ -115,3 +115,66 @@ because the first failing job cancels the others).
 - `flutter test`, golden screenshots, rules tests on the emulators and the web/Android builds: none has run in CI yet because analyze failed first.
 - Camera, liveness prompt, screenshot blocking on iOS (the secure-layer behaviour), and upload resume after a network drop: these need a real iPhone.
 - V4 signed URLs need the "Service Account Token Creator" role in the cloud (documented), and do not work against the Storage emulator without credentials.
+
+---
+
+# Re-review (head `34f3d27`)
+
+Fix commits reviewed: `e69f116`, `06cc018`, `258b212`, `9526f3a`,
+`eb657cf`, `34f3d27` (`git diff fbeef5a..HEAD`, 35 files).
+
+## Verdict
+
+**CHANGES NEEDED**, for one new CI failure only. All three earlier blocking
+items and the non-blocking items I raised are fixed correctly. The Android
+compile now fails on the new `screen_protector` dependency. It is the only
+thing left.
+
+## CI result
+
+Run `43435032373` (head `34f3d27`): **failed**. The run shows as cancelled
+because the failing job cancels the rest.
+
+| Job | Result |
+| --- | --- |
+| Flutter analyze, tests and screenshots | **passed** (analyze clean, `flutter test` and screenshots green) |
+| Cloud Functions tests and rules tests (emulators) | **passed** (unit tests, emulator tests, Firestore/Storage rules tests incl. `tests/rules/verification.test.ts`) |
+| Web and Android compile (staging) | **failed** at "Build Android APK" |
+
+## Blocking
+
+1. **Android build: `ScreenProtectorPlugin` class not found.**
+   ```
+   android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java:79: error: cannot find symbol
+         flutterEngine.getPlugins().add(new com.prongbang.screen_protector.ScreenProtectorPlugin());
+     symbol:   class ScreenProtectorPlugin
+     location: package com.prongbang.screen_protector
+   Execution failed for task ':app:compileReleaseJavaWithJavac'
+   ```
+   Cause (from the plugin source at tag `1.5.3`, `android/build.gradle`): the plugin is written only in Kotlin (`src/main/kotlin/.../ScreenProtectorPlugin.kt`). It applies `kotlin-android` **only when the AGP major version is below 9**. On AGP 9 it relies on built-in Kotlin. The Flutter 3.50 Android template evidently runs AGP 9 with built-in Kotlin not active for plugin modules: Flutter's KGP warning also lists the other KGP plugins. So the `.kt` file is never compiled and the generated registrant cannot find the class. This last step is my reading, not checked on a build here.
+   CLAUDE.md requires Android to keep compiling in CI.
+   Fix, one of:
+   - In `tool/bootstrap.sh` / `tool/patch_native.py`, apply the Kotlin plugin to that one subproject from `android/build.gradle.kts`, e.g. `subprojects { if (name == "screen_protector") pluginManager.apply("org.jetbrains.kotlin.android") }`.
+   - Or enable built-in Kotlin for the build (`android.builtInKotlin=true` in `android/gradle.properties`, if the other plugins accept it).
+   - Or pin a `screen_protector` version that compiles with this template.
+
+   Then confirm the web and Android jobs are green.
+
+## Earlier items: status
+
+| Item | Status |
+| --- | --- |
+| B1 analyzer (12 issues) | **Fixed** (`e69f116`); analyze green in CI |
+| B2 ID claim without a case | **Fixed**. `checkNationalId` is now read-only. The claim is written inside the `saveSubmission` **transaction**, together with the case, children, car, user and consents. That transaction re-checks the ban list, the duplicate and `case-open` at commit. On failure the copied case folder is deleted. `withdrawVerification` (owner only, `awaiting_review` only) releases the claim, sets `purgeAt` to now and writes an audit entry. A claim now always has a case that a reviewer sees or the parent withdraws. |
+| B3 token refresh race | **Fixed**. `setVerified` runs **before** `saveDecision`, and the claim is reverted if the save fails. `saveDecision` writes `users/{uid}.claimsUpdatedAt`. The app forces a refresh when that marker changes, and on the first snapshot of a verified account whose cached token lacks the claim (`tokenRefreshFor`, unit-tested). |
+| NB1 soft delete | **Fixed**: SETUP.md 12.6 (`--clear-soft-delete`, with a check command), noted in COSTS.md |
+| NB2 unbounded upload names | **Fixed**: `school_id_c([1-9]\|10)` in `storage.rules` and `REF` in `submission.ts`. Tests cover `c0`, `c11` and `C 1`. |
+| NB3 prod KYC | **Fixed**: `.env.prod` sets `KYC_PROVIDER=valify` (the stub fails closed). An `onInit` startup check logs and reports a fake provider in prod, and submissions answer `failed-precondition`. |
+| NB4 long checkbox labels | **Fixed**: "I agree to the ID check" and "I will drive"; the detail moved to the helper text |
+| NB5 compression | Fixed (comment and handling updated) |
+| ARB | 325 keys in each file, parity holds; the new withdraw strings exist in both files, with a confirmation dialog |
+
+## Non-blocking (new)
+
+1. `store.ts` `withdrawCase`: an **edited** child of a withdrawn update case is set to `status: "rejected"`. The comment says it goes "back to how a reviewer left them". A previously approved child whose edit the parent withdraws now shows as rejected. Either keep the child's previous status and fields on the case (e.g. `previousStatus`) and restore them, or change the comment and the UI copy.
+2. `saveSubmission` reads a query (`nationalIds where uid == ...`) inside the transaction. That is fine, but it adds a read on every resubmission. Acceptable at this scale.
