@@ -76,6 +76,7 @@ void main() {
           overrides: [
             flavorConfigProvider.overrideWithValue(testDevConfig),
             settingsStoreProvider.overrideWithValue(store),
+            ...authOverrides(),
           ],
           child: const CarpoolApp(),
         ),
@@ -100,6 +101,9 @@ void main() {
       await tester.tap(find.byIcon(Icons.person_outline_rounded));
       await tester.pumpAndSettle();
 
+      // Profile is longer since Prompt 2: scroll the switch into view.
+      await tester.ensureVisible(find.text('English'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('English'));
       await tester.pumpAndSettle();
 
@@ -107,6 +111,8 @@ void main() {
       expect(find.text('Profile'), findsWidgets);
       expect(store.read(LocaleController.storageKey), 'en');
 
+      await tester.ensureVisible(find.text('العربية'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('العربية'));
       await tester.pumpAndSettle();
       expect(directionOfShell(tester), TextDirection.rtl);

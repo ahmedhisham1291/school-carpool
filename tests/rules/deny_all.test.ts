@@ -1,4 +1,6 @@
-// Proves that firestore.rules and storage.rules deny everything (Prompt 1).
+// Proves that firestore.rules and storage.rules deny everything that no
+// prompt has opened yet (Prompt 1). The paths opened in Prompt 2 (a parent's
+// own users/{uid} record) are tested in users.test.ts.
 // Runs only against the emulators: `npm run test:emulator` (see README.md).
 // Written, not run here (no npm registry in the build workspace).
 //
@@ -40,9 +42,9 @@ after(async () => {
   await env?.cleanup();
 });
 
-// Collections the app will have (spec section 9). All denied for now.
+// Collections the app will have (spec section 9). Denied for these identities.
 const paths = [
-  "users/alice",
+  // users/alice is readable by alice since Prompt 2 (users.test.ts).
   "users/bob",
   "schools/s1",
   "areas/a1",

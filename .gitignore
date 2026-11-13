@@ -72,3 +72,6 @@ __pycache__/
 
 # Generated screenshots (test/screenshots, uploaded by CI as an artifact)
 test/screenshots/goldens/
+
+# Local emulator secrets (see functions/.secret.local.example)
+functions/.secret.local

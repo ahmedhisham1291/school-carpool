@@ -71,6 +71,8 @@ class GalleryScreen extends ConsumerWidget {
           const _Padded(child: _ButtonSamples()),
           AppSectionHeader(l10n.gallerySectionInputs),
           const _Padded(child: _InputSamples()),
+          AppSectionHeader(l10n.gallerySectionSignup),
+          const _Padded(child: _SignupSamples()),
           AppSectionHeader(l10n.gallerySectionCards),
           _Padded(
             child: Column(
@@ -385,6 +387,98 @@ class _SheetSamples extends StatelessWidget {
           label: l10n.sampleConfirmOpen,
           variant: AppButtonVariant.secondary,
           onPressed: () => unawaited(_confirmLeave(context)),
+        ),
+      ],
+    );
+  }
+}
+
+/// Components added for sign-up (Prompt 2).
+class _SignupSamples extends StatefulWidget {
+  const _SignupSamples();
+
+  /// Sample parent ID: a code, not translatable text.
+  static const String sampleParentId = 'ABCD2345';
+
+  @override
+  State<_SignupSamples> createState() => _SignupSamplesState();
+}
+
+class _SignupSamplesState extends State<_SignupSamples> {
+  final TextEditingController _code = TextEditingController();
+  bool _accepted = false;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    const SizedBox gap = SizedBox(height: AppSpacing.s16);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const AppStepProgress(current: 2, total: 4),
+        gap,
+        AppCodeField(
+          label: l10n.codeLabel,
+          controller: _code,
+          helperText: l10n.codeHelper,
+          onCompleted: (_) => _done(context),
+        ),
+        gap,
+        AppCheckRow(
+          label: l10n.termsAcceptTerms,
+          value: _accepted,
+          onChanged: (bool value) => setState(() => _accepted = value),
+          actionLabel: l10n.termsRead,
+          onAction: () => _done(context),
+        ),
+        AppCheckRow(
+          label: l10n.termsWhatsApp,
+          helperText: l10n.termsWhatsAppHelper,
+          value: false,
+          onChanged: null,
+        ),
+        gap,
+        AppInlineMessage(message: l10n.emailSpamHint),
+        gap,
+        AppInlineMessage(message: l10n.errorExpiredCode, tone: AppStateTone.error),
+        gap,
+        AppInlineMessage(message: l10n.errorOffline, tone: AppStateTone.warning),
+        gap,
+        AppCard(
+          child: AppCopyValue(
+            label: l10n.profileParentIdLabel,
+            value: _SignupSamples.sampleParentId,
+            helperText: l10n.profileParentIdHelper,
+          ),
+        ),
+        gap,
+        Wrap(
+          spacing: AppSpacing.s8,
+          runSpacing: AppSpacing.s8,
+          children: <Widget>[
+            AppStatusBadge(label: l10n.statusUnverified, icon: Icons.shield_outlined),
+            AppStatusBadge(
+              label: l10n.statusPending,
+              tone: AppBadgeTone.warning,
+              icon: Icons.hourglass_top_rounded,
+            ),
+            AppStatusBadge(
+              label: l10n.statusVerified,
+              tone: AppBadgeTone.success,
+              icon: Icons.verified_rounded,
+            ),
+            AppStatusBadge(
+              label: l10n.statusRejected,
+              tone: AppBadgeTone.error,
+              icon: Icons.error_outline_rounded,
+            ),
+          ],
         ),
       ],
     );

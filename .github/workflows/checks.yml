@@ -113,6 +113,10 @@ jobs:
         run: |
           npm install --prefix functions --no-audit --no-fund
           npm test --prefix functions
+      - name: Cloud Functions tests on the emulators (user record, parent ID)
+        run: |
+          npx --yes firebase-tools@15 emulators:exec --only firestore,auth \
+            --project demo-school-carpool "npm --prefix functions run test:emulator"
       - name: Firestore and Storage rules tests on the emulators
         run: |
           npm install --prefix tests/rules --no-audit --no-fund

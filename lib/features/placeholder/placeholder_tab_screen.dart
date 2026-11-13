@@ -1,13 +1,10 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
-import 'package:school_carpool/design/tokens/tokens.dart';
-import 'package:school_carpool/features/settings/settings_section.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 
 /// Placeholder for each bottom tab until its feature prompt builds it.
-/// The Profile tab already holds the settings (language, appearance) and,
-/// in the dev build, the developer tools.
+/// The Profile tab has its own screen since Prompt 2 (ProfileScreen).
 class PlaceholderTabScreen extends StatelessWidget {
   const PlaceholderTabScreen({required this.tab, super.key});
 
@@ -34,26 +31,7 @@ class PlaceholderTabScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Semantics(header: true, child: Text(title))),
-      body: tab == AppTab.profile
-          ? ListView(
-              padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),
-              children: <Widget>[
-                Padding(
-                  padding: AppSpacing.screenPadding,
-                  child: AppCard(
-                    child: Row(
-                      children: <Widget>[
-                        Icon(icon, color: context.colors.primary),
-                        const SizedBox(width: AppSpacing.s16),
-                        Expanded(child: Text(body, style: context.text.bodyMedium)),
-                      ],
-                    ),
-                  ),
-                ),
-                const SettingsSection(),
-              ],
-            )
-          : EmptyStateView(icon: icon, title: l10n.comingSoon, body: body),
+      body: EmptyStateView(icon: icon, title: l10n.comingSoon, body: body),
     );
   }
 }

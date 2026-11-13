@@ -38,6 +38,21 @@ Limits below are the public free allowances as understood in November 2026.
   pushes to `main`, version tags and manual starts.
 - Dev runs on the local emulators (`demo-` project): zero cloud cost.
 
+## Sign-in (Prompt 2)
+
+- One WhatsApp **authentication** template message per code. Meta bills
+  authentication messages per message at the Egypt rate (check Meta's
+  pricing page; it changes). Codes are capped at 5 per number, 10 per
+  device and 60 per IP address per hour, and a number is locked for an hour
+  after 10 wrong codes, so abuse cannot run up the bill.
+- Dev and staging use the fake sender: no WhatsApp cost at all.
+- Each code request is about 3 Firestore reads and 4 writes; each check
+  about 2 reads and 2 writes, plus the new account's 2 writes. Old sign-in
+  records are deleted by a free TTL policy (SETUP.md section 11.4).
+- Email confirmation links are sent by Firebase Authentication at no cost.
+- `requestCode` and `verifyCode` read `MIN_INSTANCES_SIGNIN` (0 now). Set it
+  to 1 in `functions/.env.prod` only if cold starts make sign-in slow.
+
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
@@ -21,6 +22,11 @@ class AppTextField extends StatelessWidget {
     this.enabled = true,
     this.obscureText = false,
     this.maxLength,
+    this.inputFormatters,
+    this.textDirection,
+    this.prefixText,
+    this.autofocus = false,
+    this.onFieldSubmitted,
   });
 
   final String label;
@@ -41,6 +47,16 @@ class AppTextField extends StatelessWidget {
   final bool enabled;
   final bool obscureText;
   final int? maxLength;
+  final List<TextInputFormatter>? inputFormatters;
+
+  /// Set to [TextDirection.ltr] for phone numbers and emails, which read
+  /// left to right in Arabic too.
+  final TextDirection? textDirection;
+
+  /// Fixed text before the input, for example the country code.
+  final String? prefixText;
+  final bool autofocus;
+  final ValueChanged<String>? onFieldSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +69,7 @@ class AppTextField extends StatelessWidget {
         hintText: hintText,
         errorText: errorText,
         prefixIcon: prefixIcon == null ? null : Icon(prefixIcon),
+        prefixText: prefixText,
       ),
       style: context.text.bodyLarge,
       validator: validator,
@@ -64,6 +81,10 @@ class AppTextField extends StatelessWidget {
       enabled: enabled,
       obscureText: obscureText,
       maxLength: maxLength,
+      inputFormatters: inputFormatters,
+      textDirection: textDirection,
+      autofocus: autofocus,
+      onFieldSubmitted: onFieldSubmitted,
     );
   }
 }

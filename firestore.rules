@@ -1,11 +1,51 @@
 rules_version = '2';
 
-// DENY EVERYTHING (Prompt 1). Each later prompt opens exactly the reads and
-// writes its feature needs, with emulator tests in tests/rules.
-// The app never writes status, role, verification, schedule ownership,
-// balances or transfers: Cloud Functions do (Admin SDK bypasses rules).
+// DENY BY DEFAULT. Each prompt opens exactly the reads and writes its
+// feature needs, with emulator tests in tests/rules.
+// The app never writes status, role, verification, parent ID, schedule
+// ownership, balances or transfers: Cloud Functions do (the Admin SDK
+// bypasses these rules).
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Prompt 2 (F1, F44): the parent's own record. Created only by the
+    // verifyCode function (status "unverified" and the parent ID). The
+    // parent can read it and change only the app language.
+    match /users/{uid} {
+      allow get: if isSelf(uid);
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['language'])
+        && request.resource.data.language in ['ar', 'en'];
+
+      // Consent records: written only by the acceptConsents function,
+      // readable by their owner (privacy screen later).
+      match /consents/{consentId} {
+        allow read: if isSelf(uid);
+      }
+    }
+
+    // Reserved parent IDs, sign-in codes and sign-in limits: Cloud
+    // Functions only. Parent ID lookups (F44) will go through a
+    // rate-limited function, never a direct read.
+    match /parentIds/{parentId} {
+      allow read, write: if false;
+    }
+    match /otpCodes/{key} {
+      allow read, write: if false;
+    }
+    match /otpLimits/{key} {
+      allow read, write: if false;
+    }
+
+    // Everything else stays closed.
     match /{document=**} {
       allow read, write: if false;
     }
