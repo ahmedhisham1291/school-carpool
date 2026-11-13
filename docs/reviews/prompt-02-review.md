@@ -226,3 +226,111 @@ Process
   plus `button`/`url` index 0).
 - Text at 200 %, VoiceOver labels and contrast of the new warning colors
   on a device.
+
+---
+
+# Re-review (round 2)
+
+Branch `prompt-02-whatsapp-signup` at `aa212ba`. Reviewed 13 Nov 2026 by
+the validator agent. Scope: `git diff 3c12801..HEAD` (the fixes after round
+1), with a security reading of every changed TypeScript file and the Dart
+auth and email-screen changes.
+
+## Verdict
+
+**PASS.** Both blocking items are resolved, CI is fully green, and I found
+no new blocking security issue. The non-blocking points below should be
+handled before the pilot, not before merging.
+
+## CI
+
+Run `43429029313` (head `aa212ba`, branch `prompt-02-whatsapp-signup`),
+confirmed with `gh api`: overall **success**.
+
+| Job | Result |
+| --- | --- |
+| Flutter analyze, tests and screenshots | success |
+| Cloud Functions tests and rules tests (emulators), incl. the new emulator tests | success |
+| Web and Android compile (staging) | success |
+
+## Earlier items
+
+| # | Item | Status |
+| --- | --- | --- |
+| 1 | `flutter analyze` 17 issues | **Resolved.** `ltrIsolate` helper in `lib/design/bidi.dart`, import removed, initializing formals (positional), null-aware element, const literal. Analyzer, widget tests and screenshots green. |
+| 2 | Email link signs the parent out | **Resolved.** No client `reload()`; `confirmEmail` returns a fresh custom token on the change to confirmed and the app signs in with it; check on open and on resume; `user-token-expired`, `invalid-user-token`, `requires-recent-login`, `user-not-found` and callable `unauthenticated` map to "Sign in again" with a button; on the next WhatsApp sign-in `ensureUserRecord` copies the verified email from Auth, so the parent goes straight to terms. Widget and emulator tests added. Still to try once on an iPhone. |
+| 3 | Stranger locks a parent out | **Changed, see N1.** Lock is now per number and device; a daily cap per number was added. |
+| 4 | IP key may be global | **Resolved for now.** `clientIp` in its own file with a unit test, `CLIENT_IP_HOP` and `OTP_MAX_SENDS_PER_IP` params, a hash-prefix log outside prod and SETUP 11.7 to check two networks. |
+| 5 | App Check replay | Still deferred, listed under "Not done". Keep it before prod. |
+| 6 | WhatsApp call timeout | **Resolved.** `AbortSignal.timeout(10_000)`, tested. |
+| 7 | `acceptConsents` order on the server | Deferred (unchanged), acceptable. |
+| 9 | Emulator test for `ensureUserRecord` | **Resolved.** 6 emulator tests, run in CI. |
+| 10 | Email screen widget test | **Resolved** (signup_screens_test). |
+
+## Security re-check
+
+- **`confirmEmail` token.** `uid` comes only from `request.auth` (no input
+  is read), so it can mint a token only for the caller's own account. It
+  reads the truth from Admin `getUser`, refuses a suspended record, and
+  writes and mints only when `emailConfirmationIsNew` (record not yet
+  verified, or a different address); a repeat call gets `{ verified: true }`
+  without a token. The custom token has no claims. Revocation: the
+  callable does not check `checkRevoked`, which is what lets the revoked
+  session after the email change get its one fresh token; the window is
+  the ID token's remaining life (at most 1 h), once, for the same uid.
+  Acceptable. See N3.
+- **Blocking functions.** `beforeUserSignedIn` and `beforeEmailSent` from
+  `firebase-functions/v2/identity` (v7) with `HttpsError` from the same
+  module; this compiles in CI. The method is read from
+  `credential?.signInMethod`, falling back to
+  `additionalUserInfo?.providerId`. For password and email-link sign-in
+  the SDK reports `password` / `emailLink`, phone gives `phone`, anonymous
+  gives `anonymous`; all four are refused. Custom-token sign-in is not in
+  the list and `undefined` is allowed, so the WhatsApp path cannot be
+  blocked by this policy. `beforeEmailSent` refuses `PASSWORD_RESET` and
+  `EMAIL_SIGN_IN` and lets `VERIFY_AND_CHANGE_EMAIL` through, so the email
+  step still works. Not exercised by any emulator test; the builder lists
+  the real-project check (owner step 7). See N2.
+- **Lockout and cap.** Lock key is `HMAC(lock:phone:device)`; the daily
+  failure count lives on the number's limit document, rolled over 24 h,
+  and is checked in both `requestCode` and `verifyCode`. All writes are in
+  the transaction and refusals are returned, so counters commit. A right
+  code resets only the device lock, not the daily count (correct). No
+  plain value in any key (tested). Brute force stays bounded: at most 25
+  guesses an hour and 30 a day per number out of 10^6.
+- **Logs.** The only new log line is `ipKeyPrefix` (10 hex chars of a keyed
+  hash), outside prod only. Blocking functions log nothing; their error
+  messages carry no PII. No phone, code, email or IP in any new log.
+
+## Non-blocking
+
+- **N1. The daily cap is a longer lockout for the same effort.** Device IDs
+  come from the client, so a stranger can rotate them past the per-device
+  lock. Reaching 30 failures needs 6 codes (5 per hour per number, 60 s
+  apart), so a little over one hour, not "6 codes over 6 hours" as the
+  progress note says. The parent is then closed for the rest of that 24 h
+  window, and the attack can be repeated daily. Before the pilot: correct
+  the note, make `maxFailuresPerPhonePerDay` a param, and consider an
+  admin unlock (or letting a known device of the account through) plus an
+  audit entry for a daily lock. The shared 5-codes-per-hour send cap per
+  number is the same kind of nuisance and predates this round.
+- **N2. Blocking functions are on the sign-in path with `minInstances` 0.**
+  Identity Platform gives a blocking function about 7 s; a cold start
+  plus a failure would stop every sign-in, including custom-token ones.
+  Check the cold-start time on dev, keep them tiny (they are), and note in
+  COSTS.md that raising their `minInstances` is the fix if sign-ins time
+  out. Also confirm on dev that a custom-token sign-in passes and that a
+  password reset from the console's REST call is refused.
+- **N3. `confirmEmail` could require a recent email change.** Optional
+  hardening: mint the token only when the record was unconfirmed and the
+  Auth user's `tokensValidAfterTime` is recent (the revocation from the
+  link), so an old ID token from a session revoked for another reason
+  cannot use it.
+- **N4.** Item 5 (App Check replay on `requestCode`) is still open; it
+  protects WhatsApp cost and should land before prod.
+
+## Not verifiable here
+
+The full flow on an iPhone (email link, session revocation and re-sign-in),
+blocking functions on a real Identity Platform project, and the
+`X-Forwarded-For` hop on Cloud Run.
