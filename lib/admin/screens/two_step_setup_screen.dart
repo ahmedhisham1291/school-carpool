@@ -10,6 +10,18 @@ import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
+/// "ABCD EFGH ..." so the setup key is easier to type.
+String groupedSetupKey(String key) {
+  final StringBuffer out = StringBuffer();
+  for (int i = 0; i < key.length; i++) {
+    if (i > 0 && i % 4 == 0) {
+      out.write(' ');
+    }
+    out.write(key[i]);
+  }
+  return out.toString();
+}
+
 /// First sign-in of a new admin: add the panel to an authenticator app
 /// (Google Authenticator, Microsoft Authenticator, ...) with the setup key,
 /// type the 6-digit code it shows, then sign in again with both steps.
@@ -84,18 +96,6 @@ class _TwoStepSetupScreenState extends ConsumerState<TwoStepSetupScreen> {
     }
   }
 
-  /// "ABCD EFGH ..." so the key is easier to type.
-  static String grouped(String key) {
-    final StringBuffer out = StringBuffer();
-    for (int i = 0; i < key.length; i++) {
-      if (i > 0 && i % 4 == 0) {
-        out.write(' ');
-      }
-      out.write(key[i]);
-    }
-    return out.toString();
-  }
-
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = context.l10n;
@@ -129,7 +129,7 @@ class _TwoStepSetupScreenState extends ConsumerState<TwoStepSetupScreen> {
                       AppCopyValue(label: l10n.adminSetupKey, value: setup.secretKey),
                       const SizedBox(height: AppSpacing.s8),
                       Text(
-                        ltrIsolate(grouped(setup.secretKey)),
+                        ltrIsolate(groupedSetupKey(setup.secretKey)),
                         style: context.text.titleMedium,
                         textDirection: TextDirection.ltr,
                       ),

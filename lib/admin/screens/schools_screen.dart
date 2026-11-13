@@ -77,16 +77,17 @@ class _SchoolListState extends ConsumerState<SchoolList> {
       children: <Widget>[
         Padding(
           padding: AppSpacing.screenPadding,
-          child: AppSelectField<String?>(
+          // '' stands for every governorate (the field takes no null choice).
+          child: AppSelectField<String>(
             key: const Key('schools.governorate'),
             label: l10n.adminGovernorate,
-            options: <(String?, String)>[
-              (null, l10n.adminAllGovernorates),
+            options: <(String, String)>[
+              ('', l10n.adminAllGovernorates),
               for (final String g in kGovernorates) (g, governorateLabel(l10n, g)),
             ],
-            value: _governorate,
-            onChanged: (String? g) {
-              setState(() => _governorate = g);
+            value: _governorate ?? '',
+            onChanged: (String g) {
+              setState(() => _governorate = g.isEmpty ? null : g);
               unawaited(_load());
             },
           ),
