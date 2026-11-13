@@ -48,6 +48,8 @@ const paths = [
   "users/bob",
   "schools/s1",
   "areas/a1",
+  // children/{id} is readable by its owner since Prompt 3
+  // (verification.test.ts); c1 does not exist, so every read is denied.
   "children/c1",
   "carpools/k1",
   "memberships/m1",

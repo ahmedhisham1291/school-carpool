@@ -41,6 +41,16 @@ dependencies:
   # Localization. Version is pinned by flutter_localizations, so `any`.
   intl: any
 
+  # Identity verification (Prompt 3, justified in docs/progress/prompt-03.md).
+  # Official camera plugin (flutter.dev): our own preview and overlay, camera
+  # only, no gallery picker. Uses CameraX on Android, AVFoundation on iOS.
+  camera: ^0.12.2
+  # Native JPEG compression on the phone; drops EXIF (location) by default.
+  flutter_image_compress: ^2.5.1
+  # Screenshot and screen-recording blocking on document screens:
+  # FLAG_SECURE on Android, the secure text field layer on iOS.
+  screen_protector: ^1.5.3
+
   # Persists the language, theme mode and dev design direction on the phone.
   # Official Flutter plugin; flagged to the owner in docs/progress/prompt-01.md.
   shared_preferences: ^2.5.3

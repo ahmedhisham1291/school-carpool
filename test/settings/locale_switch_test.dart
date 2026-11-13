@@ -102,7 +102,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Profile is longer since Prompt 2: scroll the switch into view.
-      await tester.ensureVisible(find.text('English'));
+      await tester.scrollUntilVisible(
+        find.text('English'),
+        200,
+        scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first,
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('English'));
       await tester.pumpAndSettle();
@@ -111,7 +115,11 @@ void main() {
       expect(find.text('Profile'), findsWidgets);
       expect(store.read(LocaleController.storageKey), 'en');
 
-      await tester.ensureVisible(find.text('العربية'));
+      await tester.scrollUntilVisible(
+        find.text('العربية'),
+        200,
+        scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first,
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('العربية'));
       await tester.pumpAndSettle();

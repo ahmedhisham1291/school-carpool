@@ -32,6 +32,40 @@ service cloud.firestore {
       }
     }
 
+    // Prompt 3 (F3): children. Created, changed and removed only by Cloud
+    // Functions (submitVerification, decideVerification, removeChild). A
+    // parent reads only their own children; the app must query with
+    // where('ownerUid', '==', uid).
+    match /children/{childId} {
+      allow get, list: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // Prompt 3 (F2): the driver's car, one per parent for now. Written only
+    // by Cloud Functions; readable by its owner.
+    match /vehicles/{uid} {
+      allow get: if isSelf(uid);
+    }
+
+    // Prompt 3 (F2, F18): verification cases, national ID hashes, the ban
+    // list, server settings (config/kyc) and the audit log. Cloud Functions
+    // only: admins see cases through the admin functions (signed image
+    // links, every view logged), never by direct reads.
+    match /verifications/{caseId} {
+      allow read, write: if false;
+    }
+    match /nationalIds/{hash} {
+      allow read, write: if false;
+    }
+    match /bannedIds/{hash} {
+      allow read, write: if false;
+    }
+    match /config/{name} {
+      allow read, write: if false;
+    }
+    match /auditLog/{entryId} {
+      allow read, write: if false;
+    }
+
     // Reserved parent IDs, sign-in codes and sign-in limits: Cloud
     // Functions only. Parent ID lookups (F44) will go through a
     // rate-limited function, never a direct read.

@@ -16,4 +16,17 @@ abstract final class LegalDocuments {
     'privacy': privacy,
     'conduct': conduct,
   };
+
+  /// Consent to process ID, face and child data, given when documents are
+  /// submitted (spec section 9, consent types ID, face, child data). Must
+  /// match VERIFICATION_CONSENT_VERSIONS in
+  /// functions/src/verification/submission.ts.
+  static const String verificationConsent = '2026-11-13';
+
+  /// Sent to submitVerification as `consents`.
+  static const Map<String, String> verification = <String, String>{
+    'id': verificationConsent,
+    'face': verificationConsent,
+    'childData': verificationConsent,
+  };
 }

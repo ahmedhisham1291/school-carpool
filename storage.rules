@@ -1,9 +1,32 @@
 rules_version = '2';
 
-// DENY EVERYTHING (Prompt 1). Verification images will go to a private
-// bucket that only Cloud Functions and admin review tools can read.
+// DENY BY DEFAULT. Verification images live under verification/{uid}/:
+//
+//   pending/{name}           the parent's own uploads (Prompt 3, F2, F3)
+//   cases/{caseId}/{name}    copied there by submitVerification; Cloud
+//                            Functions only
+//
+// Nobody reads any of them through the client SDK, not even the owner or an
+// admin. Admins see case images through the openVerificationCase function,
+// which hands out 5-minute signed links and logs every view. Cloud
+// Functions use the Admin SDK, which bypasses these rules.
 service firebase.storage {
   match /b/{bucket}/o {
+
+    // The parent uploads (and may replace, for a retake) a known document
+    // name into their own pending folder: JPEG only, at most 3 MB (the app
+    // compresses to well under that). School ID slots are c1 to c10
+    // (MAX_CHILDREN), so the number of files per parent is bounded.
+    // No reads, no deletes, no listing.
+    match /verification/{uid}/pending/{name} {
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && name.matches('(id_front|id_back|selfie|selfie_turn|license|car_license|school_id_c([1-9]|10))[.]jpg')
+        && request.resource.size > 0
+        && request.resource.size < 3 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

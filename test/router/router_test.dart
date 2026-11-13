@@ -98,6 +98,12 @@ void main() {
     await pumpRouter(tester, config: testStagingConfig);
     await tester.tap(find.byIcon(Icons.person_outline_rounded));
     await tester.pumpAndSettle();
+    // Profile is long (children and car rows since Prompt 3): scroll to the settings.
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings.language')),
+      200,
+      scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first,
+    );
     expect(find.byKey(const Key('settings.language')), findsOneWidget);
     expect(find.byKey(const Key('dev.gallery')), findsNothing);
   });
