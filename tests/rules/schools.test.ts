@@ -104,7 +104,7 @@ describe("schools: writing (Cloud Functions only)", () => {
     }
   });
 
-  it("areas stay closed until the maps prompt", async () => {
+  it("areas stay closed until carpools use them (Prompt 6)", async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await ctx.firestore().doc("areas/a1").set({ schoolId: "active1", nameAr: "حي", nameEn: "Area" });
     });

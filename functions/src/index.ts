@@ -64,3 +64,17 @@ export { blockClientSignUps, blockNonCodeSignIn, blockSignInEmails } from "./aut
 
 // Schools list (Prompt 4B: F4): "Other" schools, the search key and the index sync.
 export { addOtherSchool, getSchoolSearchKey, syncSchoolToSearch } from "./schools/callables";
+
+// Home, schools and maps (Prompt 5: F21 to F24, F40): home pin, address
+// search, map settings, driving schools, nearby parents and the public
+// (rounded) record kept in step with accounts and children.
+export {
+  placeDetails,
+  placesAutocomplete,
+  searchNearbyParents,
+  setDrivingSchools,
+  setHomeLocation,
+  syncMapOnChildWrite,
+  syncMapOnUserWrite,
+  updateMapSettings,
+} from "./maps/callables";
