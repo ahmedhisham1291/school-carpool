@@ -87,6 +87,9 @@ async function enableTotp(): Promise<void> {
   if (onEmulator) refuse("the Auth emulator has no TOTP; run this against a cloud project");
   await auth.projectConfigManager().updateProjectConfig({
     multiFactorConfig: {
+      // "state" covers SMS second factors, which stay off (no SMS anywhere);
+      // TOTP is switched on through its provider config below.
+      state: "DISABLED",
       providerConfigs: [{ state: "ENABLED", totpProviderConfig: { adjacentIntervals: 1 } }],
     },
   });
