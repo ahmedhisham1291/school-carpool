@@ -206,3 +206,105 @@ because the failing job cancels the run).
 - Whether the canvas-only image drawing holds in the deployed web
   renderer (CanvasKit or skwasm) and with the CORS settings on the real
   bucket.
+
+---
+
+# Re-review (head `d9af8ef`)
+
+Reviewed 13 Nov 2026. Changes since `32dfb98`: `1a580e1` (merge of `main`,
+which brings Prompt 3's Android JVM 17 fix `ff8417a`), plus the hardening
+commits `edfc7ee`, `2d3ead8` and `d9af8ef`.
+
+## Verdict
+
+**PASS.**
+
+## CI result
+
+Run `43449231942` (push, head `d9af8ef`): **success**. All three jobs passed:
+Flutter analyze, tests and screenshots; Cloud Functions tests and rules
+tests (emulators); and the web, admin panel and Android compile.
+Blocking item 1 is fixed.
+
+## Critical check: `beforeUserCreated` does not break parent sign-up
+
+- **How a parent account is created** (`functions/src/auth/accounts.ts:96-125`).
+  `verifyCode`, through `signInWithPhone`, calls `findOrCreateAuthUser`. That
+  function first tries `auth.getUserByPhoneNumber`. If the user does not
+  exist, it creates them with **`auth.createUser({ phoneNumber })` (Admin
+  SDK) before** `createToken`, which calls `auth.createCustomToken(uid)`. The
+  app then signs in with a custom token for a uid that **already exists**.
+  So a parent sign-up never asks the client to create an account.
+- **What Firebase triggers.** Identity Platform's blocking-functions page
+  says: "Anonymous and custom authentication don't support blocking
+  functions." It also says that `beforeCreate` "Triggers before a new user is
+  saved ... and before a token is returned to your client app". A Firebase
+  maintainer confirms: "Creating users using the Admin SDK will not trigger
+  Auth Blocking functions" (firebase-tools issue #6235). So
+  `blockClientSignUps` does not run for the parent's `createUser`, for the
+  custom-token sign-in, or for `createAdmin` or the bootstrap script.
+- **Defense in depth.** If either path ever did reach the function,
+  `creationAllowed` (`sign_in_policy.ts`) allows `undefined` and `"custom"`.
+  It refuses `password`, `emailLink`, `phone` and federated providers. That
+  covers `createUserWithEmailAndPassword`, which was non-blocking item 3.
+  Anonymous sign-up cannot be blocked by a blocking function at all, so it
+  must stay off in the console. SETUP already says so (around line 317).
+- **Related finding.** The same Identity Platform page says that with MFA,
+  `beforeSignIn` "triggers after the user verifies their second factor".
+  The `admin.signIn` audit entry is therefore written after the TOTP step.
+  This settles the second "Not verifiable" item.
+
+## The other fixes, checked
+
+- **Revocation and disabled admins** (non-blocking 1). `requireAdminCaller`
+  is now async and reads `admins/{uid}`. It refuses an admin with no record
+  or a disabled one (`not-admin`), and refuses a token whose
+  `max(iat, auth_time)` is older than `revokedAt` (`session-revoked`).
+  `setDisabled` writes `revokedAt` in the same batch as its audit entry.
+  In the rules, `isAdmin()` now checks that the record exists, that
+  `disabled != true`, and that `iat` is later than `revokedAt`. New rules
+  tests cover a missing record, an old token, a new token and a disabled
+  admin. Every call site awaits the async guard, including Prompt 3's
+  three review callables.
+- **15 minutes idle on the server** (non-blocking 2). The guard refuses
+  `session-idle` when more than 15 minutes have passed since
+  `max(lastActiveAt, auth_time)`. `lastActiveAt` is written at most once a
+  minute. The panel calls `adminPing` while the admin is active, and both
+  `session-idle` and `session-revoked` sign the panel out.
+- **`grant-admin`** (non-blocking 4). It now needs `--allow` and refuses an
+  account with a phone number (a parent) or without an email. It writes the
+  admin record and an audit entry. Prod is still refused.
+- **Audited list views** (non-blocking 6). `admin.list` and `audit.view`
+  (written once per opening of the log, not per page) are now logged.
+- **No orphan accounts** (non-blocking 7). `accounts.create` runs outside
+  the `try`, so an `already-exists` refusal never deletes the existing user.
+  Any later failure deletes the new Auth user and, if it was saved, the
+  admin record.
+
+## Non-blocking (new)
+
+1. The rules' `isAdmin()` does not apply the 15-minute idle limit; only the
+   functions do. The panel reads everything through functions, so this
+   matters only for a direct `auditLog` read with a stolen token. That read
+   is still limited by revocation, the 8-hour limit and the token's 1-hour
+   lifetime. Acceptable; note it for the penetration test.
+2. Every admin call now does one extra Firestore read, plus at most one
+   write a minute. Each rules evaluation that reads the admin record also
+   costs one read. Both are negligible at pilot size.
+3. The setup-link item (old non-blocking 5) still stands as documented. The
+   one-hour `passwordSetupLink` must be handed over privately.
+
+## Still not verifiable here
+
+- `multiFactorConfig.state: "DISABLED"`: run the new `check-totp` step
+  (SETUP) once on the dev project and confirm that TOTP shows `ENABLED`.
+- The "Done when" flow with real TOTP in a deployed dev project.
+- That canvas-only image drawing holds on the deployed web renderer with
+  the real bucket's CORS.
+
+Sources: Identity Platform, "Customize the authentication flow using
+blocking functions"
+(https://docs.cloud.google.com/identity-platform/docs/blocking-functions);
+firebase-tools issue #6235
+(https://github.com/firebase/firebase-tools/issues/6235). The Firebase-hosted
+blocking-functions pages could not be fetched (robots).
