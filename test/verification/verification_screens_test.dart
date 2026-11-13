@@ -255,6 +255,12 @@ void main() {
       }
       await tester.tap(find.byKey(const Key('verify.next')));
       await tester.pumpAndSettle();
+      // The message sits under the review summary: scroll the step to it.
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('verify.failure')),
+        200,
+        scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first,
+      );
       expect(find.textContaining('already used by another account'), findsOneWidget);
       expect(repository.submissions, isEmpty);
     });

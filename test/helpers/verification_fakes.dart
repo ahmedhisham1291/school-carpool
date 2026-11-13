@@ -1,3 +1,4 @@
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,8 +10,11 @@ import 'package:school_carpool/features/verification/verification_failure.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/features/verification/verification_repository.dart';
 
-/// Fake JPEG bytes (tests never use real images).
-final Uint8List fakePhoto = Uint8List.fromList(<int>[0xFF, 0xD8, 0xFF, 0xD9]);
+/// A valid 1 by 1 pixel PNG standing in for a photo, so Image.memory can
+/// decode it (tests never use real images).
+final Uint8List fakePhoto = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOYc+IAAAQoAiWGhDpEAAAAAElFTkSuQmCC',
+);
 
 /// Records uploads and submissions. [failUploadsOf] makes those names fail
 /// once with [failure]; [submitFailure] fails the next submit.
