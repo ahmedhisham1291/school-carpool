@@ -24,3 +24,6 @@ export const debugTestError = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, asy
   await reportError(error);
   throw new HttpsError("internal", "Test error raised and reported.");
 });
+
+// Sign-up and sign-in with a WhatsApp code (Prompt 2: F1, F44).
+export { acceptConsents, confirmEmail, requestCode, verifyCode } from "./auth/callables";
