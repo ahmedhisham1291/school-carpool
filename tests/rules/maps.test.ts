@@ -23,6 +23,7 @@ import {
   initializeTestEnvironment,
   type RulesTestContext,
   type RulesTestEnvironment,
+  type TokenOptions,
 } from "@firebase/rules-unit-testing";
 
 const root = join(__dirname, "..", "..", "..");
@@ -31,7 +32,7 @@ let env: RulesTestEnvironment;
 
 const token = { firebase: { sign_in_provider: "custom" as const } };
 const verified = { ...token, verified: true as const };
-const as = (uid: string, claims: object = verified): RulesTestContext => env.authenticatedContext(uid, claims);
+const as = (uid: string, claims: TokenOptions = verified): RulesTestContext => env.authenticatedContext(uid, claims);
 const signedOut = (): RulesTestContext => env.unauthenticatedContext();
 
 // Fake points only.
