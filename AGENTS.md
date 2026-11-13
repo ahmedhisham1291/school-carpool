@@ -35,6 +35,32 @@ quality)
   and work is never blocked by a contract. Stream uses a separate dev app
   with fake users.
 
+COST MODE (decided 13 Nov 2026): FREE TIER FIRST
+Start every service on its free plan; upgrade only when usage reaches that
+plan's limit. Code must not depend on any paid-only feature being on.
+- Firebase: Blaze plan (needed for Cloud Functions) but stay inside the free
+  quotas. minInstances = 0 for every function (no warm instances) - keep it
+  a config value so it can be raised later. Firestore point-in-time recovery
+  OFF for now (document how to switch on); daily backup ON in prod only.
+  Auth: Identity Platform free tier.
+- Stream Chat: Build (free) plan, later Maker Account.
+- Algolia: free Build plan (10k searches/month); keep the fake search for dev.
+- Sentry: free Developer plan; low sample rates, errors only, no tracing by
+  default.
+- Codemagic: free personal tier (500 macOS min/month): build iOS only on
+  push to main or a tag, not on every branch; analyze/test on Linux.
+- Google Maps: stay inside the monthly free allowance; cache place details,
+  debounce Places autocomplete with session tokens, Routes only during a
+  live run, at most once a minute per stop.
+- WhatsApp: messages are paid per template; keep WhatsApp for codes and the
+  critical alerts by default, everything else push-only unless the parent
+  switches WhatsApp on.
+- Valify and the wallet partner: fake providers until the pilot.
+- flutter_background_geolocation: no license needed for debug or iOS; buy
+  it before the Android release build.
+- Add a docs/COSTS.md listing each service, its free limit, how we track
+  usage, and the trigger to upgrade.
+
 PLATFORM ORDER
 iPhone first. A feature is done only when it runs on iPhone. The website and
 Android must keep compiling in CI, but their platform work waits for the
