@@ -8,6 +8,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/auth/account.dart';
+import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/notifications/local_alarms.dart';
 import 'package:school_carpool/features/notifications/notification_center.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
@@ -21,13 +23,33 @@ import '../helpers/notification_fakes.dart';
 import '../helpers/one_line.dart';
 import '../helpers/test_app.dart';
 
+/// A verified parent who agreed to WhatsApp at sign-up (fake data only).
+const SessionState _optedIn = SessionSignedIn(
+  uid: 'uid-1',
+  account: Account(
+    parentId: 'ABCD2345',
+    status: AccountStatus.verified,
+    phone: '+201000000001',
+    email: 'parent@example.com',
+    emailVerified: true,
+    termsAccepted: true,
+    language: 'ar',
+    whatsappOptIn: true,
+  ),
+);
+
 /// The same overrides in every pump (one ProviderScope shape per test).
-List<Override> _overrides(FakeNotificationRepository repo, {FakePushMessaging? push, FakeLocalAlarms? alarms, SettingsStore? store}) =>
-    <Override>[
-      flavorConfigProvider.overrideWithValue(testDevConfig),
-      settingsStoreProvider.overrideWithValue(store ?? InMemorySettingsStore()),
-      ...authOverrides(notifications: repo, push: push, alarms: alarms),
-    ];
+List<Override> _overrides(
+  FakeNotificationRepository repo, {
+  FakePushMessaging? push,
+  FakeLocalAlarms? alarms,
+  SettingsStore? store,
+  SessionState session = _optedIn,
+}) => <Override>[
+  flavorConfigProvider.overrideWithValue(testDevConfig),
+  settingsStoreProvider.overrideWithValue(store ?? InMemorySettingsStore()),
+  ...authOverrides(session: session, notifications: repo, push: push, alarms: alarms),
+];
 
 Future<GoRouter> _pump(
   WidgetTester tester,
@@ -215,6 +237,47 @@ void main() {
       expect(s.value, isTrue);
     });
 
+    testWidgets('declined WhatsApp at sign-up: group switches off and locked, one line says why, consent asks first', (WidgetTester tester) async {
+      final FakeNotificationRepository repo = FakeNotificationRepository();
+      await _pump(tester, ProfileRoutes.notifications, overrides: _overrides(repo, session: testVerifiedSession));
+      expect(find.text('You chose no WhatsApp'), findsOneWidget);
+      final Switch group = tester.widget<Switch>(find.descendant(of: find.byKey(const Key('notifSettings.noDriver')), matching: find.byType(Switch)));
+      expect(group.value, isFalse);
+      expect(group.onChanged, isNull);
+      await tester.tap(find.byKey(const Key('notifSettings.noDriver')));
+      await tester.pumpAndSettle();
+      expect(repo.calls.where((String c) => !c.startsWith('register:')), isEmpty);
+      // Agreeing asks first, then records the consent through Functions.
+      await tester.tap(find.byKey(const Key('notifSettings.consent')));
+      await tester.pumpAndSettle();
+      expect(find.text('Alerts by WhatsApp too?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(AppButton, 'I agree'));
+      await tester.pumpAndSettle();
+      expect(repo.calls, contains('consent:true'));
+      final Switch after = tester.widget<Switch>(find.descendant(of: find.byKey(const Key('notifSettings.noDriver')), matching: find.byType(Switch)));
+      expect(after.value, isTrue);
+    });
+
+    testWidgets('cancelling the consent question changes nothing; withdrawing needs no question', (WidgetTester tester) async {
+      final FakeNotificationRepository repo = FakeNotificationRepository();
+      await _pump(tester, ProfileRoutes.notifications, overrides: _overrides(repo, session: testVerifiedSession));
+      await tester.tap(find.byKey(const Key('notifSettings.consent')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(AppButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      expect(repo.calls.where((String c) => !c.startsWith('register:')), isEmpty);
+    });
+
+    testWidgets('an opted-in parent can withdraw WhatsApp', (WidgetTester tester) async {
+      final FakeNotificationRepository repo = FakeNotificationRepository();
+      await _pump(tester, ProfileRoutes.notifications, overrides: _overrides(repo));
+      expect(find.text('You agreed to WhatsApp'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('notifSettings.consent')));
+      await tester.pumpAndSettle();
+      expect(repo.calls, contains('consent:false'));
+      expect(find.text('You chose no WhatsApp'), findsOneWidget);
+    });
+
     testWidgets('error and offline states', (WidgetTester tester) async {
       await _pump(tester, ProfileRoutes.notifications, overrides: _overrides(FakeNotificationRepository()..streamError = StateError('x')));
       expect(find.byType(ErrorStateView), findsOneWidget);
@@ -302,6 +365,42 @@ void main() {
       await tester.pumpAndSettle();
       expect(alarms.cancelled, contains(alarmIdFor('ahead')));
       expect(alarms.scheduled.containsKey(alarmIdFor('ahead')), isFalse);
+    });
+  });
+
+  group('Alarms across app starts', () {
+    testWidgets('an alarm that rang before (kept on the phone) does not ring again at start', (WidgetTester tester) async {
+      final FakeLocalAlarms alarms = FakeLocalAlarms();
+      final InMemorySettingsStore store = InMemorySettingsStore(<String, String>{kRungAlarmsKey: 'due'});
+      final FakeNotificationRepository repo = FakeNotificationRepository(
+        items: <AppNotification>[testNotification('due', NotificationKind.noDriver, ago: const Duration(minutes: 30))],
+      );
+      await _pump(tester, '/notifications', overrides: _overrides(repo, alarms: alarms, store: store));
+      expect(alarms.rang, isEmpty);
+    });
+
+    testWidgets('an old unread alert does not ring; a due one rings once and is remembered', (WidgetTester tester) async {
+      final FakeLocalAlarms alarms = FakeLocalAlarms();
+      final InMemorySettingsStore store = InMemorySettingsStore();
+      final FakeNotificationRepository repo = FakeNotificationRepository(
+        items: <AppNotification>[
+          testNotification('old', NotificationKind.noDriver, ago: const Duration(days: 3)),
+          testNotification('due', NotificationKind.noDriver, ago: const Duration(minutes: 30)),
+        ],
+      );
+      await _pump(tester, '/notifications', overrides: _overrides(repo, alarms: alarms, store: store));
+      expect(alarms.rang, <int>[alarmIdFor('due')]);
+      expect(rungAlarmIds(store), contains('due'));
+      expect(rungAlarmIds(store), isNot(contains('old')));
+    });
+
+    testWidgets('a scheduled alarm is remembered, so it never rings twice', (WidgetTester tester) async {
+      final InMemorySettingsStore store = InMemorySettingsStore();
+      final FakeNotificationRepository repo = FakeNotificationRepository(
+        items: <AppNotification>[testNotification('ahead', NotificationKind.noDriver, ago: const Duration(minutes: 1))],
+      );
+      await _pump(tester, '/notifications', overrides: _overrides(repo, store: store));
+      expect(rungAlarmIds(store), contains('ahead'));
     });
   });
 

@@ -58,8 +58,11 @@ class HomeShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Started by the app root too; watched here so the tab shell always has
-    // it, and taps on pushes navigate with this shell's router.
-    ref.watch(notificationCenterProvider).router = GoRouter.of(context);
+    // it. Taps on pushes navigate with this shell's router, handed over
+    // after the frame (no side effect during build).
+    final NotificationCenter center = ref.watch(notificationCenterProvider);
+    final GoRouter router = GoRouter.of(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) => center.router = router);
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: Column(

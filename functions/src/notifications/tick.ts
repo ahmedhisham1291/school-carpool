@@ -67,8 +67,15 @@ export interface TickResult {
 
 const LIMIT = 500;
 
+/**
+ * One reminder per run, driver and run time: the confirm reminder is keyed
+ * to the confirm-by time, the drive reminders to the start time. A run that
+ * moves (Ramadan times, early dismissal) or is re-asked gets a new reminder
+ * for its new time; the same time never gets two.
+ */
 export function reminderId(type: NotificationType, run: RunLite, driverUid: string): string {
-  return `${type}_${run.carpoolId}_${run.runId}_${driverUid}`;
+  const at = type === "confirm-reminder" ? run.confirmByMs : run.startMs;
+  return `${type}_${run.carpoolId}_${run.runId}_${driverUid}_${at}`;
 }
 
 function reminder(type: NotificationType, run: RunLite, nowMs: number): OutboxEvent | null {
@@ -120,8 +127,12 @@ export async function runNotificationTick(deps: TickDeps): Promise<TickResult> {
   const { store } = deps;
   const nowMs = deps.now();
   const tomorrow = addDays(cairoDate(nowMs), 1);
+  // The evening reminders only from REMINDER_EVENING_AT: no query before.
+  const evening = isTime(deps.eveningAt) ? deps.eveningAt : DEFAULT_EVENING_AT;
+  const [h, m] = evening.split(":").map(Number);
+  const eveningNow = cairoMinutes(nowMs) >= h * 60 + m;
   const [tomorrowRuns, soon, toConfirm] = await Promise.all([
-    store.confirmedRuns(cairoToUtcMs(tomorrow, "00:00"), cairoToUtcMs(addDays(tomorrow, 1), "00:00"), LIMIT),
+    eveningNow ? store.confirmedRuns(cairoToUtcMs(tomorrow, "00:00"), cairoToUtcMs(addDays(tomorrow, 1), "00:00"), LIMIT) : Promise.resolve([]),
     store.confirmedRuns(nowMs + 1, nowMs + HOUR_LEAD_MS + 1, LIMIT),
     store.plannedRuns(nowMs + 1, nowMs + CONFIRM_LEAD_MS + 1, LIMIT),
   ]);

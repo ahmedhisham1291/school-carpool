@@ -24,6 +24,10 @@ abstract interface class NotificationRepository {
   Future<void> setWhatsApp(WhatsAppGroup group, {required bool on});
   Future<void> setQuietHours({required bool on});
 
+  /// Agrees to WhatsApp messages after sign-up, or withdraws (a consent
+  /// record on the server).
+  Future<void> setWhatsAppConsent({required bool accept});
+
   /// Saves this phone's push token for the signed-in parent.
   Future<void> registerDevice({required String token, required String platform, String? previousToken});
 
@@ -82,11 +86,24 @@ class FirebaseNotificationRepository implements NotificationRepository {
       return;
     }
     final WriteBatch batch = _db.batch();
-    for (final String id in ids.take(kNotificationsPageSize)) {
+    final List<String> page = ids.take(kNotificationsPageSize).toList();
+    for (final String id in page) {
       batch.update(_records(uid).doc(id), <String, Object?>{'readAt': FieldValue.serverTimestamp()});
     }
     try {
       await batch.commit();
+    } on FirebaseException catch (error, stackTrace) {
+      if (error.code != 'permission-denied') {
+        Error.throwWithStackTrace(NotificationFailure.from(error), stackTrace);
+      }
+      // One was read meanwhile (read-once rule): mark the rest one by one.
+      try {
+        for (final String id in page) {
+          await markRead(uid, id);
+        }
+      } on Object catch (inner, innerStack) {
+        Error.throwWithStackTrace(NotificationFailure.from(inner), innerStack);
+      }
     } on Object catch (error, stackTrace) {
       Error.throwWithStackTrace(NotificationFailure.from(error), stackTrace);
     }
@@ -108,6 +125,10 @@ class FirebaseNotificationRepository implements NotificationRepository {
   Future<void> setQuietHours({required bool on}) => _call('updateNotificationSettings', <String, Object?>{
     'quiet': <String, Object?>{'on': on},
   });
+
+  @override
+  Future<void> setWhatsAppConsent({required bool accept}) =>
+      _call('setWhatsAppNotifications', <String, Object?>{'accept': accept});
 
   @override
   Future<void> registerDevice({required String token, required String platform, String? previousToken}) =>

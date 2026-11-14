@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/notifications/local_alarms.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
+import 'package:school_carpool/settings/settings_store.dart';
 
 /// What a push carries (data keys from the server; IDs and flags only).
 @immutable
@@ -172,4 +173,10 @@ Future<void> pushBackgroundHandler(fcm.RemoteMessage message) async {
     body: data.body ?? '',
     payload: alarmPayload(data.notificationId, data.route),
   );
+  // The phone rings it at its time: the app must not ring it again later.
+  try {
+    await rememberAlarm(await SharedPrefsSettingsStore.create(), data.notificationId);
+  } on Object {
+    // Best effort: at worst the app rings it once more within two hours.
+  }
 }

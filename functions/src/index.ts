@@ -126,6 +126,7 @@ export {
   notificationTick,
   registerPushDevice,
   sendNotification,
+  setWhatsAppNotifications,
   unregisterPushDevice,
   updateNotificationSettings,
 } from "./notifications/callables";

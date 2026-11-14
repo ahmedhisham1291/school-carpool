@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { FieldValue, Timestamp, type DocumentData, type Firestore } from "firebase-admin/firestore";
 import { USERS } from "../auth/accounts";
+import { CONSENT_VERSIONS } from "../auth/consents";
 import { takeFromWindow, type WindowCounter } from "../maps/limits";
 import { publicFromDoc } from "../maps/store";
 import { asLanguage } from "../whatsapp/sender";
@@ -196,6 +197,30 @@ export class FirestoreNotifyStore implements NotifyStore, TickStore, DeviceStore
       const oldest = [...mine.docs].sort((a, b) => (ms(a.get("updatedAt")) ?? 0) - (ms(b.get("updatedAt")) ?? 0));
       await this.deleteTokens(oldest.slice(0, mine.size - MAX_DEVICES).map((d) => d.id));
     }
+  }
+
+  setWhatsAppConsent(uid: string, accept: boolean, nowMs: number): Promise<void> {
+    const userRef = this.db.collection(USERS).doc(uid);
+    const consents = userRef.collection("consents");
+    return this.db.runTransaction(async (tx) => {
+      const user = await tx.get(userRef);
+      if (!user.exists) throw new Error("no account record");
+      const open = await tx.get(consents.where("type", "==", "whatsapp").where("withdrawnAt", "==", null).limit(20));
+      if (accept) {
+        if (open.empty) {
+          tx.create(consents.doc(), {
+            type: "whatsapp",
+            version: CONSENT_VERSIONS.whatsapp,
+            acceptedAt: ts(nowMs),
+            withdrawnAt: null,
+            source: "settings",
+          });
+        }
+      } else {
+        for (const d of open.docs) tx.update(d.ref, { withdrawnAt: ts(nowMs) });
+      }
+      tx.update(userRef, { whatsappOptIn: accept, updatedAt: FieldValue.serverTimestamp() });
+    });
   }
 
   /** Sign-out: removes the phone's token when it belongs to [uid]. */

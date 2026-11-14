@@ -1252,5 +1252,11 @@
   "adminReportDone": "Done",
   "adminReportInappropriate": "Inappropriate",
   "adminReportPrivacy": "Privacy",
-  "adminReportChildSafety": "Child safety"
+  "adminReportChildSafety": "Child safety",
+  "notifConsentRow": "WhatsApp messages",
+  "notifConsentOn": "You agreed to WhatsApp",
+  "notifConsentOff": "You chose no WhatsApp",
+  "notifConsentTitle": "Alerts by WhatsApp too?",
+  "notifConsentBody": "We send the alerts you choose to your number on WhatsApp. You can stop any time.",
+  "notifConsentConfirm": "I agree"
 }

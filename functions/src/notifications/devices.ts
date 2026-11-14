@@ -21,6 +21,13 @@ export interface DeviceStore {
   unregisterToken(uid: string, token: string): Promise<boolean>;
   settings(uid: string): Promise<NotificationSettings>;
   saveSettings(uid: string, s: NotificationSettings): Promise<void>;
+  /**
+   * The WhatsApp consent after sign-up: [accept] adds a consent record
+   * (users/{uid}/consents, type "whatsapp", source "settings") and sets
+   * whatsappOptIn; withdrawing sets withdrawnAt on the open whatsapp
+   * records and clears whatsappOptIn. One transaction.
+   */
+  setWhatsAppConsent(uid: string, accept: boolean, nowMs: number): Promise<void>;
 }
 
 export interface DeviceDeps {
@@ -74,6 +81,19 @@ export async function unregisterDevice(deps: DeviceDeps, uid: string, data: unkn
   const token = input(data).token;
   if (typeof token !== "string" || !TOKEN.test(token)) throw new DeviceError("invalid-request");
   return { removed: await deps.store.unregisterToken(uid, token) };
+}
+
+/**
+ * { accept: bool } -> { whatsappOptIn }. Lets a parent who said no to
+ * WhatsApp at sign-up agree later (spec section 7: consent, and withdraw it
+ * at any time). Counted with the settings changes.
+ */
+export async function setWhatsAppConsent(deps: DeviceDeps, uid: string, data: unknown): Promise<{ whatsappOptIn: boolean }> {
+  const accept = input(data).accept;
+  if (typeof accept !== "boolean") throw new DeviceError("invalid-request");
+  await take(deps, uid, "settings", deps.limits.settingsChangesPerDay);
+  await deps.store.setWhatsAppConsent(uid, accept, deps.now());
+  return { whatsappOptIn: accept };
 }
 
 /** { whatsapp?: { group: bool }, quiet?: { on?, from?, to? } } -> the settings */
