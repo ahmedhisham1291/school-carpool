@@ -29,6 +29,7 @@ import {
   type ChannelRecord,
 } from "../src/chat/model";
 import { retentionDays, runChatRetention } from "../src/chat/retention";
+import { allChannelTypeSettings, BLOCKED_TERMS_AR, BLOCKED_TERMS_EN, FORBIDDEN_FOR_PARENTS, moderationPolicy } from "../src/chat/setup_plan";
 import { createChatServer, FakeChatServer, signJwt, StreamChatServer, verifyWebhookSignature, type FetchLike } from "../src/chat/server";
 import { accountFromDoc, chatRelevant, nearestArea, syncAccess, syncCarpoolMember, syncParentGroups } from "../src/chat/sync";
 import { handleWebhook } from "../src/chat/webhook";
@@ -664,5 +665,37 @@ describe("retention", () => {
     await syncParentGroups(s.deps, "alice");
     s.server.failing = true;
     assert.deepEqual(await runChatRetention(s.deps, 90), { channels: 0, failed: 1 });
+  });
+});
+
+describe("Stream app setup plan (scripts/stream_setup.ts)", () => {
+  it("parents can create no channel and add no member in any of our types", () => {
+    for (const t of allChannelTypeSettings()) {
+      for (const role of ["user", "channel_member", "guest", "anonymous"]) {
+        for (const id of t.grants[role] ?? []) assert.ok(!FORBIDDEN_FOR_PARENTS.includes(id), `${t.name} ${role} ${id}`);
+      }
+      assert.deepEqual(t.grants.guest, []);
+      assert.deepEqual(t.grants.anonymous, []);
+      assert.equal(t.push_notifications, false);
+      assert.deepEqual(t.commands, []);
+      assert.equal(t.blocklist_behavior, "block");
+    }
+  });
+  it("photos only in private and carpool chats; read receipts only in small chats", () => {
+    const byName = new Map(allChannelTypeSettings().map((t) => [t.name, t]));
+    for (const [type, uploads] of [["cp_private", true], ["cp_carpool", true], ["cp_school", false], ["cp_area", false]] as const) {
+      const t = byName.get(type);
+      assert.ok(t);
+      assert.equal(t.uploads, uploads);
+      assert.equal(t.read_events, uploads);
+      assert.equal(t.grants.channel_member.includes("upload-attachment"), uploads);
+    }
+  });
+  it("blocked terms in Arabic and English; moderation covers text and images", () => {
+    assert.ok(BLOCKED_TERMS_AR.length >= 10 && BLOCKED_TERMS_AR.every((w) => /[؀-ۿ]/.test(w)));
+    assert.ok(BLOCKED_TERMS_EN.length >= 10 && BLOCKED_TERMS_EN.every((w) => /^[a-z ]+$/.test(w)));
+    const policy = moderationPolicy() as { ai_text_config: { enabled: boolean }; ai_image_config: { enabled: boolean } };
+    assert.equal(policy.ai_text_config.enabled, true);
+    assert.equal(policy.ai_image_config.enabled, true);
   });
 });

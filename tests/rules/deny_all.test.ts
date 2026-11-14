@@ -84,6 +84,17 @@ const paths = [
   "notificationEvents/e1",
   "pushTokens/abc",
   "notificationLimits/alice",
+  // Prompt 9 (chat.test.ts): alice reads only her own chat records; these
+  // are other parents' or Functions-only.
+  "chatRequests/bob_cara",
+  "chatBlocks/bob_cara",
+  "chatMutes/bob_cp_carpool~c-k1",
+  "chatSettings/bob",
+  "chatChannels/cp_carpool:c-k1",
+  "chatMemberships/alice",
+  "chatLimits/alice",
+  "users/alice/chatPushes/chat_m1",
+  "reports/r1",
   "scheduleEntries/e1",
   "wallets/alice",
   "transfers/t1",
