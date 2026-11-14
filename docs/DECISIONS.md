@@ -158,3 +158,29 @@ paid plugin, no new third-party dependency.
   a few minutes after the car moves. **Revisit** when Apple requires UIScene
   (announced for an SDK after iOS 26): then the AppDelegate must start a
   headless engine on a location launch instead.
+
+## Improvements (owner, 14 Nov 2026, 17:17): "do all of them"
+
+1. **Pilot without the wallet.** Wallet code stays, switched off by a server
+   feature switch; parents settle in cash during the pilot. Turned on once the
+   payment partner contract is signed.
+2. **Own chat on Firestore, replacing Stream Chat.** Small carpool groups,
+   text and photos; membership decided by Cloud Functions; same moderation
+   (reports, removal) through the admin panel; retention: chat life + 1 year.
+3. **Firebase Crashlytics (app) and Google Cloud Error Reporting / Logging
+   (functions), replacing Sentry.** No personal data in crash keys, logs or
+   breadcrumbs.
+4. **SMS backup for sign-in codes.** Only when WhatsApp delivery fails (or the
+   parent taps "send by SMS" after the WhatsApp code did not arrive in time);
+   own SmsProvider behind an interface with a fake; Egyptian mobile numbers
+   only; strict limits against SMS pumping fraud. Provider to be chosen by the
+   owner (candidates in docs/progress/improvements.md). Never Firebase phone
+   auth; Identity Platform SMS region policy stays "deny all".
+5. **Xcode Cloud** as a documented backup builder (25 free hours a month with
+   the Apple Developer membership); Codemagic stays the main builder.
+6. **Private repository before public launch** (GitHub paid plan or checks
+   elsewhere); the steps are in docs/launch-private-repo.md.
+7. **Smaller first release:** pilot feature switches; on for the pilot:
+   sign-in, verification, carpools, schedule, live trips and alerts, chat.
+   Off: wallet, ratings and vouching, yearly re-checks (all can be turned on
+   from server settings without a new build).
