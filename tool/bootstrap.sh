@@ -95,6 +95,9 @@ fi
 pub_get() {
   if [[ "${UPDATE_LOCK:-}" != "1" ]] && git ls-files --error-unmatch pubspec.lock >/dev/null 2>&1; then
     echo "bootstrap: $(pwd): locked versions (pubspec.lock)"
+    # `flutter create` above ran its own pub get and may have rewritten the
+    # lock: start again from the committed one.
+    git checkout -- pubspec.lock
     "$FLUTTER" pub get --enforce-lockfile
     # `flutter create` above runs its own pub get (it also writes the
     # Podfile that patch_native.py needs), so check nothing rewrote the file.
