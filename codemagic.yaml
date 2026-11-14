@@ -48,7 +48,7 @@ workflows:
         # Prompt 13 uses the free geolocator plugin (docs/testflight.md).
         - staging_defines
       vars:
-        APP_STORE_APPLE_ID: "0000000000"
+        APP_STORE_APPLE_ID: "6834802195"
     cache: *cache
     # Owner (14 Nov 2026, 500 free macOS minutes): no build on pushes to
     # main any more. Builds start by hand (Start new build) or on a tag v*.
