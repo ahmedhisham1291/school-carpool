@@ -59,3 +59,15 @@ periods with the lawyer** (as the legal section above requires for longer retent
   after 30 days, Coldline after 180 days), compressed route archives, and per-collection TTLs.
 - Every new data type is listed on the privacy screen, in the consent records and in the
   App Store privacy answers.
+
+## Owner updates (14 Nov 2026, 12:30)
+
+- **Lawyer:** confirmed everything open is OK: the new retention periods (photos while the
+  account is active + 1 year, route history 1 year, chat life + 1 year), keeping the identity
+  selfie as the driver face reference, WhatsApp to an emergency contact who is not an app user,
+  drivers' consent to live location sharing, ratings and family links, and how long wallet
+  transfer records are kept.
+- **Apple Developer account:** created and paid (USD 99/year).
+- **GitHub:** no paid Actions minutes for now. CI runs automatically only on `main`;
+  feature branches are checked by hand when a step is ready (one run per step).
+- **Point-in-time recovery:** on in prod (best option rule).
