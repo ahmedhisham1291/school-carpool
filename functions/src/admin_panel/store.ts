@@ -92,6 +92,7 @@ function userFromDoc(uid: string, data: DocumentData): StoredUser {
     banned: data.banned === true,
     statusBeforeSuspension: data.statusBeforeSuspension ? status(data.statusBeforeSuspension) : null,
     createdAtMs: millis(data.createdAt),
+    deviceCheckSinceMs: data.newDeviceCheck?.required === true ? millis(data.newDeviceCheck.since) || null : null,
   };
 }
 

@@ -124,6 +124,8 @@ export async function searchUsers(
 
 export interface UserDetail extends UserSummary {
   email: string | null;
+  /** Prompt 13: an open new-phone selfie check (ms), or null. */
+  deviceCheckSinceMs: number | null;
   cases: CaseHistoryItem[];
   actions: ActionHistoryItem[];
 }
@@ -139,7 +141,7 @@ export async function getUserDetail(
   if (!user) throw new AdminError("not-found");
   const [cases, actions] = await Promise.all([deps.store.caseHistory(uid, 20), deps.store.actionHistory(uid, 20)]);
   await deps.store.audit({ actorUid: caller.uid, action: "user.view", target: `users/${uid}`, ip });
-  return { ...present(user), email: maskEmail(user.email), cases, actions };
+  return { ...present(user), email: maskEmail(user.email), deviceCheckSinceMs: user.deviceCheckSinceMs ?? null, cases, actions };
 }
 
 export const MODERATION_REASONS = [

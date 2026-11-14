@@ -8803,5 +8803,101 @@
         "type": "String"
       }
     }
+  },
+  "adminDeviceCheckTitle": "فحص هاتف جديد مفتوح",
+  "@adminDeviceCheckTitle": {
+    "description": "Admin user page: a new-phone selfie check is open (one line)"
+  },
+  "adminDeviceCheckBody": "المحادثات والمحفظة وبيانات الأطفال مغلقة لهذا الحساب حتى يُغلق الفحص. قارن السيلفي الجديد بالصورة المرجعية أولًا.",
+  "@adminDeviceCheckBody": {
+    "description": "Admin user page: what an open new-phone check means"
+  },
+  "adminDeviceCheckSince": "مفتوح منذ",
+  "@adminDeviceCheckSince": {
+    "description": "Admin fact label"
+  },
+  "adminDeviceCheckOpen": "قارن وقرر",
+  "@adminDeviceCheckOpen": {
+    "description": "Admin button: open the photos and decide (one line)"
+  },
+  "adminDeviceCheckSheet": "إغلاق فحص الهاتف الجديد",
+  "@adminDeviceCheckSheet": {
+    "description": "Admin sheet title (one line)"
+  },
+  "adminPhotoFaceRef": "الصورة المرجعية",
+  "@adminPhotoFaceRef": {
+    "description": "Admin photo label (one line)"
+  },
+  "adminPhotoSelfie": "السيلفي الأحدث",
+  "@adminPhotoSelfie": {
+    "description": "Admin photo label (one line)"
+  },
+  "adminPhotosNone": "لا توجد صور محفوظة.",
+  "@adminPhotosNone": {
+    "description": "Admin: the parent has no kept photos"
+  },
+  "adminDeviceOutcomeLabel": "كيف تم التأكد",
+  "@adminDeviceOutcomeLabel": {
+    "description": "Admin select label"
+  },
+  "adminDeviceOutcomeApproved": "السيلفي يطابق الصورة",
+  "@adminDeviceOutcomeApproved": {
+    "description": "Admin outcome option"
+  },
+  "adminDeviceOutcomeOther": "تأكدنا بطريقة أخرى",
+  "@adminDeviceOutcomeOther": {
+    "description": "Admin outcome option (for example a call)"
+  },
+  "adminAccessReasonLabel": "سبب الفتح",
+  "@adminAccessReasonLabel": {
+    "description": "Admin select label: why the photos are opened (logged)"
+  },
+  "adminAccessReview": "مراجعة",
+  "@adminAccessReview": {
+    "description": "Access reason"
+  },
+  "adminAccessInvestigation": "تحقيق",
+  "@adminAccessInvestigation": {
+    "description": "Access reason"
+  },
+  "adminAccessReport": "بلاغ",
+  "@adminAccessReport": {
+    "description": "Access reason"
+  },
+  "adminAccessLegal": "طلب قانوني",
+  "@adminAccessLegal": {
+    "description": "Access reason"
+  },
+  "adminAccessParent": "طلب ولي الأمر",
+  "@adminAccessParent": {
+    "description": "Access reason"
+  },
+  "adminAccessAppeal": "تظلّم",
+  "@adminAccessAppeal": {
+    "description": "Access reason"
+  },
+  "adminDeviceCheckClose": "أغلق الفحص",
+  "@adminDeviceCheckClose": {
+    "description": "Admin button: close the new-phone check (one line)"
+  },
+  "adminDeviceCheckConfirmTitle": "فتح بيانات الحساب؟",
+  "@adminDeviceCheckConfirmTitle": {
+    "description": "Admin confirm title (one line)"
+  },
+  "adminDeviceCheckConfirmBody": "سيستعيد ولي الأمر المحادثات والمحفظة وبيانات الأطفال على هاتفه الجديد. يُسجَّل قرارك والسبب.",
+  "@adminDeviceCheckConfirmBody": {
+    "description": "Admin confirm body"
+  },
+  "adminDeviceCheckDone": "أُغلق الفحص",
+  "@adminDeviceCheckDone": {
+    "description": "Admin snack bar"
+  },
+  "adminAuditDeviceApproved": "فحص هاتف جديد: مطابق",
+  "@adminAuditDeviceApproved": {
+    "description": "Audit action label"
+  },
+  "adminAuditDeviceOther": "فحص هاتف جديد: تأكيد آخر",
+  "@adminAuditDeviceOther": {
+    "description": "Audit action label"
   }
 }

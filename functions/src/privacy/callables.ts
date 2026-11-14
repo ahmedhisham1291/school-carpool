@@ -29,8 +29,10 @@ import { faceRefPath } from "../verification/submission";
 import { walletProvider } from "../wallet/callables";
 import { DeletionError, deleteAccount } from "./account_deletion";
 import {
+  adminDecideDeviceCheck,
   confirmNewDevice as confirmNewDeviceFlow,
   DEVICE_ERROR_CODES,
+  DeviceDecisionError,
   DeviceError,
   recordSignIn,
   signOutDevice as signOutDeviceFlow,
@@ -593,15 +595,20 @@ export const adminOpenRouteArchive = onCall(opts, (r) =>
 export const adminClearDeviceCheck = onCall(opts, (r) =>
   run("adminClearDeviceCheck", async () => {
     const caller = await requireAdminCaller(r);
-    const raw = data(r);
-    const uid = typeof raw.uid === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(raw.uid) ? raw.uid : null;
-    if (!uid) throw new AdminError("invalid-request");
-    const reason = reasonOf(raw);
     const store = new FirestoreDeviceStore(adminDb(), bucket());
-    if (!(await store.deviceCheck(uid))) throw new AdminError("not-found");
-    await audit(caller.uid, "device.check.clear", `users/${uid}`, reason, ipOf(r));
-    await store.setDeviceCheck(uid, null);
-    return { cleared: true };
+    try {
+      // Prompt 13: { uid, reason, outcome: approved | confirmedOtherWay }.
+      return await adminDecideDeviceCheck(
+        { store, audit: (e) => audit(e.actorUid, e.action, e.target, e.reasonCode, e.ip, e.details) },
+        caller.uid,
+        r.data,
+        ipOf(r),
+        (v) => accessReason(v) !== null,
+      );
+    } catch (error) {
+      if (error instanceof DeviceDecisionError) throw new AdminError(error.reason);
+      throw error;
+    }
   }),
 );
 

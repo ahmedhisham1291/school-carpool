@@ -1,6 +1,8 @@
 // Privacy and security hardening (Prompt 12). Fake data only. Run: npm test.
 import { strict as assert } from "node:assert";
 import { isRetained, participantsOf, planTripRetention, type AccountState } from "../src/privacy/trip_retention";
+import { adminDecideDeviceCheck } from "../src/privacy/devices";
+import { accessReason as accessReasonOf } from "../src/privacy/photos";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -940,5 +942,60 @@ describe("privacy: trips kept per parent, active + 1 year", () => {
     assert.equal(kept.action, "keep");
     const alone = { ...trip(), stops: [{ childId: "deleted", firstName: "A.", parentUid: "deleted", handover: [] }] };
     assert.deepEqual(planTripRetention(alone, states, NOW, new Set(["d1"])), { action: "delete" });
+  });
+});
+
+// --------------------------------------------------------------------------
+// Admin: close an open new-phone check (Prompt 13)
+// --------------------------------------------------------------------------
+
+describe("privacy: an admin approves or clears a new-phone check, logged first", () => {
+  const isReason = (v: unknown) => accessReasonOf(v) !== null;
+  function world(open = true) {
+    const order: string[] = [];
+    let check: { required: boolean; sinceMs: number } | null = open ? { required: true, sinceMs: NOW } : null;
+    const audits: Array<Record<string, unknown>> = [];
+    const deps = {
+      store: {
+        async deviceCheck() {
+          return check;
+        },
+        async setDeviceCheck(_uid: string, c: { required: boolean; sinceMs: number } | null) {
+          order.push("set");
+          check = c;
+        },
+      },
+      async audit(e: Record<string, unknown>) {
+        order.push("audit");
+        audits.push(e);
+      },
+    };
+    return { deps, audits, order, check: () => check };
+  }
+
+  it("approved after comparing the photos: the data opens again; the audit entry comes first with the reason", async () => {
+    const w = world();
+    assert.deepEqual(await adminDecideDeviceCheck(w.deps, "admin1", { uid: "u1", reason: "review", outcome: "approved" }, "1.2.3.4", isReason), { cleared: true, outcome: "approved" });
+    assert.equal(w.check(), null);
+    assert.deepEqual(w.order, ["audit", "set"]);
+    assert.equal(w.audits[0].action, "device.check.approved");
+    assert.equal(w.audits[0].reasonCode, "review");
+    assert.equal(w.audits[0].target, "users/u1");
+  });
+
+  it("confirmed another way is logged as such", async () => {
+    const w = world();
+    await adminDecideDeviceCheck(w.deps, "admin1", { uid: "u1", reason: "parentRequest", outcome: "confirmedOtherWay" }, null, isReason);
+    assert.equal(w.audits[0].action, "device.check.confirmedOtherWay");
+  });
+
+  it("refused: no reason, an unknown outcome, a bad uid, the admin's own account, or no open check", async () => {
+    for (const bad of [{ uid: "u1" }, { uid: "u1", reason: "curious" }, { uid: "u1", reason: "review", outcome: "maybe" }, { uid: "../x", reason: "review" }, { uid: "admin1", reason: "review" }]) {
+      const w = world();
+      await assert.rejects(adminDecideDeviceCheck(w.deps, "admin1", bad, null, isReason), /invalid-request/, JSON.stringify(bad));
+      assert.deepEqual(w.order, [], "nothing changed or logged");
+    }
+    const none = world(false);
+    await assert.rejects(adminDecideDeviceCheck(none.deps, "admin1", { uid: "u1", reason: "review" }, null, isReason), /not-found/);
   });
 });

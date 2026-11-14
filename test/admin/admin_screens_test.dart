@@ -7,6 +7,7 @@ import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
+import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 
 import '../helpers/admin_fakes.dart';
@@ -191,6 +192,38 @@ void main() {
       await settle(tester);
       expect(api.moderations.single.$2, ModerationAction.suspend);
       expect(api.moderations.single.$3, ModerationReason.reports);
+    });
+  });
+
+  group('new phone check (Prompt 13)', () {
+    testWidgets('no open check: no card', (WidgetTester tester) async {
+      final FakeAdminApi api = FakeAdminApi();
+      await pumpAdminPanel(tester, session: signedIn, location: '/users/parent1', api: api, locale: 'en', size: const Size(1280, 1600));
+      await settle(tester);
+      expect(find.byKey(const Key('user.deviceCheck')), findsNothing);
+    });
+
+    testWidgets('compare the photos (logged reason), choose how it was confirmed, confirm: the check closes', (WidgetTester tester) async {
+      final FakeAdminApi api = FakeAdminApi()..deviceCheckSince = DateTime(2026, 11, 14, 9);
+      await pumpAdminPanel(tester, session: signedIn, location: '/users/parent1', api: api, locale: 'en', size: const Size(1280, 1600));
+      await settle(tester);
+      expect(find.text('New phone check open'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('user.deviceCheck.open')));
+      await settle(tester);
+      expect(api.calls, contains('photos:parent1:review'));
+      expect(find.byKey(const Key('deviceCheck.face')), findsOneWidget);
+      expect(find.byKey(const Key('deviceCheck.selfie')), findsOneWidget);
+      expect(tester.widget<AppButton>(find.byKey(const Key('deviceCheck.submit'))).onPressed, isNull, reason: 'choose how first');
+      await choose(tester, const Key('deviceCheck.outcome'), 'Selfie matches the photo');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('deviceCheck.submit')));
+      await settle(tester);
+      expect(find.text('Open the account\'s data?'), findsOneWidget);
+      await tester.tap(find.text('Close check').last);
+      await settle(tester);
+      expect(api.deviceDecisions.single, ('parent1', DeviceCheckOutcome.approved, AccessReasonCode.review));
+      expect(find.text('Check closed'), findsOneWidget);
+      expect(find.byKey(const Key('user.deviceCheck')), findsNothing);
     });
   });
 

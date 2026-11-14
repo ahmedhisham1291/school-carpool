@@ -370,19 +370,50 @@ class ActionHistory {
 
 @immutable
 class UserDetail {
-  const UserDetail({required this.summary, required this.maskedEmail, required this.cases, required this.actions});
+  const UserDetail({required this.summary, required this.maskedEmail, required this.cases, required this.actions, this.deviceCheckSince});
 
   factory UserDetail.fromJson(Json j) => UserDetail(
     summary: UserSummary.fromJson(j),
     maskedEmail: j.strOrNull('email'),
     cases: j.list('cases').map(CaseHistory.fromJson).toList(),
     actions: j.list('actions').map(ActionHistory.fromJson).toList(),
+    deviceCheckSince: j.time('deviceCheckSinceMs'),
   );
 
   final UserSummary summary;
   final String? maskedEmail;
   final List<CaseHistory> cases;
   final List<ActionHistory> actions;
+
+  /// Prompt 13: a new-phone selfie check is open since then (the parent's
+  /// chats, wallet and children stay closed until it is closed).
+  final DateTime? deviceCheckSince;
+}
+
+/// Why an admin opens a parent's photos or closes a check (codes shared
+/// with the server's access reasons, functions/src/privacy/photos.ts).
+enum AccessReasonCode { review, investigation, report, legalRequest, parentRequest, appeal }
+
+/// How an admin closes an open new-phone check (server DEVICE_CHECK_OUTCOMES).
+enum DeviceCheckOutcome {
+  /// The new-phone selfie matches the face reference (compared here).
+  approved,
+
+  /// The parent was confirmed another way (for example a call).
+  confirmedOtherWay,
+}
+
+/// One kept photo (a 5-minute link; a thumbnail unless [full]).
+@immutable
+class AdminPhoto {
+  const AdminPhoto({required this.kind, required this.url, required this.storedAt});
+
+  factory AdminPhoto.fromJson(Json j) => AdminPhoto(kind: j.str('kind'), url: j.str('url'), storedAt: DateTime.tryParse(j.str('storedAt')));
+
+  /// faceRef, driverPhoto, selfie or case.
+  final String kind;
+  final String url;
+  final DateTime? storedAt;
 }
 
 enum ModerationAction { suspend, unsuspend, ban }
