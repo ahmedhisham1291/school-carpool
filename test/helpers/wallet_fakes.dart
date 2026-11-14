@@ -51,14 +51,13 @@ const List<WalletContact> sampleContacts = <WalletContact>[
 
 /// Records calls and answers like the server: one transfer per request ID.
 class FakeWalletRepository implements WalletRepository {
-  FakeWalletRepository({WalletInfo info = openWallet, List<WalletTransfer>? transfers, List<WalletContact>? contacts})
-    : _info = info,
-      transfers = transfers ?? sampleTransfers(),
-      contacts = contacts ?? sampleContacts;
+  FakeWalletRepository({this._info = openWallet, List<WalletTransfer>? transfers, List<WalletContact>? contacts})
+    : transfers = transfers ?? sampleTransfers(),
+      contactList = contacts ?? sampleContacts;
 
   WalletInfo _info;
   List<WalletTransfer> transfers;
-  List<WalletContact> contacts;
+  List<WalletContact> contactList;
   final List<String> calls = <String>[];
 
   /// Thrown by the next call of any kind (then cleared when [failOnce]).
@@ -133,7 +132,7 @@ class FakeWalletRepository implements WalletRepository {
   Future<List<WalletContact>> contacts({String? carpoolId}) async {
     await _maybeFail('contacts:${carpoolId ?? ''}');
     return <WalletContact>[
-      for (final WalletContact c in contacts)
+      for (final WalletContact c in contactList)
         if (carpoolId == null || c.carpoolId == carpoolId) c,
     ];
   }

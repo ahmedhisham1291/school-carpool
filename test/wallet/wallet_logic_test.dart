@@ -33,7 +33,7 @@ void main() {
     });
 
     test('formats with grouping, cents only when needed', () {
-      String plain(String s) => s.replaceAll(RegExp('[⁦⁩]'), '');
+      String plain(String s) => s.replaceAll(RegExp('[\u2066\u2069]'), '');
       expect(plain(Money.digits(125050)), '1,250.50');
       expect(plain(Money.digits(100000)), '1,000');
       expect(plain(Money.digits(5)), '0.05');
