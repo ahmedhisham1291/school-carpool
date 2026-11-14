@@ -23,6 +23,12 @@
  *   ... -- tick --as any                                              (cut-offs and balance now;
  *       the emulators do not run scheduled functions by themselves)
  *
+ * Notifications (Prompt 8; the functions emulator's sendNotification
+ * trigger sends what these write, and its log shows the masked WhatsApp):
+ *   ... -- remind --as any                       (reminders and critical alarms now: the notification tick)
+ *   ... -- notify <uid> <type> [carpoolId] [date] --as any
+ *       (one test event, for example: notify <your uid> drive-hour <carpoolId> 2026-11-16)
+ *
  * Emulators and demo- projects only (fake data only).
  */
 import { initializeApp } from "firebase-admin/app";
@@ -41,6 +47,10 @@ import { CarpoolError } from "../src/carpools/model";
 import { FirestoreCarpoolStore } from "../src/carpools/store";
 import { cairoDate } from "../src/carpools/model";
 import { addDays, weekStartOf } from "../src/schedule/cairo";
+import { isNotificationType } from "../src/notifications/catalog";
+import { newEvent } from "../src/notifications/model";
+import { FirestoreNotifyStore } from "../src/notifications/store";
+import { runNotificationTick } from "../src/notifications/tick";
 import { confirmRun, planWeek, requestSwap, runScheduleTick, setChildAbsent, setDrivingDays, takeRun } from "../src/schedule/flow";
 
 function refuse(reason: string): never {
@@ -73,7 +83,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
   const uid = option(args, "--as");
-  if (!command || !uid) refuse("usage: <search|request|approve|consent|invite|mine|days|plan|runs|confirm|swap|take|absent|tick> ... --as <uid> (see the header)");
+  if (!command || !uid) refuse("usage: <search|request|approve|consent|invite|mine|days|plan|runs|confirm|swap|take|absent|tick|remind|notify> ... --as <uid> (see the header)");
   const caller = { uid, verifiedClaim: true };
   switch (command) {
     case "search": {
@@ -135,6 +145,21 @@ async function main(): Promise<void> {
     case "tick":
       console.log(await runScheduleTick(deps));
       return;
+    case "remind":
+      console.log(await runNotificationTick({ store: new FirestoreNotifyStore(db), now: () => Date.now(), eveningAt: process.env.REMINDER_EVENING_AT ?? "19:00" }));
+      return;
+    case "notify": {
+      const [, to, type, carpoolId, date] = args;
+      if (!to || !isNotificationType(type) || type === "critical-alarm") refuse("usage: notify <uid> <type> [carpoolId] [date] --as any");
+      const e = newEvent(`test_${Date.now()}`, type, [to], Date.now(), {
+        carpoolId: carpoolId && !carpoolId.startsWith("--") ? carpoolId : null,
+        date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
+        direction: date ? "toSchool" : null,
+      });
+      await new FirestoreNotifyStore(db).createEvent(e);
+      console.log(`event ${e.id} written; the emulator's sendNotification sends it`);
+      return;
+    }
     case "mine":
       for (const m of await store.membershipsOf(uid)) console.log(`${m.carpoolId}  ${m.status}  ${m.role}`);
       return;

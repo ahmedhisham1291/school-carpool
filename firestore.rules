@@ -55,6 +55,39 @@ service cloud.firestore {
       match /consents/{consentId} {
         allow read: if isSelf(uid);
       }
+
+      // Prompt 8 (F12, F23): the parent's in-app notifications, written
+      // only by the sender function (one per event). The parent reads
+      // their own (at most 100 at a time) and may only mark one read: set
+      // readAt, once, to the server time. Nothing else changes; nobody
+      // creates or deletes one from the app.
+      match /notifications/{notificationId} {
+        allow get: if isSelf(uid);
+        allow list: if isSelf(uid) && request.query.limit <= 100;
+        allow update: if isSelf(uid)
+          && resource.data.readAt == null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
+          && request.resource.data.readAt == request.time;
+        allow create, delete: if false;
+      }
+    }
+
+    // Prompt 8: WhatsApp on or off per group and quiet hours. The parent
+    // reads their own; only updateNotificationSettings writes it.
+    match /notificationSettings/{uid} {
+      allow get: if isSelf(uid);
+      allow list, create, update, delete: if false;
+    }
+    // Prompt 8: the notification outbox (every producer writes here, the
+    // one sender reads it), push tokens and limits. Cloud Functions only.
+    match /notificationEvents/{id} {
+      allow read, write: if false;
+    }
+    match /pushTokens/{key} {
+      allow read, write: if false;
+    }
+    match /notificationLimits/{uid} {
+      allow read, write: if false;
     }
 
     // Prompt 3 (F3): children. Created, changed and removed only by Cloud
@@ -155,8 +188,9 @@ service cloud.firestore {
     match /parentLocations/{uid} {
       allow read, write: if false;
     }
-    // "New parent nearby" events (sent in Prompt 8), map rate limits and
-    // the address cache: Cloud Functions only.
+    // Prompt 5's "new parent nearby" events (since Prompt 8 they go to
+    // notificationEvents; nothing writes here), map rate limits and the
+    // address cache: Cloud Functions only.
     match /newParentEvents/{id} {
       allow read, write: if false;
     }
@@ -263,8 +297,8 @@ service cloud.firestore {
       }
     }
 
-    // Schedule alert events for the notification sender (Prompt 8):
-    // Cloud Functions only.
+    // Prompt 7's alert events. Since Prompt 8 they go to notificationEvents;
+    // nothing writes here any more. Closed.
     match /scheduleEvents/{id} {
       allow read, write: if false;
     }
