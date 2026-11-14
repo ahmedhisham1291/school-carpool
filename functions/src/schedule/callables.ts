@@ -64,7 +64,8 @@ export const scheduleTick = onSchedule(
   async () => {
     try {
       const result = await runScheduleTick(deps());
-      logger.info("schedule tick", result);
+      if (result.backlog) logger.warn("schedule tick: a page was full; more runs wait for the next tick", result);
+      else logger.info("schedule tick", result);
     } catch (error) {
       logger.error("schedule tick failed", { message: error instanceof Error ? error.message : "unknown" });
       await reportError(error);

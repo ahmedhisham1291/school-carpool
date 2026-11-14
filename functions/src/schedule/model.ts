@@ -125,6 +125,14 @@ export interface FamilyBalance {
   firstName: string;
   driven: number;
   received: number;
+  /**
+   * The family's fair share of the runs counted so far, built up run by run
+   * (F37): each completed run adds children / children of the eligible
+   * families to every family that was eligible for it (a member then, with
+   * a child on the run, able to drive it). A family that joins mid-term
+   * starts at 0; a family that cannot drive takes no share.
+   */
+  share: number;
 }
 
 export interface BalanceRecord {
@@ -145,6 +153,7 @@ export type ScheduleEventType =
   | "child-back"
   | "driver-unavailable"
   | "schedule-changed"
+  | "time-changed"
   // Prompt 8: join requests and decisions (carpools/flow.ts).
   | "join-requested"
   | "join-approved"
@@ -279,33 +288,65 @@ export function runProblem(driverUid: string, riders: Rider[], members: MemberRe
 // Drive balance (F37)
 // --------------------------------------------------------------------------
 
-/**
- * How far a family is behind (negative) or ahead (positive) of its fair
- * share of driving. The fair share follows the number of children each
- * family puts in the carpool, so a family with two children drives twice
- * as often as a family with one (uneven numbers of children).
- */
-export function driveDebts(pool: Array<{ uid: string; children: number; driven: number }>): Map<string, number> {
-  const total = pool.reduce((n, p) => n + p.driven, 0);
-  const children = pool.reduce((n, p) => n + Math.max(1, p.children), 0);
-  return new Map(pool.map((p) => [p.uid, p.driven - (total * Math.max(1, p.children)) / children]));
+/** Weight of a family in the fair share: its children in the carpool (at least 1). */
+function weightOf(m: MemberRecord): number {
+  return Math.max(1, m.children.length);
 }
 
-/** Members ordered for an offer: the family that has driven least (against its fair share) first. */
+/**
+ * Families eligible for a run, with their weight: approved members with a
+ * child on the pickup list who may drive it (car valid on the run's date,
+ * enough seats, every parent's consent). The driver of the run is always
+ * included (they drove it).
+ */
+export function eligibleFamilies(
+  riders: Rider[],
+  members: MemberRecord[],
+  consents: ConsentRecord[],
+  date: string,
+  driverUid: string | null,
+): Array<{ uid: string; weight: number }> {
+  const riding = new Set(riders.map((r) => r.parentUid));
+  return members
+    .filter((m) => m.uid === driverUid || (riding.has(m.uid) && runProblem(m.uid, riders, members, consents, date) === null))
+    .map((m) => ({ uid: m.uid, weight: weightOf(m) }));
+}
+
+/** Adds one run's fair share to [share] (uid -> share so far). */
+export function accrueShare(share: Map<string, number>, families: Array<{ uid: string; weight: number }>): void {
+  const total = families.reduce((n, f) => n + f.weight, 0);
+  if (total === 0) return;
+  for (const f of families) share.set(f.uid, (share.get(f.uid) ?? 0) + f.weight / total);
+}
+
+/**
+ * Members ordered for an offer: the family furthest behind its fair share
+ * (largest share - driven) first, then the uid (stable).
+ */
 export function leastDrivenFirst(members: MemberRecord[], balance: BalanceRecord | null): string[] {
-  const debts = driveDebts(members.map((m) => ({ uid: m.uid, children: m.children.length, driven: balance?.families[m.uid]?.driven ?? 0 })));
+  const deficit = (uid: string) => (balance?.families[uid]?.share ?? 0) - (balance?.families[uid]?.driven ?? 0);
   return members
     .map((m) => m.uid)
-    .sort((a, b) => (debts.get(a) ?? 0) - (debts.get(b) ?? 0) || a.localeCompare(b));
+    .sort((a, b) => deficit(b) - deficit(a) || a.localeCompare(b));
 }
 
-/** Adds one completed run to the balance: the driver drove; every other family with riders received. */
-export function addToBalance(balance: BalanceRecord, run: RunRecord, names: Map<string, string>, nowMs: number): BalanceRecord {
+/**
+ * Adds one completed run to the balance: the driver drove; every other
+ * family with riders received; every family eligible for the run
+ * ([eligible], see [eligibleFamilies]) gains its fair share of it.
+ */
+export function addToBalance(
+  balance: BalanceRecord,
+  run: RunRecord,
+  names: Map<string, string>,
+  eligible: Array<{ uid: string; weight: number }>,
+  nowMs: number,
+): BalanceRecord {
   if (!run.driverUid) return balance;
   const families: Record<string, FamilyBalance> = {};
-  for (const [uid, f] of Object.entries(balance.families)) families[uid] = { ...f };
+  for (const [uid, f] of Object.entries(balance.families)) families[uid] = { ...f, share: f.share ?? 0 };
   const entry = (uid: string): FamilyBalance => {
-    families[uid] ??= { firstName: names.get(uid) ?? "", driven: 0, received: 0 };
+    families[uid] ??= { firstName: names.get(uid) ?? "", driven: 0, received: 0, share: 0 };
     if (!families[uid].firstName && names.get(uid)) families[uid].firstName = names.get(uid) as string;
     return families[uid];
   };
@@ -313,6 +354,9 @@ export function addToBalance(balance: BalanceRecord, run: RunRecord, names: Map<
   for (const parent of new Set(run.riders.map((r) => r.parentUid))) {
     if (parent !== run.driverUid) entry(parent).received += 1;
   }
+  const shares = new Map<string, number>();
+  accrueShare(shares, eligible);
+  for (const [uid, add] of shares) entry(uid).share += add;
   return { ...balance, families, updatedAtMs: nowMs };
 }
 
@@ -328,6 +372,12 @@ export interface RotationInput {
   exceptions: ExceptionRecord[];
   /** Runs already saved for this week (kept when confirmed, done or missed). */
   existing: RunRecord[];
+  /**
+   * Planned and confirmed runs of the other plannable weeks: they count
+   * for fairness (driven and share) before they complete, so planning
+   * several weeks ahead stays even.
+   */
+  otherRuns?: RunRecord[];
   balance: BalanceRecord | null;
   nowMs: number;
   today: string;
@@ -352,10 +402,15 @@ const KEEP: readonly RunStatus[] = ["confirmed", "missed", "completed"];
  * 2. Members who chose that weekday as a driving day come first; when
  *    nobody chose it, every eligible member is a candidate (Flow B: "the
  *    app proposes the remaining days"), and the run is marked [fallback].
- * 3. Among candidates the family furthest behind its fair share wins
- *    (term balance plus runs already proposed this week; fair share follows
- *    the number of children), then the one with fewer runs that day, then
- *    the uid (stable).
+ * 3. Among candidates the family with the largest deficit wins: its fair
+ *    share minus the runs it drove. Shares are built run by run (term
+ *    balance, runs planned or confirmed in other weeks, then each run of
+ *    this week): a run adds children / children of the eligible families
+ *    to each family eligible for it (with a child on the run and able to
+ *    drive it). So a family that joins mid-term owes nothing for the past,
+ *    a family that cannot drive takes no share, and a family with two
+ *    children drives about twice as often as one with one. Ties: fewer
+ *    runs that day, then the uid.
  *
  * Confirmed, missed and completed runs are kept. A planned run keeps its
  * driver while that driver may still drive it. Runs on no-school days are
@@ -367,21 +422,24 @@ export function proposeWeek(input: RotationInput): RotationResult {
   const { carpool, members, consents, exceptions, nowMs, today, deadlines } = input;
   const existing = new Map(input.existing.map((r) => [r.id, r]));
   const riders = ridersOf(members);
-  const childrenOf = new Map(members.map((m) => [m.uid, m.children.length]));
   const driven = new Map(members.map((m) => [m.uid, input.balance?.families[m.uid]?.driven ?? 0]));
-  // Confirmed runs of this week are not in the term balance yet (only
-  // completed runs are): count them so the rest of the week stays fair.
-  for (const r of input.existing) {
-    if (r.driverUid && r.status === "confirmed" && driven.has(r.driverUid)) driven.set(r.driverUid, (driven.get(r.driverUid) ?? 0) + 1);
-  }
+  const share = new Map(members.map((m) => [m.uid, input.balance?.families[m.uid]?.share ?? 0]));
   const perDay = new Map<string, number>();
-  for (const r of input.existing) {
-    if (r.driverUid && r.status === "confirmed") perDay.set(`${r.driverUid}|${r.date}`, (perDay.get(`${r.driverUid}|${r.date}`) ?? 0) + 1);
-  }
   const bump = (uid: string, date: string) => {
     driven.set(uid, (driven.get(uid) ?? 0) + 1);
     perDay.set(`${uid}|${date}`, (perDay.get(`${uid}|${date}`) ?? 0) + 1);
   };
+  // Runs not in the term balance yet (only completed runs are): this
+  // week's confirmed runs and the other weeks' planned and confirmed runs.
+  const counted = [
+    ...input.existing.filter((r) => r.status === "confirmed"),
+    ...(input.otherRuns ?? []).filter((r) => r.status === "confirmed" || r.status === "planned"),
+  ];
+  for (const r of counted) {
+    if (!r.driverUid || !driven.has(r.driverUid)) continue;
+    accrueShare(share, eligibleFamilies(r.riders, members, consents, r.date, r.driverUid));
+    bump(r.driverUid, r.date);
+  }
   const out: RunRecord[] = [];
   const open: string[] = [];
   const term = (date: string) => termOf(date).id;
@@ -432,10 +490,13 @@ export function proposeWeek(input: RotationInput): RotationResult {
             updatedAtMs: nowMs,
           };
       if (base.status === "cancelled") base.status = "open";
-      const canDrive = (uid: string) => runProblem(uid, base.riders, members, consents, today) === null;
+      // Car validity is checked on the run's date (a licence that expires
+      // before the run does not count).
+      const canDrive = (uid: string) => runProblem(uid, base.riders, members, consents, date) === null;
 
       // A planned driver who may still drive keeps the run.
       if (base.status === "planned" && base.driverUid && canDrive(base.driverUid)) {
+        accrueShare(share, eligibleFamilies(base.riders, members, consents, date, base.driverUid));
         bump(base.driverUid, date);
         out.push(base);
         continue;
@@ -455,10 +516,13 @@ export function proposeWeek(input: RotationInput): RotationResult {
         open.push(id);
         continue;
       }
-      const debts = driveDebts(members.map((m) => ({ uid: m.uid, children: childrenOf.get(m.uid) ?? 1, driven: driven.get(m.uid) ?? 0 })));
+      // This run's fair share goes to the families eligible for it, then
+      // the candidate with the largest deficit (share - driven) drives.
+      accrueShare(share, eligibleFamilies(base.riders, members, consents, date, null));
+      const deficit = (uid: string) => (share.get(uid) ?? 0) - (driven.get(uid) ?? 0);
       const pick = [...pool].sort(
         (a, b) =>
-          (debts.get(a.uid) ?? 0) - (debts.get(b.uid) ?? 0) ||
+          deficit(b.uid) - deficit(a.uid) ||
           (perDay.get(`${a.uid}|${date}`) ?? 0) - (perDay.get(`${b.uid}|${date}`) ?? 0) ||
           a.uid.localeCompare(b.uid),
       )[0];
@@ -472,6 +536,45 @@ export function proposeWeek(input: RotationInput): RotationResult {
 function withoutAbsent(riders: Rider[], absent: Rider[]): Rider[] {
   const gone = new Set(absent.map((a) => a.id));
   return riders.filter((r) => !gone.has(r.id));
+}
+
+/**
+ * What a time change (F30: Ramadan, early dismissal) does to one run that
+ * is planned, confirmed or open:
+ * - The new start has passed: the run is missed (no driver) and every
+ *   parent gets the critical "take your own child" alert at once.
+ * - Planned or open: the confirm-by time moves with the start, to
+ *   min(old confirm-by, new start - lateLeadMin), so it always comes
+ *   before the run with a margin; when that has passed, the run is missed
+ *   at once with the critical alert (backups rule, spec section 6).
+ * - Confirmed: the driver is asked to confirm again (status planned, the
+ *   driver kept, a new confirm-by time). When there is no time left to ask
+ *   (less than lateLeadMin before the new start), the driver stays
+ *   confirmed and gets a critical notice of the new time.
+ * [missedRecipients] get the critical alert; the driver gets the notice.
+ */
+export function retimeRun(
+  run: RunRecord,
+  time: string,
+  nowMs: number,
+  settings: DeadlineSettings,
+): { run: RunRecord; missed: boolean; notice: "reconfirm" | "moved" | null } {
+  const startMs = cairoToUtcMs(run.date, time);
+  const moved: RunRecord = { ...run, time, startMs, updatedAtMs: nowMs };
+  const missed = (): { run: RunRecord; missed: boolean; notice: null } => ({
+    run: { ...moved, status: "missed", driverUid: null, driverFirstName: "", swapId: null, confirmedAtMs: null },
+    missed: true,
+    notice: null,
+  });
+  if (startMs <= nowMs) return missed();
+  if (run.status === "confirmed") {
+    const deadline = confirmDeadline(run.date, time, nowMs, settings);
+    if (deadline === null) return { run: moved, missed: false, notice: "moved" };
+    return { run: { ...moved, status: "planned", confirmByMs: deadline, confirmedAtMs: null }, missed: false, notice: "reconfirm" };
+  }
+  const confirmByMs = Math.min(run.confirmByMs, startMs - settings.lateLeadMin * 60_000);
+  if (confirmByMs <= nowMs) return missed();
+  return { run: { ...moved, confirmByMs }, missed: false, notice: run.driverUid ? "reconfirm" : null };
 }
 
 /** Runs still ahead whose driver or riders can change (not done, missed or cancelled). */

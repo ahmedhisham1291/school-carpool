@@ -62,13 +62,19 @@ jobs:
   builds:
     name: Web, admin panel and Android compile (staging)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Android release builds take 15-25 minutes on a cold runner.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: temurin
           java-version: "21"
+          # Caches ~/.gradle (wrapper and dependencies) between runs.
+          cache: gradle
+          cache-dependency-path: |
+            pubspec.yaml
+            tool/patch_native.py
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable

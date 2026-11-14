@@ -24,6 +24,7 @@ import { addDays, cairoToUtcMs, daysBetween, isDate, termOf, weekStartOf } from 
 import {
   addToBalance,
   confirmDeadline,
+  eligibleFamilies,
   dayPlan,
   DEFAULT_DEADLINES,
   DIRECTIONS,
@@ -36,7 +37,9 @@ import {
   MAX_EXCEPTIONS,
   parseRunId,
   plannableWeek,
+  PLAN_WEEKS_AHEAD,
   proposeWeek,
+  retimeRun,
   runProblem,
   type DeadlineSettings,
   type Direction,
@@ -183,7 +186,13 @@ export async function planWeek(deps: CarpoolDeps, caller: Caller, data: unknown)
     const consents = await tx.consents(carpoolId);
     const exceptions = await tx.exceptions(carpoolId);
     const existing = await tx.runs(carpoolId, weekStart, addDays(weekStart, 6));
-    const balance = await tx.balance(carpoolId, termOf(today).id);
+    // Other plannable weeks count for fairness before they complete.
+    const thisWeek = weekStartOf(today);
+    const otherRuns = (await tx.runs(carpoolId, today, addDays(thisWeek, PLAN_WEEKS_AHEAD * 7 + 6))).filter(
+      (r) => r.weekStart !== weekStart && (r.status === "planned" || r.status === "confirmed"),
+    );
+    // The term of the planned week (late January plans February on the new term).
+    const balance = await tx.balance(carpoolId, termOf(weekStart).id);
     const result = proposeWeek({
       carpool,
       weekStart,
@@ -191,6 +200,7 @@ export async function planWeek(deps: CarpoolDeps, caller: Caller, data: unknown)
       consents,
       exceptions,
       existing,
+      otherRuns,
       balance,
       nowMs,
       today,
@@ -229,7 +239,7 @@ export async function confirmRun(deps: CarpoolDeps, caller: Caller, data: unknow
     if (run.driverUid !== caller.uid || run.status === "open") throw new CarpoolError("not-driver");
     if (run.status === "confirmed") return run;
     if (nowMs >= run.confirmByMs) throw new CarpoolError("too-late");
-    const problem = runProblem(caller.uid, run.riders, members, consents, cairoDate(nowMs));
+    const problem = runProblem(caller.uid, run.riders, members, consents, run.date);
     if (problem) throw arrangementError(problem);
     const next: RunRecord = { ...run, status: "confirmed", confirmedAtMs: nowMs, updatedAtMs: nowMs };
     tx.putRun(next);
@@ -261,8 +271,7 @@ export async function requestSwap(deps: CarpoolDeps, caller: Caller, data: unkno
     const consents = await tx.consents(carpoolId);
     const balance = await tx.balance(carpoolId, run.termId);
     if (run.driverUid !== caller.uid || (run.status !== "planned" && run.status !== "confirmed")) throw new CarpoolError("not-driver");
-    const today = cairoDate(nowMs);
-    const eligible = members.filter((x) => x.uid !== caller.uid && runProblem(x.uid, run.riders, members, consents, today) === null);
+    const eligible = members.filter((x) => x.uid !== caller.uid && runProblem(x.uid, run.riders, members, consents, run.date) === null);
     const released = releaseRun(run, uids(members).filter((u) => u !== caller.uid), nowMs, deadlines(deps), swapId);
     const swap: SwapRecord = {
       id: swapId,
@@ -301,7 +310,7 @@ export async function cancelSwap(deps: CarpoolDeps, caller: Caller, data: unknow
     if (!swap || swap.status !== "open" || run.status !== "open") throw new CarpoolError("run-taken");
     if (swap.requesterUid !== caller.uid) throw new CarpoolError("not-driver");
     if (nowMs >= run.confirmByMs) throw new CarpoolError("too-late");
-    const problem = runProblem(caller.uid, run.riders, members, consents, cairoDate(nowMs));
+    const problem = runProblem(caller.uid, run.riders, members, consents, run.date);
     if (problem) throw arrangementError(problem);
     // Taking it back is a confirmation only when it was confirmed before.
     const status = swap.previousStatus;
@@ -345,7 +354,7 @@ export async function takeRun(deps: CarpoolDeps, caller: Caller, data: unknown):
     if (run.status !== "open" || run.driverUid) throw new CarpoolError("run-taken");
     if (nowMs >= run.confirmByMs) throw new CarpoolError("too-late");
     if (swap && swap.status === "open" && swap.requesterUid === caller.uid) throw new CarpoolError("invalid-request");
-    const problem = runProblem(caller.uid, run.riders, members, consents, cairoDate(nowMs));
+    const problem = runProblem(caller.uid, run.riders, members, consents, run.date);
     if (problem) throw arrangementError(problem);
     const next: RunRecord = {
       ...run,
@@ -412,7 +421,7 @@ export async function setChildAbsent(deps: CarpoolDeps, caller: Caller, data: un
       } else if (!absent && away) {
         const riders = [...run.riders, away].sort((a, b) => a.parentUid.localeCompare(b.parentUid) || a.id.localeCompare(b.id));
         if (run.driverUid) {
-          const problem = runProblem(run.driverUid, riders, members, consents, cairoDate(nowMs));
+          const problem = runProblem(run.driverUid, riders, members, consents, run.date);
           if (problem) throw arrangementError(problem);
         }
         const next = { ...run, riders, absent: run.absent.filter((r) => r.id !== childId), updatedAtMs: nowMs };
@@ -457,8 +466,10 @@ export function parseException(data: unknown): {
  * Applies the exceptions to the runs already saved between two dates:
  * no-school days cancel runs (and their open swaps), a school day again
  * reopens a cancelled run (with no driver), and times follow the latest
- * change. Confirmed drivers stay confirmed when only the time moves; the
- * group is told the schedule changed.
+ * change. A time change moves the confirm-by time with the run and asks a
+ * confirmed driver to confirm again ([retimeRun]); a run whose new
+ * deadline or start has already passed is missed at once, with the
+ * critical alert to every member. The driver of each moved run is told.
  */
 async function reconcile(
   tx: CarpoolTx,
@@ -468,6 +479,7 @@ async function reconcile(
   from: string,
   to: string,
   nowMs: number,
+  everyone: string[],
 ): Promise<number> {
   const runs = (await tx.runs(carpool.id, from, to)).filter((r) => r.startMs > nowMs || r.status === "cancelled");
   const swaps = new Map<string, SwapRecord>();
@@ -477,6 +489,10 @@ async function reconcile(
       if (s) swaps.set(s.id, s);
     }
   }
+  const closeSwap = (run: RunRecord, status: "cancelled" | "expired") => {
+    const swap = run.swapId ? swaps.get(run.swapId) : undefined;
+    if (swap && swap.status === "open") tx.putSwap({ ...swap, status, updatedAtMs: nowMs });
+  };
   let changed = 0;
   for (const run of runs) {
     if (run.status === "completed" || run.status === "missed") continue;
@@ -485,22 +501,29 @@ async function reconcile(
     const time = (run.direction === "toSchool" ? plan.toSchool : plan.toHome) ?? usual ?? run.time;
     if (plan.noSchool) {
       if (run.status === "cancelled") continue;
-      const swap = run.swapId ? swaps.get(run.swapId) : undefined;
-      if (swap && swap.status === "open") tx.putSwap({ ...swap, status: "cancelled", updatedAtMs: nowMs });
+      closeSwap(run, "cancelled");
       tx.putRun({ ...run, status: "cancelled", driverUid: null, driverFirstName: "", swapId: null, confirmedAtMs: null, updatedAtMs: nowMs });
       changed++;
       continue;
     }
-    const startMs = cairoToUtcMs(run.date, time);
     if (run.status === "cancelled") {
       const deadline = confirmDeadline(run.date, time, nowMs, deadlines(deps));
       if (deadline === null) continue;
-      tx.putRun({ ...run, status: "open", time, startMs, confirmByMs: deadline, updatedAtMs: nowMs });
+      tx.putRun({ ...run, status: "open", time, startMs: cairoToUtcMs(run.date, time), confirmByMs: deadline, updatedAtMs: nowMs });
       changed++;
-    } else if (time !== run.time) {
-      tx.putRun({ ...run, time, startMs, updatedAtMs: nowMs });
-      changed++;
+      continue;
     }
+    if (time === run.time) continue;
+    const next = retimeRun(run, time, nowMs, deadlines(deps));
+    tx.putRun(next.run);
+    if (next.missed) {
+      closeSwap(run, "expired");
+      tx.addEvent(runEvent("no-driver", next.run, everyone, nowMs, { critical: true }));
+    } else if (next.notice && run.driverUid) {
+      // Moved with no time to ask again: critical, so the driver sees it.
+      tx.addEvent(runEvent("time-changed", next.run, [run.driverUid], nowMs, { critical: next.notice === "moved" }));
+    }
+    changed++;
   }
   return changed;
 }
@@ -525,7 +548,7 @@ export async function saveException(deps: CarpoolDeps, caller: Caller, data: unk
       throw new CarpoolError("invalid-request");
     }
     const e: ExceptionRecord = { id, ...input, createdBy: caller.uid, createdAtMs: nowMs };
-    await reconcile(tx, deps, carpool, [...existing, e], input.from, input.to, nowMs);
+    await reconcile(tx, deps, carpool, [...existing, e], input.from, input.to, nowMs, uids(members));
     tx.putException(e);
     tx.addEvent(event("schedule-changed", input.carpoolId, uids(members), nowMs, { date: input.from, actorUid: caller.uid }));
     return e;
@@ -548,7 +571,7 @@ export async function deleteException(deps: CarpoolDeps, caller: Caller, data: u
     const gone = existing.find((e) => e.id === exceptionId);
     if (!gone) throw new CarpoolError("not-found");
     const nowMs = deps.now();
-    await reconcile(tx, deps, carpool, existing.filter((e) => e.id !== exceptionId), gone.from, gone.to, nowMs);
+    await reconcile(tx, deps, carpool, existing.filter((e) => e.id !== exceptionId), gone.from, gone.to, nowMs, uids(members));
     tx.deleteException(carpoolId, exceptionId);
     tx.addEvent(event("schedule-changed", carpoolId, uids(members), nowMs, { date: gone.from, actorUid: caller.uid }));
     return { deleted: true };
@@ -571,11 +594,13 @@ export async function deleteException(deps: CarpoolDeps, caller: Caller, data: u
  * Each run changes in its own transaction, which checks the status again,
  * so a retry or an overlapping tick never counts twice.
  */
-export async function runScheduleTick(deps: CarpoolDeps, limit = 200): Promise<{ missed: number; completed: number }> {
+export async function runScheduleTick(deps: CarpoolDeps, limit = 200): Promise<{ missed: number; completed: number; backlog: boolean }> {
   const nowMs = deps.now();
+  const due = await deps.store.dueRuns(nowMs, limit);
+  const finished = await deps.store.finishedRuns(nowMs, limit);
   let missed = 0;
   let completed = 0;
-  for (const ref of await deps.store.dueRuns(nowMs, limit)) {
+  for (const ref of due) {
     const done = await deps.store.transact(async (tx) => {
       const run = await tx.run(ref.carpoolId, ref.runId);
       if (!run || (run.status !== "planned" && run.status !== "open") || run.confirmByMs > nowMs) return false;
@@ -589,18 +614,25 @@ export async function runScheduleTick(deps: CarpoolDeps, limit = 200): Promise<{
     });
     if (done) missed++;
   }
-  for (const ref of await deps.store.finishedRuns(nowMs, limit)) {
+  for (const ref of finished) {
     const done = await deps.store.transact(async (tx) => {
       const run = await tx.run(ref.carpoolId, ref.runId);
       if (!run || run.status !== "confirmed" || run.startMs > nowMs) return false;
       const balance = await tx.balance(ref.carpoolId, run.termId);
-      const members = await tx.members(ref.carpoolId);
+      // Who was eligible for this run (fair share): members now, with a
+      // child on it, able to drive it (car and account read again).
+      const members = await withFreshCars(tx, await tx.members(ref.carpoolId));
+      const consents = await tx.consents(ref.carpoolId);
       const names = new Map(members.map((m) => [m.uid, m.firstName]));
+      const eligible = eligibleFamilies(run.riders, members, consents, run.date, run.driverUid);
       tx.putRun({ ...run, status: "completed", updatedAtMs: nowMs });
-      tx.putBalance(addToBalance(balance ?? { carpoolId: ref.carpoolId, termId: run.termId, families: {}, updatedAtMs: nowMs }, run, names, nowMs));
+      tx.putBalance(
+        addToBalance(balance ?? { carpoolId: ref.carpoolId, termId: run.termId, families: {}, updatedAtMs: nowMs }, run, names, eligible, nowMs),
+      );
       return true;
     });
     if (done) completed++;
   }
-  return { missed, completed };
+  // A full page means more runs wait for the next tick: logged by the caller.
+  return { missed, completed, backlog: due.length >= limit || finished.length >= limit };
 }

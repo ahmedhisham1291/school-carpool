@@ -162,3 +162,62 @@ Run 43526271115 on `dc0abbd`: **not green**.
 - An invite link opens the right carpool: covered once SETUP 16 is done
   (Team ID, links site, `INVITE_LINK_DOMAIN`). With the current rules, the
   carpool screen after an invite also hits Blocking 1.
+
+## Re-review (head `959dd9e`, 14 Nov 2026)
+
+**Verdict: PASS.**
+
+### CI
+
+Run 43531339054 on `959dd9e`: **success**.
+
+| Job | Result |
+| --- | --- |
+| Flutter analyze, tests and screenshots | success |
+| Cloud Functions tests and rules tests (emulators) | success |
+| Web, admin panel and Android compile (staging) | success. Web, admin panel and Android APK all built. |
+
+### Blocking items
+
+1. **Fixed.** The new rule is at `firestore.rules` `memberships`:
+   `allow get: if signedIn() && id.matches('.+_' + uid) && (resource == null || resource.data.uid == uid)`.
+   - A parent can read their own membership ID even when the document
+     does not exist, so a visitor now sees "Ask to join".
+   - Another parent's ID is denied whether it exists or not, so nobody can
+     probe for membership.
+   - `list` is unchanged.
+
+   New rules tests cover:
+   - a missing own ID;
+   - another parent's ID, existing and missing;
+   - IDs that contain the caller's uid in the wrong place (`k1_zed_x`, `zed`);
+   - a signed-out user.
+2. **Fixed.** The Android build is green in run 43531339054.
+
+### Non-blocking items addressed
+
+- **3.** The Join filter no longer shows full carpools. Tested.
+- **5.** When the admin closes the carpool, its open requests are declined
+  and deleted. All reads in that transaction happen before the writes.
+  Tested.
+- **6, in part.** An approval now fails when the requester's account is
+  missing. Tested.
+- **9.** "Looking" posts are now read newest first:
+  `orderBy("createdAt", "desc")`, with a matching index. The `createdAt`
+  field is written on every post.
+- **10.** The kept invite code is cleared on sign out.
+- **1.** The coordinator reports that Prompt 7 enforces `checkArrangement`
+  on the server for every driver, the creator included. That code is on
+  the Prompt 7 branch, so I did not review it here.
+
+### Still open (non-blocking)
+
+These carry over to later prompts:
+
+- Item 2: the carpool's seats are not checked again when the creator's car
+  changes.
+- Item 4: who sees "looking" posts (owner open question 6).
+- The rest of item 6: carpools and posts of suspended parents are still
+  shown.
+- Item 7: the free-text activity label and contribution note.
+- Item 8: membership-count checks outside the transaction.

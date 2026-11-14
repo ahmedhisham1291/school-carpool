@@ -574,8 +574,8 @@ void main() {
     balance: const DriveBalance(
       termId: '2026-t1',
       families: <FamilyBalance>[
-        FamilyBalance(uid: 'p1', firstName: 'Hoda', driven: 6, received: 2),
-        FamilyBalance(uid: 'uid-1', firstName: 'Mona', driven: 3, received: 5),
+        FamilyBalance(uid: 'p1', firstName: 'Hoda', driven: 6, received: 2, share: 4),
+        FamilyBalance(uid: 'uid-1', firstName: 'Mona', driven: 3, received: 5, share: 5),
       ],
     ),
   );

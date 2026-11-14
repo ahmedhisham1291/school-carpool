@@ -91,29 +91,20 @@ void main() {
   });
 
   group('drive balance (F37)', () {
-    test('uneven children: the fair share follows the number of children', () {
-      final List<CarpoolMember> members = <CarpoolMember>[_member('a', 1), _member('b', 2)];
-      // 9 runs: fair shares 3 and 6. a drove 3, b drove 6: both even.
-      const DriveBalance even = DriveBalance(
-        termId: '2026-t1',
-        families: <FamilyBalance>[
-          FamilyBalance(uid: 'a', firstName: 'A', driven: 3, received: 6),
-          FamilyBalance(uid: 'b', firstName: 'B', driven: 6, received: 3),
-        ],
-      );
-      final Map<String, double> debts = driveDebts(even.families, members);
-      expect(debts['a'], closeTo(0, 1e-9));
-      expect(debts['b'], closeTo(0, 1e-9));
-      // b drove 4 of 9: behind its share of 6, so b drove least.
+    test('the order follows driven minus the fair share kept by the server', () {
+      final List<CarpoolMember> members = <CarpoolMember>[_member('a', 1), _member('b', 2), _member('c', 3)];
+      // 9 runs between a (1 child) and b (2 children); c has no car (no share).
       const DriveBalance behind = DriveBalance(
         termId: '2026-t1',
         families: <FamilyBalance>[
-          FamilyBalance(uid: 'a', firstName: 'A', driven: 5, received: 4),
-          FamilyBalance(uid: 'b', firstName: 'B', driven: 4, received: 5),
+          FamilyBalance(uid: 'a', firstName: 'A', driven: 5, received: 4, share: 3),
+          FamilyBalance(uid: 'b', firstName: 'B', driven: 4, received: 5, share: 6),
+          FamilyBalance(uid: 'c', firstName: 'C', driven: 0, received: 9),
         ],
       );
       expect(droveLeast(behind, members), 'b');
-      expect(balanceOrder(behind, members).map((FamilyBalance f) => f.uid), <String>['b', 'a']);
+      expect(balanceOrder(behind, members).map((FamilyBalance f) => f.uid), <String>['b', 'c', 'a']);
+      expect(behind.families.first.debt, 2);
     });
 
     test('members with no runs yet are listed at zero; nobody "drove least" before any run', () {

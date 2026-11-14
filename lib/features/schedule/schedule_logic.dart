@@ -70,40 +70,31 @@ List<(Rider, bool)> myChildrenOn(ScheduleRun run, String uid) => <(Rider, bool)>
 ];
 
 /// Families ordered for the balance screen (F37): furthest behind their
-/// fair share first. The fair share follows the number of children each
-/// family brings, as in the server's rotation.
+/// fair share first (driven minus share, the same order as the server's
+/// rotation). Shares are built run by run on the server: a family that
+/// joined late or cannot drive is not counted for runs it was not eligible
+/// for. Members with no runs yet are listed at zero.
 List<FamilyBalance> balanceOrder(DriveBalance? balance, List<CarpoolMember> members) {
   final Map<String, FamilyBalance> byUid = <String, FamilyBalance>{
     for (final FamilyBalance f in balance?.families ?? const <FamilyBalance>[]) f.uid: f,
   };
   final List<FamilyBalance> rows = <FamilyBalance>[
-    for (final CarpoolMember m in members)
-      byUid[m.uid] ?? FamilyBalance(uid: m.uid, firstName: m.firstName, driven: 0, received: 0),
+    for (final CarpoolMember m in members) byUid[m.uid] ?? FamilyBalance(uid: m.uid, firstName: m.firstName, driven: 0, received: 0),
   ];
-  final Map<String, double> debt = driveDebts(rows, members);
   return rows..sort((FamilyBalance a, FamilyBalance b) {
-    final int byDebt = (debt[a.uid] ?? 0).compareTo(debt[b.uid] ?? 0);
-    return byDebt != 0 ? byDebt : a.firstName.compareTo(b.firstName);
+    final int byDebt = a.debt.compareTo(b.debt);
+    return byDebt != 0 ? byDebt : a.uid.compareTo(b.uid);
   });
 }
 
-/// Driven minus the fair share (negative: behind).
-Map<String, double> driveDebts(List<FamilyBalance> rows, List<CarpoolMember> members) {
-  final Map<String, int> children = <String, int>{
-    for (final CarpoolMember m in members) m.uid: m.children.isEmpty ? 1 : m.children.length,
-  };
-  final int total = rows.fold<int>(0, (int n, FamilyBalance f) => n + f.driven);
-  final int kids = rows.fold<int>(0, (int n, FamilyBalance f) => n + (children[f.uid] ?? 1));
-  return <String, double>{
-    for (final FamilyBalance f in rows) f.uid: kids == 0 ? 0 : f.driven - total * (children[f.uid] ?? 1) / kids,
-  };
-}
-
-/// The family furthest behind, when anyone has driven at all.
+/// The driving family furthest behind its share (a family that cannot
+/// drive has no share and never gets the badge), when anyone has driven.
 String? droveLeast(DriveBalance? balance, List<CarpoolMember> members) {
   final List<FamilyBalance> order = balanceOrder(balance, members);
-  final bool anyRuns = order.any((FamilyBalance f) => f.driven > 0);
-  return anyRuns && order.isNotEmpty ? order.first.uid : null;
+  if (!order.any((FamilyBalance f) => f.driven > 0)) {
+    return null;
+  }
+  return order.where((FamilyBalance f) => f.share > 0).firstOrNull?.uid;
 }
 
 /// Checks a no-school day or time change as the admin fills it in.

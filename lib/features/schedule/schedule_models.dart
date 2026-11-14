@@ -12,6 +12,8 @@ String? _textOrNull(Object? value) => value is String && value.isNotEmpty ? valu
 
 int _int(Object? value) => value is num ? value.toInt() : 0;
 
+double _double(Object? value) => value is num ? value.toDouble() : 0;
+
 List<Object?> _list(Object? value) => value is List<Object?> ? value : const <Object?>[];
 
 Map<Object?, Object?> _map(Object? value) => value is Map<Object?, Object?> ? value : const <Object?, Object?>{};
@@ -272,12 +274,18 @@ class ExceptionDraft {
 /// One family's runs this term (F37).
 @immutable
 class FamilyBalance {
-  const FamilyBalance({required this.uid, required this.firstName, required this.driven, required this.received});
+  const FamilyBalance({required this.uid, required this.firstName, required this.driven, required this.received, this.share = 0});
 
   final String uid;
   final String firstName;
   final int driven;
   final int received;
+
+  /// Fair share of the runs so far (built run by run on the server, F37).
+  final double share;
+
+  /// Runs driven minus the fair share (negative: behind).
+  double get debt => driven - share;
 }
 
 /// carpools/{id}/balances/{termId}.
@@ -297,6 +305,7 @@ class DriveBalance {
               firstName: _text(_map(e.value)['firstName']),
               driven: _int(_map(e.value)['driven']),
               received: _int(_map(e.value)['received']),
+              share: _double(_map(e.value)['share']),
             ),
       ],
     );

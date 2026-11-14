@@ -188,7 +188,7 @@ export function balanceFromDoc(carpoolId: string, termId: string, d: DocumentDat
   const raw = typeof d.families === "object" && d.families !== null ? (d.families as Record<string, unknown>) : {};
   for (const [uid, v] of Object.entries(raw)) {
     const f = typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {};
-    families[uid] = { firstName: text(f.firstName), driven: num(f.driven), received: num(f.received) };
+    families[uid] = { firstName: text(f.firstName), driven: num(f.driven), received: num(f.received), share: num(f.share) };
   }
   return { carpoolId, termId, families, updatedAtMs: ms(d.updatedAt) };
 }
