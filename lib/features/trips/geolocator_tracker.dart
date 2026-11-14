@@ -317,18 +317,22 @@ class GeolocatorTracker implements LocationTracker {
     }
     _session = session;
     await _persist();
-    if (!_running) {
-      _running = true;
-      _positions = _source.positions(settingsFor(_platform)).listen(_onFix, onError: _onStreamError);
-      _service = _source.serviceStatus().listen((ServiceStatus s) {
-        if (s == ServiceStatus.disabled) {
-          _status.add(TrackerStatus(tracking: true, tripId: _session?.tripId, lastFixAt: _lastFix, permission: TrackerPermission.serviceOff));
-        }
-      }, onError: (Object _) {});
-      if (timers) {
-        _heartbeat = Timer.periodic(heartbeatEvery, (_) => unawaited(heartbeat()));
-        _flushTimer = Timer.periodic(flushEvery, (_) => unawaited(flush()));
+    _running = true;
+    // (Re)subscribes after a loss mid-run: the plugin's stream ends with an
+    // error when Location Services or the permission go away.
+    _positions ??= _source.positions(settingsFor(_platform)).listen(
+      _onFix,
+      onError: _onStreamError,
+      onDone: () => _positions = null,
+    );
+    _service ??= _source.serviceStatus().listen((ServiceStatus s) {
+      if (s == ServiceStatus.disabled) {
+        _status.add(TrackerStatus(tracking: true, tripId: _session?.tripId, lastFixAt: _lastFix, permission: TrackerPermission.serviceOff));
       }
+    }, onError: (Object _) {});
+    if (timers) {
+      _heartbeat ??= Timer.periodic(heartbeatEvery, (_) => unawaited(heartbeat()));
+      _flushTimer ??= Timer.periodic(flushEvery, (_) => unawaited(flush()));
     }
     _status.add(TrackerStatus(tracking: true, tripId: session.tripId, permission: p));
     unawaited(flush());
@@ -336,7 +340,11 @@ class GeolocatorTracker implements LocationTracker {
 
   void _onStreamError(Object error) {
     // Permission taken away or Location Services switched off mid-run: the
-    // run screen shows the steps; the server tells the parents.
+    // run screen shows the steps; the server tells the parents. The stream
+    // is opened again by the next start (after the driver fixes it).
+    final StreamSubscription<GeoFix>? positions = _positions;
+    _positions = null;
+    unawaited(positions?.cancel());
     final TrackerPermission p = error is LocationServiceDisabledException ? TrackerPermission.serviceOff : TrackerPermission.denied;
     _status.add(TrackerStatus(tracking: _running, tripId: _session?.tripId, lastFixAt: _lastFix, permission: p));
   }

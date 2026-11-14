@@ -309,6 +309,28 @@ void main() {
     });
   });
 
+  group('after a loss mid-run', () {
+    test('start again (the driver fixed it) listens to positions again and keeps the buffer', () async {
+      final GeolocatorTracker t = tracker();
+      await t.start(_session);
+      poster.offline = true;
+      source.fixes.add(_fix(0));
+      await pumpEventQueue();
+      source.fixes.addError(const LocationServiceDisabledException());
+      await pumpEventQueue();
+      source.fixes.add(_fix(5));
+      await pumpEventQueue();
+      expect(t.pending, 1, reason: 'not listening after the error');
+      await t.start(_session);
+      source.fixes.add(_fix(10));
+      await pumpEventQueue();
+      expect(t.pending, 2);
+      poster.offline = false;
+      await t.flush();
+      expect(poster.points, 2);
+    });
+  });
+
   group('driving gate check', () {
     late FakeNotifications notifications;
     setUp(() => notifications = FakeNotifications());
