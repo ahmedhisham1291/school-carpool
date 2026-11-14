@@ -72,8 +72,11 @@ abstract interface class LocationTracker {
   /// missing. Starting again for the same trip only renews the token.
   Future<void> start(TrackerSession session);
 
-  /// Stops sending and clears points not yet sent (the run is over).
-  Future<void> stop();
+  /// Stops sending. Points not sent yet are cleared (the run is over),
+  /// unless [keepUnsent]: then the tracker tries to send them first and
+  /// keeps the rest on the phone (the server ignores points older than a
+  /// run's start, and the plugin drops them after a day).
+  Future<void> stop({bool keepUnsent = false});
 
   /// The trip being tracked on this phone, or null (also after a restart).
   Future<String?> activeTrip();
@@ -94,6 +97,9 @@ class FakeLocationTracker implements LocationTracker {
   TrackerSession? session;
   int starts = 0;
   int stops = 0;
+
+  /// Whether the last stop kept the points not sent yet.
+  bool? lastStopKeptUnsent;
   int settingsOpened = 0;
 
   set permissionValue(TrackerPermission value) => _permission = value;
@@ -123,9 +129,10 @@ class FakeLocationTracker implements LocationTracker {
   }
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({bool keepUnsent = false}) async {
     if (session != null) {
       stops++;
+      lastStopKeptUnsent = keepUnsent;
     }
     session = null;
     _status.add(TrackerStatus.idle);

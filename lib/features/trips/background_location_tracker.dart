@@ -151,12 +151,23 @@ class BackgroundLocationTracker implements LocationTracker {
   }
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({bool keepUnsent = false}) async {
     _tripId = null;
     await _ensureReady();
+    if (keepUnsent) {
+      // Session guard: send what is queued while the trip's token is still
+      // set. What cannot go now stays on the phone (dropped after a day).
+      try {
+        await bg.BackgroundGeolocation.sync();
+      } on Object {
+        // Offline: the points stay queued.
+      }
+    }
     await bg.BackgroundGeolocation.stop();
-    // Points not sent yet belong to a run that is over.
-    await bg.BackgroundGeolocation.destroyLocations();
+    if (!keepUnsent) {
+      // Points not sent yet belong to a run that is over.
+      await bg.BackgroundGeolocation.destroyLocations();
+    }
     await bg.BackgroundGeolocation.setConfig(
       bg.Config(
         http: bg.HttpConfig(url: '', headers: <String, dynamic>{}),

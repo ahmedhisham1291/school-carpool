@@ -254,6 +254,24 @@ trip` shows `ended` with no new points.
   and Android release builds (buy it before the first TestFlight build
   with trips)".
 
+### Re-review (65fb260)
+
+- **A, tracker guard on relaunch (fixed):** `trackerGuardDecision` decides
+  nothing while the session is loading or failed (offline) or the account
+  record is not loaded yet, so a relaunch mid-run keeps tracking. It stops
+  only on sign-out, a different uid than the one seen in this app run, or a
+  LOADED account that is not verified (suspended, rejected, unverified, in
+  review). Guard stops use `stop(keepUnsent: true)`: queued points are sent
+  first if possible and never deleted (the server drops points older than a
+  run's start; the plugin drops them after a day). Only the end of a run
+  clears them. Tests: `test/trips/tracker_guard_test.dart` (written, not run
+  here).
+- **B, identity selfie kept / driver photo (ON HOLD):** the owner is
+  deciding the photo-retention policy. Work in progress is in
+  `git stash` ("HOLD fix B ..."), not committed. Until then this branch
+  still has the review-6 behaviour (identity selfie kept as the face
+  reference), which the re-review flagged against spec section 7.
+
 ## Legal questions for the owner's lawyer
 
 1. **Kept face images:** the identity selfie is now kept as the face
