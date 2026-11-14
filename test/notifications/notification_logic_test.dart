@@ -7,6 +7,7 @@ import 'package:school_carpool/features/notifications/notification_logic.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
 import 'package:school_carpool/features/notifications/push_messaging.dart';
 import 'package:school_carpool/l10n/l10n.dart';
+import 'package:school_carpool/settings/settings_store.dart';
 
 import '../helpers/notification_fakes.dart';
 
@@ -130,6 +131,27 @@ void main() {
         rung: <String>{'due'},
       );
       expect(again.isEmpty, isTrue);
+    });
+
+    test('an old unread alert does not ring at start (outside the ring window)', () {
+      final AppNotification old = testNotification('old', NotificationKind.noDriver, ago: const Duration(days: 2));
+      final AppNotification edge = testNotification('edge', NotificationKind.noDriver, alarmAt: notifNow.subtract(kAlarmRingWindow));
+      final AlarmPlan plan = planAlarms(<AppNotification>[old, edge], now: notifNow, pending: <int>{}, rung: <String>{});
+      expect(plan.ringNow.map((AppNotification n) => n.id), <String>['edge']);
+      expect(plan.schedule, isEmpty);
+    });
+
+    test('rung IDs are kept on the phone, newest last, at most 50', () async {
+      final InMemorySettingsStore store = InMemorySettingsStore();
+      for (int i = 0; i < 60; i++) {
+        await rememberAlarm(store, 'n$i');
+      }
+      await rememberAlarm(store, 'n15');
+      final Set<String> ids = rungAlarmIds(store);
+      expect(ids.length, kRungAlarmsKept);
+      expect(ids, contains('n15'));
+      expect(ids, contains('n59'));
+      expect(ids, isNot(contains('n0')));
     });
   });
 

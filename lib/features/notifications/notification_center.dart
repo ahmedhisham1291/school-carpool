@@ -28,7 +28,6 @@ class NotificationCenter {
   NotificationCenter(this._ref);
 
   final Ref _ref;
-  final Set<String> _rung = <String>{};
   final List<StreamSubscription<Object?>> _subscriptions = <StreamSubscription<Object?>>[];
   String? _registeredUid;
   bool _syncing = false;
@@ -58,6 +57,10 @@ class NotificationCenter {
   List<AppNotification>? _again;
 
   static const String tokenKey = 'push.token';
+
+  Set<String> _loadRung() => rungAlarmIds(_store);
+
+  Future<void> _saveRung(String id) => rememberAlarm(_store, id);
 
   PushMessaging get _push => _ref.read(pushMessagingProvider);
   LocalAlarms get _alarms => _ref.read(localAlarmsProvider);
@@ -154,8 +157,8 @@ class NotificationCenter {
       }
     });
     await _store.write(tokenKey, null);
+    await _store.write(kRungAlarmsKey, null);
     _registeredUid = null;
-    _rung.clear();
   }
 
   /// Opens a tapped push: marks it read, stops its alarm, opens its screen.
@@ -194,7 +197,7 @@ class NotificationCenter {
         list,
         now: _ref.read(notificationClockProvider)().toUtc(),
         pending: await _alarms.pending(),
-        rung: _rung,
+        rung: _loadRung(),
       );
       if (plan.isEmpty) {
         return;
@@ -204,6 +207,8 @@ class NotificationCenter {
         await _alarms.cancel(id);
       }
       for (final AppNotification n in plan.schedule) {
+        // The phone rings it at its time, even with the app closed: never again at start.
+        await _saveRung(n.id);
         await _alarms.schedule(
           id: alarmIdFor(n.id),
           at: n.alarmAt!,
@@ -213,7 +218,7 @@ class NotificationCenter {
         );
       }
       for (final AppNotification n in plan.ringNow) {
-        _rung.add(n.id);
+        await _saveRung(n.id);
         await _alarms.ringNow(
           id: alarmIdFor(n.id),
           title: notificationTitle(l10n, n.kind),

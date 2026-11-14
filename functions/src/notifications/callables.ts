@@ -23,7 +23,7 @@ import {
 import { CAIRO_TZ } from "../schedule/cairo";
 import { reportError } from "../sentry";
 import { createWhatsAppSender } from "../whatsapp/sender";
-import { DeviceError, registerDevice, unregisterDevice, updateSettings, type DeviceDeps } from "./devices";
+import { DeviceError, registerDevice, setWhatsAppConsent, unregisterDevice, updateSettings, type DeviceDeps } from "./devices";
 import { dispatchEvent, RetryableDispatchError, type DispatchDeps } from "./dispatch";
 import { DEFAULT_ALARM_DELAY_MIN, eventFromDoc } from "./model";
 import { createPushSender } from "./push";
@@ -170,4 +170,9 @@ export const unregisterPushDevice = onCall(opts, (r) => run("unregisterPushDevic
 /** { whatsapp?: { group: bool }, quiet?: { on?, from?, to? } } -> the settings */
 export const updateNotificationSettings = onCall(opts, (r) =>
   run("updateNotificationSettings", () => updateSettings(deviceDeps(), uidOf(r), r.data)),
+);
+
+/** { accept } -> { whatsappOptIn } (WhatsApp consent after sign-up, or withdrawn) */
+export const setWhatsAppNotifications = onCall(opts, (r) =>
+  run("setWhatsAppNotifications", () => setWhatsAppConsent(deviceDeps(), uidOf(r), r.data)),
 );
