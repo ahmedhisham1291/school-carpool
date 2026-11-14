@@ -1448,7 +1448,12 @@ bucket's default key. Then:
    would be lost. Give "Cloud KMS Admin" to the owner only.
 4. Photos uploaded before the key was set keep Google's key until rewritten.
    To rewrite them once: `gcloud storage objects update gs://<bucket>/verification/** --encryption-key=<key id>`
-   (and the same for `faceRefs/**`, `driverPhotos/**`).
+   (and the same for `faceRefs/**`, `driverPhotos/**`, `selfieArchive/**`,
+   `thumbs/**` and `routeArchive/**`). Then run
+   `GCLOUD_PROJECT=<project> npm --prefix functions run thumbs:backfill` so
+   every kept photo has a thumbnail made from its current version.
+5. `tool/setup_kms.sh` runs on Linux, Cloud Shell and macOS (it picks GNU or
+   BSD `date`, or python3).
 
 ### 23.3 Retention: lifecycle rules and TTL policies (each project, once)
 

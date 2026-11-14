@@ -20,6 +20,15 @@ ring="school-carpool"
 key="private-photos"
 key_id="projects/${project}/locations/${location}/keyRings/${ring}/cryptoKeys/${key}"
 
+# The first rotation one year from now, in UTC. GNU date (Linux, Cloud
+# Shell) takes -d; BSD date (macOS) takes -v; python3 as a last resort.
+next_rotation() {
+  date -u -d '+365 days' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+    || date -u -v+365d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+    || python3 -c 'import datetime as d; print((d.datetime.now(d.timezone.utc) + d.timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ"))'
+}
+rotation="$(next_rotation)"
+
 gcloud services enable cloudkms.googleapis.com --project="${project}"
 
 gcloud kms keyrings describe "${ring}" --location="${location}" --project="${project}" >/dev/null 2>&1 \
@@ -27,7 +36,7 @@ gcloud kms keyrings describe "${ring}" --location="${location}" --project="${pro
 
 gcloud kms keys describe "${key}" --keyring="${ring}" --location="${location}" --project="${project}" >/dev/null 2>&1 \
   || gcloud kms keys create "${key}" --keyring="${ring}" --location="${location}" --purpose=encryption \
-       --rotation-period=365d --next-rotation-time="$(date -u -d '+365 days' +%Y-%m-%dT%H:%M:%SZ)" \
+       --rotation-period=365d --next-rotation-time="${rotation}" \
        --protection-level=software --project="${project}"
 
 # Cloud Storage encrypts with the key on our behalf: give ITS service agent
