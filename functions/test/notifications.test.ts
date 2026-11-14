@@ -24,6 +24,7 @@ import { SCHEDULE_EVENTS } from "../src/schedule/store";
 import { cairoToUtcMs } from "../src/schedule/cairo";
 import { FakeWhatsAppSender, MetaWhatsAppSender } from "../src/whatsapp/sender";
 import { MemoryNotifyStore, RecordingPush, RecordingWhatsApp } from "./helpers/memory_notifications";
+import type { App } from "firebase-admin/app";
 
 // Fake parents, children and places only.
 const CHILD_NAMES = ["Adam", "Laila", "آدم", "ليلى"];
@@ -533,9 +534,9 @@ describe("phones and settings", () => {
 
 describe("senders", () => {
   it("the fake push sender is refused in prod; fcm and fake are picked by config", () => {
-    assert.throws(() => createPushSender("fake", "prod", () => ({ name: "x" }), () => undefined));
-    assert.throws(() => createPushSender("apns", "dev", () => ({ name: "x" }), () => undefined));
-    assert.equal(createPushSender("fake", "dev", () => ({ name: "x" }), () => undefined).kind, "fake");
+    assert.throws(() => createPushSender("fake", "prod", () => ({ name: "x", options: {} }) as App, () => undefined));
+    assert.throws(() => createPushSender("apns", "dev", () => ({ name: "x", options: {} }) as App, () => undefined));
+    assert.equal(createPushSender("fake", "dev", () => ({ name: "x", options: {} }) as App, () => undefined).kind, "fake");
   });
 
   it("the fake push log has the type and level, never the token", async () => {
