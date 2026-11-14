@@ -328,7 +328,10 @@ todo "Maps daily caps (gcloud cannot set them reliably): ${GCP}/apis/api/places.
 step "6. Secrets (Secret Manager; existing values are never replaced)"
 secret_exists() { gcloud secrets describe "$1" --project="${PROJECT}" >/dev/null 2>&1; }
 secret_has_value() {
-  [ -n "$(gcloud secrets versions list "$1" --project="${PROJECT}" --filter='state=ENABLED' --limit=1 --format='value(name)' 2>/dev/null || true)" ]
+  [ -n "$(gcloud secrets versions list "$1" --project="${PROJECT}" --filter='state:ENABLED' --limit=1 --format='value(name)' 2>/dev/null || true)" ]
+}
+secret_has_any_version() { # enabled, disabled or destroyed
+  [ -n "$(gcloud secrets versions list "$1" --project="${PROJECT}" --limit=1 --format='value(name)' 2>/dev/null || true)" ]
 }
 secret_put() { # name; value on stdin (never echoed)
   if secret_exists "$1"; then
@@ -343,7 +346,15 @@ ensure_secret() { # name random|unused provider-key fake-default
   local name="$1" kind="$2"
   if secret_has_value "${name}"; then ok "${name}: already set (kept)"; return; fi
   case "${kind}" in
-    random) openssl rand -hex 32 | tr -d '\n' | secret_put "${name}"; ok "${name}: new random key" ;;
+    random)
+      # Never give an HMAC key a second value: a new value would orphan every
+      # stored hash (national ID duplicates, pending codes). Only a secret
+      # with no version at all gets one.
+      if secret_has_any_version "${name}"; then
+        todo "${name}: has versions but none enabled; re-enable the right one in ${GCP}/security/secret-manager?project=${PROJECT} (not replaced)."
+        return
+      fi
+      openssl rand -hex 32 | tr -d '\n' | secret_put "${name}"; ok "${name}: new random key" ;;
     unused)
       local provider; provider="$(env_value "$3" fake)"
       if [ "${provider}" = "fake" ]; then
