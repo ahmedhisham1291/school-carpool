@@ -53,6 +53,7 @@ import {
   chatPurgeAt,
   DATA_TYPES,
   DAY_MS,
+  type DataTypeId,
   isDue,
   purgeAfterClosure,
   RETENTION,
@@ -651,6 +652,25 @@ describe("data export", () => {
     assert.deepEqual(account.membership, { relationship: "mother" }, "words ending in -ip are not IPs");
     assert.deepEqual(file.sections.wallet, { transfers: [{ id: "t1", amount: 100, partnerRef: "p1" }] });
     assert.deepEqual(redact({ ip: "1.2.3.4", codeHash: "x", nested: [{ tokenHash: "y", ok: 1 }] }), { nested: [{ ok: 1 }] });
+    assert.deepEqual(file.truncated, [], "a source that cuts nothing");
+  });
+
+  it("says which sections reached a read limit, so the parent knows the file is partial", async () => {
+    const cut = new Set<DataTypeId>();
+    const file = await buildExport(
+      {
+        section: async (_uid, id) => {
+          if (id === "chat") cut.add("chat");
+          return { id };
+        },
+        truncated: () => [...cut],
+      },
+      "u1",
+      NOW,
+      () => undefined,
+    );
+    assert.deepEqual(file.truncated, ["chat"]);
+    assert.deepEqual(file.missing, []);
   });
 });
 

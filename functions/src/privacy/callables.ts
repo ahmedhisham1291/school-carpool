@@ -348,8 +348,9 @@ export const exportMyData = gatedCall({ ...opts, secrets: [STREAM_API_SECRET], t
       await bucket().file(path).save(Buffer.from(JSON.stringify(file, null, 2), "utf8"), { contentType: "application/json", resumable: false });
       const expiresAtMs = nowMs + EXPORT_LINK_MS;
       const [url] = await bucket().file(path).getSignedUrl({ version: "v4", action: "read", expires: expiresAtMs, responseDisposition: `attachment; filename="school-carpool-data.json"` });
-      await store.putRequest({ ...request, status: "done", reason: file.missing.length > 0 ? `missing:${file.missing.join(",")}` : null, doneAtMs: Date.now() });
-      return { url, expiresAtMs, requestId: request.id, missing: file.missing };
+      const notes = [file.missing.length > 0 ? `missing:${file.missing.join(",")}` : "", file.truncated.length > 0 ? `truncated:${file.truncated.join(",")}` : ""].filter((x) => x !== "");
+      await store.putRequest({ ...request, status: "done", reason: notes.length > 0 ? notes.join(";") : null, doneAtMs: Date.now() });
+      return { url, expiresAtMs, requestId: request.id, missing: file.missing, truncated: file.truncated };
     } catch (error) {
       await store.putRequest({ ...request, status: "failed", reason: "export-failed", doneAtMs: Date.now() });
       logger.error("export failed", { message: error instanceof Error ? error.message : "unknown" });

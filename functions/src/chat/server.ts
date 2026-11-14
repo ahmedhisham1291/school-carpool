@@ -27,6 +27,8 @@ export interface ExportedMessage {
   text: string;
   createdAt: string;
   attachment: "image" | "location" | "other" | null;
+  /** The parent's own image: Stream's link (it may expire; ask the privacy team for a copy). */
+  imageUrl: string | null;
 }
 
 export interface ChannelData {
@@ -128,7 +130,12 @@ interface RawMessage {
   type?: unknown;
   created_at?: unknown;
   user?: { id?: unknown; name?: unknown; parent_id?: unknown };
-  attachments?: Array<{ type?: unknown }>;
+  attachments?: Array<{ type?: unknown; image_url?: unknown; asset_url?: unknown }>;
+}
+
+function imageUrlOf(a: { image_url?: unknown; asset_url?: unknown } | undefined): string | null {
+  const url = a?.image_url ?? a?.asset_url;
+  return typeof url === "string" && url.startsWith("https://") ? url : null;
 }
 
 export function snapshotOf(m: RawMessage, reportedId: string): MessageSnapshot | null {
@@ -344,6 +351,7 @@ export class StreamChatServer implements ChatServer {
           text: typeof m.text === "string" ? m.text : "",
           createdAt: typeof m.created_at === "string" ? m.created_at : "",
           attachment: att === "image" || att === "location" ? att : att ? "other" : null,
+          imageUrl: att === "image" ? imageUrlOf(m.attachments?.[0]) : null,
         });
       }
       next = typeof json.next === "string" && json.next ? json.next : null;
@@ -499,7 +507,7 @@ export class FakeChatServer implements ChatServer {
     for (const [cid, list] of this.messages) {
       for (const m of list) {
         if (m.user?.id !== uid || typeof m.id !== "string") continue;
-        out.push({ id: m.id, cid, text: typeof m.text === "string" ? m.text : "", createdAt: typeof m.created_at === "string" ? m.created_at : "", attachment: null });
+        out.push({ id: m.id, cid, text: typeof m.text === "string" ? m.text : "", createdAt: typeof m.created_at === "string" ? m.created_at : "", attachment: null, imageUrl: null });
       }
     }
     return out.slice(0, limit);

@@ -21,6 +21,8 @@ export const EXPORT_LINK_MS = 60 * 60_000;
 export interface ExportSource {
   /** One section's data, already limited to what is the parent's own. */
   section(uid: string, id: DataTypeId): Promise<unknown>;
+  /** Sections where a list reached its read limit (the file says it is partial). */
+  truncated?(): DataTypeId[];
 }
 
 export interface ExportFile {
@@ -31,6 +33,8 @@ export interface ExportFile {
   sections: Record<DataTypeId, unknown>;
   /** Sections that could not be read (the file says so instead of failing). */
   missing: DataTypeId[];
+  /** Sections cut at a read limit (the oldest items left out); ask the privacy team for the rest. */
+  truncated: DataTypeId[];
 }
 
 /** Keys never written to an export (internal keys, hashes and tokens). */
@@ -73,6 +77,7 @@ export async function buildExport(source: ExportSource, uid: string, nowMs: numb
     },
     sections,
     missing,
+    truncated: source.truncated ? source.truncated() : [],
   };
 }
 

@@ -1,5 +1,5 @@
 import type { Bucket } from "../verification/store";
-import { FieldPath, FieldValue, Timestamp, type DocumentData, type Firestore, type Query, type QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, type DocumentData, type Firestore, type Query, type QueryDocumentSnapshot, type QuerySnapshot } from "firebase-admin/firestore";
 import { USERS } from "../auth/accounts";
 import type { ChatServer } from "../chat/server";
 import { outboxDoc } from "../notifications/outbox";
@@ -750,9 +750,34 @@ export class FirestoreExportSource implements ExportSource {
     private readonly chat: ChatServer,
   ) {}
 
-  private async docs(query: Query, limit = 500): Promise<unknown[]> {
+  private current: DataTypeId | null = null;
+  private readonly cut = new Set<DataTypeId>();
+
+  truncated(): DataTypeId[] {
+    return [...this.cut];
+  }
+
+  /** query.limit(limit).get(), noting a section that reached the limit. */
+  private async read(query: Query, limit: number): Promise<QuerySnapshot> {
     const snap = await query.limit(limit).get();
+    if (snap.size >= limit && this.current) this.cut.add(this.current);
+    return snap;
+  }
+
+  private async docs(query: Query, limit = 500): Promise<unknown[]> {
+    const snap = await this.read(query, limit);
     return snap.docs.map((d) => ({ id: d.id, ...(plain(d.data()) as Record<string, unknown>) }));
+  }
+
+  /** The parent's carpools (memberships of any status). */
+  private async carpoolIds(uid: string): Promise<string[]> {
+    const m = await this.read(this.db.collection("memberships").where("uid", "==", uid), 200);
+    const ids = new Set<string>();
+    for (const d of m.docs) {
+      const id = text(d.get("carpoolId"));
+      if (id) ids.add(id);
+    }
+    return [...ids];
   }
 
   private async doc(path: string): Promise<unknown> {
@@ -766,14 +791,19 @@ export class FirestoreExportSource implements ExportSource {
   }
 
   async section(uid: string, id: DataTypeId): Promise<unknown> {
+    this.current = id;
     const db = this.db;
     switch (id) {
       case "account":
         return pick((await db.collection(USERS).doc(uid).get()).data(), ACCOUNT_FIELDS);
       case "consents":
-        return this.docs(db.collection(USERS).doc(uid).collection("consents"));
+        return {
+          records: await this.docs(db.collection(USERS).doc(uid).collection("consents")),
+          // Every privacy request (export, correction, deletion, consent change) and its answer.
+          privacyRequests: (await this.docs(db.collection(PRIVACY_REQUESTS).where("uid", "==", uid), 500)).map((r) => pick(r as DocumentData, ["id", "kind", "subject", "status", "reason", "createdAt", "doneAt"])),
+        };
       case "idPhotos": {
-        const cases = await db.collection("verifications").where("uid", "==", uid).limit(50).get();
+        const cases = await this.read(db.collection("verifications").where("uid", "==", uid), 50);
         return {
           note: "Photos are listed with their dates; ask for a copy from the privacy screen.",
           reviews: cases.docs.map((d) => ({ id: d.id, ...pick(d.data(), ["scope", "status", "submittedAt", "decidedAt", "reasonCode"]) })),
@@ -791,16 +821,36 @@ export class FirestoreExportSource implements ExportSource {
         return this.doc(`vehicles/${uid}`);
       case "home":
         return { exact: await this.doc(`homes/${uid}`), shownToOthers: await this.doc(`parentLocations/${uid}`) };
-      case "carpools":
-        return this.docs(db.collection("memberships").where("uid", "==", uid));
+      case "carpools": {
+        const ids = await this.carpoolIds(uid);
+        const perCarpool: unknown[] = [];
+        for (const carpoolId of ids) {
+          const c = db.collection("carpools").doc(carpoolId);
+          perCarpool.push({
+            carpoolId,
+            joinRequest: await this.doc(`carpools/${carpoolId}/requests/${uid}`),
+            // The exact pickup point shared with this carpool's members.
+            pickupPoint: await this.doc(`carpools/${carpoolId}/pickupPoints/${uid}`),
+            driverConsents: [
+              ...(await this.docs(c.collection("driverConsents").where("parentUid", "==", uid), 100)),
+              ...(await this.docs(c.collection("driverConsents").where("driverUid", "==", uid), 100)),
+            ],
+          });
+        }
+        return {
+          memberships: await this.docs(db.collection("memberships").where("uid", "==", uid)),
+          carpools: perCarpool,
+          lookingForACarpool: await this.doc(`carpoolWanted/${uid}`),
+        };
+      }
       case "schedule": {
-        const m = await db.collection("memberships").where("uid", "==", uid).where("status", "==", "approved").limit(50).get();
+        const m = await this.read(db.collection("memberships").where("uid", "==", uid).where("status", "==", "approved"), 50);
         return m.docs.map((d) => ({ carpoolId: d.get("carpoolId"), drivingDays: d.get("drivingDays") ?? [] }));
       }
       case "trips": {
         const fields = ["carpoolId", "runId", "date", "direction", "status", "startedAt", "endedAt", "endReason"] as const;
-        const drove = await db.collection("trips").where("driverUid", "==", uid).limit(500).get();
-        const rode = await db.collection("trips").where("viewerUids", "array-contains", uid).limit(500).get();
+        const drove = await this.read(db.collection("trips").where("driverUid", "==", uid), 500);
+        const rode = await this.read(db.collection("trips").where("viewerUids", "array-contains", uid), 500);
         return {
           drove: drove.docs.map((d) => ({ id: d.id, ...pick(d.data(), fields), children: Array.isArray(d.get("stops")) ? (d.get("stops") as unknown[]).length : 0 })),
           childrenCarried: rode.docs.filter((d) => d.get("driverUid") !== uid).map((d) => ({ id: d.id, ...pick(d.data(), fields) })),
@@ -809,14 +859,24 @@ export class FirestoreExportSource implements ExportSource {
       case "liveLocation":
         return { note: "Live points are deleted within 24 hours of each run; none are kept for export." };
       case "routeArchive": {
-        const snap = await db.collection(ROUTE_ARCHIVES).where("driverUid", "==", uid).limit(1_000).get();
+        const snap = await this.read(db.collection(ROUTE_ARCHIVES).where("driverUid", "==", uid), 1_000);
         return {
           note: "Each run you drove is kept as one compressed route for 1 year, for safety investigations only (admins, logged reason).",
           runs: snap.docs.map((d) => ({ tripId: d.id, ...pick(d.data(), ["startedAt", "endedAt", "points", "purgeAt"]) })),
         };
       }
-      case "chat":
-        return { messages: await this.chat.userMessages(uid, 5_000) };
+      case "chat": {
+        const messages = await this.chat.userMessages(uid, 5_000);
+        if (messages.length >= 5_000) this.cut.add("chat");
+        return {
+          messages,
+          requestsSent: await this.docs(db.collection("chatRequests").where("fromUid", "==", uid)),
+          requestsReceived: await this.docs(db.collection("chatRequests").where("toUid", "==", uid)),
+          blocked: await this.docs(db.collection("chatBlocks").where("blockerUid", "==", uid)),
+          muted: await this.docs(db.collection("chatMutes").where("uid", "==", uid)),
+          settings: await this.doc(`chatSettings/${uid}`),
+        };
+      }
       case "ratings":
         return {
           given: await this.docs(db.collection("ratings").where("raterUid", "==", uid)),
@@ -827,6 +887,8 @@ export class FirestoreExportSource implements ExportSource {
         return {
           asParent: await this.docs(db.collection("guardianLinks").where("ownerUid", "==", uid)),
           asGuardian: await this.docs(db.collection("guardianLinks").where("guardianUid", "==", uid)),
+          requestsSent: await this.docs(db.collection("guardianRequests").where("ownerUid", "==", uid)),
+          requestsReceived: await this.docs(db.collection("guardianRequests").where("guardianUid", "==", uid)),
         };
       case "handover":
         return this.docs(db.collection("handoverAdults").where("ownerUid", "==", uid));
@@ -843,7 +905,7 @@ export class FirestoreExportSource implements ExportSource {
           signIns: await this.docs(db.collection(USERS).doc(uid).collection(LOGINS).orderBy("at", "desc"), 50),
         };
       case "wallet": {
-        const transfers = await db.collection("transfers").where("parties", "array-contains", uid).limit(1_000).get();
+        const transfers = await this.read(db.collection("transfers").where("parties", "array-contains", uid), 1_000);
         const ids = transfers.docs.map((d) => d.id);
         const results = new Map<string, DocumentData>();
         for (let i = 0; i < ids.length; i += 100) {
@@ -862,8 +924,8 @@ export class FirestoreExportSource implements ExportSource {
         };
       }
       case "reports": {
-        const mine = await db.collection(REPORTS).where("reporterId", "==", uid).limit(200).get();
-        const about = await db.collection(REPORTS).where("targetId", "==", uid).where("status", "==", "open").limit(200).get();
+        const mine = await this.read(db.collection(REPORTS).where("reporterId", "==", uid), 200);
+        const about = await this.read(db.collection(REPORTS).where("targetId", "==", uid).where("status", "==", "open"), 200);
         return {
           filedByYou: mine.docs.map((d) => ({ id: d.id, ...pick(d.data(), ["reason", "status", "createdAt", "handledAt", "outcome"]) })),
           // Never who reported or what they wrote.
