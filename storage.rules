@@ -1,6 +1,7 @@
 rules_version = '2';
 
-// DENY BY DEFAULT. Verification images live under verification/{uid}/:
+// DENY BY DEFAULT. Chat photos (chatPhotos/, members of that chat only) are
+// near the end. Verification images live under verification/{uid}/:
 //
 //   pending/{name}           the parent's own uploads (Prompt 3, F2, F3)
 //   cases/{caseId}/{name}    copied there by submitVerification; Cloud
@@ -76,6 +77,39 @@ service firebase.storage {
         && request.resource.size > 0
         && request.resource.size < 3 * 1024 * 1024
         && request.resource.contentType == 'image/jpeg';
+    }
+
+    // Chat photos (own chat on Firestore): chatPhotos/{cid}/{uid}/{name}.
+    // Only private and carpool chats have photos. Membership is the same
+    // member document firestore.rules reads, checked on every request
+    // (firestore.get: Storage needs the "Firebase Rules Firestore Service
+    // Agent" role, SETUP.md 19): a removed, suspended or blocked-out parent
+    // can neither read nor upload at once. A member uploads only into
+    // their own folder, once per name (no replace, no delete): WebP or
+    // JPEG, at most 3 MB (the app re-encodes to far less and removes EXIF).
+    // Cloud Functions delete (admin removal, retention).
+    function chatMember(cid) {
+      return firestore.get(/databases/(default)/documents/chats/$(cid)/chatMembers/$(request.auth.uid)).data;
+    }
+    function inChat(cid) {
+      return request.auth != null
+        && request.auth.token.verified == true
+        && cid.matches('cp_(private|carpool):[A-Za-z0-9_-]+')
+        && firestore.exists(/databases/(default)/documents/chats/$(cid)/chatMembers/$(request.auth.uid))
+        && chatMember(cid).active == true
+        && chatMember(cid).cut != true;
+    }
+    match /chatPhotos/{cid}/{uid}/{name} {
+      allow get: if inChat(cid);
+      allow create: if inChat(cid)
+        && request.auth.uid == uid
+        && chatMember(cid).frozen != true
+        && (!('mutedUntil' in chatMember(cid)) || chatMember(cid).mutedUntil == null || chatMember(cid).mutedUntil < request.time)
+        && name.matches('[A-Za-z0-9_-]{8,64}[.](webp|jpg)')
+        && request.resource.size > 0
+        && request.resource.size < 3 * 1024 * 1024
+        && (request.resource.contentType == 'image/webp' || request.resource.contentType == 'image/jpeg');
+      allow list, update, delete: if false;
     }
 
     match /{allPaths=**} {

@@ -420,8 +420,8 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
-    // Prompt 9 (F8, F9, F10, F13): chat. Messages live in Stream Chat;
-    // Cloud Functions write every record below. A verified parent reads
+    // Chat (F8, F9, F10, F13): our own chat on Firestore. Cloud Functions
+    // write every record of this first block. A verified parent reads
     // only their own: requests they sent or got (first names only),
     // parents they blocked, their mute choices and their settings. The
     // channel registry, group memberships, limits and chat push records
@@ -456,6 +456,133 @@ service cloud.firestore {
     }
     match /chatLimits/{uid} {
       allow read, write: if false;
+    }
+
+    // Own chat: the documents the phone reads and writes
+    // (functions/src/chat/data.ts).
+    //
+    // MEMBERSHIP is the member document chats/{cid}/chatMembers/{uid},
+    // written only by Cloud Functions and read here on EVERY request: a
+    // parent who was removed (active false), suspended, banned or deleted
+    // (cut true) loses read and write at once, not when a token expires. A
+    // frozen chat (block, closed carpool) and a parent who sent too fast
+    // (mutedUntil in the future) can still read but not write.
+    //
+    // The kind of chat is the first part of its ID: only private and
+    // carpool chats ("small" chats) take photos, the location pin, read
+    // marks and typing; school and area groups are text only.
+    function chatMemberPath(cid) {
+      return /databases/$(database)/documents/chats/$(cid)/chatMembers/$(request.auth.uid);
+    }
+    function inChat(cid) {
+      return verifiedParent() && deviceChecked()
+        && exists(chatMemberPath(cid))
+        && get(chatMemberPath(cid)).data.active == true
+        && get(chatMemberPath(cid)).data.cut != true;
+    }
+    function notMuted(member) {
+      return !('mutedUntil' in member) || member.mutedUntil == null || member.mutedUntil < request.time;
+    }
+    function canPost(cid) {
+      return inChat(cid)
+        && get(chatMemberPath(cid)).data.frozen != true
+        && notMuted(get(chatMemberPath(cid)).data);
+    }
+    function smallChat(cid) {
+      return cid.matches('cp_(private|carpool):[A-Za-z0-9_-]+');
+    }
+    function chatId(cid) {
+      return cid.matches('cp_(private|school|area|carpool):[A-Za-z0-9_-]+');
+    }
+    // A message as the phone may create it: own uid, server time, one of
+    // three kinds with exactly its fields. Text up to 2000 characters
+    // (MESSAGE_TEXT_MAX). A photo names the file the sender uploaded under
+    // chatPhotos/{cid}/{uid}/{messageId} (storage.rules). No other field.
+    function validText(d) {
+      return d.keys().hasOnly(['senderUid', 'kind', 'text', 'createdAt'])
+        && d.text is string && d.text.size() > 0 && d.text.size() <= 2000;
+    }
+    function validPhoto(cid, messageId, d) {
+      return smallChat(cid)
+        && d.keys().hasOnly(['senderUid', 'kind', 'photoPath', 'createdAt'])
+        && d.photoPath is string
+        && (d.photoPath == 'chatPhotos/' + cid + '/' + request.auth.uid + '/' + messageId + '.webp'
+          || d.photoPath == 'chatPhotos/' + cid + '/' + request.auth.uid + '/' + messageId + '.jpg');
+    }
+    function validPin(cid, d) {
+      return smallChat(cid)
+        && d.keys().hasOnly(['senderUid', 'kind', 'lat', 'lng', 'createdAt'])
+        && d.lat is number && d.lat >= -90 && d.lat <= 90
+        && d.lng is number && d.lng >= -180 && d.lng <= 180;
+    }
+    function validMessage(cid, messageId) {
+      let d = request.resource.data;
+      return messageId.matches('[A-Za-z0-9_-]{8,64}')
+        && d.keys().hasAll(['senderUid', 'kind', 'createdAt'])
+        && d.senderUid == request.auth.uid
+        && d.createdAt == request.time
+        && ((d.kind == 'text' && validText(d))
+          || (d.kind == 'photo' && validPhoto(cid, messageId, d))
+          || (d.kind == 'location' && validPin(cid, d)));
+    }
+    // The parent's own read and typing times: each is left as it was,
+    // cleared, or set to the server time.
+    function ownStamp(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] == null
+        || request.resource.data[field] == request.time
+        || (resource != null && field in resource.data && request.resource.data[field] == resource.data[field]);
+    }
+    match /chats/{cid} {
+      // The head: names, member count, frozen, last message, counter.
+      allow get: if chatId(cid) && inChat(cid);
+      allow list, create, update, delete: if false;
+
+      // First names of the members (for message authors). Functions only
+      // write; members read one, or up to 50 at a time.
+      match /chatMembers/{uid} {
+        allow get: if inChat(cid);
+        allow list: if inChat(cid) && request.query.limit <= 50;
+        allow create, update, delete: if false;
+      }
+      // Messages: members read (at most 50 per query); the sender creates
+      // their own; nobody edits or deletes from the app (admins remove
+      // through functions).
+      match /messages/{messageId} {
+        allow get: if inChat(cid);
+        allow list: if inChat(cid) && request.query.limit <= 50;
+        allow create: if chatId(cid) && canPost(cid) && validMessage(cid, messageId);
+        allow update, delete: if false;
+      }
+      // Read marks and typing, small chats only.
+      match /reads/{uid} {
+        allow get: if smallChat(cid) && inChat(cid);
+        allow list: if smallChat(cid) && inChat(cid) && request.query.limit <= 50;
+        allow create, update: if isSelf(uid) && smallChat(cid) && inChat(cid)
+          && request.resource.data.keys().hasOnly(['readAt', 'typingAt'])
+          && ownStamp('readAt') && ownStamp('typingAt');
+        allow delete: if false;
+      }
+    }
+    // The parent's chat list, one row per chat, written by Cloud Functions.
+    // Only open rows are readable (a cut-off or removed parent's rows are
+    // closed), so the app must query with where('open', '==', true). The
+    // parent may only mark a chat read: unread back to 0, the read time
+    // and the counter they read up to.
+    match /userChats/{uid} {
+      allow read, write: if false;
+      match /summaries/{cid} {
+        allow get: if isSelf(uid) && verifiedParent() && deviceChecked() && resource.data.open == true;
+        allow list: if isSelf(uid) && verifiedParent() && deviceChecked() && request.query.limit <= 100
+          && resource.data.open == true;
+        allow update: if isSelf(uid) && verifiedParent() && deviceChecked() && resource.data.open == true
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread', 'readSeq', 'readAt'])
+          && request.resource.data.unread == 0
+          && request.resource.data.readAt == request.time
+          && request.resource.data.readSeq is int
+          && request.resource.data.readSeq >= 0;
+        allow create, delete: if false;
+      }
     }
 
     // Prompt 11B (F43, F44): wallet. MONEY rules: the app never writes a

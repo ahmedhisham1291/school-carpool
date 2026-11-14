@@ -1,4 +1,6 @@
-// Rules for Prompt 9 (F8, F9, F10, F13): chat records in Firestore.
+// Rules for chat records written only by Cloud Functions (F8, F9, F10, F13):
+// requests, blocks, mutes, settings, the registry. The chats themselves
+// (messages, members, chat list, photos) are in own_chat.test.ts.
 //
 // What these tests prove:
 // - chatRequests: a verified parent reads a request only when they sent it

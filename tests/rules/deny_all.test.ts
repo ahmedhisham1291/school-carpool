@@ -94,6 +94,14 @@ const paths = [
   "chatMemberships/alice",
   "chatLimits/alice",
   "users/alice/chatPushes/chat_m1",
+  // Own chat (own_chat.test.ts): only current members read a chat; nobody
+  // here is a member, and the chat list rows are another parent's.
+  "chats/cp_carpool:c-k1",
+  "chats/cp_carpool:c-k1/chatMembers/bob",
+  "chats/cp_carpool:c-k1/messages/seedmsg0001",
+  "chats/cp_carpool:c-k1/reads/bob",
+  "userChats/bob/summaries/cp_carpool:c-k1",
+  "userChats/bob",
   "reports/r1",
   // Prompt 10 (trips.test.ts): the run's driver and parents read trips,
   // points and arrival times; the owner reads handover lists and the
@@ -176,6 +184,9 @@ describe("storage.rules deny everything", () => {
       await assertFails(storage.ref("verification/alice/id-front.jpg").delete());
       // Prompt 11: phone-change selfies are never read by the app.
       await assertFails(storage.ref("phoneChecks/alice/selfie.jpg").getDownloadURL());
+      // Chat photos: members of that chat only (own_chat.test.ts); nobody here is one.
+      await assertFails(storage.ref("chatPhotos/cp_carpool:c-k1/bob/seedphoto001.webp").getDownloadURL());
+      await assertFails(storage.ref("chatPhotos/cp_carpool:c-k1/alice/alicemsg0001.webp").putString("x").then(() => undefined));
     });
   }
 });

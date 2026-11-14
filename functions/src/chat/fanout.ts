@@ -83,7 +83,8 @@ export function messageFromDoc(id: string, d: Record<string, unknown> | undefine
 export function messageProblem(cid: string, small: boolean, m: StoredMessage): string | null {
   switch (m.kind) {
     case "text":
-      return m.text.length > 0 && m.text.length <= MESSAGE_TEXT_MAX ? null : "bad-text";
+      // Counted in characters, as the rules count (an emoji is one).
+      return m.text.length > 0 && Array.from(m.text).length <= MESSAGE_TEXT_MAX ? null : "bad-text";
     case "photo":
       return small && photoPathOk(cid, m.senderUid, m.id, m.photoPath) ? null : "bad-photo";
     case "location":
