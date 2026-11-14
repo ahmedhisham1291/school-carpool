@@ -86,6 +86,8 @@ export const IMMEDIATE_TARGETS: ReadonlyArray<{ collection: string; target: Targ
   { collection: "users/devices", target: { kind: "subcollection", path: "users/{uid}/devices" } },
   { collection: "users/logins", target: { kind: "subcollection", path: "users/{uid}/logins" } },
   { collection: "abuseCounters", target: { kind: "where", collection: "abuseCounters", field: "uid" } },
+  // Security emails to the parent's address (sent or waiting).
+  { collection: "mail", target: { kind: "where", collection: "mail", field: "uid" } },
   // Live uploads that may still be there.
   { collection: "storage:pending", target: { kind: "storage", prefix: "verification/{uid}/pending/" } },
   { collection: "storage:phoneChecks", target: { kind: "storage", prefix: "phoneChecks/{uid}/" } },
@@ -151,7 +153,6 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   securityAlerts: "admin alerts, 1 year after handled",
   routeArchives: "purged 1 year after the run (and with the account's purge step)",
   retentionRuns: "job reports (counts only)",
-  mail: "security emails to the parent's address; TTL expiresAt, 30 days",
 };
 
 /**

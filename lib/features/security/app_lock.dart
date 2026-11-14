@@ -139,7 +139,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
     return Stack(
       children: <Widget>[
         ExcludeSemantics(excluding: show, child: widget.child),
-        if (show) Positioned.fill(child: AppLockScreen(covered: !lock.locked)),
+        // Keyed on locked: when the switcher cover turns into the lock, a new
+        // screen is built and asks for Face ID at once (review item 15).
+        if (show) Positioned.fill(child: AppLockScreen(key: ValueKey<bool>(lock.locked), covered: !lock.locked)),
       ],
     );
   }

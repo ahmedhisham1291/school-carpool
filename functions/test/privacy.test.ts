@@ -180,6 +180,8 @@ describe("scraping alerts", () => {
     assert.equal(alert?.kind, "profiles");
     assert.equal(alert?.count, max);
     assert.equal(await noteActivity(store, "u1", "profiles", "pX", NOW), null, "once per hour");
+    const stored = store.counters.get(counterId("u1", "profiles", NOW))!.keys;
+    assert.ok(stored.every((k) => /^[0-9a-f]{16}$/.test(k)) && !stored.includes("p0"), "targets are stored as short hashes, never as given");
     // A new hour starts a new count.
     const next = countActivity(store.counters.get(counterId("u1", "profiles", NOW)) ?? null, "profiles", "p0", NOW + HOUR_MS);
     assert.equal(next.next.count, 1);
@@ -258,7 +260,7 @@ function deviceWorld() {
   const deps: DeviceDeps = {
     store,
     sessions: { revokeAll: async (uid) => void revoked.push(uid), createToken: async (uid) => `token-${uid}` },
-    mailer: { sendNewDeviceEmail: async (to) => void mails.push(to) },
+    mailer: { sendNewDeviceEmail: async (_uid, to) => void mails.push(to) },
     files: {
       createdMs: async (p) => files.get(p)?.createdMs ?? null,
       exists: async (p) => files.has(p),

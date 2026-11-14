@@ -113,7 +113,7 @@ export const lookupParentId = gatedCall(opts, (r) =>
     return lookupFlow(deps(), caller(r), r.data);
   }),
 );
-/** Prompt 12: a short key for the scraping counter (a field of the request, never stored as given). */
+/** Prompt 12: the scraping counter's target (hashed by noteActivity before it is stored). */
 function abuseKey(data: unknown, ...fields: string[]): string {
   const raw = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
   return fields.map((f) => String(raw[f] ?? "")).join("|").slice(0, 64);

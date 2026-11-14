@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
 import 'package:school_carpool/settings/settings_store.dart';
@@ -74,6 +75,15 @@ class ConfirmationQueue extends Notifier<List<PendingConfirm>> {
       lifecycle.dispose();
       _timer?.cancel();
     });
+    // Prompt 12 review: confirmations belong to the account that made
+    // them. Signing out (or another account signing in) drops what waits.
+    ref.listen<SessionState>(sessionProvider, (SessionState? previous, SessionState next) {
+      final String? before = previous is SessionSignedIn ? previous.uid : null;
+      final String? now = next is SessionSignedIn ? next.uid : null;
+      if (before != null && before != now) {
+        unawaited(clear());
+      }
+    });
     final List<PendingConfirm> saved = PendingConfirms.decode(ref.watch(settingsStoreProvider).read(PendingConfirms.storageKey));
     if (saved.isNotEmpty) {
       _schedule();
@@ -96,6 +106,9 @@ class ConfirmationQueue extends Notifier<List<PendingConfirm>> {
   void _schedule() {
     _timer ??= Timer.periodic(const Duration(seconds: 30), (_) => unawaited(flush()));
   }
+
+  /// Drops every waiting confirmation (sign-out, another account).
+  Future<void> clear() => _save(const <PendingConfirm>[]);
 
   Future<void> add(String carpoolId, String runId) => _save(PendingConfirms.add(state, PendingConfirm(carpoolId, runId)));
 

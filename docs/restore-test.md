@@ -51,6 +51,21 @@ A real restore into production follows the same steps, then the app is
 pointed at nothing new: copy the needed documents back from `restore-test`
 with a reviewed script, never by switching the default database.
 
+**After ANY restore into production (backup or PITR): re-apply deletions.**
+A restore can bring back accounts deleted after the backup time. Before
+copying anything back, list `closedAccounts` in the LIVE `(default)`
+database and leave out every document of those uids. Then run, once:
+
+```sh
+GCLOUD_PROJECT=<prod-id> npm --prefix functions run deletions:reapply
+```
+
+It schedules every deletion step again for each closed account (purge
+steps too for accounts already purged); the next `retentionDaily` runs them
+and its report (`retentionRuns/<date>`) shows the counts. Also run
+`npm --prefix functions run thumbs:backfill` if Storage was restored.
+Add a line to the results table: "deletions re-applied: <n> accounts".
+
 ## Results
 
 | Date | Who | Source | Minutes | Result |

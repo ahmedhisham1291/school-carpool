@@ -121,7 +121,8 @@ export interface Sessions {
 
 export interface Mailer {
   /** Queues a security email (mail outbox; never the phone number). */
-  sendNewDeviceEmail(to: string, language: "ar" | "en", platform: Platform, atMs: number): Promise<void>;
+  /** [uid] is stored with the mail so account deletion removes it at once. */
+  sendNewDeviceEmail(uid: string, to: string, language: "ar" | "en", platform: Platform, atMs: number): Promise<void>;
 }
 
 export interface DeviceFiles {
@@ -201,7 +202,7 @@ export async function recordSignIn(deps: DeviceDeps, uid: string, rawInstallId: 
     await deps.sessions.revokeAll(uid);
     if (account.email) {
       try {
-        await deps.mailer.sendNewDeviceEmail(account.email, account.language, platform, nowMs);
+        await deps.mailer.sendNewDeviceEmail(uid, account.email, account.language, platform, nowMs);
       } catch (error) {
         deps.reportError(error);
       }

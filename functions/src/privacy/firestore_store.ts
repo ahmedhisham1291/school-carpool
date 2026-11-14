@@ -222,9 +222,10 @@ const NEW_DEVICE_MAIL = {
 export class FirestoreMailOutbox {
   constructor(private readonly db: Firestore) {}
 
-  async sendNewDeviceEmail(to: string, language: "ar" | "en", platform: Platform, atMs: number): Promise<void> {
+  async sendNewDeviceEmail(uid: string, to: string, language: "ar" | "en", platform: Platform, atMs: number): Promise<void> {
     const m = NEW_DEVICE_MAIL[language];
     await this.db.collection(MAIL).doc().create({
+      uid,
       to,
       message: { subject: m.subject, text: `${m.text}\n\n${platform} · ${new Date(atMs).toISOString().slice(0, 16).replace("T", " ")} UTC` },
       expiresAt: ts(atMs + 30 * DAY_MS),
@@ -880,8 +881,13 @@ export class FirestoreExportSource implements ExportSource {
       case "ratings":
         return {
           given: await this.docs(db.collection("ratings").where("raterUid", "==", uid)),
-          // Received: the summary only, so the raters stay private.
-          received: pick((await db.collection("trustSummaries").doc(uid).get()).data(), ["count", "sum", "updatedAt"]),
+          // Received: the summary only, so the raters stay private. Vouches
+          // given are on each rating given (vouch: true); received: a count.
+          received: await (async () => {
+            const summary = (await db.collection("trustSummaries").doc(uid).get()).data();
+            const vouchers = summary?.voucherUids;
+            return summary ? { ...pick(summary, ["count", "sum", "updatedAt"]), vouches: Array.isArray(vouchers) ? vouchers.length : 0 } : null;
+          })(),
         };
       case "familyLinks":
         return {

@@ -1,11 +1,14 @@
+import { createHash } from "node:crypto";
+
 /**
  * Scraping alerts (spec section 7: "Alert admins when an account opens
  * many profiles, sends many chat requests or searches many areas in a short
  * time"; Prompt 12 adds parent ID lookups). Every limit that already
  * refuses calls stays as it is; this only TELLS the admins about an
  * account that comes close to sweeping data, once per account, kind and
- * hour. Pure; unit-tested. Counters hold keyed IDs only (no names,
- * numbers or places): an area is counted by a short hash of its key.
+ * hour. Pure; unit-tested. Counters hold short hashes of the targets
+ * only (never the uid, parent ID, school or area as given; [keyHash]),
+ * and expire after 2 days (TTL).
  */
 
 export const ABUSE_KINDS = ["profiles", "chatRequests", "areaSearches", "parentIdLookups"] as const;
@@ -59,6 +62,11 @@ export function countActivity(current: AbuseCounter | null, kind: AbuseKind, key
   return { next: { hourStartMs: start, count, keys, alerted: base.alerted || alert }, alert };
 }
 
+/** A target as stored in a counter: 16 hex of its SHA-256 (enough to tell targets apart within an hour). */
+export function keyHash(key: string): string {
+  return createHash("sha256").update(key).digest("hex").slice(0, 16);
+}
+
 export interface SecurityAlert {
   id: string;
   uid: string;
@@ -91,7 +99,7 @@ export async function noteActivity(
   onError: (error: unknown) => void = () => undefined,
 ): Promise<SecurityAlert | null> {
   try {
-    return await store.count(uid, kind, nowMs, (current) => countActivity(current, kind, key.slice(0, 64), nowMs));
+    return await store.count(uid, kind, nowMs, (current) => countActivity(current, kind, keyHash(key.slice(0, 64)), nowMs));
   } catch (error) {
     onError(error);
     return null;
