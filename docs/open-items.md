@@ -16,7 +16,7 @@ to 13, docs/DECISIONS.md.
 | A5 | **Valify** contract and keys (ID check and face match). Until then the face match is a stub: every new-phone check and phone change waits for an admin (now possible from the panel, Prompt 13) | Pilot | SETUP.md 12 |
 | A6 | **Wallet partner** (CBE-licensed) contract and API; the wallet stays a fake with test money until then | Pilot with money | SETUP.md 21.5 |
 | A7 | **Google Maps keys** per project (iOS, Android, web, server) with restrictions and caps | Maps on staging | SETUP.md 15.2 |
-| A8 | **Stream** dev/staging/prod apps, secrets, chat setup script | Chat on staging | SETUP.md 19 |
+| A8 | ~~Stream apps, secrets, chat setup script~~ **Not needed any more:** chat is our own, on Firestore (improvement B). Only the Storage rules role for chat photos, which `tool/cloud_setup.sh` grants | Chat photos on staging | SETUP.md 19.2 |
 | A9 | **Algolia** app and keys (staging/prod) | School search on staging | SETUP.md 14.4 |
 | A10 | **Sentry** projects and DSNs; alert rules | Error reports | SETUP.md 6, 23.6 |
 | A11 | **Email service** for the new-phone alert email (Trigger Email extension + SMTP provider, for example Resend free tier); no email is sent until it is set up | New-phone emails | SETUP.md 23.4 |
@@ -40,7 +40,7 @@ to 13, docs/DECISIONS.md.
 
 | # | Item | Decision |
 | --- | --- | --- |
-| C1 | **Chat stays connected up to 60 minutes after sign-out** on a signed-out phone (Stream token lifetime, `CHAT_TOKEN_TTL_MIN`) | Accepted by the owner (14 Nov 2026, 13:29). Firebase data closes at once. Fix later: call `chat.revokeTokens(uid)` in `revokeSessions`. |
+| C1 | ~~Chat stays connected up to 60 minutes after sign-out~~ **Gone with our own chat (improvement B):** there is no chat token; the rules check the session and the member document on every request, so a signed-out, removed or suspended parent loses chat at once | Closed |
 | C2 | **Swiping the app away stops location on iPhone** (free plugin) | Without the optional "Always": accepted, the server pushes the driver "Run still on" after 2 minutes and tells the parents. With "Always": our run_recovery plugin resumes the run after iOS relaunches the app (owner, 13:44) |
 | C3 | Transfer records kept 5 years | Confirmed (owner, 13:29) |
 | C4 | Trips of a closed carpool | Kept per parent: active + 1 year; built in Prompt 13 (`trip_retention.ts`) |
@@ -62,7 +62,7 @@ to 13, docs/DECISIONS.md.
 | D9b | On-phone point buffer and run token in shared_preferences (NSUserDefaults) up to a day, cleared at the end of the run (the cap-trim bug the review found is fixed) | Low | Move to a protected file (NSFileProtectionComplete) later (review finding 9) |
 | D9c | `packages/run_recovery` has no Package.swift (CocoaPods only) | Fine while a Podfile is generated | Add SPM support later |
 | D10 | Android analytics manifest flag (ad ID off) | Android only | Stage 3 |
-| D11 | Chat does not open offline at a cold start (needs a cached Stream token) | Offline only | Prompt 9 review #2 |
+| D11 | ~~Chat does not open offline at a cold start~~ Fixed by our own chat (improvement B): no token is needed, Firestore's cache opens the chats offline. Left: a chat PHOTO cannot be sent offline (it shows "not sent", tap to retry) | Offline only | docs/progress/improve-b.md |
 | D12 | `confirmEmail` only after a recent email change (optional hardening) | Low | Prompt 2 review N3 |
 | D13 | Admin panel screens for security alerts and privacy requests (callables exist) | Admins use the console | Later admin prompt |
 | D14 | Analytics events other than the privacy ones are in the catalog but not yet sent by their screens | Less usage data | One line each when the screens are next touched |
@@ -70,3 +70,8 @@ to 13, docs/DECISIONS.md.
 | D16 | Lockfiles (`pubspec.lock`, `package-lock.json`) not committed (no registry here) | Reproducible builds | Commit from CI |
 | D17 | Website (Stage 2) and Android (Stage 3) platform work | — | Later stages |
 | D18 | Lawyer's answers: all confirmed (DECISIONS.md "Legal" and "Owner updates 12:30"); the retention periods need the privacy policy text updated by the lawyer for the published page (A13) | — | Owner |
+| D19 | **Own chat (improvement B): no automatic image moderation** (Stream's add-on is gone). Photos are only in private and carpool chats; reports and admin removal handle them | Low for the pilot | Later: Cloud Vision SafeSearch in the photo upload trigger (paid per image), if reports show a need |
+| D20 | **Own chat: a blocked term removes the message a second or two after it shows**, without telling the sender why (it simply disappears) | Low | Later: a "message removed" note for the sender |
+| D21 | **Own chat: a busy school group costs one read per online parent per message** (docs/COSTS.md "Chat"); group heads could be updated at most once a minute | Cost at scale | When a group passes about 200 messages a day |
+| D22 | **Own chat: messages cached on the phone by Firestore stay there after sign-out** (as other Firestore data does; protected by iOS Data Protection and the app lock; SECURITY.md STORAGE-1) | Low | Clear Firestore's cache on sign-out in a later hardening pass |
+| D23 | **Own chat is not merged yet:** branch `improve-b-firestore-chat` waits for the first TestFlight build on the owner's iPhone (DECISIONS.md, improvements item 3). Rules tests and Flutter tests were written, not run in the build workspace: one CI run on the branch before the merge | Before merging | docs/progress/improve-b.md |

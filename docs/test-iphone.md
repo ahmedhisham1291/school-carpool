@@ -129,13 +129,28 @@ relaunching the app). Note the iOS version of phone A.
 
 ## 8. Chat, reports, ratings
 
+Chat is our own (Firestore) since improvement B: **chat between two phones
+works in staging** with no chat account and nothing to set up beyond the
+normal deploy (SETUP.md 19). A and B must both be verified and share school
+S (section 2) and a carpool (section 4).
+
 | # | Feature | Steps | Expect |
 | --- | --- | --- | --- |
-| 8.1 | F8 | B: A's profile > Message; A answers | Real time; push when the app is closed |
-| 8.2 | F9 | A: Chats > school group S; area sub-group | Only verified parents of S; area group created automatically |
-| 8.3 | F10 | Carpool chat | Only members; created with the group |
-| 8.4 | F13 | B: report a message from A; block A | Report in the admin panel Reports; A cannot message B |
-| 8.5 | F17 | After a shared run: Profile > Ratings > rate A | One rating per pair per month; vouch shown on A's summary |
+| 8.1 | F8 | B: Home > Parents nearby > A's marker > Message. A: Chats > "1 chat request" > Accept. Both write | The chat opens on A; messages arrive on the other phone within about 2 seconds; "Read" shows under your message once the other phone has the chat open; "typing…" shows while the other writes |
+| 8.2 | F8 | B: close the app (swipe away). A: write to B | B gets a push "New message. You have a new message." (never the text or the name); tapping it opens that chat; the Chats tab shows an unread count on that chat until B opens it |
+| 8.3 | F9 | A: Chats > school group S; the area sub-group (needs a home pin near an area of S) | Only verified parents of S; the area group is there by itself; no photo and no location button in these groups; a new message in the group raises its unread count on B |
+| 8.4 | F10 | A and B: Chats > the carpool chat (or Carpools > the carpool > Group chat) | Only members; created with the group; a third account outside the carpool does not have it |
+| 8.5 | F8, F10 | In the private or carpool chat: send a **photo** (camera, then library) and a **location pin** | The photo shows on both phones; the pin shows "Location" with "Open map"; a photo taken with location on carries no location (EXIF removed) |
+| 8.6 | Offline | A: airplane mode on, open the carpool chat, write two messages; airplane mode off | The chat opens from the phone's memory; the messages show "Sending", then go by themselves; B gets them in order. A photo sent offline shows "Not sent. Tap to retry.": tap it when back online |
+| 8.7 | History | In a chat with more than 30 messages: scroll up | Older messages load a page at a time |
+| 8.8 | F13 | B: long-press a message from A > Report message > Harassment > Send. **Admin panel** > Reports > open it > Remove message > confirm | The report shows the message with a little context (never a photo); after "Remove message" it disappears on both phones and the chat list shows "Message removed" if it was the last one |
+| 8.9 | F13 | B: the private chat > info > Block A > Block | On A the private chat shows "This chat is closed. Nobody can write here."; A's new Message request to B says they cannot chat; B: Chats > settings > Unblock opens it again |
+| 8.10 | F13 | **Admin panel**: on a report about A in the carpool chat > Remove parent | The carpool chat disappears from A's Chats within seconds; A cannot open it from an old push either |
+| 8.11 | Access | **Admin panel**: Users > B > Suspend. Then lift the suspension | B's Chats tab stops loading chats at once (no waiting for an hour); after lifting, B's chats are back |
+| 8.12 | Mute | A: a chat > info > Mute. B writes | No push on A; the unread count still rises; a bell-off mark shows on the chat |
+| 8.13 | Limit | A: paste and send more than 30 short messages within a minute (staging only) | The extra message disappears and for 10 minutes A's new messages show "Not sent. Tap to retry."; other parents are not affected |
+| 8.14 | F35 | During a run (section 6): A taps Running late | One line from the app appears in the carpool chat for everyone |
+| 8.15 | F17 | After a shared run: Profile > Ratings > rate A | One rating per pair per month; vouch shown on A's summary |
 
 ## 9. Wallet (test money)
 

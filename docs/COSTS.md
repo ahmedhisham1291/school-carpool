@@ -19,7 +19,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Sentry | Developer (free) | 5,000 errors a month, 1 user; no tracing, no replay | Sentry > Stats; spike protection on | Errors are dropped for quota two months in a row, or a second person needs access |
 | Codemagic | Free personal, iOS builds only | 500 macOS M2 minutes a month (Linux has no free minutes, so no Linux jobs run there) | Codemagic > Billing | macOS minutes run out before the 25th of a month |
 | GitHub Actions | Free | Public repositories: free. Private: a monthly allowance of free Linux minutes (2,000 on the free plan in Nov 2026; check GitHub's billing page) | GitHub > Settings > Billing > Usage | A private repository uses 80 percent of the allowance |
-| Stream Chat | Build (free), later Maker | Free plan limits on monthly active users and concurrent connections (see Stream's pricing page); Maker is free for small companies that qualify | Stream Dashboard > Usage (monthly active users, connections) | 80 percent of the free plan's monthly active users or connections; see "Chat (Prompt 9)" |
+| Chat (our own, on Firestore and Storage) | Part of Firebase: no separate plan | Counts toward the Firestore and Storage quotas in the first row: about 360 reads and 115 writes per active parent per day, phone and server together (see "Chat") | Firestore "Usage" tab; the budget alerts | Chat alone passes 60 percent of a daily Firestore quota (about 85 parents chatting every day), or a school group gets busy; see "Chat" |
 | Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
 | WhatsApp Business | Pay per template message | Codes and critical alerts only by default (wallet messages too only if the parent switches them on); other notifications are push unless the parent switches WhatsApp on | Meta WhatsApp Manager > Insights | Budget set by the owner |
@@ -230,32 +230,89 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
 - **Upgrade when:** WhatsApp spend passes the owner's monthly budget: then
   keep critical only and ask parents to rely on push.
 
-## Chat (Prompt 9)
+## Chat (our own, on Firestore)
 
-- **Stream Chat:** Build (free) plan for the dev app and the prod app. The
-  plan counts monthly active users (parents who connect) and concurrent
-  connections. The app connects only while a chat screen is open or the
-  app is in the foreground (the SDK disconnects in the background), and
-  Stream's own push is off, so nothing else is billed by Stream. Move the
-  prod app to **Maker** (free for small qualifying organizations; apply
-  early) or the first paid plan when the dashboard shows 80 percent of a
-  free limit. AI moderation for text and images may need Stream's
-  moderation add-on: check its price before turning it on in prod (SETUP
-  19.4); the blocked-terms lists cost nothing.
-- **Cloud Functions:** `getChatToken` about once an hour per active parent;
-  `chatWebhook` once per message (one Firestore read of the channel, two
-  small queries, one outbox write); `sendNotification` then sends the push
-  (FCM is free). Triggers on users, parentLocations and carpool members
-  run only when those change. All far inside the free 2 million
-  invocations.
-- **Cloud Scheduler:** `chatRetentionDaily` is one more job (USD 0.10 a
-  month per project once the 3 free jobs are used).
-- **Firestore:** a channel registry document per chat, one small document
-  per request, block, mute and setting; chat push records expire after 2
-  days (TTL), requests 30 days after the last change.
-- **Limits per parent** (server side): 10 new chat requests a day, 30
-  tokens an hour, 20 reports a day, 100 blocks, mutes and settings changes
+Owner decision 14 Nov 2026: our own chat replaced Stream Chat. There is no
+chat vendor, plan or account any more; chat costs what its Firestore reads
+and writes, its Cloud Functions calls and its photo storage cost.
+
+**How the app keeps reads low** (`lib/features/chat/chat_backend.dart`):
+
+- It never listens to all messages. While signed in and in the foreground:
+  ONE query on the parent's chat list rows (`userChats/{uid}/summaries`,
+  at most 100 rows) and one small document per school or area group in
+  that list (the group's head).
+- Only while a chat is open: its newest 30 messages (older ones are
+  fetched a page of 30 at a time, not listened to) and, in private and
+  carpool chats, the read marks (one small document per member).
+- First names of authors: one read per author, kept in Firestore's cache.
+- Unread counts come from counters, never from counting messages: a
+  counter on the parent's own row in private and carpool chats; in school
+  and area groups the head's message counter minus what the parent read.
+- Photos are downloaded once per session and kept in memory (the last 40).
+
+**Expected use per active parent per day** (a parent with 1 carpool chat, 2
+private chats, 1 school and 1 area group, who opens the app 6 times, opens
+a chat 4 times, sends 10 messages and gets 40):
+
+| What | Reads | Writes |
+| --- | --- | --- |
+| Chat list on each app start (5 rows, 2 heads, the rules' own lookups) | about 70 | 0 |
+| Chat list changes while the app is open (rows and group heads) | about 40 | 0 |
+| Opening a chat: newest 30 messages (again when the cache is older than 30 minutes) | about 130 | 0 |
+| New messages and read marks while a chat is open, authors' names | about 50 | 0 |
+| Sending 10 messages (each: the rules read 2 documents) | 20 | 10 |
+| Marking read and typing | 0 | about 25 |
+| **Phone total** | **about 300** | **about 35** |
+| Server, per message sent in a small chat: registry, limit counter, head, mute and block lookups; then head, limit counter, one row per member, the push event | about 6 | about 8 |
+| Server, per message in a school or area group (no row per member) | about 6 (plus one per parent who chose a mute setting) | 3 |
+| **Server total for the 10 messages** | **about 60** | **about 80** |
+
+So about **360 reads and 115 writes per active parent per day**. The free
+quota (50,000 reads and 20,000 writes a day per project) covers about 140
+parents who chat every day; the pilot is far below. Beyond the free quota
+Firestore bills per 100,000 reads and per 100,000 writes (a few US cents
+each; see the Firestore pricing page for `europe-west1`): 1,000 daily
+chatting parents are about 360,000 reads and 115,000 writes a day, well
+under USD 1 a day.
+
+**What can make it expensive, and the answer:**
+
+- **A busy school group.** Each message is one head write, and one read
+  for every parent who has the chat list open at that moment. 500 parents
+  online and 100 messages a day is 50,000 reads a day from one group.
+  School and area groups get no per-member write per message for the same
+  reason (a 5,000-parent school would be 5,000 writes per message).
+  **Trigger:** a group's head changes more than about 200 times a day.
+  **Then:** update group heads at most once a minute instead of on every
+  message (a small change in `functions/src/chat/fanout.ts`).
+- **Spam.** `CHAT_MESSAGES_PER_MINUTE` (30) per parent; over it the
+  message is removed and the parent cannot write for `CHAT_MUTE_MINUTES`.
+- **Long chats.** Reading history costs 30 reads per page, only when the
+  parent scrolls up.
+
+**Other parts:**
+
+- **Cloud Functions:** `onChatMessageCreated` once per message;
+  `sendNotification` then sends the push (FCM is free). `syncMyChats` once
+  per app start (rate limited to 10 an hour). Triggers on users,
+  parentLocations and carpool members run only when those change. All far
+  inside the free 2 million invocations. No warm instance.
+- **Cloud Storage:** a chat photo is about 150 to 300 KB (WebP, long edge
+  1600). 1,000 photos are about 0.25 GB. Download: once per viewer per
+  session.
+- **Retention:** a chat is kept for its life + 1 year, then deleted whole
+  by `retentionDaily` (one delete per message, inside the free 20,000
+  deletes a day unless a very large chat ends; the job continues the next
+  night).
+- **Firestore:** besides the above, a channel registry document per chat,
+  one small document per request, block, mute and setting; chat push
+  records expire after 2 days (TTL), requests 30 days after the last
+  change.
+- **Limits per parent** (server side): 30 messages a minute, 10 new chat
+  requests a day, 20 reports a day, 100 blocks, mutes and settings changes
   a day, 10 "sync my chats" an hour.
+
 ## Trips (Prompt 10)
 
 - **Routes (arrival times):** one Compute Routes request covers every stop
@@ -362,9 +419,9 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
 - **Email** (new-phone alerts): needs an SMTP provider through the Trigger
   Email extension; most have a free tier of a few thousand emails a month
   (owner to choose; SETUP 23.4).
-- **Chat on Stream** is kept for the life of the chat + 1 year (was 180
-  days): message storage on Stream grows; watch Stream's usage page when
-  moving to a paid plan.
+- **Chat** is kept for the life of the chat + 1 year (was 180 days):
+  message storage in Firestore grows slowly (a text message is well under
+  1 KB; 1 GiB stored is free). See "Chat".
 - **Sign-in blocking functions** (`blockClientSignUps`, `blockNonCodeSignIn`,
   `blockSignInEmails`) run with no warm instance. Identity Platform gives a
   blocking function about 7 seconds; if a cold start ever makes sign-ins

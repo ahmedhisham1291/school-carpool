@@ -53,7 +53,7 @@ abstract interface class AdminApi {
   /// Prompt 9: one chat report with its little context (the opening is logged).
   Future<ReportDetail> report(String id);
 
-  /// Deletes the reported message on Stream and closes the report.
+  /// Deletes the reported message (and its photo) for everyone and closes the report.
   Future<ReportDetail> removeReportedMessage(String id);
 
   /// Removes the reported parent from that chat for good and closes the report.

@@ -67,6 +67,10 @@ What is already in the repository (`codemagic.yaml`, workflow
 4. Staging Firebase project: upload the APNs key (SETUP.md 3 step 7 and 18.1), deploy
    the functions, rules and indexes (SETUP.md 23.1), and register App Check
    with **App Attest** for the iOS app (SETUP.md 3 step 8).
+   Chat needs nothing more: it is our own, on Firestore (SETUP.md 19),
+   so two phones can chat in staging. No Stream account, key or secret.
+   The script also gives Firebase Storage the role its rules need for
+   chat photos (SETUP.md 19.2).
 
    **Easiest:** [docs/owner-cloud-shell.md](owner-cloud-shell.md). After four
    console clicks, one command in Google Cloud Shell

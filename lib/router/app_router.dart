@@ -320,7 +320,7 @@ GoRouter buildAppRouter({
                         path: ChatRoutes.settingsSegment,
                         builder: (BuildContext context, GoRouterState state) => const ChatSettingsScreen(),
                       ),
-                      // A chat by its Stream type and ID (pushes open these).
+                      // A chat by its type and ID (pushes open these).
                       GoRoute(
                         path: ':type/:id',
                         redirect: (BuildContext context, GoRouterState state) =>

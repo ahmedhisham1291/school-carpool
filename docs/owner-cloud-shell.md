@@ -55,8 +55,9 @@ Each step checks first and skips what is already done.
   `org.schoolcarpool.app.stg`, Maps SDK for iOS only) and one for the
   functions (Places and Routes only).
 - Creates the secrets in Secret Manager. Random keys for the sign-in and ID
-  hashes; the word `unused` for services staging fakes (WhatsApp, Algolia,
-  Stream). **An existing secret is never replaced.**
+  hashes; the word `unused` for services staging fakes (WhatsApp, Algolia).
+  Chat needs no secret (it is our own, on Firestore). **An existing
+  secret is never replaced.**
 - Creates the Hosting sites `school-carpool-staging-links` and
   `school-carpool-staging-admin`, registers the iPhone and web apps in
   Firebase, writes `lib/firebase/firebase_options_staging.dart`.

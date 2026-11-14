@@ -20,15 +20,15 @@ starting point. That test is **open** (owner: choose and pay a tester).
 | Item | Status | How |
 | --- | --- | --- |
 | STORAGE-1 Sensitive data is stored securely | done | Sign-in tokens are kept by Firebase Auth in the iPhone Keychain (Android Keystore). Nothing personal is kept in `shared_preferences` (language, theme, install ID, app-lock switch, analytics choice, queued run confirmations as IDs only). ID photos never touch the photo library (camera plugin, memory only); the temporary camera file is deleted at once. |
-| STORAGE-1 Firestore and Stream offline caches | open | Firestore and Stream keep an offline cache (names of children, chats) in the app's sandbox, protected by iOS Data Protection while the phone is locked. Encrypting the caches themselves is not offered by either SDK; the app lock (below) covers the screen. Revisit if the penetration test asks. |
+| STORAGE-1 Firestore offline cache | open | Firestore keeps an offline cache (names of children, chats: chat is our own, on Firestore) in the app's sandbox, protected by iOS Data Protection while the phone is locked. Encrypting the cache itself is not offered by the SDK; the app lock (below) covers the screen. Revisit if the penetration test asks. |
 | STORAGE-2 No sensitive data leaks through logs, backups, keyboards, screenshots | done | `debugPrint` lines carry error types only. Document screens block screenshots and screen recording (`screen_protector`). Push notifications carry no child names, addresses or message text, and nothing about money amounts on the lock screen. With the app lock on, the app is covered as soon as it leaves the foreground (no data in the app switcher). |
 
 ### MASVS-CRYPTO
 
 | Item | Status | How |
 | --- | --- | --- |
-| CRYPTO-1 Strong, current cryptography | done | TLS everywhere (Firebase, Stream, Google Maps, Sentry). National ID numbers, sign-in codes, phone numbers in limit records, device IDs and IPs are stored only as HMAC-SHA256 with keys in Secret Manager. |
-| CRYPTO-2 Key management | done / owner | Server keys live in Secret Manager (OTP_HMAC_KEY, NATIONAL_ID_HMAC_KEY, STREAM_API_SECRET, WhatsApp, Valify, wallet partner). The private photo bucket is encrypted with our own Cloud KMS key (`tool/setup_kms.sh`, SETUP.md 23.2; the owner runs it per project, code cannot create keys). Key rotation is yearly and automatic. |
+| CRYPTO-1 Strong, current cryptography | done | TLS everywhere (Firebase, Google Maps, Sentry). National ID numbers, sign-in codes, phone numbers in limit records, device IDs and IPs are stored only as HMAC-SHA256 with keys in Secret Manager. |
+| CRYPTO-2 Key management | done / owner | Server keys live in Secret Manager (OTP_HMAC_KEY, NATIONAL_ID_HMAC_KEY, WhatsApp, Valify, wallet partner). The private photo bucket is encrypted with our own Cloud KMS key (`tool/setup_kms.sh`, SETUP.md 23.2; the owner runs it per project, code cannot create keys). Key rotation is yearly and automatic. |
 
 ### MASVS-AUTH
 
@@ -36,7 +36,7 @@ starting point. That test is **open** (owner: choose and pay a tester).
 | --- | --- | --- |
 | AUTH-1 Secure authentication | done | WhatsApp one-time code (6 digits, hash only, 5 minutes, one use, capped per number, device and IP), then a Firebase custom token. App Check replay protection on `requestCode` (limited-use token consumed by the server). Blocking functions refuse every other sign-in method for parents. Admins: email, password and TOTP, 8-hour sessions, 15-minute idle limit. |
 | AUTH-1 Lockout that strangers cannot abuse | done | Wrong codes lock one number on one device for an hour; the daily cap per number (`OTP_MAX_FAILURES_PER_DAY`) never closes a device where the number signed in before (Prompt 12), so rotating device IDs cannot lock the parent out of their own phone. |
-| AUTH-2 Session management | done | Every sign-in is recorded (phone kind and time, keyed device hash). The parent sees phones and recent sign-ins and signs any phone out. Signing out revokes the refresh tokens AND writes `users/{uid}.sessionsValidAfter` (the revocation time): Firestore rules (`sessionValid()`) and every gated callable (`device_gate.ts`) refuse an ID token whose sign-in (`auth_time`) is older, so a signed-out phone loses access at once, not when its token expires (up to 1 hour). The asking phone gets a fresh token; a signed-out phone also signs itself out at its next start or resume. Stream tokens already issued stay valid until they expire (chat token callable is gated). |
+| AUTH-2 Session management | done | Every sign-in is recorded (phone kind and time, keyed device hash). The parent sees phones and recent sign-ins and signs any phone out. Signing out revokes the refresh tokens AND writes `users/{uid}.sessionsValidAfter` (the revocation time): Firestore rules (`sessionValid()`) and every gated callable (`device_gate.ts`) refuse an ID token whose sign-in (`auth_time`) is older, so a signed-out phone loses access at once, not when its token expires (up to 1 hour). The asking phone gets a fresh token; a signed-out phone also signs itself out at its next start or resume. Chat is our own, on Firestore: it has no token of its own and closes with the session (the chat rules check the session, the new-phone check and the member document on every request). |
 | AUTH-2 New-phone risk (SIM swap, recycled numbers) | done | A sign-in from a new phone signs the other phones out (as above), emails the parent (mail outbox; SETUP 23.4 for the email extension), pushes "New phone signed in" (reaches the old phone) and sets `users/{uid}.newDeviceCheck`. Until a fresh selfie matches the face reference, the SERVER refuses: Firestore rules (`deviceChecked()`) close children, carpool members, join requests, pickup points, runs, swaps, balances, emergencies, trips with live points and arrival times, handover adults, homes, emergency contacts, notifications and chat records; every callable that reads or changes child, carpool, schedule, trip, location, chat, wallet, family-link or privacy data refuses with `device-check` (export and account deletion included). The face match is the project's KycProvider (Valify in prod) and FAILS CLOSED: an error or no answer keeps everything closed and files a report; an admin clears it with a logged reason (`adminClearDeviceCheck`). If the sign-in record itself fails, a verified parent is treated as on a new phone. Rules and function tests include the SIM-swap case. |
 | AUTH-3 Step-up for sensitive actions | done | A fresh Face ID, fingerprint or passcode check before every transfer and withdrawal, and before deleting the account. Optional app lock for the whole app (Settings). |
 
@@ -45,7 +45,7 @@ starting point. That test is **open** (owner: choose and pay a tester).
 | Item | Status | How |
 | --- | --- | --- |
 | NETWORK-1 Secure traffic | done | HTTPS only; App Transport Security on (local networking only for dev builds talking to the emulators). |
-| NETWORK-2 Certificate pinning | open | Not done: Firebase and Stream rotate certificates, and pinning in a Flutter app breaks with every rotation. App Check proves the app instead. Revisit with the penetration tester. |
+| NETWORK-2 Certificate pinning | open | Not done: Firebase rotates certificates, and pinning in a Flutter app breaks with every rotation. App Check proves the app instead. Revisit with the penetration tester. |
 
 ### MASVS-PLATFORM
 
@@ -94,9 +94,8 @@ starting point. That test is **open** (owner: choose and pay a tester).
 
 | Service | Where | What it receives | What it never receives |
 | --- | --- | --- | --- |
-| Google Cloud / Firebase (Auth, Firestore, Storage, Functions, Messaging, App Check, Hosting) | europe-west1 (Belgium) | Everything the app stores (spec section 9); photos encrypted with our KMS key | n/a (our own processor) |
+| Google Cloud / Firebase (Auth, Firestore, Storage, Functions, Messaging, App Check, Hosting) | europe-west1 (Belgium) | Everything the app stores (spec section 9), chat messages and chat photos included (our own chat; no chat vendor); ID photos encrypted with our KMS key | n/a (our own processor) |
 | Google Analytics for Firebase | Google (US/EU) | Screen route patterns ("carpools/:id/trip/:id"), fixed event names and small fixed words; app instance ID; no user ID, no advertising ID | Names, phone numbers, IDs, message text, coordinates |
-| Stream Chat | Stream's chosen region (EU if available; hosting abroad confirmed by the lawyer) | Chat messages and photos, first names, parent IDs, language | Phone numbers, national IDs, children's details outside messages |
 | Algolia | Algolia (EU region if available) | School names, areas and places | Anything about parents or children |
 | Sentry | sentry.io (EU region if chosen) | Error reports with phone numbers, ID numbers, coordinates and message text removed; opaque account ID; feature area tag | Personal data (scrubbed in the app and functions) |
 | WhatsApp Business Platform (Meta) | Meta | Phone numbers, sign-in codes, alert template texts (no child names or amounts) | Message text, photos |
@@ -128,7 +127,8 @@ starting point. That test is **open** (owner: choose and pay a tester).
    affected) in the private incident folder.
 3. **Contain** at once:
    - suspend the affected accounts (admin panel), revoke sessions
-     (`revokeRefreshTokens`, Stream `revokeTokens`), freeze wallets if money
+     (`revokeRefreshTokens`; a suspended account loses chat at once through
+     the rules), freeze wallets if money
      is at risk;
    - rotate exposed secrets in Secret Manager and redeploy;
    - if a key or a rule is the cause: deploy the fixed rules, disable the
@@ -158,5 +158,5 @@ starting point. That test is **open** (owner: choose and pay a tester).
 
 ### Contacts to keep current (owner)
 
-PDPC filing channel, the lawyer, Google Cloud support, Stream, Sentry, Meta
+PDPC filing channel, the lawyer, Google Cloud support, Sentry, Meta
 (WhatsApp), Valify and the wallet partner security contacts.

@@ -4,14 +4,14 @@ Final draft for **App Store Connect > your app > App Privacy** (Prompt 13).
 Built from what the code really sends and stores, checked against:
 `DATA_TYPES` (functions/src/privacy/retention.ts, same list as the in-app
 privacy screen), `docs/analytics-events.md`, the Sentry scrubbers
-(`lib/observability`, `functions/src/scrub.ts`), Stream, Algolia, Maps,
+(`lib/observability`, `functions/src/scrub.ts`), Algolia, Maps,
 WhatsApp, Valify and wallet code, and SECURITY.md part 2 (who receives
 what). The lawyer confirmed the data collected and the retention periods
 (DECISIONS.md, 14 Nov 2026). **The owner enters these answers; re-check
 them whenever a prompt adds a data type.**
 
 Apple's rule: answer for data collected by us **and** by any third party
-whose code or service the app uses (Stream, Algolia, Sentry, Google,
+whose code or service the app uses (Algolia, Sentry, Google,
 Valify, the wallet partner). "Linked to you" = tied to the parent's
 account. "Tracking" = combined with other companies' data for ads or
 shared with data brokers.
@@ -30,7 +30,7 @@ shared with data brokers.
 
 | Apple category | Data type | What the app collects | Who receives it | Linked | Tracking | Purposes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Contact Info | Name | Parent's first and last name (from the ID); handover adults' and emergency contact's names | Us; Stream (first name only) | Yes | No | App Functionality |
+| Contact Info | Name | Parent's first and last name (from the ID); handover adults' and emergency contact's names | Us | Yes | No | App Functionality |
 | Contact Info | Email Address | Confirmed email | Us; email provider (new-phone alert) | Yes | No | App Functionality |
 | Contact Info | Phone Number | Sign-in number; emergency contact's and handover adults' numbers | Us; WhatsApp (codes, alerts) | Yes | No | App Functionality |
 | Contact Info | Physical Address | Home location (exact for the parent, rounded about 500 m for others) and pickup points | Us; Google Maps (address search, arrival times) | Yes | No | App Functionality |
@@ -41,12 +41,12 @@ shared with data brokers.
 | Sensitive Info | Sensitive Info | Face images used for face matching (biometric): identity selfie as the face reference, live selfie checks, new-phone selfies | Us; Valify (when contracted) | Yes | No | App Functionality (identity, fraud prevention, child safety) |
 | Contacts | — | Not collected (the address book is never read) | | | | |
 | User Content | Emails or Text Messages | — not used (in-app chat is declared below) | | | | |
-| User Content | Photos or Videos | ID front/back, selfie, child's school ID, driver's and car licence, driver photo; chat photos | Us; Stream (chat photos); Valify (ID and selfie, when contracted) | Yes | No | App Functionality |
-| User Content | Other User Content | Chat messages, ratings, reports, privacy requests | Us; Stream (messages) | Yes | No | App Functionality |
+| User Content | Photos or Videos | ID front/back, selfie, child's school ID, driver's and car licence, driver photo; chat photos | Us; Valify (ID and selfie, when contracted) | Yes | No | App Functionality |
+| User Content | Other User Content | Chat messages, ratings, reports, privacy requests | Us | Yes | No | App Functionality |
 | User Content | Customer Support | Reports and privacy requests | Us | Yes | No | App Functionality |
 | Browsing History | — | Not collected | | | | |
 | Search History | Search History | School names typed in the school search; addresses typed in the home search (not stored with the account) | Algolia (school search, no user identity); Google Places | No | No | App Functionality |
-| Identifiers | User ID | Parent ID and account ID | Us; Stream (the account ID is the Stream user ID, plus the parent ID); Sentry (opaque account ID) | Yes | No | App Functionality |
+| Identifiers | User ID | Parent ID and account ID | Us; Sentry (opaque account ID) | Yes | No | App Functionality |
 | Identifiers | Device ID | Random install ID (keyed hash on the server, phones list); push token; Analytics app instance ID (not linked) | Us; Firebase Messaging/APNs; Google Analytics | Yes (install ID, push token) | No | App Functionality; Analytics (instance ID) |
 | Purchases | — | Not collected (no in-app purchases) | | | | |
 | Usage Data | Product Interaction | Screens (route patterns) and features used, fixed words only; switch in Settings | Google Analytics | No | No | Analytics |
@@ -58,11 +58,14 @@ shared with data brokers.
 
 ## 3. Third parties, one by one
 
+Chat is our own since improvement B (14 Nov 2026): messages and chat photos
+stay in our Firebase project. **Stream Chat no longer receives any data**
+and is not in the app.
+
 | Partner | In the app or the server | What it receives | Not sent |
 | --- | --- | --- | --- |
-| Firebase (Auth, Firestore, Storage, Functions, Messaging, App Check) | Both | Everything the app stores (our processor, europe-west1) | n/a |
+| Firebase (Auth, Firestore, Storage, Functions, Messaging, App Check) | Both | Everything the app stores, chat messages and chat photos included (our processor, europe-west1) | n/a |
 | Google Analytics for Firebase | App | Route patterns, fixed event names and words, app instance ID, IP (city) | User ID, names, numbers, IDs, coordinates, message text |
-| Stream Chat | App (token from our server) | Messages, chat photos, account ID (used as the Stream user ID), first name, parent ID, language | Phone, national ID, children's records |
 | Algolia | App (search-only key) and server (index) | Typed school searches; the index holds school names and places | Anything about parents or children |
 | Sentry | App and server | Scrubbed error and crash reports, opaque account ID, feature tag | Phone, ID numbers, coordinates, images, message text |
 | WhatsApp (Meta) | Server only | Phone numbers, sign-in codes, alert texts (date and direction only) | Names of children, amounts, message text |
