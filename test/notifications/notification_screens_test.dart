@@ -414,7 +414,7 @@ void main() {
             ],
           );
           // A tall screen so every row is built without scrolling the lazy list.
-          await _pump(tester, '/notifications', overrides: _overrides(repo), locale: locale, width: 320, height: 8000, textScale: scale);
+          await _pump(tester, '/notifications', overrides: _overrides(repo), locale: locale, width: 320, height: 12000, textScale: scale);
           expectOneLine(find.byType(AppBarTitle), 'app bar', allowEllipsis: scale > 1);
           for (final NotificationKind k in NotificationKind.values) {
             final Finder row = find.byKey(Key('notification.k-${k.name}'));

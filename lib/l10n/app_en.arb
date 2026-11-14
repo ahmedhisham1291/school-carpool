@@ -1949,5 +1949,6 @@
   "requestOpen": "In progress",
   "requestRefused": "Not done",
   "requestFailed": "Failed",
-  "scheduleConfirmQueued": "Saved. It sends when you're back online."
+  "scheduleConfirmQueued": "Saved. It sends when you're back online.",
+  "devicesTapToSignOut": "tap to sign out"
 }

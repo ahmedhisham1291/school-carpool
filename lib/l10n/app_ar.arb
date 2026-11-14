@@ -8697,5 +8697,9 @@
   "scheduleConfirmQueued": "حُفظ. سيُرسل عند عودة الاتصال.",
   "@scheduleConfirmQueued": {
     "description": "Snack bar: confirmation queued offline"
+  },
+  "devicesTapToSignOut": "اضغط للإخراج",
+  "@devicesTapToSignOut": {
+    "description": "Device row subtitle"
   }
 }

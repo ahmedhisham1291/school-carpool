@@ -117,20 +117,18 @@ class _DevicesContentState extends ConsumerState<_DevicesContent> {
       children: <Widget>[
         Padding(padding: AppSpacing.screenPadding, child: Text(l10n.devicesIntro, style: quiet)),
         AppSectionHeader(l10n.devicesActiveSection),
+        // No trailing buttons or badges: the title keeps its room at 320 dp
+        // and 200 percent text. Tapping another phone asks to sign it out.
         for (final DeviceEntry d in active)
           AppListRow(
             key: Key('devices.device.${d.key}'),
             title: d.key == widget.list.current ? l10n.devicesThisPhone : platformLabel(l10n, d.platform),
-            subtitle: l10n.devicesLastSeen(shortDateTime(context, d.lastSeen)),
+            subtitle: d.key == widget.list.current
+                ? '${l10n.devicesCurrent} · ${l10n.devicesLastSeen(shortDateTime(context, d.lastSeen))}'
+                : '${l10n.devicesLastSeen(shortDateTime(context, d.lastSeen))} · ${l10n.devicesTapToSignOut}',
             leadingIcon: d.platform == DevicePlatform.web ? Icons.laptop_outlined : Icons.phone_iphone_rounded,
-            showChevron: false,
-            trailing: d.key == widget.list.current
-                ? AppStatusBadge(label: l10n.devicesCurrent, tone: AppBadgeTone.success)
-                : TextButton(
-                    key: Key('devices.signOut.${d.key}'),
-                    onPressed: _busy ? null : () => unawaited(_signOut(device: d)),
-                    child: OneLineText(l10n.devicesSignOut),
-                  ),
+            showChevron: d.key != widget.list.current,
+            onTap: d.key == widget.list.current || _busy ? null : () => unawaited(_signOut(device: d)),
           ),
         if (!others) Padding(padding: AppSpacing.screenPadding, child: Text(l10n.devicesOnlyThis, style: quiet)),
         if (others)

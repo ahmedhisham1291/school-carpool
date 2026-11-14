@@ -150,7 +150,7 @@ void main() {
       expect(find.text('This phone'), findsOneWidget);
       expect(find.text('Android'), findsWidgets);
       expect(find.text('Recent sign-ins'), findsOneWidget);
-      await _tap(tester, find.byKey(Key('devices.signOut.s_${'b' * 40}')));
+      await _tap(tester, find.byKey(Key('devices.device.s_${'b' * 40}')));
       expect(find.byType(AlertDialog), findsOneWidget);
       await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Sign out')));
       await tester.pumpAndSettle();
