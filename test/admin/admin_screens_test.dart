@@ -283,7 +283,8 @@ void main() {
 
     testWidgets('remove the message after confirming; the report closes', (WidgetTester tester) async {
       final FakeAdminApi api = FakeAdminApi();
-      await pumpAdminPanel(tester, session: signedIn, location: '/reports/r1', api: api, locale: 'en');
+      // Tall: every action button is built (the page is a lazy list).
+      await pumpAdminPanel(tester, session: signedIn, location: '/reports/r1', api: api, locale: 'en', size: const Size(1280, 2400));
       await settle(tester);
       await tester.ensureVisible(find.byKey(const Key('report.removeMessage')));
       await tester.tap(find.byKey(const Key('report.removeMessage')));
@@ -297,7 +298,8 @@ void main() {
 
     testWidgets('remove the member and lift the driving pause', (WidgetTester tester) async {
       final FakeAdminApi api = FakeAdminApi();
-      await pumpAdminPanel(tester, session: signedIn, location: '/reports/r1', api: api, locale: 'en');
+      // Tall: every action button is built (the page is a lazy list).
+      await pumpAdminPanel(tester, session: signedIn, location: '/reports/r1', api: api, locale: 'en', size: const Size(1280, 2400));
       await settle(tester);
       await tester.ensureVisible(find.byKey(const Key('report.liftPause')));
       await tester.tap(find.byKey(const Key('report.liftPause')));

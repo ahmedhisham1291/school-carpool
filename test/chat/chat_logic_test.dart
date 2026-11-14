@@ -2,6 +2,7 @@
 // workspace). CI runs it.
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:school_carpool/features/chat/chat_labels.dart';
 import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/chat/chat_provider.dart';
@@ -11,6 +12,10 @@ import 'package:school_carpool/l10n/l10n.dart';
 import '../helpers/chat_fakes.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('en');
+  });
+
   group('ChatRef', () {
     test('parses only our four channel types and safe IDs', () {
       expect(ChatRef.parse('cp_carpool', 'c-k1'), carpoolChat);

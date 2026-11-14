@@ -77,6 +77,9 @@ String _path(GoRouter router) => router.routerDelegate.currentConfiguration.uri.
   return (chat, repo);
 }
 
+/// The screen reader label of the one icon [icon] on screen.
+String? _iconLabel(WidgetTester tester, IconData icon) => tester.widget<Icon>(find.byIcon(icon)).semanticLabel;
+
 Future<void> _tapVisible(WidgetTester tester, Finder f) async {
   await tester.ensureVisible(f);
   await tester.pumpAndSettle();
@@ -97,7 +100,7 @@ void main() {
       expect(find.text('You: Photo'), findsOneWidget);
       expect(find.text('Nile International School'), findsOneWidget);
       expect(find.byType(AppCountPill), findsOneWidget);
-      expect(find.bySemanticsLabel('Muted'), findsOneWidget);
+      expect(_iconLabel(tester, Icons.notifications_off_outlined), 'Muted');
     });
 
     testWidgets('a row opens its chat', (WidgetTester tester) async {
@@ -167,7 +170,7 @@ void main() {
       await _pump(tester, carpoolChat.route, chat: chat, repo: repo);
       expect(find.text('Good morning'), findsOneWidget);
       expect(find.text('Hoda'), findsOneWidget);
-      expect(find.bySemanticsLabel('Read'), findsOneWidget);
+      expect(_iconLabel(tester, Icons.done_all_rounded), 'Read');
       expect(find.byKey(const Key('msg.m3.map')), findsOneWidget);
       expect(chat.calls, contains('markRead:${carpoolChat.cid}'));
     });
@@ -193,10 +196,10 @@ void main() {
       await tester.enterText(find.byKey(const Key('chat.composer.field')), 'Queued');
       await tester.tap(find.byKey(const Key('chat.composer.send')));
       await tester.pumpAndSettle();
-      expect(find.bySemanticsLabel('Sending'), findsOneWidget);
+      expect(_iconLabel(tester, Icons.schedule_rounded), 'Sending');
       chat.backOnline();
       await tester.pumpAndSettle();
-      expect(find.bySemanticsLabel('Sending'), findsNothing);
+      expect(find.byIcon(Icons.schedule_rounded), findsNothing);
     });
 
     testWidgets('a failed message is retried by a tap', (WidgetTester tester) async {
@@ -215,7 +218,7 @@ void main() {
       expect(find.text('Location data is removed from the photo before it is sent.'), findsOneWidget);
       await tester.tap(find.byKey(const Key('chat.photo.gallery')));
       await tester.pumpAndSettle();
-      expect(chat.calls, contains('sendPhoto:${carpoolChat.cid}:4'));
+      expect(chat.calls, contains('sendPhoto:${carpoolChat.cid}:68'));
     });
 
     testWidgets('no photos in school groups (location still)', (WidgetTester tester) async {
@@ -384,7 +387,8 @@ void main() {
           final (FakeChatProvider chat, FakeChatRepository repo) = _fakes();
           await _pump(tester, carpoolChat.route, chat: chat, repo: repo, locale: locale, width: 320, textScale: scale);
           expectOneLine(find.byType(AppBarTitle), 'conversation title', allowEllipsis: true);
-          await tester.longPress(find.byKey(const Key('msg.m1')));
+          // The bubble, not the empty side of its line.
+          await tester.longPress(find.text('Good morning'));
           await tester.pumpAndSettle();
           await tester.tap(find.byKey(const Key('chat.action.report')));
           await tester.pumpAndSettle();

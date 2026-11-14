@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,6 +65,9 @@ ChatRequest testChatRequest(String id, {required String from, required String to
   status: ChatRequestStatus.pending,
   createdAt: chatNow.subtract(const Duration(minutes: 30)),
 );
+
+/// A valid 1x1 PNG, base64 (fake photo).
+const String kTinyPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
 /// Records calls; [failure] makes calls fail.
 class FakeChatRepository implements ChatRepository {
@@ -170,7 +174,8 @@ class FakeChatRepository implements ChatRepository {
 }
 
 class FakeChatPhotoPicker implements ChatPhotoPicker {
-  Uint8List? next = Uint8List.fromList(<int>[0xFF, 0xD8, 0xFF, 0xD9]);
+  /// A valid 1x1 PNG (the bubble decodes it).
+  Uint8List? next = base64Decode(kTinyPng);
   final List<PhotoSource> picked = <PhotoSource>[];
 
   @override
