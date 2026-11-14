@@ -65,6 +65,11 @@ export const TEXTS: Readonly<Texts> = {
   "all-children-in": t("الكل في السيارة", "كل الأطفال في السيارة: مشوار {when}.", "All children in", "All children are in the car: {when}."),
   "emergency": t("طوارئ", "ضغط السائق زر الطوارئ في مشوار {when}. افتح التطبيق.", "Emergency", "The driver pressed Emergency on the {when} run. Open the app."),
   "chat-message": t("رسالة جديدة", "لديك رسالة جديدة.", "New message", "You have a new message."),
+  "wallet-received": t("وصلك تحويل", "افتح المحفظة لرؤية التفاصيل.", "Money received", "Open your wallet to see the details."),
+  "wallet-sent": t("تم التحويل", "وصل تحويلك. افتح المحفظة للتفاصيل.", "Transfer sent", "Your transfer went through. Open your wallet."),
+  "wallet-failed": t("لم يتم التحويل", "لم تُخصم أي أموال. افتح المحفظة للتفاصيل.", "Transfer failed", "No money left your wallet. Open it for details."),
+  "wallet-frozen": t("المحفظة موقوفة", "أوقفنا محفظتك مؤقتًا. افتح التطبيق للتفاصيل.", "Wallet paused", "Your wallet is paused for now. Open the app."),
+  "wallet-updated": t("تحديث المحفظة", "افتح المحفظة لرؤية التحديث.", "Wallet update", "Open your wallet to see what changed."),
 };
 
 const WEEKDAYS: Record<Language, string[]> = {

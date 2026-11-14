@@ -19,7 +19,8 @@ import 'package:school_carpool/router/session_redirect.dart';
 
 /// Profile tab (spec section 10): parent ID with a copy button (F44), the
 /// account's status, phone and email, children and driving (Prompt 3),
-/// settings, About (with the OpenStreetMap credit, Prompt 4B) and sign out. The wallet comes in a later prompt.
+/// settings, About (with the OpenStreetMap credit, Prompt 4B), the wallet
+/// (Prompt 11B) and sign out.
 ///
 /// States: loading (skeleton), empty (signed out or record not created
 /// yet), error and offline (full-screen with retry). Settings stay usable
@@ -195,6 +196,14 @@ class ProfileScreen extends ConsumerWidget {
         subtitle: l10n.profileEmergencyHelper,
         leadingIcon: Icons.contact_emergency_outlined,
         onTap: () => context.go(ProfileRoutes.emergencyContact),
+      ),
+      // Prompt 11B (F43): verified parents; the screen explains otherwise.
+      AppListRow(
+        key: const Key('profile.wallet'),
+        title: l10n.walletTitle,
+        subtitle: l10n.profileWalletHelper,
+        leadingIcon: Icons.account_balance_wallet_outlined,
+        onTap: () => context.go(ProfileRoutes.wallet),
       ),
     ];
   }

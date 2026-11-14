@@ -55,6 +55,11 @@ String notificationTitle(AppLocalizations l10n, NotificationKind k) => switch (k
   NotificationKind.allChildrenIn => l10n.tripQuickAllIn,
   NotificationKind.emergency => l10n.notifEmergencyTitle,
   NotificationKind.chatMessage => l10n.notifChatTitle,
+  NotificationKind.walletReceived => l10n.notifWalletReceivedTitle,
+  NotificationKind.walletSent => l10n.notifWalletSentTitle,
+  NotificationKind.walletFailed => l10n.notifWalletFailedTitle,
+  NotificationKind.walletFrozen => l10n.notifWalletFrozenTitle,
+  NotificationKind.walletUpdated => l10n.notifWalletUpdatedTitle,
 };
 
 /// One short sentence. Run types name the run ("Mon 16/11, to school");
@@ -95,6 +100,11 @@ String notificationBody(AppLocalizations l10n, AppNotification n) {
     NotificationKind.allChildrenIn => l10n.notifAllInBody(run),
     NotificationKind.emergency => l10n.notifEmergencyBody(run),
     NotificationKind.chatMessage => l10n.notifChatBody,
+    NotificationKind.walletReceived => l10n.notifWalletReceivedBody,
+    NotificationKind.walletSent => l10n.notifWalletSentBody,
+    NotificationKind.walletFailed => l10n.notifWalletFailedBody,
+    NotificationKind.walletFrozen => l10n.notifWalletFrozenBody,
+    NotificationKind.walletUpdated => l10n.notifWalletUpdatedBody,
   };
 }
 
@@ -109,6 +119,7 @@ IconData notificationIcon(NotificationKind k) => switch (k.group) {
   WhatsAppGroup.joins => Icons.group_add_outlined,
   WhatsAppGroup.verification => Icons.verified_user_outlined,
   WhatsAppGroup.newParents => Icons.person_pin_circle_outlined,
+  WhatsAppGroup.wallet => Icons.account_balance_wallet_outlined,
   null => Icons.chat_bubble_outline_rounded,
 };
 
@@ -126,6 +137,7 @@ String whatsAppGroupTitle(AppLocalizations l10n, WhatsAppGroup g) => switch (g) 
   WhatsAppGroup.joins => l10n.notifGroupJoins,
   WhatsAppGroup.verification => l10n.notifGroupVerification,
   WhatsAppGroup.newParents => l10n.notifGroupNewParents,
+  WhatsAppGroup.wallet => l10n.notifGroupWallet,
 };
 
 /// "10:30" today, "Sun 15/11" before.

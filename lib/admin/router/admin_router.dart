@@ -18,6 +18,7 @@ import 'package:school_carpool/admin/screens/sign_in_screen.dart';
 import 'package:school_carpool/admin/screens/two_step_setup_screen.dart';
 import 'package:school_carpool/admin/screens/user_screen.dart';
 import 'package:school_carpool/admin/screens/users_screen.dart';
+import 'package:school_carpool/admin/screens/wallet_screens.dart';
 import 'package:school_carpool/admin/shell/admin_shell.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
@@ -102,6 +103,16 @@ GoRouter buildAdminRouter({
               GoRoute(
                 path: ':id',
                 builder: (BuildContext context, GoRouterState state) => ReportScreen(reportId: state.pathParameters['id'] ?? ''),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: AdminRoutes.wallets,
+            builder: (BuildContext context, GoRouterState state) => const AdminWalletsScreen(),
+            routes: <RouteBase>[
+              GoRoute(
+                path: ':uid',
+                builder: (BuildContext context, GoRouterState state) => AdminWalletScreen(uid: state.pathParameters['uid'] ?? ''),
               ),
             ],
           ),

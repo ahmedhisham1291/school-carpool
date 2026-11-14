@@ -6397,5 +6397,869 @@
         "type": "String"
       }
     }
+  },
+  "notifGroupWallet": "المحفظة",
+  "@notifGroupWallet": {
+    "description": "Settings row: WhatsApp group for wallet messages"
+  },
+  "notifWalletReceivedTitle": "وصلك تحويل",
+  "@notifWalletReceivedTitle": {
+    "description": "Notification title (no amount, no name)"
+  },
+  "notifWalletReceivedBody": "افتح المحفظة لرؤية التفاصيل.",
+  "@notifWalletReceivedBody": {
+    "description": "Notification text"
+  },
+  "notifWalletSentTitle": "تم التحويل",
+  "@notifWalletSentTitle": {
+    "description": "Notification title"
+  },
+  "notifWalletSentBody": "وصل تحويلك. افتح المحفظة للتفاصيل.",
+  "@notifWalletSentBody": {
+    "description": "Notification text"
+  },
+  "notifWalletFailedTitle": "لم يتم التحويل",
+  "@notifWalletFailedTitle": {
+    "description": "Notification title"
+  },
+  "notifWalletFailedBody": "لم تُخصم أي أموال. افتح المحفظة للتفاصيل.",
+  "@notifWalletFailedBody": {
+    "description": "Notification text"
+  },
+  "notifWalletFrozenTitle": "المحفظة موقوفة",
+  "@notifWalletFrozenTitle": {
+    "description": "Notification title"
+  },
+  "notifWalletFrozenBody": "أوقفنا محفظتك مؤقتًا. افتح التطبيق للتفاصيل.",
+  "@notifWalletFrozenBody": {
+    "description": "Notification text"
+  },
+  "notifWalletUpdatedTitle": "تحديث المحفظة",
+  "@notifWalletUpdatedTitle": {
+    "description": "Notification title"
+  },
+  "notifWalletUpdatedBody": "افتح المحفظة لرؤية التحديث.",
+  "@notifWalletUpdatedBody": {
+    "description": "Notification text"
+  },
+  "profileWalletHelper": "الرصيد والتحويلات بين أولياء الأمور",
+  "@profileWalletHelper": {
+    "description": "Profile row subtitle"
+  },
+  "walletTitle": "المحفظة",
+  "@walletTitle": {
+    "description": "App bar title and profile row"
+  },
+  "walletAmount": "{amount} ج.م",
+  "@walletAmount": {
+    "description": "An amount with its currency",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletCurrencyShort": "ج.م ",
+  "@walletCurrencyShort": {
+    "description": "Prefix inside the amount field"
+  },
+  "walletIncoming": "+ {amount}",
+  "@walletIncoming": {
+    "description": "Money in (history)",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletBalance": "الرصيد",
+  "@walletBalance": {
+    "description": "Label above the balance"
+  },
+  "walletBalanceLabel": "الرصيد {amount}",
+  "@walletBalanceLabel": {
+    "description": "Screen reader label of the balance card",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletLeftToday": "يمكنك إرسال {amount} أخرى اليوم.",
+  "@walletLeftToday": {
+    "description": "Under the balance",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletSendAction": "إرسال أموال",
+  "@walletSendAction": {
+    "description": "Primary button"
+  },
+  "walletAddAction": "إضافة أموال",
+  "@walletAddAction": {
+    "description": "Button"
+  },
+  "walletWithdrawAction": "سحب",
+  "@walletWithdrawAction": {
+    "description": "Button"
+  },
+  "walletHistory": "السجل",
+  "@walletHistory": {
+    "description": "Section header"
+  },
+  "walletHistoryEmpty": "لا توجد تحويلات بعد.",
+  "@walletHistoryEmpty": {
+    "description": "Empty history"
+  },
+  "walletFrozenNote": "محفظتك موقوفة مؤقتًا، فلا يمكنك الإرسال أو السحب. تواصل مع الدعم.",
+  "@walletFrozenNote": {
+    "description": "Frozen wallet note"
+  },
+  "walletOffTitle": "المحفظة غير متاحة بعد",
+  "@walletOffTitle": {
+    "description": "Empty state title"
+  },
+  "walletOffBody": "تفتح المحفظة عندما يجهز شريك الدفع. ادفعوا المساهمات نقدًا حتى ذلك الحين.",
+  "@walletOffBody": {
+    "description": "Empty state text"
+  },
+  "walletVerifyTitle": "وثّق حسابك أولًا",
+  "@walletVerifyTitle": {
+    "description": "Empty state title"
+  },
+  "walletVerifyAction": "توثيق الحساب",
+  "@walletVerifyAction": {
+    "description": "Button"
+  },
+  "walletSuspendedTitle": "المحفظة مغلقة",
+  "@walletSuspendedTitle": {
+    "description": "Empty state title"
+  },
+  "walletOpenTitle": "افتح محفظتك",
+  "@walletOpenTitle": {
+    "description": "Title on the open screen"
+  },
+  "walletOpenBody": "أرسل المساهمات لأولياء الأمور الآخرين واستلمها بأمان.",
+  "@walletOpenBody": {
+    "description": "Intro"
+  },
+  "walletOpenPartner": "يحفظ أموالك شريك دفع مرخّص من البنك المركزي المصري، وليس التطبيق.",
+  "@walletOpenPartner": {
+    "description": "Point"
+  },
+  "walletOpenNoFee": "لا رسوم ولا عمولة: يصل المبلغ كاملًا.",
+  "@walletOpenNoFee": {
+    "description": "Point"
+  },
+  "walletOpenLock": "كل تحويل يحتاج بصمة الوجه أو الإصبع أو رمز الهاتف.",
+  "@walletOpenLock": {
+    "description": "Point"
+  },
+  "walletTermsAgree": "أوافق على شروط شريك الدفع",
+  "@walletTermsAgree": {
+    "description": "Checkbox"
+  },
+  "walletTermsHelper": "نحفظ موافقتك. يمكنك إغلاق المحفظة لاحقًا.",
+  "@walletTermsHelper": {
+    "description": "Checkbox helper"
+  },
+  "walletOpenAction": "فتح المحفظة",
+  "@walletOpenAction": {
+    "description": "Primary button"
+  },
+  "walletOpened": "فُتحت المحفظة",
+  "@walletOpened": {
+    "description": "Snackbar"
+  },
+  "walletSendTitle": "إرسال أموال",
+  "@walletSendTitle": {
+    "description": "App bar title"
+  },
+  "walletWhoTitle": "لمن تريد الإرسال؟",
+  "@walletWhoTitle": {
+    "description": "Step title"
+  },
+  "walletFromCarpools": "من مشاويرك",
+  "@walletFromCarpools": {
+    "description": "Section header"
+  },
+  "walletContactsEmpty": "لا يوجد أولياء أمور في مشاويرك بعد.",
+  "@walletContactsEmpty": {
+    "description": "Empty contacts"
+  },
+  "walletContactOrganizer": "{carpool} · المنظّم",
+  "@walletContactOrganizer": {
+    "description": "Contact row subtitle",
+    "placeholders": {
+      "carpool": {
+        "type": "String"
+      }
+    }
+  },
+  "walletByParentId": "أو برقم ولي الأمر",
+  "@walletByParentId": {
+    "description": "Section header"
+  },
+  "walletParentIdLabel": "رقم ولي الأمر",
+  "@walletParentIdLabel": {
+    "description": "Field label"
+  },
+  "walletParentIdHelper": "8 حروف وأرقام من صفحة حسابه.",
+  "@walletParentIdHelper": {
+    "description": "Field helper"
+  },
+  "walletParentIdInvalid": "اكتب 8 حروف وأرقام، مثل ABCD2345.",
+  "@walletParentIdInvalid": {
+    "description": "Field error"
+  },
+  "walletFindParent": "بحث",
+  "@walletFindParent": {
+    "description": "Button"
+  },
+  "walletConfirmTitle": "تأكد أنه الشخص الصحيح.",
+  "@walletConfirmTitle": {
+    "description": "Step title"
+  },
+  "walletParentIdShown": "رقم ولي الأمر {id}",
+  "@walletParentIdShown": {
+    "description": "Under the name",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "walletVerified": "موثّق",
+  "@walletVerified": {
+    "description": "Badge"
+  },
+  "walletNotVerified": "غير موثّق",
+  "@walletNotVerified": {
+    "description": "Badge"
+  },
+  "walletConfirmYes": "نعم، متابعة",
+  "@walletConfirmYes": {
+    "description": "Primary button"
+  },
+  "walletConfirmOther": "اختيار شخص آخر",
+  "@walletConfirmOther": {
+    "description": "Text button"
+  },
+  "walletAmountTitle": "كم تريد أن ترسل إلى {name}؟",
+  "@walletAmountTitle": {
+    "description": "Step title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "walletAmountLabel": "المبلغ",
+  "@walletAmountLabel": {
+    "description": "Field label"
+  },
+  "walletAmountHelper": "حتى {limit} في التحويل الواحد.",
+  "@walletAmountHelper": {
+    "description": "Field helper",
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "walletAmountInvalid": "اكتب مبلغًا مثل 150 أو 150.50.",
+  "@walletAmountInvalid": {
+    "description": "Field error"
+  },
+  "walletAmountOverBalance": "المبلغ أكبر من رصيدك. أضف أموالًا أولًا.",
+  "@walletAmountOverBalance": {
+    "description": "Field error"
+  },
+  "walletContributionNote": "هذه المساهمة المتفق عليها لأطفالك. يمكنك تغييرها.",
+  "@walletContributionNote": {
+    "description": "Note on the amount step"
+  },
+  "walletNoteTitle": "أضف ملاحظة (اختياري)",
+  "@walletNoteTitle": {
+    "description": "Step title"
+  },
+  "walletNoteLabel": "ملاحظة",
+  "@walletNoteLabel": {
+    "description": "Field label"
+  },
+  "walletNoteHelper": "يراها المستلم، مثل: مساهمة الأسبوع.",
+  "@walletNoteHelper": {
+    "description": "Field helper"
+  },
+  "walletReviewTitle": "راجع التحويل",
+  "@walletReviewTitle": {
+    "description": "Step title"
+  },
+  "walletNoFee": "بدون رسوم أو عمولة.",
+  "@walletNoFee": {
+    "description": "Line under the amount"
+  },
+  "walletReviewNoUndo": "لا يمكن التراجع عن التحويل بعد إرساله.",
+  "@walletReviewNoUndo": {
+    "description": "Warning"
+  },
+  "walletSendNow": "إرسال",
+  "@walletSendNow": {
+    "description": "Primary button (then Face ID)"
+  },
+  "walletAuthReason": "تأكيد إرسال {amount} إلى {name}",
+  "@walletAuthReason": {
+    "description": "Face ID prompt",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "walletAuthWithdraw": "تأكيد سحب {amount}",
+  "@walletAuthWithdraw": {
+    "description": "Face ID prompt",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletAuthCancelled": "لم يتم التأكيد، فلم نرسل شيئًا.",
+  "@walletAuthCancelled": {
+    "description": "Inline message"
+  },
+  "walletSendUnknown": "لم نتأكد من النتيجة. حاول مرة أخرى، لن يُرسل مرتين.",
+  "@walletSendUnknown": {
+    "description": "Inline message"
+  },
+  "walletDoneSent": "تم الإرسال",
+  "@walletDoneSent": {
+    "description": "Result title"
+  },
+  "walletDoneAdded": "تمت الإضافة",
+  "@walletDoneAdded": {
+    "description": "Result title"
+  },
+  "walletDoneWithdrawn": "تم السحب",
+  "@walletDoneWithdrawn": {
+    "description": "Result title"
+  },
+  "walletDoneSentBody": "وصل المبلغ إلى محفظة {name}.",
+  "@walletDoneSentBody": {
+    "description": "Result text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "walletDoneBody": "تم تحديث رصيدك.",
+  "@walletDoneBody": {
+    "description": "Result text"
+  },
+  "walletPendingTitle": "قيد التنفيذ",
+  "@walletPendingTitle": {
+    "description": "Result title"
+  },
+  "walletPendingBody": "نتحقق مع شريك الدفع. لن تُخصم الأموال مرتين.",
+  "@walletPendingBody": {
+    "description": "Pending text"
+  },
+  "walletFailedTitle": "لم يتم",
+  "@walletFailedTitle": {
+    "description": "Result title"
+  },
+  "walletCheckAgain": "تحقق مرة أخرى",
+  "@walletCheckAgain": {
+    "description": "Button"
+  },
+  "walletBackToWallet": "العودة للمحفظة",
+  "@walletBackToWallet": {
+    "description": "Button"
+  },
+  "walletFailFunds": "الرصيد غير كافٍ. لم تُخصم أي أموال.",
+  "@walletFailFunds": {
+    "description": "Fail reason"
+  },
+  "walletFailSenderFrozen": "محفظتك موقوفة. لم تُخصم أي أموال.",
+  "@walletFailSenderFrozen": {
+    "description": "Fail reason"
+  },
+  "walletFailReceiverFrozen": "لا يمكن للمستلم استقبال أموال الآن. لم تُخصم أي أموال.",
+  "@walletFailReceiverFrozen": {
+    "description": "Fail reason"
+  },
+  "walletFailNotReceived": "لم يصل الطلب إلى شريك الدفع. لم تُخصم أي أموال.",
+  "@walletFailNotReceived": {
+    "description": "Fail reason"
+  },
+  "walletFailPartner": "رفض شريك الدفع الطلب. لم تُخصم أي أموال.",
+  "@walletFailPartner": {
+    "description": "Fail reason"
+  },
+  "walletStatusPending": "قيد التنفيذ",
+  "@walletStatusPending": {
+    "description": "Badge"
+  },
+  "walletStatusDone": "تم",
+  "@walletStatusDone": {
+    "description": "Badge"
+  },
+  "walletStatusFailed": "لم يتم",
+  "@walletStatusFailed": {
+    "description": "Badge"
+  },
+  "walletKindTopUp": "إضافة أموال",
+  "@walletKindTopUp": {
+    "description": "History row title"
+  },
+  "walletKindWithdraw": "سحب",
+  "@walletKindWithdraw": {
+    "description": "History row title"
+  },
+  "walletTo": "إلى {name}",
+  "@walletTo": {
+    "description": "History row title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "walletFrom": "من {name}",
+  "@walletFrom": {
+    "description": "History row title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "walletRowSubtitle": "{when} · {note}",
+  "@walletRowSubtitle": {
+    "description": "History row subtitle",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "walletTime": "{date} {time}",
+  "@walletTime": {
+    "description": "Date and time of a transfer",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "walletTransferTitle": "التحويل",
+  "@walletTransferTitle": {
+    "description": "App bar title"
+  },
+  "walletTransferNotFound": "التحويل غير موجود",
+  "@walletTransferNotFound": {
+    "description": "Empty state title"
+  },
+  "walletWhen": "الوقت",
+  "@walletWhen": {
+    "description": "Row title"
+  },
+  "walletFeeRow": "الرسوم",
+  "@walletFeeRow": {
+    "description": "Row title"
+  },
+  "walletReportAction": "الإبلاغ عن مشكلة",
+  "@walletReportAction": {
+    "description": "Button"
+  },
+  "walletReportTitle": "ما المشكلة؟",
+  "@walletReportTitle": {
+    "description": "Sheet title"
+  },
+  "walletReportBody": "نرسل البلاغ للمشرفين. لا يستطيع التطبيق إلغاء تحويل، ويتابع شريك الدفع النزاعات.",
+  "@walletReportBody": {
+    "description": "Sheet text"
+  },
+  "walletReportNotReceived": "لم يصل",
+  "@walletReportNotReceived": {
+    "description": "Chip"
+  },
+  "walletReportWrongAmount": "مبلغ خطأ",
+  "@walletReportWrongAmount": {
+    "description": "Chip"
+  },
+  "walletReportWrongPerson": "شخص خطأ",
+  "@walletReportWrongPerson": {
+    "description": "Chip"
+  },
+  "walletReportUnauthorized": "لم أرسله",
+  "@walletReportUnauthorized": {
+    "description": "Chip: someone else sent it"
+  },
+  "walletReportOther": "أخرى",
+  "@walletReportOther": {
+    "description": "Chip"
+  },
+  "walletReportFreezeNote": "سنوقف محفظتك فورًا حتى لا يُرسل أحد منها.",
+  "@walletReportFreezeNote": {
+    "description": "Note for 'Not me'"
+  },
+  "walletReportNote": "ملاحظة (اختياري)",
+  "@walletReportNote": {
+    "description": "Field label"
+  },
+  "walletReportSend": "إرسال البلاغ",
+  "@walletReportSend": {
+    "description": "Primary button"
+  },
+  "walletReported": "تم إرسال البلاغ",
+  "@walletReported": {
+    "description": "Snackbar"
+  },
+  "walletReportedFrozen": "تم البلاغ وإيقاف المحفظة",
+  "@walletReportedFrozen": {
+    "description": "Snackbar"
+  },
+  "walletPayContribution": "دفع المساهمة",
+  "@walletPayContribution": {
+    "description": "Carpool row title"
+  },
+  "walletPayContributionHelper": "{amount} من محفظتك. اختياري.",
+  "@walletPayContributionHelper": {
+    "description": "Carpool row subtitle",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletAddTitle": "إضافة أموال",
+  "@walletAddTitle": {
+    "description": "App bar title"
+  },
+  "walletAddBody": "تضيف الأموال عبر شريك الدفع. في نسخة الاختبار تكون أموالًا تجريبية.",
+  "@walletAddBody": {
+    "description": "Intro"
+  },
+  "walletAddNow": "إضافة",
+  "@walletAddNow": {
+    "description": "Primary button"
+  },
+  "walletWithdrawTitle": "سحب",
+  "@walletWithdrawTitle": {
+    "description": "App bar title"
+  },
+  "walletWithdrawBody": "يذهب المبلغ إلى حسابك لدى شريك الدفع.",
+  "@walletWithdrawBody": {
+    "description": "Intro"
+  },
+  "walletWithdrawNow": "سحب",
+  "@walletWithdrawNow": {
+    "description": "Primary button (then Face ID)"
+  },
+  "walletErrorNotVerified": "المحفظة لأولياء الأمور الموثّقين فقط. وثّق حسابك أولًا.",
+  "@walletErrorNotVerified": {
+    "description": "Error"
+  },
+  "walletErrorSuspended": "حسابك موقوف، فالمحفظة مغلقة.",
+  "@walletErrorSuspended": {
+    "description": "Error"
+  },
+  "walletErrorNoWallet": "افتح محفظتك أولًا.",
+  "@walletErrorNoWallet": {
+    "description": "Error"
+  },
+  "walletErrorTerms": "وافق على شروط شريك الدفع أولًا.",
+  "@walletErrorTerms": {
+    "description": "Error"
+  },
+  "walletErrorFrozen": "محفظتك موقوفة. تواصل مع الدعم.",
+  "@walletErrorFrozen": {
+    "description": "Error"
+  },
+  "walletErrorReceiverNotFound": "لم نجد ولي أمر بهذا الرقم. تأكد منه.",
+  "@walletErrorReceiverNotFound": {
+    "description": "Error"
+  },
+  "walletErrorReceiverCannot": "لا يمكن لهذا الشخص استقبال أموال الآن.",
+  "@walletErrorReceiverCannot": {
+    "description": "Error"
+  },
+  "walletErrorSelf": "هذا رقمك أنت. اكتب رقم ولي أمر آخر.",
+  "@walletErrorSelf": {
+    "description": "Error"
+  },
+  "walletErrorNotInCarpool": "يمكنك الدفع لأولياء أمور مشاويرك فقط.",
+  "@walletErrorNotInCarpool": {
+    "description": "Error"
+  },
+  "walletErrorTooSmall": "أقل مبلغ هو {amount}.",
+  "@walletErrorTooSmall": {
+    "description": "Error",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletErrorOverLimit": "أكبر مبلغ في المرة الواحدة {amount}.",
+  "@walletErrorOverLimit": {
+    "description": "Error",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletErrorOverDaily": "يمكنك إرسال {amount} فقط اليوم.",
+  "@walletErrorOverDaily": {
+    "description": "Error",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "walletErrorTooMany": "وصلت لعدد التحويلات اليومي. حاول غدًا.",
+  "@walletErrorTooMany": {
+    "description": "Error"
+  },
+  "walletErrorNotFound": "لم نجد هذا التحويل.",
+  "@walletErrorNotFound": {
+    "description": "Error"
+  },
+  "walletErrorRateLimited": "محاولات كثيرة. حاول بعد قليل.",
+  "@walletErrorRateLimited": {
+    "description": "Error"
+  },
+  "walletErrorOff": "المحفظة غير متاحة بعد.",
+  "@walletErrorOff": {
+    "description": "Error"
+  },
+  "walletErrorUnavailable": "شريك الدفع لا يرد الآن. حاول بعد قليل.",
+  "@walletErrorUnavailable": {
+    "description": "Error"
+  },
+  "walletErrorNoPasscode": "ضع رمزًا أو بصمة على هاتفك أولًا لإرسال الأموال.",
+  "@walletErrorNoPasscode": {
+    "description": "Error"
+  },
+  "walletErrorUnknown": "حدث خطأ. حاول مرة أخرى.",
+  "@walletErrorUnknown": {
+    "description": "Error"
+  },
+  "gallerySectionWallet": "المحفظة",
+  "@gallerySectionWallet": {
+    "description": "Gallery section header"
+  },
+  "adminNavWallet": "المحفظة",
+  "@adminNavWallet": {
+    "description": "Admin navigation"
+  },
+  "adminAuditWalletView": "عرض محفظة",
+  "@adminAuditWalletView": {
+    "description": "Audit action"
+  },
+  "adminAuditWalletLog": "عرض سجل التحويلات",
+  "@adminAuditWalletLog": {
+    "description": "Audit action"
+  },
+  "adminFreezeFraud": "اشتباه احتيال",
+  "@adminFreezeFraud": {
+    "description": "Freeze reason"
+  },
+  "adminFreezeParentAsked": "بطلب ولي الأمر",
+  "@adminFreezeParentAsked": {
+    "description": "Freeze reason"
+  },
+  "adminFreezeStolenPhone": "هاتف مسروق",
+  "@adminFreezeStolenPhone": {
+    "description": "Freeze reason"
+  },
+  "adminFreezeDispute": "نزاع",
+  "@adminFreezeDispute": {
+    "description": "Freeze reason"
+  },
+  "adminFreezePartner": "بطلب شريك الدفع",
+  "@adminFreezePartner": {
+    "description": "Freeze reason"
+  },
+  "adminFreezeOther": "أخرى",
+  "@adminFreezeOther": {
+    "description": "Freeze reason"
+  },
+  "adminWalletTitle": "المحفظة",
+  "@adminWalletTitle": {
+    "description": "Admin page title"
+  },
+  "adminWalletOneTitle": "محفظة ولي الأمر",
+  "@adminWalletOneTitle": {
+    "description": "Admin page title"
+  },
+  "adminWalletAlerts": "تنبيهات",
+  "@adminWalletAlerts": {
+    "description": "Section header"
+  },
+  "adminWalletNoAlerts": "لا توجد تنبيهات مفتوحة.",
+  "@adminWalletNoAlerts": {
+    "description": "Empty alerts"
+  },
+  "adminWalletLog": "سجل التحويلات",
+  "@adminWalletLog": {
+    "description": "Section header"
+  },
+  "adminWalletNoTransfers": "لا توجد تحويلات.",
+  "@adminWalletNoTransfers": {
+    "description": "Empty log"
+  },
+  "adminWalletAlertNewReceivers": "مستلمون جدد كثيرون",
+  "@adminWalletAlertNewReceivers": {
+    "description": "Alert kind"
+  },
+  "adminWalletAlertMany": "تحويلات كثيرة",
+  "@adminWalletAlertMany": {
+    "description": "Alert kind"
+  },
+  "adminWalletAlertReport": "بلاغ عن تحويل",
+  "@adminWalletAlertReport": {
+    "description": "Alert kind"
+  },
+  "adminWalletAlertCount": "{count} خلال ساعة",
+  "@adminWalletAlertCount": {
+    "description": "Alert detail",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminWalletResolve": "إغلاق",
+  "@adminWalletResolve": {
+    "description": "Button: close an alert"
+  },
+  "adminWalletOutcomeNoIssue": "لا مشكلة",
+  "@adminWalletOutcomeNoIssue": {
+    "description": "Alert outcome"
+  },
+  "adminWalletOutcomeFrozen": "أُوقفت المحفظة",
+  "@adminWalletOutcomeFrozen": {
+    "description": "Alert outcome"
+  },
+  "adminWalletOutcomePartner": "أُحيل لشريك الدفع",
+  "@adminWalletOutcomePartner": {
+    "description": "Alert outcome"
+  },
+  "adminWalletOutcomeContacted": "تم التواصل مع ولي الأمر",
+  "@adminWalletOutcomeContacted": {
+    "description": "Alert outcome"
+  },
+  "adminWalletFromTo": "{from} إلى {to}",
+  "@adminWalletFromTo": {
+    "description": "Log row",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "adminWalletTopUp": "{name} أضاف أموالًا",
+  "@adminWalletTopUp": {
+    "description": "Log row",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminWalletWithdraw": "{name} سحب",
+  "@adminWalletWithdraw": {
+    "description": "Log row",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminWalletActive": "تعمل",
+  "@adminWalletActive": {
+    "description": "Badge"
+  },
+  "adminWalletFrozen": "موقوفة",
+  "@adminWalletFrozen": {
+    "description": "Badge"
+  },
+  "adminWalletCopy": "{amount} (نسخة، الشريك لا يرد)",
+  "@adminWalletCopy": {
+    "description": "Balance when the partner is down",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adminWalletFreeze": "إيقاف المحفظة",
+  "@adminWalletFreeze": {
+    "description": "Danger button"
+  },
+  "adminWalletUnfreeze": "تشغيل المحفظة",
+  "@adminWalletUnfreeze": {
+    "description": "Button"
+  },
+  "adminWalletFreezeTitle": "إيقاف هذه المحفظة؟",
+  "@adminWalletFreezeTitle": {
+    "description": "Confirm title"
+  },
+  "adminWalletFreezeBody": "لن يستطيع ولي الأمر الإرسال أو السحب أو الاستلام حتى تشغيلها. نبلغه دون ذكر السبب.",
+  "@adminWalletFreezeBody": {
+    "description": "Confirm text"
+  },
+  "adminWalletUnfreezeTitle": "تشغيل هذه المحفظة؟",
+  "@adminWalletUnfreezeTitle": {
+    "description": "Confirm title"
+  },
+  "adminWalletUnfreezeBody": "يعود ولي الأمر لاستخدام المحفظة فورًا.",
+  "@adminWalletUnfreezeBody": {
+    "description": "Confirm text"
+  },
+  "adminWalletNone": "لا توجد محفظة",
+  "@adminWalletNone": {
+    "description": "Empty title"
+  },
+  "adminWalletNoneBody": "لم يفتح ولي الأمر محفظة بعد.",
+  "@adminWalletNoneBody": {
+    "description": "Empty text"
+  },
+  "adminWalletPartner": "سجل شريك الدفع",
+  "@adminWalletPartner": {
+    "description": "Section header"
+  },
+  "adminWalletPartnerNone": "لا توجد عمليات لدى الشريك، أو لم يرد.",
+  "@adminWalletPartnerNone": {
+    "description": "Empty partner list"
+  },
+  "walletSendLocked": "لتغيير المستلم أو المبلغ ارجع للمحفظة وتحقق من السجل أولًا.",
+  "@walletSendLocked": {
+    "description": "Shown after a lost answer: the transfer is locked"
+  },
+  "walletMoneyLocked": "لم نتأكد من النتيجة. حاول مرة أخرى بنفس المبلغ، أو راجع السجل أولًا.",
+  "@walletMoneyLocked": {
+    "description": "Shown after a lost answer on add money or withdraw"
   }
 }

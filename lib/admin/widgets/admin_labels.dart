@@ -122,6 +122,12 @@ String auditActionLabel(AppLocalizations l10n, String action) => switch (action)
   'school.merge' => l10n.adminAuditSchoolMerge,
   'area.create' => l10n.adminAuditAreaCreate,
   'area.update' => l10n.adminAuditAreaUpdate,
+  // Prompt 11B.
+  'wallet.view' => l10n.adminAuditWalletView,
+  'wallet.transfers.view' => l10n.adminAuditWalletLog,
+  'wallet.freeze' => l10n.adminWalletFreeze,
+  'wallet.unfreeze' => l10n.adminWalletUnfreeze,
+  'wallet.alert.resolve' => l10n.adminWalletResolve,
   _ => action,
 };
 

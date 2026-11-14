@@ -453,6 +453,27 @@ void main() {
       expect(find.text('Join requests'), findsNothing);
     });
 
+    testWidgets('Pay contribution (F25, F43) opens Send with the agreed amount for my children; nothing is sent', (WidgetTester tester) async {
+      // testCarpool: 50 EGP per child a week; testMe (Mona) has one child.
+      final GoRouter router = await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: memberRepo()));
+      await _tapVisible(tester, 'detail.payContribution');
+      final Uri uri = router.routerDelegate.currentConfiguration.uri;
+      expect(uri.path, '${ProfileRoutes.wallet}/${WalletRoutes.sendSegment}');
+      expect(uri.queryParameters, <String, String>{'carpool': 'k1', 'amount': '5000'});
+    });
+
+    testWidgets('Pay contribution is not offered to the organizer', (WidgetTester tester) async {
+      final FakeCarpoolRepository carpools = FakeCarpoolRepository(
+        memberships: const <Membership>[Membership(carpoolId: 'k1', status: MembershipStatus.approved, isAdmin: true)],
+        members: const <CarpoolMember>[
+          _hoda,
+          CarpoolMember(uid: 'uid-1', firstName: 'Mona', isAdmin: true, children: <CarpoolChild>[CarpoolChild(id: 'c1', firstName: 'Adam', grade: Grade.g3)]),
+        ],
+      );
+      await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: carpools));
+      expect(find.byKey(const Key('detail.payContribution')), findsNothing);
+    });
+
     testWidgets('accepting a driver asks first, says to meet, and can be withdrawn', (WidgetTester tester) async {
       final FakeCarpoolRepository carpools = memberRepo();
       await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: carpools));

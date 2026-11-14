@@ -24,6 +24,7 @@ import 'carpool_fakes.dart';
 import 'chat_fakes.dart';
 import 'map_fakes.dart';
 import 'notification_fakes.dart';
+import 'wallet_fakes.dart';
 
 /// Dev config for tests: no emulators, no Sentry.
 const FlavorConfig testDevConfig = FlavorConfig(
@@ -190,7 +191,8 @@ class FakeAuthRepository implements AuthRepository {
 /// carpool fakes (Prompt 6; pass [carpools] and [sharer]) and the schedule
 /// fake (Prompt 7; pass [schedule]) and the notification fakes (Prompt 8;
 /// pass [notifications], [push] and [alarms]) and the chat fakes (Prompt 9;
-/// pass [chat], [chatRepository] and [photos]). The number of
+/// pass [chat], [chatRepository] and [photos]) and the wallet fakes
+/// (Prompt 11B; pass [wallet] and [deviceAuth]). The number of
 /// overrides is the same for every call (one ProviderScope per test).
 List<Override> authOverrides({
   SessionState session = testVerifiedSession,
@@ -209,6 +211,8 @@ List<Override> authOverrides({
   FakeChatPhotoPicker? photos,
   TripRepository? trips,
   LocationTracker? tracker,
+  FakeWalletRepository? wallet,
+  FakeDeviceAuth? deviceAuth,
 }) => <Override>[
   sessionProvider.overrideWithValue(session),
   authRepositoryProvider.overrideWithValue(repository ?? FakeAuthRepository()),
@@ -216,4 +220,5 @@ List<Override> authOverrides({
   ...carpoolOverrides(carpools: carpools, sharer: sharer, schedule: schedule, trips: trips, tracker: tracker),
   ...notificationOverrides(notifications: notifications, push: push, alarms: alarms),
   ...chatOverrides(provider: chat, repository: chatRepository, photos: photos),
+  ...walletOverrides(repository: wallet, auth: deviceAuth),
 ];

@@ -82,6 +82,7 @@ describe("catalog", () => {
     assert.equal(routeFor({ type: "join-requested", carpoolId: "k1" }), "/carpools/k1");
     assert.equal(routeFor({ type: "verification-rejected", carpoolId: null }), "/profile");
     assert.equal(routeFor({ type: "new-parent", carpoolId: null }), "/home/nearby");
+    assert.equal(routeFor({ type: "wallet-received", carpoolId: null }), "/profile/wallet");
     assert.equal(routeFor({ type: "swap-requested", carpoolId: "../x?y=1" }), "/notifications");
   });
 

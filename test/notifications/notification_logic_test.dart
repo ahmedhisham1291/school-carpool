@@ -23,6 +23,8 @@ void main() {
         // Prompt 10: trips.
         'trip-started', 'driver-arrived', 'child-picked-up', 'child-dropped', 'child-received', 'child-not-coming', 'location-stopped',
         'driver-late', 'driver-at-gate', 'all-children-in', 'emergency', 'chat-message',
+        // Prompt 11B (functions/src/notifications/catalog.ts, same order).
+        'wallet-received', 'wallet-sent', 'wallet-failed', 'wallet-frozen', 'wallet-updated',
       ];
       expect(NotificationKind.values.map((NotificationKind k) => k.wire), server);
       expect(
@@ -48,7 +50,7 @@ void main() {
       expect(AppNotification.fromDoc('t2', NotificationKind.timeChanged, const <String, dynamic>{}).critical, isFalse);
     });
 
-    test('COST MODE: WhatsApp on by default only for the urgent groups', () {
+    test('COST MODE: WhatsApp on by default only for the urgent groups (wallet is push only)', () {
       expect(
         WhatsAppGroup.values.where((WhatsAppGroup g) => g.defaultOn),
         <WhatsAppGroup>[WhatsAppGroup.noDriver, WhatsAppGroup.childNotConfirmed, WhatsAppGroup.emergency, WhatsAppGroup.tripAlerts],
@@ -77,6 +79,7 @@ void main() {
       expect(NotificationRoutes.safe('/carpools/k1/schedule'), '/carpools/k1/schedule');
       expect(NotificationRoutes.safe('/carpools/k1'), '/carpools/k1');
       expect(NotificationRoutes.safe('/profile'), '/profile');
+      expect(NotificationRoutes.safe('/profile/wallet'), '/profile/wallet');
       expect(NotificationRoutes.safe('/home/nearby'), '/home/nearby');
       // Prompt 10: the live run and the group's emergencies.
       expect(NotificationRoutes.safe('/carpools/k1/trip/2026-11-16_am'), '/carpools/k1/trip/2026-11-16_am');

@@ -8,6 +8,7 @@ import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/data/admin_api.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
+import 'package:school_carpool/admin/data/admin_wallet.dart';
 import 'package:school_carpool/admin/router/admin_router.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/features/auth/account.dart';
@@ -396,6 +397,7 @@ Future<GoRouter> pumpAdminPanel(
   required String location,
   FakeAdminApi? api,
   FakeAdminAuthRepository? auth,
+  FakeAdminWalletApi? wallet,
   String locale = 'ar',
   String themeMode = 'light',
   Size size = const Size(1280, 800),
@@ -423,6 +425,7 @@ Future<GoRouter> pumpAdminPanel(
         adminSessionProvider.overrideWithValue(session),
         adminApiProvider.overrideWithValue(api ?? FakeAdminApi()),
         adminAuthRepositoryProvider.overrideWithValue(auth ?? FakeAdminAuthRepository()),
+        adminWalletApiProvider.overrideWithValue(wallet ?? FakeAdminWalletApi()),
         ...extraOverrides,
       ],
       child: const AdminApp(),
@@ -431,4 +434,64 @@ Future<GoRouter> pumpAdminPanel(
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
   return router;
+}
+
+/// Prompt 11B: the admin wallet functions (fake data only). There is no
+/// money method to fake: the panel cannot move money.
+class FakeAdminWalletApi implements AdminWalletApi {
+  final List<String> calls = <String>[];
+  AdminFailure? failure;
+  AdminWallet one = AdminWallet(
+    uid: 'u-ali',
+    status: 'active',
+    balance: 50000,
+    balanceCopy: 50000,
+    transfers: <AdminTransfer>[
+      AdminTransfer(id: 't_1', kind: 'transfer', amount: 12550, status: 'done', fromUid: 'u-ali', toUid: 'u-hoda', fromFirstName: 'Ali', toFirstName: 'Hoda', createdAt: DateTime.utc(2026, 11, 16, 8)),
+    ],
+    partnerTransactions: <PartnerTransaction>[PartnerTransaction(requestId: 't_1', signedAmount: -12550, status: 'done', at: DateTime.utc(2026, 11, 16, 8))],
+  );
+  List<WalletAlert> open = <WalletAlert>[
+    WalletAlert(id: 'new-receivers_u-ali_1', kind: 'new-receivers', uid: 'u-ali', count: 4, createdAt: DateTime.utc(2026, 11, 16, 9)),
+  ];
+  (bool, FreezeReason, String?)? frozenWith;
+
+  Future<void> _maybeFail(String call) async {
+    calls.add(call);
+    final AdminFailure? f = failure;
+    if (f != null) {
+      throw f;
+    }
+  }
+
+  @override
+  Future<PagedResult<AdminTransfer>> transfers({String? uid, String? afterId}) async {
+    await _maybeFail('transfers:${uid ?? ''}');
+    return PagedResult<AdminTransfer>(one.transfers, null);
+  }
+
+  @override
+  Future<AdminWallet> wallet(String uid) async {
+    await _maybeFail('wallet:$uid');
+    return one;
+  }
+
+  @override
+  Future<void> setFrozen({required String uid, required bool frozen, required FreezeReason reason, String? note}) async {
+    await _maybeFail('setFrozen:$uid:$frozen');
+    frozenWith = (frozen, reason, note);
+    one = AdminWallet(uid: one.uid, status: frozen ? 'frozen' : 'active', frozenReason: frozen ? reason : null, balance: one.balance, transfers: one.transfers);
+  }
+
+  @override
+  Future<List<WalletAlert>> alerts({bool handled = false}) async {
+    await _maybeFail('alerts');
+    return open;
+  }
+
+  @override
+  Future<void> resolveAlert(String alertId, AlertOutcome outcome) async {
+    await _maybeFail('resolve:$alertId:${outcome.name}');
+    open = <WalletAlert>[for (final WalletAlert a in open) if (a.id != alertId) a];
+  }
 }

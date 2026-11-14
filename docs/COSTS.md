@@ -22,7 +22,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Stream Chat | Build (free), later Maker | Free plan limits on monthly active users and concurrent connections (see Stream's pricing page); Maker is free for small companies that qualify | Stream Dashboard > Usage (monthly active users, connections) | 80 percent of the free plan's monthly active users or connections; see "Chat (Prompt 9)" |
 | Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
-| WhatsApp Business | Pay per template message | Codes and critical alerts only by default; other notifications are push unless the parent switches WhatsApp on | Meta WhatsApp Manager > Insights | Budget set by the owner |
+| WhatsApp Business | Pay per template message | Codes and critical alerts only by default (wallet messages too only if the parent switches them on); other notifications are push unless the parent switches WhatsApp on | Meta WhatsApp Manager > Insights | Budget set by the owner |
 | Valify, wallet partner | Fake providers | Nothing is called until the pilot | n/a | Contract signed |
 | flutter_background_geolocation | No license (v5) | Debug builds need none; v5 checks the licence on iPhone and Android release builds | n/a | Before the first TestFlight build with trips (SETUP.md 20.5) |
 
@@ -288,6 +288,31 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
 - **Face match (F38):** about 20 percent of runs of drivers with a photo
   (`TRIP_SELFIE_PERCENT`); fake provider until the Valify contract (then
   one paid face match per check).
+
+## Wallet (Prompt 11B)
+
+- **Wallet partner:** fake provider (test money in Firestore) until the
+  contract; the partner's fees and limits are open questions. The app takes
+  no fee and no commission; ask the partner for no fee on transfers between
+  parents.
+- **WhatsApp:** the five `cp_wallet_*` templates are **off by default**
+  (COST MODE, owner decision pending): wallet messages are push and in-app
+  only unless the parent switches the "Wallet" group on in Settings >
+  Alerts. At most two per transfer (sender and receiver) when on.
+- **Cloud Functions:** one call per wallet open (with one partner balance
+  read), one per transfer (two Firestore transactions, the partner call,
+  outbox events), one per history page. `minInstances` stays 0
+  (`MIN_INSTANCES_WALLET`); raise it only if a cold start delays transfers
+  in the pilot.
+- **Cloud Scheduler:** `walletReconcile` every 5 minutes is one more job
+  (USD 0.10 a month per project once the 3 free jobs are used). It reads
+  only `walletPending` (usually empty).
+- **Firestore:** per transfer two documents created once (`transfers`,
+  `transferResults`), one pending entry (deleted when settled), one daily
+  counter per parent and day; balances are a copy, read from the partner.
+- **Limits per parent** (server settings `config/wallet`): 2,000 EGP per
+  transfer, 5,000 EGP and 20 transfers a day, 20 parent ID lookups an hour,
+  10 reports a day (SETUP.md 21.2).
 
 ## Open cost questions
 

@@ -899,12 +899,18 @@ the others have no parameter. No names, no addresses, no message text.
 | `cp_review_approved` | Your documents were approved. |
 | `cp_review_rejected` | Open the app to see what to fix. |
 | `cp_new_parent` | A new verified parent near your school. |
+| `cp_wallet_received` | Money received. Open your wallet to see the details. |
+| `cp_wallet_sent` | Your transfer went through. Open your wallet. |
+| `cp_wallet_failed` | Transfer failed. No money left your wallet. |
+| `cp_wallet_frozen` | Your wallet is paused for now. Open the app. |
+| `cp_wallet_updated` | Your wallet has an update. Open the app. |
 
 The Arabic bodies are in `functions/src/notifications/texts.ts`. Add
 "Open the app for details." as the footer. Only `cp_no_driver` and
 `cp_child_not_confirmed` (and `cp_time_changed` when a run moved with no
 time left to confirm: it follows the "No driver" switch) are sent by
-default (COST MODE); the others only
+default (COST MODE); the others, including the five `cp_wallet_*`
+templates (Prompt 11B; no amount, name or note), only
 for parents who switch that group on, and only to parents who agreed to
 WhatsApp at sign-up.
 
@@ -1221,3 +1227,83 @@ key-shaped stops the patch. No extra Maven folders are needed in v5.
    unconfirmed for 10 minutes and run `triptick`: "Child not confirmed"
    reaches both parents (critical, with the alarm). Confirm with
    `... carpool:emulator -- home <carpoolId> <runId> <childId> --as seed-map-parent-1`.
+## 21. Wallet (Prompt 11B)
+
+The wallet runs through ONE `WalletProvider` in Cloud Functions
+(`functions/src/wallet/`). Until the contract with the payment partner
+licensed by the Central Bank of Egypt is signed, dev and staging use the
+**fake provider** (test money kept in Firestore `fakeWalletAccounts` and
+`fakeWalletOps`). The fake is refused in prod; the partner provider is a
+stub that refuses every call until it is built and switched on.
+
+### 21.1 Functions settings (each cloud project)
+
+In `functions/.env.<alias>`:
+
+```
+WALLET_PROVIDER=fake          # dev and staging; prod: partner (after the contract)
+WALLET_PARTNER_ENABLED=false  # true only once the partner provider is built and tested
+MIN_INSTANCES_WALLET=0        # COST MODE; raise if cold starts slow transfers
+```
+
+With `WALLET_PROVIDER=partner` and `WALLET_PARTNER_ENABLED=false` the app
+shows "Wallet not open yet" and parents pay contributions in cash.
+
+### 21.2 Limits (server settings, no deploy needed)
+
+Firestore > `config/wallet` (create the document in each project). Amounts
+are **piastres** (100 = 1 EGP). Missing or odd values use the defaults;
+values above the hard ceilings in `functions/src/wallet/model.ts` are
+ignored.
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `minAmount` | 100 | Smallest amount (1 EGP) |
+| `perTransferMax` | 200000 | Largest transfer or withdrawal (2,000 EGP) |
+| `perDayMax` | 500000 | Sent plus withdrawn per Cairo day (5,000 EGP) |
+| `perDayCount` | 20 | Transfers plus withdrawals per day |
+| `topUpMax` | 500000 | Largest single top-up |
+| `topUpPerDayMax` | 1000000 | Added per day |
+| `lookupsPerHour` | 20 | Parent ID lookups per parent per hour |
+| `alertNewReceivers` | 3 | Admin alert: this many first-time receivers within an hour |
+| `alertTransfersPerHour` | 10 | Admin alert: this many transfers within an hour |
+| `reportsPerDay` | 10 | Transfer problem reports per parent per day |
+
+Change them to the partner's limits when the contract is signed.
+
+### 21.3 Indexes, schedule and rules
+
+- `firebase deploy --only firestore:indexes,firestore:rules` (new indexes on
+  `transfers`, `walletAlerts`, `fakeWalletOps`).
+- `walletReconcile` runs every 5 minutes: transfers whose answer was lost
+  are settled by asking the partner (never by guessing; a request is
+  cancelled at the partner before it is recorded as failed, and one the
+  partner can neither confirm nor cancel stays pending with a "stuck" admin
+  alert), and freezes the partner missed are applied again. One more Cloud
+  Scheduler job (docs/COSTS.md).
+- Every wallet collection is closed to the app (`tests/rules/wallet.test.ts`).
+
+### 21.4 Trying it on the emulators and the iPhone
+
+- Two verified fake parents (seed, Prompts 6 and 7). Each opens the wallet
+  (Profile > Wallet > agree > Open wallet) and adds test money.
+- Pending and reconciliation: set Firestore `config/walletFake` to
+  `{ mode: "timeout" }` (the partner moves the money but the answer is
+  lost), `"lost"` (it never arrives) or `"down"`; back to `"ok"` to settle.
+  The transfer shows "In progress"; Check again (or the 5-minute job)
+  settles it without ever sending twice.
+- Face ID: the iPhone asks before every transfer and withdrawal
+  (`NSFaceIDUsageDescription`, Arabic and English, `tool/patch_native.py`).
+  A simulator: Features > Face ID > Enrolled, then Matching Face.
+
+### 21.5 Before the pilot (the partner)
+
+- Implement `PartnerWalletProvider` against the partner's API (idempotency
+  key = our transfer ID; a lookup by that key for reconciliation; a cancel
+  or void by that key that guarantees the request never runs afterwards,
+  answering its final state; webhooks if the partner needs them), keep its secrets in Secret Manager and bind
+  them only to the wallet functions.
+- Confirm with the partner: limits, identity checks it needs from parents,
+  how add money (payment page) and withdraw (to which account) work, the
+  dispute process, and that transfers between parents carry no fee.
+

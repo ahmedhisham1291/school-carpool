@@ -32,6 +32,10 @@ What it changes
            the Time Sensitive Notifications entitlement is added (the App
            ID needs that capability first, SETUP.md section 18.3; without
            it critical alerts still sound but do not break through Focus).
+  Wallet   (Prompt 11B) local_auth: Android MainActivity becomes a
+           FlutterFragmentActivity (biometric prompt). iPhone uses
+           NSFaceIDUsageDescription (Arabic and English texts above and in
+           tool/ios/*.lproj).
 """
 
 from __future__ import annotations
@@ -447,6 +451,26 @@ def patch_alerts_android() -> None:
 
 
 # --------------------------------------------------------------------------
+# Wallet (Prompt 11B): local_auth
+# --------------------------------------------------------------------------
+
+def fragment_activity(text: str) -> str:
+    """MainActivity extends FlutterFragmentActivity (local_auth needs a
+    FragmentActivity for the AndroidX Biometric prompt). Idempotent."""
+    if "FlutterFragmentActivity" in text:
+        return text
+    text = text.replace("import io.flutter.embedding.android.FlutterActivity",
+                        "import io.flutter.embedding.android.FlutterFragmentActivity")
+    return re.sub(r":\s*FlutterActivity\(\)", ": FlutterFragmentActivity()", text)
+
+
+def patch_wallet_android() -> None:
+    kotlin = ROOT / "android" / "app" / "src" / "main" / "kotlin"
+    if not kotlin.is_dir():
+        log("android MainActivity not found, skipping the wallet patch")
+        return
+    for activity in kotlin.rglob("MainActivity.kt"):
+        patch_text(activity, fragment_activity)
 # Live location (Prompt 10): flutter_background_geolocation on Android
 # --------------------------------------------------------------------------
 
@@ -544,6 +568,7 @@ def main() -> int:
     patch_maps_web()
     patch_alerts_ios()
     patch_alerts_android()
+    patch_wallet_android()
     patch_bggeo_ios()
     patch_bggeo_android()
     return 0
