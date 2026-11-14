@@ -74,7 +74,7 @@ class TransferScreen extends ConsumerWidget {
                   muted: t.status == TransferStatus.failed,
                 ),
                 const SizedBox(height: AppSpacing.s8),
-                AppStatusBadge(key: const Key('transfer.status'), label: statusLabel(l10n, t.status), tone: statusTone(t.status)),
+                AppStatusBadge(key: const Key('transfer.status'), label: statusLabel(l10n, t.status), tone: statusTone(t.status), scaleDown: true),
                 if (t.status == TransferStatus.failed) ...<Widget>[
                   const SizedBox(height: AppSpacing.s8),
                   Text(failReasonText(l10n, t.reason), style: quiet),

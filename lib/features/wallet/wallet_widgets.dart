@@ -38,7 +38,17 @@ class BalanceCard extends StatelessWidget {
   }
 }
 
+/// Text scale above which the amount and status of a history line move
+/// under the title (200 percent text at 320 dp leaves no room beside it).
+const double _largeText = 1.3;
+
+/// Whether the phone uses large text (the wallet's rows and buttons stack).
+bool walletLargeText(BuildContext context) =>
+    MediaQuery.textScalerOf(context).scale(AppSpacing.s16) > AppSpacing.s16 * _largeText;
+
 /// One history line: who or what, when, the note, the amount and the status.
+/// At large text the amount and the status go on their own line under the
+/// title, so nothing overflows or is cut off.
 class TransferRow extends StatelessWidget {
   const TransferRow({required this.transfer, super.key, this.onTap});
 
@@ -51,27 +61,57 @@ class TransferRow extends StatelessWidget {
     final WalletTransfer t = transfer;
     final String when = transferTime(l10n, t.createdAt);
     final String subtitle = t.note.isEmpty ? when : l10n.walletRowSubtitle(when, t.note);
-    return AppListRow(
-      key: Key('wallet.row.${t.id}'),
-      title: transferTitle(l10n, t),
-      subtitle: subtitle,
-      leadingIcon: transferIcon(t),
-      showChevron: false,
-      onTap: onTap,
-      trailing: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: <Widget>[
-          AppAmount(
-            transferAmount(l10n, t),
-            incoming: !t.outgoing && t.status == TransferStatus.done,
-            muted: t.status == TransferStatus.failed,
-          ),
-          if (t.status != TransferStatus.done) ...<Widget>[
-            const SizedBox(height: AppSpacing.s4),
-            AppStatusBadge(label: statusLabel(l10n, t.status), tone: statusTone(t.status)),
+    final Widget amount = AppAmount(
+      transferAmount(l10n, t),
+      incoming: !t.outgoing && t.status == TransferStatus.done,
+      muted: t.status == TransferStatus.failed,
+    );
+    final Widget? badge = t.status == TransferStatus.done
+        ? null
+        : AppStatusBadge(label: statusLabel(l10n, t.status), tone: statusTone(t.status), scaleDown: true);
+    if (!walletLargeText(context)) {
+      return AppListRow(
+        key: Key('wallet.row.${t.id}'),
+        title: transferTitle(l10n, t),
+        subtitle: subtitle,
+        leadingIcon: transferIcon(t),
+        showChevron: false,
+        onTap: onTap,
+        trailing: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            amount,
+            if (badge != null) ...<Widget>[const SizedBox(height: AppSpacing.s4), badge],
           ],
-        ],
+        ),
+      );
+    }
+    final Widget? b = badge;
+    return Material(
+      key: Key('wallet.row.${t.id}'),
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              AppListRow(title: transferTitle(l10n, t), subtitle: subtitle, leadingIcon: transferIcon(t), showChevron: false),
+              Padding(
+                padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    amount,
+                    if (b != null) ...<Widget>[const SizedBox(height: AppSpacing.s4), b],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

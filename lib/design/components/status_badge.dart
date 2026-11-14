@@ -8,11 +8,15 @@ enum AppBadgeTone { neutral, success, warning, error }
 /// review". Color is never the only signal: the text always says it. The
 /// label is one or two words and stays on one line.
 class AppStatusBadge extends StatelessWidget {
-  const AppStatusBadge({required this.label, super.key, this.tone = AppBadgeTone.neutral, this.icon});
+  const AppStatusBadge({required this.label, super.key, this.tone = AppBadgeTone.neutral, this.icon, this.scaleDown = false});
 
   final String label;
   final AppBadgeTone tone;
   final IconData? icon;
+
+  /// Shrink the label to fit instead of cutting it off (a status that must
+  /// be read whole, for example a transfer's "Pending", at large text).
+  final bool scaleDown;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +41,7 @@ class AppStatusBadge extends StatelessWidget {
               const SizedBox(width: AppSpacing.s4),
             ],
             Flexible(
-              child: OneLineText(label, style: context.text.labelLarge?.copyWith(color: foreground)),
+              child: OneLineText(label, style: context.text.labelLarge?.copyWith(color: foreground), scaleDown: scaleDown),
             ),
           ],
         ),

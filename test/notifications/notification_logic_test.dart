@@ -20,6 +20,8 @@ void main() {
         'child-absent', 'child-back', 'driver-unavailable', 'schedule-changed', 'time-changed', 'drive-evening', 'drive-hour',
         'confirm-reminder', 'join-requested', 'join-approved', 'join-declined', 'verification-approved',
         'verification-rejected', 'new-parent', 'child-not-confirmed', 'chat-message',
+        // Prompt 11B (functions/src/notifications/catalog.ts, same order).
+        'wallet-received', 'wallet-sent', 'wallet-failed', 'wallet-frozen', 'wallet-updated',
       ];
       expect(NotificationKind.values.map((NotificationKind k) => k.wire), server);
       expect(

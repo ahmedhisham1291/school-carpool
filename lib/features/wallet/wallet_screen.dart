@@ -266,10 +266,16 @@ class _WalletContent extends ConsumerWidget {
                   onPressed: frozen ? null : () => context.go(WalletRoutes.send()),
                 ),
                 const SizedBox(height: AppSpacing.s8),
-                Row(
+                // Side by side; stacked at large text (no squeezed labels).
+                Flex(
+                  mainAxisSize: MainAxisSize.min,
+                  direction: walletLargeText(context) ? Axis.vertical : Axis.horizontal,
+                  // Stretch only when stacked: a row has no bounded height here.
+                  crossAxisAlignment: walletLargeText(context) ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
                   children: <Widget>[
-                    Expanded(
-                      child: AppButton(
+                    _flexible(
+                      context,
+                      AppButton(
                         key: const Key('wallet.add'),
                         label: l10n.walletAddAction,
                         icon: Icons.add_rounded,
@@ -278,9 +284,10 @@ class _WalletContent extends ConsumerWidget {
                         onPressed: frozen ? null : () => context.go(WalletRoutes.add),
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.s8),
-                    Expanded(
-                      child: AppButton(
+                    const SizedBox(width: AppSpacing.s8, height: AppSpacing.s8),
+                    _flexible(
+                      context,
+                      AppButton(
                         key: const Key('wallet.withdraw'),
                         label: l10n.walletWithdrawAction,
                         icon: Icons.south_rounded,
@@ -301,6 +308,9 @@ class _WalletContent extends ConsumerWidget {
     );
   }
 }
+
+/// Equal halves side by side; full width when stacked.
+Widget _flexible(BuildContext context, Widget child) => walletLargeText(context) ? child : Expanded(child: child);
 
 class _FrozenNote extends StatelessWidget {
   const _FrozenNote();
