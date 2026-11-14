@@ -80,7 +80,7 @@ warm), per job, wall-clock time:
 | Flutter analyze, tests (and screenshots on `main`) | every run | 3 min 24 s to 4 min 22 s | 4 to 5 |
 | Web, admin panel and Android compile | `main`, tags, or `full=true` | 7 min 34 s to 10 min 39 s | 8 to 11 |
 | Cloud Functions and rules tests on the emulators | every run | 1 min 41 s to 1 min 58 s | 2 |
-| Lock files (manual, `update_locks=true`) | by hand only | not run yet; estimate | about 3 |
+| Lock files (manual, `update_locks=true`) | by hand only | 52 s (one run, 14 Nov 2026) | 1 |
 
 | Kind of run | Billed minutes | Cost beyond the free minutes |
 | --- | --- | --- |
@@ -262,6 +262,6 @@ Not confirmed:
 - The exact list of features lost on a private repository of the Free
   plan (section 5 is our understanding, not read from a GitHub page today).
 - Whether GitHub will charge for **self-hosted runners**.
-- Cold-cache run times and the lock job's time (estimates).
+- Cold-cache run times (estimates).
 - The current menu names in **Settings > Advanced Security**; GitHub
   renamed these in 2025.
