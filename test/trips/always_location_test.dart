@@ -13,6 +13,9 @@ import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
 import 'package:school_carpool/features/trips/run_recovery.dart';
+import 'package:school_carpool/features/verification/capture_screen.dart';
+import 'package:school_carpool/features/verification/verification_models.dart';
+import 'package:school_carpool/features/verification/verification_repository.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/settings/settings_store.dart';
@@ -23,6 +26,7 @@ import '../helpers/one_line.dart';
 import '../helpers/schedule_fakes.dart';
 import '../helpers/test_app.dart';
 import '../helpers/trip_fakes.dart';
+import '../helpers/verification_fakes.dart';
 
 const String _am = '2026-11-14_am';
 
@@ -88,6 +92,11 @@ void main() {
         tracker: tracker,
         recovery: native,
       ),
+      // Same as test/trips/trip_screens_test.dart.
+      verificationRepositoryProvider.overrideWithValue(FakeVerificationRepository()),
+      captureLauncherProvider.overrideWithValue(FakeCamera().launch),
+      childrenProvider.overrideWith((Ref ref) => Stream<List<ChildRecord>>.value(const <ChildRecord>[])),
+      vehicleProvider.overrideWith((Ref ref) => Stream<VehicleRecord?>.value(null)),
     ];
     await tester.pumpWidget(
       ProviderScope(
