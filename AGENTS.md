@@ -56,8 +56,9 @@ plan's limit. Code must not depend on any paid-only feature being on.
   critical alerts by default, everything else push-only unless the parent
   switches WhatsApp on.
 - Valify and the wallet partner: fake providers until the pilot.
-- flutter_background_geolocation: no license needed for debug or iOS; buy
-  it before the Android release build.
+- flutter_background_geolocation (v5): no licence needed for debug builds;
+  iOS and Android RELEASE builds need it (BG_GEO_LICENSE, encrypted in
+  Codemagic). Buy it before the first TestFlight build with trips.
 - Add a docs/COSTS.md listing each service, its free limit, how we track
   usage, and the trigger to upgrade.
 
