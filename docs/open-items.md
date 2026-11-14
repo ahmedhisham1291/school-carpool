@@ -24,6 +24,7 @@ to 13, docs/DECISIONS.md.
 | A13 | **Public privacy policy and terms page** (App Store requires a URL) | App Store | Owner + lawyer |
 | A14 | **Admin accounts** with two-step sign-in on staging (to approve verifications during the test) | TestFlight test | SETUP.md 13.1, 13.2 |
 | A15 | Demo account and review code for Apple | App Store review | docs/app-review-notes.md |
+| A16 | **Make the repository private again** (it is public for free CI): secret scan of the whole history, decide about `docs/reviews` and this file, set an Actions budget, switch, re-check Codemagic and the Cloud Shell clone | Before the public launch | **docs/launch-private-repo.md** |
 
 ## B. Owner decisions still open
 

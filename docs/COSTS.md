@@ -18,7 +18,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Firestore daily backups | On in prod only | Billed per GB stored in backups | Firestore > Disaster recovery | Never removed from prod |
 | Sentry | Developer (free) | 5,000 errors a month, 1 user; no tracing, no replay | Sentry > Stats; spike protection on | Errors are dropped for quota two months in a row, or a second person needs access |
 | Codemagic | Free personal, iOS builds only | 500 macOS M2 minutes a month (Linux has no free minutes, so no Linux jobs run there) | Codemagic > Billing | macOS minutes run out before the 25th of a month |
-| GitHub Actions | Free | Public repositories: free. Private: a monthly allowance of free Linux minutes (2,000 on the free plan in Nov 2026; check GitHub's billing page) | GitHub > Settings > Billing > Usage | A private repository uses 80 percent of the allowance |
+| GitHub Actions | Free (the repository is public now; it goes private before the public launch: **docs/launch-private-repo.md**) | Public repositories: free. Private: 2,000 free Linux minutes a month on the free plan, then USD 0.006 a minute (read 14 Nov 2026). One full run of our checks is about 16 minutes, a branch run about 6 | GitHub > Settings > Billing and licensing > Usage; a budget with "stop usage" (launch-private-repo.md section 2) | A private repository uses 80 percent of the allowance |
 | Stream Chat | Build (free), later Maker | Free plan limits on monthly active users and concurrent connections (see Stream's pricing page); Maker is free for small companies that qualify | Stream Dashboard > Usage (monthly active users, connections) | 80 percent of the free plan's monthly active users or connections; see "Chat (Prompt 9)" |
 | Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
@@ -375,7 +375,9 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub
-   Actions.
+   Actions. Before the public launch the repository goes private and the
+   minutes are counted: plan, prices and checklist in
+   docs/launch-private-repo.md.
 2. Cloud Storage outside the free US regions is billed from the first GB.
    The bucket is in `europe-west1` (hosting abroad confirmed by the lawyer; docs/DECISIONS.md).
 3. Algolia's Build plan terms say it is "provided only for evaluation
