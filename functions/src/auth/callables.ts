@@ -21,7 +21,7 @@ import { reportError } from "../sentry";
 import { asLanguage, createWhatsAppSender, type WhatsAppSender } from "../whatsapp/sender";
 import { FirebaseAccountService, USERS, verifiedEmail } from "./accounts";
 import { clientIp } from "./client_ip";
-import { ConsentError, parseConsentRequest, recordConsents } from "./consents";
+import { CONSENT_VERSIONS, ConsentError, parseConsentRequest, recordConsents } from "./consents";
 import {
   DEFAULT_OTP_LIMITS,
   OtpError,
@@ -223,6 +223,11 @@ export const acceptConsents = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (re
     const parsed = parseConsentRequest(request.data);
     const snap = await adminDb().collection(USERS).doc(uid).get();
     if (!snap.exists) throw new HttpsError("failed-precondition", "No account record.");
+    // Prompt 12 (review 2, item 7): the email step comes first on the
+    // server too, and a repeated call for the same terms version records
+    // nothing again (consent changes later go through the privacy screen).
+    if (snap.get("emailVerified") !== true) throw new HttpsError("failed-precondition", "email-first", { reason: "email-first" });
+    if (snap.get("termsAcceptedAt") && snap.get("termsVersion") === CONSENT_VERSIONS.terms) return { ok: true };
     await recordConsents(adminDb(), uid, parsed);
     return { ok: true };
   }),
