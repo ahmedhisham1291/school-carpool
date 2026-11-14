@@ -182,7 +182,7 @@ function dailyFromDoc(d: DocumentData | undefined): DailyCounter {
   return { outAmount: int(d?.outAmount), outCount: int(d?.outCount), topUpAmount: int(d?.topUpAmount) };
 }
 
-const ALERT_KINDS: readonly AlertKind[] = ["new-receivers", "many-transfers", "report"];
+const ALERT_KINDS: readonly AlertKind[] = ["new-receivers", "many-transfers", "report", "stuck"];
 
 export function alertToDoc(a: AlertRecord): DocumentData {
   return {

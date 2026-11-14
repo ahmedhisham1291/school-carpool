@@ -1776,5 +1776,7 @@
   "adminTrustOutcomeNoIssue": "No issue",
   "adminTrustOutcomeContacted": "Parent contacted",
   "adminTrustOutcomeEscalated": "Escalated",
-  "familyCancelRequest": "Take back request"
+  "familyCancelRequest": "Take back request",
+  "adminWalletAlertStuck": "Outcome unknown",
+  "adminWalletOutcomeSettled": "Settled with partner"
 }

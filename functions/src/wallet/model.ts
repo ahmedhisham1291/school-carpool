@@ -265,7 +265,8 @@ export type WalletErrorReason =
   | "not-found"
   | "rate-limited"
   | "wallet-off"
-  | "wallet-unavailable";
+  | "wallet-unavailable"
+  | "invalid-state";
 
 export const WALLET_ERROR_CODES: Readonly<Record<WalletErrorReason, string>> = {
   "invalid-request": "invalid-argument",
@@ -288,6 +289,7 @@ export const WALLET_ERROR_CODES: Readonly<Record<WalletErrorReason, string>> = {
   "rate-limited": "resource-exhausted",
   "wallet-off": "failed-precondition",
   "wallet-unavailable": "unavailable",
+  "invalid-state": "failed-precondition",
 };
 
 export class WalletError extends Error {

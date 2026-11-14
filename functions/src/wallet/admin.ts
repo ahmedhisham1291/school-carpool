@@ -203,7 +203,7 @@ export async function adminListWalletAlerts(deps: WalletAdminDeps, _caller: Admi
   return { alerts: await deps.store.alerts(status, 100) };
 }
 
-export const ALERT_OUTCOMES = ["noIssue", "frozen", "sentToPartner", "parentContacted"] as const;
+export const ALERT_OUTCOMES = ["noIssue", "frozen", "sentToPartner", "parentContacted", "settledWithPartner"] as const;
 
 /** { alertId, outcome } -> the alert, closed. Logged. */
 export async function adminResolveWalletAlert(deps: WalletAdminDeps, caller: AdminCaller, data: unknown, ip: string | null): Promise<AlertRecord> {

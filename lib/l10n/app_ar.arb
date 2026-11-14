@@ -7990,5 +7990,13 @@
   "familyCancelRequest": "سحب الطلب",
   "@familyCancelRequest": {
     "description": "Tooltip of the cancel button on an outgoing link request"
+  },
+  "adminWalletAlertStuck": "نتيجة غير معروفة",
+  "@adminWalletAlertStuck": {
+    "description": "Admin wallet alert kind: the partner could not confirm or cancel a transfer; settle with the partner"
+  },
+  "adminWalletOutcomeSettled": "سُوّيت مع الشريك",
+  "@adminWalletOutcomeSettled": {
+    "description": "Admin wallet alert outcome recorded by the settle script"
   }
 }

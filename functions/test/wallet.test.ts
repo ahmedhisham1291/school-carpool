@@ -14,6 +14,7 @@ import {
   openWallet,
   reconcile,
   reconcileAll,
+  settleStuckTransfer,
   reportTransfer,
   syncPartnerFreezes,
   sendTransfer,
@@ -481,6 +482,13 @@ describe("timeouts, retries and reconciliation never lose or double money", () =
     await reconcileAll(w.deps);
     assert.equal(await w.store.result(r.transfer.id), null);
     assert.equal(w.store.alertsMap.get(`stuck_${r.transfer.id}`)?.kind, "stuck");
+    // Prompt 12: the partner confirms in writing that it never ran; a super
+    // admin records that once. The alert closes as settledWithPartner.
+    const settled = await settleStuckTransfer(w.deps, r.transfer.id, { status: "failed", partnerRef: null }, "super1");
+    assert.equal(settled.status, "failed");
+    assert.equal(w.store.alertsMap.get(`stuck_${r.transfer.id}`)?.outcome, "settledWithPartner");
+    await assert.rejects(settleStuckTransfer(w.deps, r.transfer.id, { status: "done", partnerRef: "x" }, "super1"), (e: unknown) => e instanceof WalletError && e.reason === "invalid-state");
+    await assert.rejects(settleStuckTransfer(w.deps, "nope", { status: "done", partnerRef: null }, "super1"), (e: unknown) => e instanceof WalletError && e.reason === "not-found");
   });
 
   it("two reconciles of one transfer never run at once (lease)", async () => {

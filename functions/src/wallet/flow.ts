@@ -654,6 +654,33 @@ async function cancelAndSettle(deps: WalletDeps, p: WalletProvider, t: TransferR
 }
 
 /**
+ * Review 11B (new item 2): the manual way out of a "stuck" transfer. The
+ * partner confirmed in writing what happened to our request ID (it ran, or
+ * it never will); a super admin records that answer with
+ * functions/scripts/settle_stuck.ts (SETUP.md 21). Only a transfer with an
+ * open stuck alert and no result yet; the result is created once (the
+ * record stays append-only), the pending entry and the day's counter are
+ * released by the normal settle path, and the alert is closed as
+ * "settledWithPartner". It never moves money.
+ */
+export async function settleStuckTransfer(
+  deps: WalletDeps,
+  transferId: string,
+  answer: { status: "done" | "failed"; partnerRef: string | null },
+  actorUid: string,
+): Promise<TransferResult> {
+  if (!/^[A-Za-z0-9_-]{1,200}$/.test(transferId)) throw new WalletError("invalid-request");
+  const t = await deps.store.transfer(transferId);
+  if (!t) throw new WalletError("not-found");
+  if (await deps.store.result(t.id)) throw new WalletError("invalid-state");
+  const alert = await deps.store.alert(`stuck_${t.id}`);
+  if (!alert || alert.status !== "open") throw new WalletError("invalid-state");
+  const result = await settle(deps, t, { status: answer.status, partnerRef: answer.partnerRef, reason: answer.status === "failed" ? "partner-error" : null, checkoutUrl: null }, true);
+  await deps.store.putAlert({ ...alert, status: "handled", outcome: "settledWithPartner", handledBy: actorUid, handledAtMs: deps.now() });
+  return result;
+}
+
+/**
  * Re-applies our freeze state to the partner for wallets where it did not
  * arrive (the partner did not answer at the time). Part of walletReconcile.
  */
