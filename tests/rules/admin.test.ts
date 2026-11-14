@@ -112,8 +112,9 @@ describe("audit log", () => {
 });
 
 describe("admin panel collections are closed (functions only)", () => {
-  // schools/ is readable by signed-in users since Prompt 4B (tests/rules/schools.test.ts).
-  const paths = ["admins/admin1", "adminLimits/admin1", "moderations/m1", "reports/r1", "areas/a1"];
+  // schools/ is readable by signed-in users since Prompt 4B (tests/rules/schools.test.ts),
+  // areas/ since Prompt 6 (tests/rules/carpools.test.ts); their writes stay closed (below).
+  const paths = ["admins/admin1", "adminLimits/admin1", "moderations/m1", "reports/r1"];
   for (const path of paths) {
     it(`nobody reads or writes ${path}, admins with two steps included`, async () => {
       for (const make of [asAdmin, asSuperAdmin, asParent, signedOut]) {
@@ -125,6 +126,19 @@ describe("admin panel collections are closed (functions only)", () => {
       }
     });
   }
+
+  it("areas are readable when signed in (Prompt 6) but nobody writes them, admins included", async () => {
+    for (const make of [asAdmin, asSuperAdmin, asParent]) {
+      const doc = make().firestore().doc("areas/a1");
+      await assertSucceeds(doc.get());
+      await assertFails(doc.set({ status: "active", role: "superAdmin" }));
+      await assertFails(doc.update({ status: "active" }));
+      await assertFails(doc.delete());
+    }
+    const out = signedOut().firestore().doc("areas/a1");
+    await assertFails(out.get());
+    await assertFails(out.set({ status: "active" }));
+  });
 
   it("a parent cannot make themselves an admin through their user record", async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {

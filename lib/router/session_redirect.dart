@@ -60,6 +60,11 @@ String? _signedInTarget(Account account, String location) {
     case RegistrationStage.complete:
       break;
   }
+  // Invite links (F31): the screen itself says to verify first, and keeps
+  // the code until then.
+  if (location.startsWith('/c/') || location.startsWith('/carpools/invite/')) {
+    return null;
+  }
   if (account.status == AccountStatus.verified) {
     final bool gate =
         AuthRoutes.onboarding.contains(location) ||

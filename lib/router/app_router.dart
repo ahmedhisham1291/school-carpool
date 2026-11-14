@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/features/about/about_screen.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/carpools/carpool_detail_screen.dart';
+import 'package:school_carpool/features/carpools/carpool_models.dart';
+import 'package:school_carpool/features/carpools/carpool_repository.dart';
+import 'package:school_carpool/features/carpools/carpool_search_screen.dart';
+import 'package:school_carpool/features/carpools/carpools_screen.dart';
+import 'package:school_carpool/features/carpools/create_carpool_screen.dart';
+import 'package:school_carpool/features/carpools/invite_screen.dart';
+import 'package:school_carpool/features/carpools/looking_screen.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
 import 'package:school_carpool/features/home/home_screen.dart';
 import 'package:school_carpool/features/maps/driving_schools_screen.dart';
@@ -59,6 +69,56 @@ abstract final class HomeRoutes {
   static const String nearby = '/home/$nearbySegment';
 }
 
+/// Screens under the Carpools tab (Prompt 6) and invite links. Verified
+/// parents only, except the invite link, which explains that the parent
+/// must be verified first (F31).
+abstract final class CarpoolRoutes {
+  static const String searchSegment = 'search';
+  static const String createSegment = 'new';
+  static const String lookingSegment = 'looking';
+  static const String search = '/carpools/$searchSegment';
+  static const String create = '/carpools/$createSegment';
+  static const String looking = '/carpools/$lookingSegment';
+
+  /// Invite links: `https://<links site>/c/<code>` (universal links on
+  /// iPhone). The router sends them to [invite], inside the Carpools tab,
+  /// so opening the carpool afterwards stays in the same tab shell.
+  static const String linkPattern = '/c/:code';
+  static const String inviteSegment = 'invite/:code';
+
+  static String detail(String carpoolId) => '/carpools/$carpoolId';
+
+  /// The shared link path.
+  static String link(String code) => '/c/$code';
+
+  /// The invite screen inside the Carpools tab.
+  static String invite(String code) => '/carpools/invite/$code';
+
+  /// The nearby map's Join (F22): that parent's carpools at one school.
+  static String searchParent({required String schoolId, required String parentUid, required String parentName}) => Uri(
+    path: search,
+    queryParameters: <String, String>{'school': schoolId, 'parent': parentUid, 'name': parentName},
+  ).toString();
+
+  /// Start a carpool with a "looking for a carpool" match filled in (F32).
+  static String createFrom({
+    required String schoolId,
+    String? areaId,
+    String? morning,
+    String? afternoon,
+    List<Weekday> days = const <Weekday>[],
+  }) => Uri(
+    path: create,
+    queryParameters: <String, String>{
+      'school': schoolId,
+      'area': ?areaId,
+      'morning': ?morning,
+      'afternoon': ?afternoon,
+      if (days.isNotEmpty) 'days': days.map((Weekday d) => d.name).join(','),
+    },
+  ).toString();
+}
+
 abstract final class AppRoutes {
   static const String initial = '/home';
 
@@ -72,10 +132,14 @@ abstract final class AppRoutes {
 /// With a [session], every navigation goes through [sessionRedirect]
 /// (sign-up steps, Profile-only access until verified). Without one (some
 /// widget tests and screenshots) there is no gate.
+///
+/// [onInviteLink] gets the code of every invite link the router sees, so a
+/// link opened before sign-up or verification is not lost (F31).
 GoRouter buildAppRouter({
   required bool showDevTools,
   String initialLocation = AppRoutes.initial,
   ValueListenable<SessionState>? session,
+  ValueChanged<String>? onInviteLink,
 }) {
   final ValueListenable<SessionState>? gate = session;
   return GoRouter(
@@ -83,8 +147,19 @@ GoRouter buildAppRouter({
     refreshListenable: gate,
     redirect: gate == null
         ? null
-        : (BuildContext context, GoRouterState state) => sessionRedirect(gate.value, state.uri.path),
+        : (BuildContext context, GoRouterState state) {
+            final String? code = inviteCodeFromPath(state.uri.path);
+            if (code != null) {
+              onInviteLink?.call(code);
+            }
+            return sessionRedirect(gate.value, state.uri.path);
+          },
     routes: <RouteBase>[
+      GoRoute(
+        path: CarpoolRoutes.linkPattern,
+        redirect: (BuildContext context, GoRouterState state) =>
+            CarpoolRoutes.invite((state.pathParameters['code'] ?? '').toUpperCase()),
+      ),
       GoRoute(
         path: AuthRoutes.starting,
         builder: (BuildContext context, GoRouterState state) => const StartingScreen(),
@@ -129,6 +204,7 @@ GoRouter buildAppRouter({
                   builder: (BuildContext context, GoRouterState state) => switch (tab) {
                     AppTab.profile => const ProfileScreen(),
                     AppTab.home => const HomeScreen(),
+                    AppTab.carpools => const CarpoolsScreen(),
                     _ => PlaceholderTabScreen(tab: tab),
                   },
                   routes: <RouteBase>[
@@ -137,6 +213,45 @@ GoRouter buildAppRouter({
                         path: HomeRoutes.nearbySegment,
                         builder: (BuildContext context, GoRouterState state) => const NearbyParentsScreen(),
                       ),
+                    if (tab == AppTab.carpools) ...<RouteBase>[
+                      GoRoute(
+                        path: CarpoolRoutes.searchSegment,
+                        builder: (BuildContext context, GoRouterState state) => CarpoolSearchScreen(
+                          schoolId: state.uri.queryParameters['school'],
+                          parentUid: state.uri.queryParameters['parent'],
+                          parentName: state.uri.queryParameters['name'],
+                        ),
+                      ),
+                      GoRoute(
+                        path: CarpoolRoutes.createSegment,
+                        builder: (BuildContext context, GoRouterState state) {
+                          final Map<String, String> q = state.uri.queryParameters;
+                          return CreateCarpoolScreen(
+                            prefill: CreatePrefill(
+                              schoolId: q['school'],
+                              areaId: q['area'],
+                              morning: q['morning'],
+                              afternoon: q['afternoon'],
+                              days: Weekday.listFrom(q['days']?.split(',')),
+                            ),
+                          );
+                        },
+                      ),
+                      GoRoute(
+                        path: CarpoolRoutes.lookingSegment,
+                        builder: (BuildContext context, GoRouterState state) => const LookingScreen(),
+                      ),
+                      GoRoute(
+                        path: CarpoolRoutes.inviteSegment,
+                        builder: (BuildContext context, GoRouterState state) =>
+                            InviteScreen(code: (state.pathParameters['code'] ?? '').toUpperCase()),
+                      ),
+                      GoRoute(
+                        path: ':carpoolId',
+                        builder: (BuildContext context, GoRouterState state) =>
+                            CarpoolDetailScreen(carpoolId: state.pathParameters['carpoolId'] ?? ''),
+                      ),
+                    ],
                     if (tab == AppTab.profile) ...<RouteBase>[
                       GoRoute(
                         path: ProfileRoutes.childrenSegment,
@@ -184,6 +299,12 @@ final Provider<GoRouter> routerProvider = Provider<GoRouter>((Ref ref) {
   final GoRouter router = buildAppRouter(
     showDevTools: ref.watch(flavorConfigProvider).showDevTools,
     session: session,
+    // Kept on the phone until opened (after sign-up and verification).
+    onInviteLink: (String code) => unawaited(Future<void>.microtask(() async {
+      if (ref.read(pendingInviteProvider) != code) {
+        await ref.read(pendingInviteProvider.notifier).save(code);
+      }
+    })),
   );
   ref.onDispose(() {
     router.dispose();

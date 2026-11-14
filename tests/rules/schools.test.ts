@@ -104,11 +104,13 @@ describe("schools: writing (Cloud Functions only)", () => {
     }
   });
 
-  it("areas stay closed until carpools use them (Prompt 6)", async () => {
+  it("areas are readable when signed in since Prompt 6 (carpool areas), never written by the app", async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await ctx.firestore().doc("areas/a1").set({ schoolId: "active1", nameAr: "حي", nameEn: "Area" });
     });
-    await assertFails(asAlice().firestore().doc("areas/a1").get());
+    await assertSucceeds(asAlice().firestore().doc("areas/a1").get());
     await assertFails(asAlice().firestore().doc("areas/a1").set({ schoolId: "active1" }));
+    await assertFails(asAlice().firestore().doc("areas/a1").delete());
+    await assertFails(signedOut().firestore().doc("areas/a1").get());
   });
 });

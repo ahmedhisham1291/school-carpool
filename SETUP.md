@@ -699,3 +699,80 @@ the free monthly calls. The budget alert from section 4 stays on.
 parents around Maadi whose children go to "Nile International School
 (test)" (one hides from the map). Set your home in Maadi and pick that
 school for your child to see them.
+
+## 16. Carpools and invite links (Prompt 6)
+
+### 16.1 Functions settings (each cloud project)
+
+In `functions/.env.dev`, `.env.staging` and `.env.prod` set
+`INVITE_LINK_BASE` to the links site of that project (16.2), for example
+`https://<project id>-links.web.app`. Optional limits (defaults in
+brackets): `CARPOOL_CREATES_PER_DAY` (3), `CARPOOL_SEARCHES_PER_HOUR` (30),
+`CARPOOL_JOIN_REQUESTS_PER_DAY` (10), `CARPOOL_INVITES_PER_DAY` (20),
+`CARPOOL_INVITE_OPENS_PER_HOUR` (20), `CARPOOL_WANTED_SAVES_PER_DAY` (5),
+`CARPOOL_WANTED_LISTS_PER_HOUR` (30). Deploy rules, indexes and functions:
+`firebase deploy --only firestore:rules,firestore:indexes,functions --project dev`
+(the activity search needs the `carpools` index on kind, status and
+`activity.geohash`).
+
+### 16.2 The links site (each cloud project, once)
+
+The invite link `https://<links site>/c/<code>` opens the app on an
+iPhone that has it (universal links) and a short page otherwise. The page
+never shows anything about the carpool.
+
+1. Firebase console > Hosting > Add another site, for example
+   `<project id>-links`.
+2. `firebase target:apply hosting links <site id> --project dev`.
+3. Build and deploy the site (your Apple Team ID is in the Apple Developer
+   account > Membership; the bundle id of the flavor is
+   `org.schoolcarpool.app.dev`, `.stg` or the prod id):
+   ```
+   python3 tool/links_site.py --team-id <TEAM ID> --bundle-id org.schoolcarpool.app.dev \
+     [--app-store-url https://apps.apple.com/app/id<numeric id>]
+   firebase deploy --only hosting:links --project dev
+   ```
+   `firebase.json` serves `/.well-known/apple-app-site-association` as JSON
+   and every `/c/...` path as the fallback page.
+4. Check: open `https://<site id>.web.app/.well-known/apple-app-site-association`
+   in a browser; it shows your Team ID and bundle id.
+
+### 16.3 Associated Domains on the iPhone app (each flavor, once)
+
+1. Apple Developer > Certificates, Identifiers & Profiles > Identifiers >
+   the App ID (`org.schoolcarpool.app.dev`, `.stg`, prod) > tick
+   **Associated Domains** > Save. Codemagic makes new profiles on the next
+   build (`xcode-project use-profiles`).
+2. Add `INVITE_LINK_DOMAIN=<site id>.web.app` (host only, no https://) to
+   the Codemagic environment group of that flavor (`dev_defines`,
+   `staging_defines`). On a Mac: `INVITE_LINK_DOMAIN=<site id>.web.app
+   FLAVOR=dev tool/bootstrap.sh`.
+3. The bootstrap then adds `applinks:<site id>.web.app` to
+   `Runner.entitlements`. Leave `INVITE_LINK_DOMAIN` empty until step 1 is
+   done: signing fails when the entitlement is there but the App ID lacks
+   the capability.
+4. Test: send yourself an invite link in WhatsApp or Notes on the iPhone
+   and tap it. The app opens on the invite screen. iOS caches the
+   association file; after changing it, delete and reinstall the app.
+
+Android App Links (`assetlinks.json`) come with Stage 3.
+
+### 16.4 Expiry (each cloud project)
+
+Firestore > TTL policies: add policies on collection `carpoolInvites`,
+field `expiresAt` (invite codes, 14 days), and on collection
+`carpoolWanted`, field `expiresAt` ("looking for a carpool" posts,
+60 days).
+
+### 16.5 Two fake parents on the emulators
+
+`npm --prefix functions run seed:emulator` gives the fake parents Hoda
+(`seed-map-parent-1`), Tarek and Rania approved cars, and adds a ready
+carpool by Hoda at "Nile International School (test)" (`seed-carpool-1`).
+Play a second parent from the Mac with
+`npm --prefix functions run carpool:emulator -- <command> --as <uid>`
+(`search`, `request`, `approve`, `consent`, `invite`, `mine`; the header of
+`functions/scripts/carpool.ts` lists them). You can also sign in as Hoda on
+a second phone or simulator with her fake number `+201000000101` (the code
+is printed in the emulator log).
+

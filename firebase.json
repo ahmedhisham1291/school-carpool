@@ -56,6 +56,60 @@
           ]
         }
       ]
+    },
+    {
+      "target": "links",
+      "public": "build/links_site",
+      "ignore": [
+        "firebase.json",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "/c/**",
+          "destination": "/invite.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "/.well-known/apple-app-site-association",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Cache-Control",
+              "value": "max-age=3600"
+            }
+          ]
+        },
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
+            {
+              "key": "Content-Security-Policy",
+              "value": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'"
+            },
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "no-referrer"
+            },
+            {
+              "key": "X-Robots-Tag",
+              "value": "noindex, nofollow"
+            }
+          ]
+        }
+      ]
     }
   ],
   "functions": [

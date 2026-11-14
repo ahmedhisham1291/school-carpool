@@ -7,11 +7,13 @@ import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/auth_repository.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/maps/location_service.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
+import 'carpool_fakes.dart';
 import 'map_fakes.dart';
 
 /// Dev config for tests: no emulators, no Sentry.
@@ -175,15 +177,20 @@ class FakeAuthRepository implements AuthRepository {
 
 /// Overrides that keep Firebase out of widget tests: a fixed session and a
 /// fake repository, plus the maps fakes (Profile and Home read the
-/// parent's home since Prompt 5; pass [maps] etc. to control them).
+/// parent's home since Prompt 5; pass [maps] etc. to control them) and the
+/// carpool fakes (Prompt 6; pass [carpools] and [sharer]). The number of
+/// overrides is the same for every call (one ProviderScope per test).
 List<Override> authOverrides({
   SessionState session = testVerifiedSession,
   AuthRepository? repository,
   MapRepository? maps,
   PlacesRepository? places,
   LocationService? location,
+  CarpoolRepository? carpools,
+  LinkSharer? sharer,
 }) => <Override>[
   sessionProvider.overrideWithValue(session),
   authRepositoryProvider.overrideWithValue(repository ?? FakeAuthRepository()),
   ...mapOverrides(maps: maps, places: places, location: location),
+  ...carpoolOverrides(carpools: carpools, sharer: sharer),
 ];

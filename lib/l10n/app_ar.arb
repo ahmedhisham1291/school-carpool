@@ -3013,10 +3013,6 @@
   "@parentMessage": {
     "description": "Button"
   },
-  "parentJoinSoon": "المجموعات قريبًا",
-  "@parentJoinSoon": {
-    "description": "Snackbar placeholder"
-  },
   "parentMessageSoon": "المحادثات قريبًا",
   "@parentMessageSoon": {
     "description": "Snackbar placeholder"
@@ -3080,6 +3076,967 @@
   },
   "gallerySectionMaps": "الخرائط",
   "@gallerySectionMaps": {
+    "description": "Gallery section header"
+  },
+  "actionNext": "التالي",
+  "@actionNext": {
+    "description": "Button: next form step"
+  },
+  "actionBack": "رجوع",
+  "@actionBack": {
+    "description": "Button: previous form step"
+  },
+  "dotSeparator": " · ",
+  "@dotSeparator": {
+    "description": "Separator between short facts on one line"
+  },
+  "daySat": "سبت",
+  "@daySat": {
+    "description": "Short day name on a chip"
+  },
+  "daySun": "أحد",
+  "@daySun": {
+    "description": "Short day name on a chip"
+  },
+  "dayMon": "اثنين",
+  "@dayMon": {
+    "description": "Short day name on a chip"
+  },
+  "dayTue": "ثلاثاء",
+  "@dayTue": {
+    "description": "Short day name on a chip"
+  },
+  "dayWed": "أربعاء",
+  "@dayWed": {
+    "description": "Short day name on a chip"
+  },
+  "dayThu": "خميس",
+  "@dayThu": {
+    "description": "Short day name on a chip"
+  },
+  "dayFri": "جمعة",
+  "@dayFri": {
+    "description": "Short day name on a chip"
+  },
+  "carpoolSchoolWeek": "الأحد إلى الخميس",
+  "@carpoolSchoolWeek": {
+    "description": "The usual school week"
+  },
+  "ruleNoSmoking": "ممنوع التدخين",
+  "@ruleNoSmoking": {
+    "description": "Carpool rule chip (F36)"
+  },
+  "ruleMothersOnly": "سائقات أمهات فقط",
+  "@ruleMothersOnly": {
+    "description": "Carpool rule chip: only mothers drive"
+  },
+  "ruleSeatBelts": "حزام لكل طفل",
+  "@ruleSeatBelts": {
+    "description": "Carpool rule chip"
+  },
+  "ruleChildSeats": "كرسي أطفال للصغار",
+  "@ruleChildSeats": {
+    "description": "Carpool rule chip"
+  },
+  "ruleWait5Min": "انتظار ٥ دقائق",
+  "@ruleWait5Min": {
+    "description": "Carpool rule chip: the driver waits at most 5 minutes"
+  },
+  "ruleNoPhone": "لا هاتف أثناء القيادة",
+  "@ruleNoPhone": {
+    "description": "Carpool rule chip: no phone while driving"
+  },
+  "ruleNoFood": "لا طعام في السيارة",
+  "@ruleNoFood": {
+    "description": "Carpool rule chip"
+  },
+  "ruleGirlsOnly": "بنات فقط",
+  "@ruleGirlsOnly": {
+    "description": "Carpool rule chip"
+  },
+  "periodTrip": "لكل مشوار",
+  "@periodTrip": {
+    "description": "Contribution period"
+  },
+  "periodWeek": "أسبوعيًا",
+  "@periodWeek": {
+    "description": "Contribution period"
+  },
+  "periodMonth": "شهريًا",
+  "@periodMonth": {
+    "description": "Contribution period"
+  },
+  "contributionPerTrip": "{amount} ج.م/طفل/مشوار",
+  "@contributionPerTrip": {
+    "description": "Contribution text",
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      }
+    }
+  },
+  "contributionPerWeek": "{amount} ج.م/طفل/أسبوع",
+  "@contributionPerWeek": {
+    "description": "Contribution text",
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      }
+    }
+  },
+  "contributionPerMonth": "{amount} ج.م/طفل/شهر",
+  "@contributionPerMonth": {
+    "description": "Contribution text",
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      }
+    }
+  },
+  "contributionNone": "بدون مساهمة",
+  "@contributionNone": {
+    "description": "Badge and row: no contribution"
+  },
+  "contributionHelper": "اتفاق بين الأهالي، نقدًا أو من المحفظة. التطبيق لا يأخذ شيئًا.",
+  "@contributionHelper": {
+    "description": "Helper under the contribution (F25)"
+  },
+  "contributionSection": "المساهمة",
+  "@contributionSection": {
+    "description": "Section header"
+  },
+  "contributionSwitch": "مساهمة لكل طفل",
+  "@contributionSwitch": {
+    "description": "Switch row title"
+  },
+  "contributionAmountLabel": "المبلغ بالجنيه",
+  "@contributionAmountLabel": {
+    "description": "Field label"
+  },
+  "contributionAmountError": "اكتب مبلغًا من ١ إلى ١٠٠٠٠ جنيه.",
+  "@contributionAmountError": {
+    "description": "Field error"
+  },
+  "contributionPeriodLabel": "كل",
+  "@contributionPeriodLabel": {
+    "description": "Field label: contribution period"
+  },
+  "contributionNoteLabel": "ملاحظة",
+  "@contributionNoteLabel": {
+    "description": "Field label (optional)"
+  },
+  "contributionNoteHint": "مثلًا: نصيب البنزين",
+  "@contributionNoteHint": {
+    "description": "Field hint"
+  },
+  "carpoolMorningAt": "الذهاب {time}",
+  "@carpoolMorningAt": {
+    "description": "Morning arrival time at school",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "carpoolAfternoonAt": "العودة {time}",
+  "@carpoolAfternoonAt": {
+    "description": "Afternoon departure time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "childWithGrade": "{name}، {grade}",
+  "@childWithGrade": {
+    "description": "A child with grade",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "grade": {
+        "type": "String"
+      }
+    }
+  },
+  "carpoolsMineSection": "مشاويري",
+  "@carpoolsMineSection": {
+    "description": "Section header"
+  },
+  "carpoolsMoreSection": "المزيد",
+  "@carpoolsMoreSection": {
+    "description": "Section header"
+  },
+  "carpoolFind": "ابحث عن مشوار",
+  "@carpoolFind": {
+    "description": "Row, button and screen title"
+  },
+  "carpoolFindHelper": "بالمدرسة والمنطقة والوقت",
+  "@carpoolFindHelper": {
+    "description": "Row subtitle"
+  },
+  "carpoolCreate": "ابدأ مشوارًا",
+  "@carpoolCreate": {
+    "description": "Row, button and screen title"
+  },
+  "carpoolCreateHelper": "أنت تختار الأيام والمقاعد والقواعد",
+  "@carpoolCreateHelper": {
+    "description": "Row subtitle"
+  },
+  "lookingTitle": "أبحث عن مشوار",
+  "@lookingTitle": {
+    "description": "Row and screen title (F32)"
+  },
+  "lookingHelper": "انشر طلبك ليراه أهالي مدرستك",
+  "@lookingHelper": {
+    "description": "Row subtitle"
+  },
+  "carpoolsEmptyTitle": "لا مشاوير بعد",
+  "@carpoolsEmptyTitle": {
+    "description": "Empty state title"
+  },
+  "carpoolsEmptyBody": "ابحث عن مشوار قريب أو ابدأ مشوارك.",
+  "@carpoolsEmptyBody": {
+    "description": "Empty state body"
+  },
+  "carpoolRequested": "طلب مرسل",
+  "@carpoolRequested": {
+    "description": "Badge: join request sent"
+  },
+  "carpoolAdmin": "المسؤول",
+  "@carpoolAdmin": {
+    "description": "Badge: you run this carpool"
+  },
+  "carpoolMember": "عضو",
+  "@carpoolMember": {
+    "description": "Badge"
+  },
+  "inviteWaitingTitle": "لديك دعوة",
+  "@inviteWaitingTitle": {
+    "description": "Card title"
+  },
+  "inviteWaitingBody": "افتح الدعوة لترى المشوار.",
+  "@inviteWaitingBody": {
+    "description": "Card body"
+  },
+  "inviteOpen": "افتح الدعوة",
+  "@inviteOpen": {
+    "description": "Button"
+  },
+  "carpoolActivities": "الأنشطة",
+  "@carpoolActivities": {
+    "description": "Chip and choice: activity carpools (F39)"
+  },
+  "carpoolAnyArea": "أي منطقة",
+  "@carpoolAnyArea": {
+    "description": "Chip and choice"
+  },
+  "carpoolAnyTime": "أي وقت",
+  "@carpoolAnyTime": {
+    "description": "Chip and choice"
+  },
+  "carpoolOnlyParent": "مشاوير {name}",
+  "@carpoolOnlyParent": {
+    "description": "Chip: only that parent's carpools; tap to clear",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "carpoolSearchForSheet": "ابحث في",
+  "@carpoolSearchForSheet": {
+    "description": "Sheet title: pick a school or activities"
+  },
+  "carpoolAreaLabel": "المنطقة",
+  "@carpoolAreaLabel": {
+    "description": "Field label and sheet title"
+  },
+  "carpoolSearchEmptyTitle": "لا نتائج",
+  "@carpoolSearchEmptyTitle": {
+    "description": "Empty state title"
+  },
+  "carpoolSearchEmptyBody": "جرّب منطقة أو وقتًا آخر، أو ابدأ مشوارًا.",
+  "@carpoolSearchEmptyBody": {
+    "description": "Empty state body"
+  },
+  "carpoolSearchNoSchoolBody": "أضف مدرسة طفلك لترى مشاويرها، أو ابحث في الأنشطة.",
+  "@carpoolSearchNoSchoolBody": {
+    "description": "Empty state body"
+  },
+  "carpoolSearchActivities": "ابحث في الأنشطة",
+  "@carpoolSearchActivities": {
+    "description": "Empty state button"
+  },
+  "carpoolSeatsLeft": "{count, plural, =1{مقعد واحد متاح} =2{مقعدان متاحان} few{{count} مقاعد متاحة} many{{count} مقعدًا متاحًا} other{{count} مقعد متاح}}",
+  "@carpoolSeatsLeft": {
+    "description": "Badge: free seats",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "carpoolFull": "مكتمل",
+  "@carpoolFull": {
+    "description": "Badge: no free seats"
+  },
+  "carpoolDistanceKm": "على بعد {km} كم تقريبًا",
+  "@carpoolDistanceKm": {
+    "description": "Activity distance",
+    "placeholders": {
+      "km": {
+        "type": "int"
+      }
+    }
+  },
+  "carpoolDetailTitle": "المشوار",
+  "@carpoolDetailTitle": {
+    "description": "App bar title"
+  },
+  "carpoolNotFoundTitle": "المشوار غير موجود",
+  "@carpoolNotFoundTitle": {
+    "description": "Empty state title"
+  },
+  "carpoolStartedBy": "بدأه {name}",
+  "@carpoolStartedBy": {
+    "description": "Who created the carpool",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "carpoolTimesSection": "المواعيد",
+  "@carpoolTimesSection": {
+    "description": "Section header"
+  },
+  "carpoolMorningHelper": "الوصول إلى المدرسة",
+  "@carpoolMorningHelper": {
+    "description": "Row subtitle"
+  },
+  "carpoolAfternoonHelper": "الخروج من المدرسة",
+  "@carpoolAfternoonHelper": {
+    "description": "Row subtitle"
+  },
+  "carpoolDaysLabel": "الأيام",
+  "@carpoolDaysLabel": {
+    "description": "Label"
+  },
+  "carpoolSeatsSection": "المقاعد والمساهمة",
+  "@carpoolSeatsSection": {
+    "description": "Section header"
+  },
+  "carpoolSeatsOf": "{children} من {seats} طفل",
+  "@carpoolSeatsOf": {
+    "description": "Row subtitle: children riding out of seats",
+    "placeholders": {
+      "children": {
+        "type": "int"
+      },
+      "seats": {
+        "type": "int"
+      }
+    }
+  },
+  "carpoolRulesSection": "القواعد",
+  "@carpoolRulesSection": {
+    "description": "Section header"
+  },
+  "carpoolNoRules": "لا قواعد خاصة.",
+  "@carpoolNoRules": {
+    "description": "Text"
+  },
+  "carpoolMembersSection": "الأعضاء",
+  "@carpoolMembersSection": {
+    "description": "Section header"
+  },
+  "carpoolYou": "{name} (أنت)",
+  "@carpoolYou": {
+    "description": "Your own row",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "carpoolNoChildren": "بدون أطفال في المشوار",
+  "@carpoolNoChildren": {
+    "description": "Row subtitle"
+  },
+  "driverCanDrive": "يمكنه القيادة",
+  "@driverCanDrive": {
+    "description": "Badge (F26)"
+  },
+  "driverNoCar": "بدون سيارة",
+  "@driverNoCar": {
+    "description": "Badge"
+  },
+  "driverCarExpired": "رخصة منتهية",
+  "@driverCarExpired": {
+    "description": "Badge"
+  },
+  "driverCarTooSmall": "سيارة صغيرة",
+  "@driverCarTooSmall": {
+    "description": "Badge"
+  },
+  "driverNeedsConsent": "ينتظر الموافقة",
+  "@driverNeedsConsent": {
+    "description": "Badge: some parents have not accepted this driver"
+  },
+  "consentSection": "من يوصّل أطفالي",
+  "@consentSection": {
+    "description": "Section header (F26)"
+  },
+  "consentIntro": "لا يقود أحد أطفالك إلا بموافقتك. يمكنك السحب في أي وقت.",
+  "@consentIntro": {
+    "description": "Text"
+  },
+  "consentOnHelper": "موافق على قيادته لأطفالي",
+  "@consentOnHelper": {
+    "description": "Switch subtitle"
+  },
+  "consentOffHelper": "قابِله قبل أول مشوار",
+  "@consentOffHelper": {
+    "description": "Switch subtitle"
+  },
+  "consentAcceptTitle": "الموافقة على {name}؟",
+  "@consentAcceptTitle": {
+    "description": "Dialog title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "consentAcceptBody": "قابِل {name} قبل أول مشوار. يمكنك سحب الموافقة في أي وقت.",
+  "@consentAcceptBody": {
+    "description": "Dialog body",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "consentAccept": "موافقة",
+  "@consentAccept": {
+    "description": "Dialog button"
+  },
+  "consentWithdrawTitle": "سحب الموافقة؟",
+  "@consentWithdrawTitle": {
+    "description": "Dialog title"
+  },
+  "consentWithdrawBody": "لن يوصّل {name} أطفالك بعد الآن.",
+  "@consentWithdrawBody": {
+    "description": "Dialog body",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "consentWithdraw": "سحب",
+  "@consentWithdraw": {
+    "description": "Dialog button"
+  },
+  "consentAccepted": "تمت الموافقة",
+  "@consentAccepted": {
+    "description": "Snackbar"
+  },
+  "consentWithdrawn": "تم سحب الموافقة",
+  "@consentWithdrawn": {
+    "description": "Snackbar"
+  },
+  "pickupSection": "نقطة الاستلام",
+  "@pickupSection": {
+    "description": "Section header"
+  },
+  "pickupShare": "مشاركة نقطة الاستلام",
+  "@pickupShare": {
+    "description": "Switch title"
+  },
+  "pickupSharedHelper": "أعضاء المشوار فقط يرون عنوانك.",
+  "@pickupSharedHelper": {
+    "description": "Switch subtitle"
+  },
+  "pickupNotSharedHelper": "عنوانك مخفي عن الجميع.",
+  "@pickupNotSharedHelper": {
+    "description": "Switch subtitle"
+  },
+  "pickupShared": "تمت المشاركة",
+  "@pickupShared": {
+    "description": "Snackbar"
+  },
+  "pickupStopped": "توقفت المشاركة",
+  "@pickupStopped": {
+    "description": "Snackbar"
+  },
+  "requestsSection": "طلبات الانضمام",
+  "@requestsSection": {
+    "description": "Section header (admin)"
+  },
+  "requestsEmpty": "لا طلبات الآن.",
+  "@requestsEmpty": {
+    "description": "Text"
+  },
+  "requestHasCar": "لديه سيارة مسجلة",
+  "@requestHasCar": {
+    "description": "Text"
+  },
+  "requestNoCar": "بدون سيارة",
+  "@requestNoCar": {
+    "description": "Text"
+  },
+  "requestApprove": "قبول",
+  "@requestApprove": {
+    "description": "Button"
+  },
+  "requestDecline": "رفض",
+  "@requestDecline": {
+    "description": "Button"
+  },
+  "requestDeclineTitle": "رفض الطلب؟",
+  "@requestDeclineTitle": {
+    "description": "Dialog title"
+  },
+  "requestDeclineBody": "سيعرف {name} أن طلبه رُفض.",
+  "@requestDeclineBody": {
+    "description": "Dialog body",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "requestApproved": "تم القبول",
+  "@requestApproved": {
+    "description": "Snackbar"
+  },
+  "requestDeclined": "تم الرفض",
+  "@requestDeclined": {
+    "description": "Snackbar"
+  },
+  "inviteParents": "ادعُ أهالي",
+  "@inviteParents": {
+    "description": "Button and sheet title"
+  },
+  "carpoolAskToJoin": "اطلب الانضمام",
+  "@carpoolAskToJoin": {
+    "description": "Button and sheet title"
+  },
+  "carpoolCancelRequest": "إلغاء الطلب",
+  "@carpoolCancelRequest": {
+    "description": "Button"
+  },
+  "carpoolCancelRequestTitle": "إلغاء الطلب؟",
+  "@carpoolCancelRequestTitle": {
+    "description": "Dialog title"
+  },
+  "carpoolCancelRequestBody": "يمكنك الطلب مرة أخرى لاحقًا.",
+  "@carpoolCancelRequestBody": {
+    "description": "Dialog body"
+  },
+  "carpoolRequestCancelled": "تم إلغاء الطلب",
+  "@carpoolRequestCancelled": {
+    "description": "Snackbar"
+  },
+  "carpoolRequestSent": "تم إرسال الطلب",
+  "@carpoolRequestSent": {
+    "description": "Snackbar"
+  },
+  "carpoolRequestedNote": "بانتظار موافقة مسؤول المشوار.",
+  "@carpoolRequestedNote": {
+    "description": "Inline note"
+  },
+  "carpoolLeave": "مغادرة المشوار",
+  "@carpoolLeave": {
+    "description": "Button"
+  },
+  "carpoolLeaveTitle": "مغادرة المشوار؟",
+  "@carpoolLeaveTitle": {
+    "description": "Dialog title"
+  },
+  "carpoolLeaveBody": "ستُحذف موافقات القيادة ونقطة استلامك من هذا المشوار.",
+  "@carpoolLeaveBody": {
+    "description": "Dialog body"
+  },
+  "carpoolLeft": "غادرت المشوار",
+  "@carpoolLeft": {
+    "description": "Snackbar"
+  },
+  "joinChildrenIntro": "من سيركب من أطفالك؟",
+  "@joinChildrenIntro": {
+    "description": "Text"
+  },
+  "joinNoChildren": "لا يوجد طفل مُعتمد في هذه المدرسة.",
+  "@joinNoChildren": {
+    "description": "Inline message"
+  },
+  "joinTooManyChildren": "{count, plural, =1{مقعد واحد متاح فقط.} =2{مقعدان متاحان فقط.} few{{count} مقاعد متاحة فقط.} many{{count} مقعدًا متاحًا فقط.} other{{count} مقعد متاح فقط.}}",
+  "@joinTooManyChildren": {
+    "description": "Inline error",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "joinAcceptRules": "أوافق على قواعد المشوار",
+  "@joinAcceptRules": {
+    "description": "Check row"
+  },
+  "joinAcceptNoRules": "أوافق على المشاركة بأمان واحترام",
+  "@joinAcceptNoRules": {
+    "description": "Check row when there are no rules"
+  },
+  "joinAcceptContribution": "أوافق على المساهمة: {text}",
+  "@joinAcceptContribution": {
+    "description": "Check row",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "joinSend": "أرسل الطلب",
+  "@joinSend": {
+    "description": "Button"
+  },
+  "inviteIntro": "أرسل الرابط. على المدعو أن يكون موثَّقًا، ثم يوافق المسؤول.",
+  "@inviteIntro": {
+    "description": "Text"
+  },
+  "inviteWhatsApp": "أرسل بواتساب",
+  "@inviteWhatsApp": {
+    "description": "Button"
+  },
+  "inviteCopy": "نسخ الرابط",
+  "@inviteCopy": {
+    "description": "Button"
+  },
+  "inviteCopiedNoWhatsApp": "تم نسخ الرابط",
+  "@inviteCopiedNoWhatsApp": {
+    "description": "Snackbar when WhatsApp did not open"
+  },
+  "inviteMessage": "انضم إلى مشوار المدرسة: {url}",
+  "@inviteMessage": {
+    "description": "WhatsApp message text; never names or addresses",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteTitle": "دعوة",
+  "@inviteTitle": {
+    "description": "App bar title"
+  },
+  "inviteVerifyTitle": "وثّق حسابك أولًا",
+  "@inviteVerifyTitle": {
+    "description": "Empty state title"
+  },
+  "inviteVerifyBody": "بعد توثيق حسابك افتح الدعوة من تبويب المشاوير.",
+  "@inviteVerifyBody": {
+    "description": "Empty state body"
+  },
+  "inviteVerifyAction": "توثيق الحساب",
+  "@inviteVerifyAction": {
+    "description": "Button"
+  },
+  "inviteInvalidTitle": "الدعوة غير صالحة",
+  "@inviteInvalidTitle": {
+    "description": "Empty state title"
+  },
+  "carpoolCreateAction": "أنشئ المشوار",
+  "@carpoolCreateAction": {
+    "description": "Button: last step"
+  },
+  "carpoolCreated": "تم إنشاء المشوار",
+  "@carpoolCreated": {
+    "description": "Snackbar"
+  },
+  "carpoolStepWhere": "إلى أين؟",
+  "@carpoolStepWhere": {
+    "description": "Step header"
+  },
+  "carpoolStepWhen": "متى؟",
+  "@carpoolStepWhen": {
+    "description": "Step header"
+  },
+  "carpoolStepWho": "من يركب؟",
+  "@carpoolStepWho": {
+    "description": "Step header"
+  },
+  "carpoolStepRules": "القواعد",
+  "@carpoolStepRules": {
+    "description": "Step header"
+  },
+  "carpoolKindSchool": "مدرسة",
+  "@carpoolKindSchool": {
+    "description": "Chip"
+  },
+  "carpoolKindActivity": "نشاط",
+  "@carpoolKindActivity": {
+    "description": "Chip (club, lessons, camp)"
+  },
+  "carpoolSchoolLabel": "المدرسة",
+  "@carpoolSchoolLabel": {
+    "description": "Field label"
+  },
+  "carpoolSchoolHelper": "مدارس أطفالك المعتمدين",
+  "@carpoolSchoolHelper": {
+    "description": "Field helper"
+  },
+  "carpoolActivityNameLabel": "اسم النشاط",
+  "@carpoolActivityNameLabel": {
+    "description": "Field label"
+  },
+  "carpoolActivityNameHint": "مثلًا: سباحة النادي",
+  "@carpoolActivityNameHint": {
+    "description": "Field hint"
+  },
+  "carpoolActivityPlaceLabel": "المكان",
+  "@carpoolActivityPlaceLabel": {
+    "description": "Field label"
+  },
+  "carpoolActivityPlaceHelper": "ابحث باسم النادي أو العنوان",
+  "@carpoolActivityPlaceHelper": {
+    "description": "Field helper"
+  },
+  "carpoolActivityPlacePicked": "المكان المختار",
+  "@carpoolActivityPlacePicked": {
+    "description": "Row subtitle"
+  },
+  "carpoolMorningTitle": "الذهاب صباحًا",
+  "@carpoolMorningTitle": {
+    "description": "Switch title and sheet title"
+  },
+  "carpoolAfternoonTitle": "العودة ظهرًا",
+  "@carpoolAfternoonTitle": {
+    "description": "Switch title"
+  },
+  "carpoolTimeLabel": "الوقت",
+  "@carpoolTimeLabel": {
+    "description": "Field label"
+  },
+  "carpoolChildrenLabel": "أطفالك في المشوار",
+  "@carpoolChildrenLabel": {
+    "description": "Label"
+  },
+  "carpoolSeatsLabel": "عدد المقاعد",
+  "@carpoolSeatsLabel": {
+    "description": "Field label"
+  },
+  "carpoolSeatsHelper": "{seats, plural, =1{سيارتك بها مقعد ركاب واحد.} =2{سيارتك بها مقعدا ركاب.} few{سيارتك بها {seats} مقاعد ركاب.} many{سيارتك بها {seats} مقعد ركاب.} other{سيارتك بها {seats} مقعد ركاب.}}",
+  "@carpoolSeatsHelper": {
+    "description": "Field helper",
+    "placeholders": {
+      "seats": {
+        "type": "int"
+      }
+    }
+  },
+  "carpoolSeatsCount": "{count, plural, =1{مقعد واحد} =2{مقعدان} few{{count} مقاعد} many{{count} مقعدًا} other{{count} مقعد}}",
+  "@carpoolSeatsCount": {
+    "description": "Choice",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "carpoolDriveDaysLabel": "أيام قيادتك",
+  "@carpoolDriveDaysLabel": {
+    "description": "Label"
+  },
+  "carpoolDriveDaysHelper": "يمكن تعديلها لاحقًا في الجدول.",
+  "@carpoolDriveDaysHelper": {
+    "description": "Helper"
+  },
+  "carpoolRulesHelper": "اختر ما يناسبكم. تظهر القواعد قبل الانضمام.",
+  "@carpoolRulesHelper": {
+    "description": "Helper"
+  },
+  "carpoolNeedCar": "لبدء مشوار تحتاج سيارة معتمدة ورخصة سارية.",
+  "@carpoolNeedCar": {
+    "description": "Inline message"
+  },
+  "carpoolAddCar": "أضف سيارتك",
+  "@carpoolAddCar": {
+    "description": "Button"
+  },
+  "carpoolNoChildTitle": "لا طفل معتمد بعد",
+  "@carpoolNoChildTitle": {
+    "description": "Empty state title"
+  },
+  "carpoolNoChildBody": "أضف طفلًا وانتظر الموافقة لتبدأ مشوارًا.",
+  "@carpoolNoChildBody": {
+    "description": "Empty state body"
+  },
+  "carpoolAddChild": "أضف طفلًا",
+  "@carpoolAddChild": {
+    "description": "Button"
+  },
+  "carpoolErrorPickSchool": "اختر المدرسة.",
+  "@carpoolErrorPickSchool": {
+    "description": "Step error"
+  },
+  "carpoolErrorActivityName": "اكتب اسم النشاط.",
+  "@carpoolErrorActivityName": {
+    "description": "Step error"
+  },
+  "carpoolErrorActivityPlace": "ابحث عن المكان واختره.",
+  "@carpoolErrorActivityPlace": {
+    "description": "Step error"
+  },
+  "carpoolErrorNoTime": "شغّل الذهاب أو العودة.",
+  "@carpoolErrorNoTime": {
+    "description": "Step error"
+  },
+  "carpoolErrorNoDays": "اختر يومًا واحدًا على الأقل.",
+  "@carpoolErrorNoDays": {
+    "description": "Step error"
+  },
+  "carpoolErrorPickChild": "اختر طفلًا واحدًا على الأقل.",
+  "@carpoolErrorPickChild": {
+    "description": "Step error"
+  },
+  "carpoolErrorTooMany": "محاولات كثيرة. حاول بعد قليل.",
+  "@carpoolErrorTooMany": {
+    "description": "Error"
+  },
+  "carpoolErrorNoCar": "أضف سيارة معتمدة أولًا.",
+  "@carpoolErrorNoCar": {
+    "description": "Error"
+  },
+  "carpoolErrorCarExpired": "جدّد الرخصة أولًا.",
+  "@carpoolErrorCarExpired": {
+    "description": "Error"
+  },
+  "carpoolErrorCarTooSmall": "المقاعد أكثر من مقاعد سيارتك.",
+  "@carpoolErrorCarTooSmall": {
+    "description": "Error"
+  },
+  "carpoolErrorTooManyChildren": "الأطفال أكثر من المقاعد. قلّل الأطفال أو زد المقاعد.",
+  "@carpoolErrorTooManyChildren": {
+    "description": "Error"
+  },
+  "carpoolErrorNoSeats": "لا مقاعد كافية في المشوار.",
+  "@carpoolErrorNoSeats": {
+    "description": "Error"
+  },
+  "carpoolErrorAlreadyMember": "أنت عضو بالفعل.",
+  "@carpoolErrorAlreadyMember": {
+    "description": "Error"
+  },
+  "carpoolErrorAlreadyRequested": "طلبك مرسل بالفعل.",
+  "@carpoolErrorAlreadyRequested": {
+    "description": "Error"
+  },
+  "carpoolErrorNotMember": "هذا لأعضاء المشوار فقط.",
+  "@carpoolErrorNotMember": {
+    "description": "Error"
+  },
+  "carpoolErrorMustAccept": "وافق على القواعد والمساهمة أولًا.",
+  "@carpoolErrorMustAccept": {
+    "description": "Error"
+  },
+  "carpoolErrorTooManyCarpools": "وصلت للحد الأقصى من المشاوير.",
+  "@carpoolErrorTooManyCarpools": {
+    "description": "Error"
+  },
+  "carpoolErrorInviteInvalid": "الرابط منتهٍ أو غير صحيح. اطلب رابطًا جديدًا.",
+  "@carpoolErrorInviteInvalid": {
+    "description": "Error"
+  },
+  "carpoolErrorAdminMustStay": "المسؤول يغادر بعد مغادرة الأعضاء.",
+  "@carpoolErrorAdminMustStay": {
+    "description": "Error"
+  },
+  "carpoolErrorClosed": "هذا المشوار مغلق.",
+  "@carpoolErrorClosed": {
+    "description": "Error"
+  },
+  "carpoolErrorWrongSchool": "اختر أطفالًا من مدرسة المشوار.",
+  "@carpoolErrorWrongSchool": {
+    "description": "Error"
+  },
+  "carpoolErrorNotFound": "ربما حُذف المشوار.",
+  "@carpoolErrorNotFound": {
+    "description": "Error"
+  },
+  "lookingNoSchoolBody": "أضف طفلًا معتمدًا لتنشر طلبك.",
+  "@lookingNoSchoolBody": {
+    "description": "Empty state body"
+  },
+  "lookingMatchTitle": "{count} عائلات متوافقة",
+  "@lookingMatchTitle": {
+    "description": "Card title (F32)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lookingMatchBody": "ابدأ مشوارًا بنفس المواعيد وادعهم.",
+  "@lookingMatchBody": {
+    "description": "Card body"
+  },
+  "lookingMineSection": "طلبي",
+  "@lookingMineSection": {
+    "description": "Section header"
+  },
+  "lookingOthersSection": "عائلات تبحث",
+  "@lookingOthersSection": {
+    "description": "Section header"
+  },
+  "lookingPostIntro": "يراه الأهالي الموثَّقون في مدرستك: اسمك الأول والمنطقة والمواعيد فقط.",
+  "@lookingPostIntro": {
+    "description": "Text"
+  },
+  "lookingPost": "انشر طلبي",
+  "@lookingPost": {
+    "description": "Button and sheet title"
+  },
+  "lookingPosted": "تم النشر",
+  "@lookingPosted": {
+    "description": "Snackbar"
+  },
+  "lookingDelete": "حذف الطلب",
+  "@lookingDelete": {
+    "description": "Button"
+  },
+  "lookingDeleteTitle": "حذف الطلب؟",
+  "@lookingDeleteTitle": {
+    "description": "Dialog title"
+  },
+  "lookingDeleteBody": "لن يراه الأهالي بعد الآن.",
+  "@lookingDeleteBody": {
+    "description": "Dialog body"
+  },
+  "lookingDeleted": "تم الحذف",
+  "@lookingDeleted": {
+    "description": "Snackbar"
+  },
+  "lookingEmptyTitle": "لا أحد بعد",
+  "@lookingEmptyTitle": {
+    "description": "Empty state title"
+  },
+  "lookingEmptyBody": "انشر طلبك ليجدك الآخرون.",
+  "@lookingEmptyBody": {
+    "description": "Empty state body"
+  },
+  "lookingChildren": "{count, plural, =1{طفل} =2{طفلان} few{{count} أطفال} many{{count} طفلًا} other{{count} طفل}}",
+  "@lookingChildren": {
+    "description": "Badge",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "gallerySectionCarpools": "المشاوير",
+  "@gallerySectionCarpools": {
     "description": "Gallery section header"
   }
 }

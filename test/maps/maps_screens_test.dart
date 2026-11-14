@@ -235,12 +235,14 @@ void main() {
       expect(find.text('Hoda'), findsOneWidget);
       expect(find.text('Verified'), findsOneWidget);
       expect(find.text('Nile International School'), findsWidgets);
-      await tester.tap(find.byKey(const Key('parent.join')));
-      await tester.pump();
-      expect(find.text('Carpools come soon'), findsOneWidget);
       await tester.tap(find.byKey(const Key('parent.message')));
       await tester.pump();
       expect(find.text('Chat comes soon'), findsOneWidget);
+      // Join (Prompt 6) closes the card and opens that parent's carpools
+      // (router test in test/carpools/carpool_screens_test.dart).
+      await tester.tap(find.byKey(const Key('parent.join')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('parent.card.p1')), findsNothing);
     });
 
     testWidgets('list view shows the same parents', (WidgetTester tester) async {

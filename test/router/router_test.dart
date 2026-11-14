@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/carpools/carpools_screen.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
 import 'package:school_carpool/features/home/home_screen.dart';
 import 'package:school_carpool/features/placeholder/placeholder_tab_screen.dart';
@@ -59,7 +60,6 @@ void main() {
   testWidgets('each tab opens its own screen', (WidgetTester tester) async {
     final GoRouter router = await pumpRouter(tester, config: testDevConfig);
     final Map<IconData, AppTab> icons = <IconData, AppTab>{
-      Icons.directions_car_outlined: AppTab.carpools,
       Icons.chat_bubble_outline_rounded: AppTab.chats,
       Icons.notifications_none_rounded: AppTab.notifications,
     };
@@ -72,6 +72,11 @@ void main() {
       );
       expect(screen.tab, entry.value);
     }
+    // Carpools has its own screen since Prompt 6.
+    await tester.tap(find.byIcon(Icons.directions_car_outlined).first);
+    await tester.pumpAndSettle();
+    expect(currentPath(router), AppTab.carpools.path);
+    expect(find.byType(CarpoolsScreen).hitTestable(), findsOneWidget);
     // Home has its own screen since Prompt 5 (parents nearby, home, driving schools).
     await tester.tap(find.byIcon(Icons.home_outlined).first);
     await tester.pumpAndSettle();

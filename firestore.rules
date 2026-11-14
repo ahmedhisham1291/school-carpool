@@ -131,9 +131,13 @@ service cloud.firestore {
     match /searchKeyLimits/{uid} {
       allow read, write: if false;
     }
-    // Areas stay admin-only until carpools use them (Prompt 6).
+    // Prompt 6: areas of a school (name and centre, public data managed by
+    // admins). Signed-in parents read them to pick a carpool's area; at
+    // most 200 at a time. Written only by Cloud Functions (admin panel).
     match /areas/{id} {
-      allow read, write: if false;
+      allow get: if signedIn();
+      allow list: if signedIn() && request.query.limit <= 200;
+      allow create, update, delete: if false;
     }
 
     // Prompt 5 (F21 to F24): homes and maps.
@@ -163,35 +167,93 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Carpool memberships (Prompt 6 creates them, Cloud Functions only):
-    // memberships/{carpoolId}_{uid} with status requested, approved,
-    // declined or left. Closed to the app for now; the rules below look
-    // them up.
+    // Prompt 6 (F5, F6, F26, F31, F32): carpools. Every write is a Cloud
+    // Function (membership, ownership, status, consent, pickup points).
+    function verifiedParent() {
+      return signedIn() && request.auth.token.verified == true;
+    }
+
+    // memberships/{carpoolId}_{uid}: status requested, approved, declined
+    // or left, and the role (admin or member). A parent reads only their
+    // own (the app queries where('uid', '==', uid)). The rules below look
+    // them up, checking that the fields match the document ID.
+    // A parent may also get their OWN membership ID when it does not exist
+    // (a carpool they are not in): the ID must end in "_<their uid>", so
+    // nobody learns whether another parent is a member.
     match /memberships/{id} {
-      allow read, write: if false;
+      allow get: if signedIn()
+        && id.matches('.+_' + request.auth.uid)
+        && (resource == null || resource.data.uid == request.auth.uid);
+      allow list: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create, update, delete: if false;
     }
     function approvedMember(carpoolId, uid) {
       let path = /databases/$(database)/documents/memberships/$(carpoolId + '_' + uid);
       return exists(path) && get(path).data.status == 'approved'
         && get(path).data.carpoolId == carpoolId && get(path).data.uid == uid;
     }
-    // Carpools themselves open in Prompt 6.
+    function carpoolAdmin(carpoolId) {
+      return verifiedParent()
+        && approvedMember(carpoolId, request.auth.uid)
+        && get(/databases/$(database)/documents/memberships/$(carpoolId + '_' + request.auth.uid)).data.role == 'admin';
+    }
+
+    // The public summary of a carpool (school, area, times, days, seats,
+    // rules, contribution, the creator's first name, counts; no children,
+    // no homes). Any verified parent may read one by its ID (search
+    // results, invite links); nobody lists or queries the collection: search
+    // goes through the rate-limited searchCarpools function.
     match /carpools/{carpoolId} {
-      allow read, write: if false;
+      allow get: if verifiedParent();
+      allow list, create, update, delete: if false;
+
+      // Approved members with their children's first names and grades
+      // (spec section 6): approved members of the same carpool only.
+      match /members/{uid} {
+        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow create, update, delete: if false;
+      }
+
+      // Open join requests with the children's first names and grades:
+      // the requester and the carpool admin only.
+      match /requests/{uid} {
+        allow get: if (isSelf(uid) && verifiedParent()) || carpoolAdmin(carpoolId);
+        allow list: if carpoolAdmin(carpoolId);
+        allow create, update, delete: if false;
+      }
+
+      // F26: who accepted whom as a driver. Approved members only.
+      match /driverConsents/{id} {
+        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow create, update, delete: if false;
+      }
 
       // EXACT pickup point a parent chose to share with one carpool
-      // (Prompt 6 writes it through a function, only if the parent
-      // chooses). Readable by its owner and by verified parents who are
-      // approved members of the same carpool, while the owner is an
+      // (setPickupSharing). Readable by its owner and by verified parents
+      // who are approved members of the same carpool, while the owner is an
       // approved member too. Never by anyone else, never written by the app.
       match /pickupPoints/{uid} {
         allow get: if isSelf(uid)
-          || (signedIn()
-            && request.auth.token.verified == true
+          || (verifiedParent()
             && approvedMember(carpoolId, request.auth.uid)
             && approvedMember(carpoolId, uid));
         allow list, create, update, delete: if false;
       }
+    }
+
+    // Invite codes (F31) and carpool rate limits: Cloud Functions only.
+    match /carpoolInvites/{code} {
+      allow read, write: if false;
+    }
+    match /carpoolLimits/{uid} {
+      allow read, write: if false;
+    }
+    // "Looking for a carpool" posts (F32): the owner reads their own; other
+    // parents see them only through listCarpoolWanted (same school, rate
+    // limited, first names only).
+    match /carpoolWanted/{uid} {
+      allow get: if isSelf(uid);
+      allow list, create, update, delete: if false;
     }
 
     // Reserved parent IDs, sign-in codes and sign-in limits: Cloud

@@ -148,6 +148,29 @@ has its own free monthly calls (Essentials 10,000, Pro 5,000, Enterprise
 - **Upgrade when:** any SKU passes 8,000 calls in a month (raise the
   per-day caps knowingly, with the budget alert in place).
 
+## Carpools (Prompt 6)
+
+No new paid service. `url_launcher` (official Flutter plugin, free) opens
+WhatsApp with the invite text; nothing is sent through the WhatsApp
+Business Platform, so invite links cost nothing.
+
+- **Firestore:** creating a carpool is about 8 reads and 3 writes; a search
+  is about 5 reads plus one per carpool returned (at most 100 per query);
+  a join request, an approval or a consent is one transaction of a few
+  reads and 2 to 4 writes. The carpool screens listen to small documents
+  (the carpool, the parent's memberships, members and consents of their
+  own carpools only).
+- **Limits per parent** (server settings, `functions/src/config.ts`):
+  3 new carpools a day, 30 searches an hour, 10 join requests a day,
+  20 invite links a day, 20 invite opens an hour, 5 "looking" posts a day,
+  30 post lists an hour. They keep Firestore inside the free daily quota
+  and stop anyone sweeping carpools or guessing invite codes.
+- **Hosting (invite links site):** a few kilobytes per link opened, far
+  inside the free 360 MB a day.
+- **Expiry:** invite codes (14 days) and "looking" posts (60 days) carry an
+  `expiresAt` field; a Firestore TTL policy deletes them (SETUP.md 16.4).
+- **Upgrade when:** never on its own; it counts toward the Firebase row above.
+
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub

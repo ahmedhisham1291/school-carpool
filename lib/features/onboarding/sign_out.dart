@@ -4,6 +4,7 @@ import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/auth_repository.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
+import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// Asks for confirmation, then signs out. The router then opens the
@@ -12,6 +13,7 @@ Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
   final AppLocalizations l10n = context.l10n;
   final AuthRepository repository = ref.read(authRepositoryProvider);
   final SignupFlowController flow = ref.read(signupFlowProvider.notifier);
+  final PendingInvite pendingInvite = ref.read(pendingInviteProvider.notifier);
   final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
   final bool confirmed = await showConfirmDialog(
     context: context,
@@ -25,6 +27,8 @@ Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
   try {
     flow.reset();
     await repository.signOut();
+    // An invite code kept for later belongs to this parent only.
+    await pendingInvite.save(null);
   } on AuthFailure catch (failure) {
     if (messenger != null) {
       // Short and one line, but still says why: offline or something else.

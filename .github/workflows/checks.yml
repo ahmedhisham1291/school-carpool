@@ -121,6 +121,8 @@ jobs:
         run: |
           npx --yes firebase-tools@15 emulators:exec --only firestore,auth \
             --project demo-school-carpool "npm --prefix functions run test:emulator"
+      - name: Build tools (invite links site, native patches)
+        run: python3 -m unittest discover -s tool -p 'test_*.py' -v
       - name: Schools import (Python tests, sample data, load twice into the emulator)
         run: |
           python3 -m unittest discover -s tools/import_schools -v

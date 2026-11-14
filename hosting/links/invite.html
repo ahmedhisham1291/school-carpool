@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>دعوة مشوار المدرسة · School Carpool invite</title>
+<style>
+  /* Same palette as the app (docs/DESIGN.md, direction A). */
+  :root { color-scheme: light dark; --ink: #131A19; --quiet: #525D5A; --page: #F4F7F6; --card: #FFFFFF; --line: #DCE3E0; --accent: #0E5E58; --on-accent: #FFFFFF; }
+  @media (prefers-color-scheme: dark) { :root { --ink: #E5EAE8; --quiet: #A9B4B1; --page: #0F1514; --card: #19211F; --line: #323C3A; --accent: #7FCFC3; --on-accent: #00332D; } }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 480px; margin: 48px auto; padding: 0 24px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  p { margin: 0 0 16px; color: var(--quiet); }
+  a.button { display: block; text-align: center; padding: 14px; border-radius: 12px; background: var(--accent); color: var(--on-accent); text-decoration: none; font-weight: 600; }
+  a.button[hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <!-- Static page: it never shows anything about the carpool. The app opens
+       the link (universal links) and asks the parent to be verified first. -->
+  <section>
+    <h1>دعوة إلى مشوار مدرسة</h1>
+    <p>افتح الرابط على هاتفك الذي عليه التطبيق. إن لم يكن مثبتًا، ثبّته ثم وثّق حسابك وافتح الرابط مرة أخرى.</p>
+    <a class="button" id="store-ar" href="__APP_STORE_URL__" hidden>تنزيل التطبيق</a>
+  </section>
+  <section dir="ltr" lang="en">
+    <h1>A school carpool invite</h1>
+    <p>Open this link on the phone that has the app. If it is not installed, install it, verify your account and open the link again.</p>
+    <a class="button" id="store-en" href="__APP_STORE_URL__" hidden>Get the app</a>
+  </section>
+</main>
+<script>
+  // Show the store button only when a store link was configured.
+  for (const id of ["store-ar", "store-en"]) {
+    const a = document.getElementById(id);
+    if (a && a.getAttribute("href").startsWith("https://")) a.hidden = false;
+  }
+</script>
+</body>
+</html>

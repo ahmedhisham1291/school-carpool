@@ -10,6 +10,9 @@
       "hosting": {
         "admin": [
           "demo-school-carpool-admin"
+        ],
+        "links": [
+          "demo-school-carpool-links"
         ]
       }
     }

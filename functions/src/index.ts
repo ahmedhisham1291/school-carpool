@@ -78,3 +78,22 @@ export {
   syncMapOnUserWrite,
   updateMapSettings,
 } from "./maps/callables";
+
+// Carpools (Prompt 6: F5, F6, F25, F26, F31, F32, F36, F39): create, search,
+// join requests, driver consent, pickup point sharing, invite links and
+// "looking for a carpool" posts. Every membership and status write is here.
+export {
+  cancelJoinRequest,
+  createCarpool,
+  createCarpoolInvite,
+  decideJoinRequest,
+  deleteCarpoolWanted,
+  leaveCarpool,
+  listCarpoolWanted,
+  openCarpoolInvite,
+  requestToJoinCarpool,
+  saveCarpoolWanted,
+  searchCarpools,
+  setDriverConsent,
+  setPickupSharing,
+} from "./carpools/callables";
