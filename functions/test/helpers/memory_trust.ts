@@ -61,8 +61,11 @@ export class MemoryTrustStore implements TrustStore, JobStore, PhoneChangeStore 
   async ratedIn(raterUid: string, month: string): Promise<string[]> {
     return [...this.ratings.values()].filter((r) => r.raterUid === raterUid && r.month === month).map((r) => r.rateeUid);
   }
+  async tripRated(raterUid: string, rateeUid: string, tripId: string): Promise<boolean> {
+    return [...this.ratings.values()].some((r) => r.raterUid === raterUid && r.rateeUid === rateeUid && r.tripId === tripId);
+  }
   async saveRating(r: RatingRecord, update: (s: TrustSummary | null) => TrustSummary, flag: RatingFlag | null): Promise<void> {
-    if (this.ratings.has(r.id)) throw new TrustError("already-rated");
+    if (this.ratings.has(r.id) || (await this.tripRated(r.raterUid, r.rateeUid, r.tripId))) throw new TrustError("already-rated");
     this.ratings.set(r.id, clone(r));
     this.summaries.set(r.rateeUid, update(clone(this.summaries.get(r.rateeUid) ?? null)));
     if (flag) this.flagsById.set(flag.id, clone(flag));

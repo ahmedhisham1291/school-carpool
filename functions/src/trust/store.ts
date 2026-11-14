@@ -190,12 +190,18 @@ export class FirestoreTrustStore implements TrustStore, JobStore, PhoneChangeSto
     return snap.docs.map((doc) => text(doc.get("rateeUid")));
   }
 
+  async tripRated(raterUid: string, rateeUid: string, tripId: string): Promise<boolean> {
+    const snap = await this.db.collection(RATINGS).where("raterUid", "==", raterUid).where("rateeUid", "==", rateeUid).where("tripId", "==", tripId).limit(1).get();
+    return !snap.empty;
+  }
+
   saveRating(r: RatingRecord, update: (s: TrustSummary | null) => TrustSummary, flag: RatingFlag | null): Promise<void> {
     return this.db.runTransaction(async (tx) => {
       const ref = this.db.collection(RATINGS).doc(r.id);
       const summaryRef = this.db.collection(TRUST_SUMMARIES).doc(r.rateeUid);
-      const [existing, summary] = [await tx.get(ref), await tx.get(summaryRef)];
-      if (existing.exists) throw new TrustError("already-rated");
+      const sameTrip = this.db.collection(RATINGS).where("raterUid", "==", r.raterUid).where("rateeUid", "==", r.rateeUid).where("tripId", "==", r.tripId).limit(1);
+      const [existing, summary, tripDone] = [await tx.get(ref), await tx.get(summaryRef), await tx.get(sameTrip)];
+      if (existing.exists || !tripDone.empty) throw new TrustError("already-rated");
       const next = update(summaryFromDoc(summary.exists ? summary.data() : undefined));
       tx.create(ref, {
         month: r.month,

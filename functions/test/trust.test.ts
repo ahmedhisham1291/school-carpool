@@ -282,8 +282,13 @@ describe("ratings and vouching (F17)", () => {
     assert.deepEqual((await listRateable(t.deps, as("alice"))).parents.map((p) => p.uid), ["cara"]);
     // Bob rates his driver back.
     await rateParent(t.deps, as("bob"), { uid: "alice", stars: 4 });
-    // Next month the pair may rate again (the trip is still within 30 days).
+    // Next month the same trip (still within 30 days) cannot be rated again
+    // (Prompt 12: once per trip and pair), and is no longer listed.
     t.clock.now = Date.UTC(2026, 11, 2, 8);
+    await rejects(rateParent(t.deps, as("alice"), { uid: "bob", stars: 4 }), "already-rated");
+    assert.deepEqual((await listRateable(t.deps, as("alice"))).parents.map((p) => p.uid), ["cara"]);
+    // A new shared trip in the new month may be rated.
+    t.store.trips.push(trip("k1_2026-12-01_am", "alice", [["bob", "dropped"]], { date: "2026-12-01" }));
     await rateParent(t.deps, as("alice"), { uid: "bob", stars: 4 });
     assert.equal(t.store.summaries.get("bob")?.count, 2);
     assert.deepEqual(t.store.summaries.get("bob")?.voucherUids, ["alice"]);
@@ -467,6 +472,31 @@ describe("yearly check of children, grades and schools", () => {
     // Confirming clears it.
     await confirmSchoolYear(t.deps, as("alice"), { year: 2027, children: [{ childId: "a1", stays: true, grade: "g4" }] });
     assert.equal(t.store.accounts.get("alice")?.yearCheckOverdue, false);
+    // Prompt 11 review item 3: Bob's children are no longer approved, so
+    // there is nothing to confirm; the job clears his mark.
+    assert.equal(t.store.accounts.get("bob")?.yearCheckOverdue, true);
+    for (const id of ["b1", "b2"]) t.store.children.get(id)!.status = "rejected";
+    const later = await runTrustDaily(job());
+    assert.equal(later.overdueCleared, 1);
+    assert.equal(t.store.accounts.get("bob")?.yearCheckOverdue, false);
+  });
+
+  it("a new grade also reaches the carpools a linked parent brought the child into", async () => {
+    const t = setup(NOW);
+    const k = await readyCarpool(t.carpools);
+    t.deps.year = yearSettings("09-01", 21, 14, 2027);
+    t.clock.now = Date.UTC(2027, 7, 25, 8);
+    t.store.links.set("b1_dina", {
+      id: "b1_dina", childId: "b1", childFirstName: "Bassel", ownerUid: "bob", ownerFirstName: "Bob", guardianUid: "dina", guardianFirstName: "Dina",
+      relation: "mother", status: "active", createdAtMs: NOW, decidedAtMs: null, decidedBy: null, updatedAtMs: NOW,
+    });
+    // Dina brought Bassel into a carpool of her own (a copy of Bob's membership).
+    const bobs = t.carpoolStore.memberships.get(`${k}_bob`);
+    assert.ok(bobs);
+    t.carpoolStore.memberships.set(`k2_dina`, { ...bobs, carpoolId: "k2", uid: "dina", children: [{ id: "b1", firstName: "Bassel", grade: "g2" }] });
+    await confirmSchoolYear(t.deps, as("bob"), { year: 2027, children: [{ childId: "b1", stays: true, grade: "g3" }, { childId: "b2", stays: true, grade: "g1" }] });
+    assert.equal(t.carpoolStore.memberships.get(`${k}_bob`)?.children.find((c) => c.id === "b1")?.grade, "g3");
+    assert.equal(t.carpoolStore.memberships.get("k2_dina")?.children[0].grade, "g3", "the linked parent's carpools are updated too");
   });
 
   it("nothing is due before the first checked year", async () => {
