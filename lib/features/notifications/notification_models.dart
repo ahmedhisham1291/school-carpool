@@ -33,6 +33,7 @@ enum NotificationKind {
   childPickedUp('child-picked-up', WhatsAppGroup.trips),
   childDropped('child-dropped', WhatsAppGroup.trips),
   childReceived('child-received', WhatsAppGroup.trips),
+  childNotComing('child-not-coming', WhatsAppGroup.tripAlerts),
   locationStopped('location-stopped', WhatsAppGroup.tripAlerts),
   driverLate('driver-late', WhatsAppGroup.trips),
   driverAtGate('driver-at-gate', WhatsAppGroup.trips),

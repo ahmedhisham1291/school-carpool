@@ -29,9 +29,11 @@ String stopActionLabel(AppLocalizations l10n, StopAction a, {required bool again
   StopAction.arrived => again ? l10n.tripActionArrivedAgain : l10n.tripActionArrived,
   StopAction.pickedUp => l10n.tripActionPickedUp,
   StopAction.dropped => direction == RunDirection.toSchool ? l10n.tripActionAtSchool : l10n.tripActionDropped,
+  StopAction.notComing => l10n.tripActionNotComing,
 };
 
 IconData stopActionIcon(StopAction a) => switch (a) {
+  StopAction.notComing => Icons.person_off_outlined,
   StopAction.arrived => Icons.notifications_active_outlined,
   StopAction.pickedUp => Icons.login_rounded,
   StopAction.dropped => Icons.logout_rounded,
@@ -155,6 +157,7 @@ class DriverStopCard extends StatelessWidget {
     required this.onAction,
     this.current = false,
     this.busy,
+    this.arrivedReady = true,
     super.key,
   });
 
@@ -165,6 +168,9 @@ class DriverStopCard extends StatelessWidget {
 
   /// The action being sent for this stop, if any.
   final StopAction? busy;
+
+  /// False right after an Arrived alert (30 s) or after 5: the button says "Sent".
+  final bool arrivedReady;
 
   @override
   Widget build(BuildContext context) {
@@ -198,13 +204,15 @@ class DriverStopCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.s16),
             AppButton(
               key: Key('drive.${actions[i].name}.${stop.childId}'),
-              label: stopActionLabel(l10n, actions[i], again: actions[i] == StopAction.arrived && stop.arrivedCount > 0, direction: direction),
+              label: actions[i] == StopAction.arrived && !arrivedReady
+                  ? l10n.tripActionArrivedSent
+                  : stopActionLabel(l10n, actions[i], again: actions[i] == StopAction.arrived && stop.arrivedCount > 0, direction: direction),
               icon: stopActionIcon(actions[i]),
               size: AppButtonSize.large,
               variant: i == actions.length - 1 && current ? AppButtonVariant.primary : AppButtonVariant.secondary,
               expand: true,
               loading: busy == actions[i],
-              onPressed: busy != null ? null : () => onAction(actions[i]),
+              onPressed: busy != null || (actions[i] == StopAction.arrived && !arrivedReady) ? null : () => onAction(actions[i]),
             ),
           ],
         ],

@@ -1430,5 +1430,21 @@
   "sampleDriverName": "Hoda",
   "sampleCarModel": "Corolla",
   "sampleCarColor": "White",
-  "sampleChildName": "Adam"
+  "sampleChildName": "Adam",
+  "tripErrorNoChildren": "Every child is away. There is nothing to drive.",
+  "tripErrorOnBoard": "A child is still in the car. Drop off first.",
+  "tripActionNotComing": "Not coming",
+  "tripActionArrivedSent": "Sent",
+  "tripNotComingTitle": "{name} not coming?",
+  "tripNotComingBody": "The parent is told and this stop is closed.",
+  "tripNotComingSent": "Parent told",
+  "tripEnd": "End run",
+  "tripEndTitle": "End the run?",
+  "tripEndBody": "Location sharing stops. Children not picked up are marked not coming and their parents are told.",
+  "tripEnded": "Run ended",
+  "tripNoPhotoTitle": "Add your photo",
+  "tripAddPhoto": "Add photo",
+  "tripSignOutBody": "You are driving a run. Signing out stops sharing your location and the parents are told.",
+  "notifNotComingTitle": "Child not picked up",
+  "notifNotComingBody": "Your child was marked not coming: {run}."
 }

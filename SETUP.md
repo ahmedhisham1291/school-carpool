@@ -1099,6 +1099,18 @@ TRIP_HANDOVER_MIN=10        # F34: minutes to confirm an afternoon drop-off
 
 ### 20.2 Expiry (each cloud project)
 
+Live selfies (`selfieChecks/`) are deleted by `submitSelfieCheck` on every
+path and swept by `tripTick` after one hour. Optional second line: a
+Cloud Storage lifecycle rule "delete objects with prefix `selfieChecks/`
+older than 1 day" on the default bucket (Cloud Storage > bucket >
+Lifecycle).
+
+**Drivers verified before Prompt 10** have no face reference (the identity
+selfie is kept as one only from now on, or a driver photo): they see "Add
+your photo" before their next run and add the driver photo in Profile >
+Driving (it is reviewed like the other driver documents).
+
+
 `tripTick` deletes live points, arrival times and emergencies past their
 time every minute. As a second line, add Firestore TTL policies on field
 `expiresAt` for collection groups `points`, `eta`, `emergencies` and
@@ -1157,9 +1169,11 @@ flutter_background_geolocation **5** uses a new JWT licence (the "New" tab
 in Transistor's customer dashboard; v4 keys do not work) and checks it on
 **release builds on both iPhone and Android**; debug builds work without.
 Buy it for the bundle and application IDs (`org.schoolcarpool.app`,
-`.staging`, `.dev`). Never commit it. Give it to the build as the
-environment variable `BG_GEO_LICENSE` (Codemagic: an encrypted variable in
-the iOS workflow; Android also reads it as a Gradle property).
+`.stg`, `.dev`). Never commit it. Give it to the build as the
+environment variable `BG_GEO_LICENSE`: in Codemagic add it as an
+encrypted variable to the `staging_defines` and `dev_defines` groups (the
+iOS workflows read them; `codemagic.yaml` names it). Android also reads it
+as a Gradle property.
 `tool/patch_native.py` writes it to `ios/Flutter/BgGeo.xcconfig` (Info.plist
 `TSLocationManagerLicense`) and to the Android manifest
 (`com.transistorsoft.locationmanager.license`). A value that is not

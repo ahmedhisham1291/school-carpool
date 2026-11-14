@@ -48,18 +48,31 @@ void main() {
   });
 
   group('stops (F16, F41)', () {
-    test('morning: Arrived and Picked up, then At school', () {
-      expect(stopActions(_stop, RunDirection.toSchool), <StopAction>[StopAction.arrived, StopAction.pickedUp]);
-      expect(stopActions(_at(StopState.arrived), RunDirection.toSchool), <StopAction>[StopAction.arrived, StopAction.pickedUp]);
+    test('morning: Arrived, Not coming and Picked up, then At school', () {
+      expect(stopActions(_stop, RunDirection.toSchool), <StopAction>[StopAction.arrived, StopAction.notComing, StopAction.pickedUp]);
+      expect(stopActions(_at(StopState.arrived), RunDirection.toSchool), <StopAction>[StopAction.arrived, StopAction.notComing, StopAction.pickedUp]);
       expect(stopActions(_at(StopState.onBoard), RunDirection.toSchool), <StopAction>[StopAction.dropped]);
       expect(stopActions(_at(StopState.dropped), RunDirection.toSchool), isEmpty);
     });
 
-    test('afternoon: Picked up at school, then Arrived and Handed over', () {
-      expect(stopActions(_stop, RunDirection.toHome), <StopAction>[StopAction.pickedUp]);
+    test('afternoon: Not coming or Picked up at school, then Arrived and Handed over', () {
+      expect(stopActions(_stop, RunDirection.toHome), <StopAction>[StopAction.notComing, StopAction.pickedUp]);
       expect(stopActions(_at(StopState.onBoard), RunDirection.toHome), <StopAction>[StopAction.arrived, StopAction.dropped]);
       expect(stopActions(_at(StopState.received), RunDirection.toHome), isEmpty);
       expect(stopActions(_at(StopState.absent), RunDirection.toHome), isEmpty);
+    });
+
+    test('Arrived: a pause of 30 s and at most 5 per stop; End run only with no child in the car', () {
+      final DateTime now = DateTime.utc(2026, 11, 14, 8);
+      TripStop arrived(int count, Duration ago) =>
+          TripStop(childId: 'c1', firstName: 'Adam', parentUid: 'p1', state: StopState.arrived, arrivedCount: count, arrivedAt: now.subtract(ago));
+      expect(arrivedAvailable(arrived(1, const Duration(seconds: 10)), now), isFalse);
+      expect(arrivedAvailable(arrived(1, const Duration(seconds: 30)), now), isTrue);
+      expect(arrivedAvailable(arrived(5, const Duration(minutes: 5)), now), isFalse);
+      expect(childOnBoard(testTrip()), isFalse);
+      expect(childOnBoard(testTrip(stops: <TripStop>[_at(StopState.onBoard)])), isTrue);
+      expect(childOnBoard(testTrip(direction: RunDirection.toHome, stops: <TripStop>[_at(StopState.arrived)])), isTrue);
+      expect(childOnBoard(testTrip(stops: <TripStop>[_at(StopState.arrived)])), isFalse, reason: 'morning: at the home, not in the car');
     });
 
     test('the current stop is the first one not done', () {

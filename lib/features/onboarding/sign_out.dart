@@ -6,6 +6,9 @@ import 'package:school_carpool/features/auth/auth_repository.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/notifications/notification_center.dart';
+import 'package:school_carpool/features/trips/location_tracker.dart';
+import 'package:school_carpool/features/trips/trip_models.dart';
+import 'package:school_carpool/features/trips/trip_repository.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// Asks for confirmation, then signs out. The router then opens the
@@ -17,15 +20,30 @@ Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
   final PendingInvite pendingInvite = ref.read(pendingInviteProvider.notifier);
   final NotificationCenter notifications = ref.read(notificationCenterProvider);
   final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
+  final LocationTracker tracker = ref.read(locationTrackerProvider);
+  final TripRepository trips = ref.read(tripRepositoryProvider);
+  // Prompt 10: a run being driven stops sharing its location on sign-out.
+  final bool driving = await tracker.activeTrip().then((String? t) => t != null, onError: (Object _) => false);
+  if (!context.mounted) {
+    return;
+  }
   final bool confirmed = await showConfirmDialog(
     context: context,
     title: l10n.profileSignOutConfirmTitle,
-    body: l10n.profileSignOutConfirmBody,
+    body: driving ? l10n.tripSignOutBody : l10n.profileSignOutConfirmBody,
     confirmLabel: l10n.profileSignOut,
   );
   if (!confirmed) {
     return;
   }
+  // Best effort: the server ends the live trips (upload key revoked, parents
+  // told); the phone stops either way.
+  try {
+    await trips.stopMyTrips();
+  } on TripFailure {
+    // Offline: the server's account re-check and the 4-hour cap still apply.
+  }
+  await tracker.stop();
   try {
     flow.reset();
     // Prompt 8: this phone stops getting this parent's pushes and alarms

@@ -21,7 +21,7 @@ void main() {
         'confirm-reminder', 'join-requested', 'join-approved', 'join-declined', 'verification-approved',
         'verification-rejected', 'new-parent', 'child-not-confirmed', //
         // Prompt 10: trips.
-        'trip-started', 'driver-arrived', 'child-picked-up', 'child-dropped', 'child-received', 'location-stopped',
+        'trip-started', 'driver-arrived', 'child-picked-up', 'child-dropped', 'child-received', 'child-not-coming', 'location-stopped',
         'driver-late', 'driver-at-gate', 'all-children-in', 'emergency', 'chat-message',
       ];
       expect(NotificationKind.values.map((NotificationKind k) => k.wire), server);

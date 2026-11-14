@@ -6323,5 +6323,79 @@
   "sampleChildName": "آدم",
   "@sampleChildName": {
     "description": "Gallery sample child first name"
+  },
+  "tripErrorNoChildren": "كل الأطفال غائبون. لا يوجد مشوار.",
+  "@tripErrorNoChildren": {
+    "description": "Trip error"
+  },
+  "tripErrorOnBoard": "ما زال طفل في السيارة. أوصله أولًا.",
+  "@tripErrorOnBoard": {
+    "description": "Trip error"
+  },
+  "tripActionNotComing": "لن يأتي",
+  "@tripActionNotComing": {
+    "description": "Driver button: the child did not come"
+  },
+  "tripActionArrivedSent": "تم الإرسال",
+  "@tripActionArrivedSent": {
+    "description": "Driver button after Arrived (wait before repeating)"
+  },
+  "tripNotComingTitle": "{name} لن يأتي؟",
+  "@tripNotComingTitle": {
+    "description": "Dialog title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tripNotComingBody": "سيُبلَّغ ولي الأمر وتُغلق هذه المحطة.",
+  "@tripNotComingBody": {
+    "description": "Dialog body"
+  },
+  "tripNotComingSent": "تم إبلاغ ولي الأمر",
+  "@tripNotComingSent": {
+    "description": "Snackbar"
+  },
+  "tripEnd": "إنهاء المشوار",
+  "@tripEnd": {
+    "description": "Driver button"
+  },
+  "tripEndTitle": "إنهاء المشوار؟",
+  "@tripEndTitle": {
+    "description": "Dialog title"
+  },
+  "tripEndBody": "تتوقف مشاركة الموقع. الأطفال الذين لم يركبوا يُسجَّلون غير قادمين ويُبلَّغ أهلهم.",
+  "@tripEndBody": {
+    "description": "Dialog body"
+  },
+  "tripEnded": "انتهى المشوار",
+  "@tripEnded": {
+    "description": "Snackbar"
+  },
+  "tripNoPhotoTitle": "أضف صورتك",
+  "@tripNoPhotoTitle": {
+    "description": "Empty state title"
+  },
+  "tripAddPhoto": "إضافة صورة",
+  "@tripAddPhoto": {
+    "description": "Button"
+  },
+  "tripSignOutBody": "أنت تقود مشوارًا الآن. تسجيل الخروج يوقف مشاركة موقعك ويُبلَّغ أولياء الأمور.",
+  "@tripSignOutBody": {
+    "description": "Sign-out dialog body during a run"
+  },
+  "notifNotComingTitle": "لم يركب الطفل",
+  "@notifNotComingTitle": {
+    "description": "Notification title"
+  },
+  "notifNotComingBody": "سُجّل طفلك غير قادم: {run}.",
+  "@notifNotComingBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
   }
 }

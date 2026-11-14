@@ -93,8 +93,8 @@ enum QuickKind {
   }
 }
 
-/// What the driver does at a stop (F16, F41).
-enum StopAction { arrived, pickedUp, dropped }
+/// What the driver does at a stop (F16, F41); notComing: the child did not come.
+enum StopAction { arrived, pickedUp, dropped, notComing }
 
 @immutable
 class HandoverAdult {
@@ -127,6 +127,7 @@ class TripStop {
     required this.parentUid,
     required this.state,
     this.arrivedCount = 0,
+    this.arrivedAt,
     this.droppedAt,
     this.handover = const <HandoverAdult>[],
   });
@@ -139,6 +140,7 @@ class TripStop {
       parentUid: _text(m['parentUid']),
       state: StopState.fromName(m['state']),
       arrivedCount: _int(m['arrivedCount']),
+      arrivedAt: tripInstant(m['arrivedAt']),
       droppedAt: tripInstant(m['droppedAt']),
       handover: <HandoverAdult>[for (final Object? a in _list(m['handover'])) HandoverAdult.fromMap(a)],
     );
@@ -149,6 +151,7 @@ class TripStop {
   final String parentUid;
   final StopState state;
   final int arrivedCount;
+  final DateTime? arrivedAt;
   final DateTime? droppedAt;
   final List<HandoverAdult> handover;
 }
@@ -376,6 +379,8 @@ enum TripFailureKind {
   noReference,
   notActive,
   wrongState,
+  noChildren,
+  childrenOnBoard,
   invalid,
   locationOff,
   unknown,
@@ -406,6 +411,8 @@ class TripFailure implements Exception {
         'no-reference' => TripFailureKind.noReference,
         'trip-not-active' => TripFailureKind.notActive,
         'wrong-state' => TripFailureKind.wrongState,
+        'no-children' => TripFailureKind.noChildren,
+        'children-on-board' => TripFailureKind.childrenOnBoard,
         'invalid-request' || 'not-found' || 'no-contact' => TripFailureKind.invalid,
         _ => switch (error.code) {
           'unavailable' || 'deadline-exceeded' => TripFailureKind.offline,
@@ -437,6 +444,8 @@ class TripFailure implements Exception {
     TripFailureKind.noReference => l10n.tripErrorNoPhoto,
     TripFailureKind.notActive => l10n.tripErrorEnded,
     TripFailureKind.wrongState => l10n.tripErrorWrongStep,
+    TripFailureKind.noChildren => l10n.tripErrorNoChildren,
+    TripFailureKind.childrenOnBoard => l10n.tripErrorOnBoard,
     TripFailureKind.locationOff => l10n.tripErrorLocationOff,
     TripFailureKind.invalid || TripFailureKind.unknown => l10n.stateErrorBody,
   };

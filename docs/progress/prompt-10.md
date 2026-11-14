@@ -207,22 +207,78 @@ trip` shows `ended` with no new points.
   scrollables, one ProviderScope shape (the trip fakes and a fixed clock
   are part of `carpoolOverrides`), close fakes' streams, no pending timers.
 
+## Review fixes (docs/reviews/prompt-10-review.md)
+
+- **Blocking 1 (CI):** the Android step was cancelled by the runner; the
+  coordinator re-runs CI. v5 needs no extra Maven folders (removed).
+- **Blocking 2:** `prepareTrip`, `submitSelfieCheck` and `startTrip` load
+  the run and refuse anyone but its confirmed driver BEFORE any check
+  record is written; the record is keyed `{tripId}_{driverUid}`, so a swap
+  gets its own decision. Tests: a non-driver first changes nothing; swap.
+- **Blocking 3:** the live selfie is deleted in a `finally` on every path
+  (refusals, rate limit, errors); `tripTick` deletes `selfieChecks/` files
+  older than an hour; Storage accepts only `{tripId}.jpg` names. Tests.
+- **Blocking 4:** per-child **Not coming** (large button, asks first,
+  tells that parent with the new `child-not-coming` alert, closes the
+  stop; the last one ends tracking), **End run** (large, asks first,
+  hidden and refused while a child is in the car; children not picked up
+  become not coming and their parents are told), and no start when every
+  child is absent (`no-children`). Tests (server and widget).
+- **Blocking 5:** sign-out calls `stopMyTrips` and stops the tracker (the
+  dialog says so during a run); `trackerGuardProvider` stops tracking when
+  the session ends, another parent signs in or the account is no longer
+  verified; uploads re-read the driver's account once a minute and a
+  suspended, banned or deleted account gets 410 with its trips ended;
+  `endTripsOnUserWrite` ends live trips at once on suspension, ban or
+  deletion; the run's parents get "location stopped". Tests (server).
+- **Blocking 6:** a face reference is required to drive: the driver photo,
+  else the identity selfie, now kept at approval (`faceRefs/{uid}/selfie.jpg`,
+  Functions only). Without one `prepareTrip`/`startTrip` refuse
+  (`no-reference`) and the app shows "Add your photo" with a link to
+  Profile > Driving. Drivers verified before this prompt must add the
+  photo once (SETUP.md 20.2). Tests.
+- **Non-blocking done:** 1 (Arrived: 30 s pause and 5 per stop, the button
+  says "Sent"), 2 (a still car, last speed under 3 km/h, gets 3 minutes
+  before "location stopped"), 3 (`BG_GEO_LICENSE` named in
+  `codemagic.yaml` for both iOS workflows, SETUP 20.5), 5 (with blocking
+  2), 7 (emergency only during the run or 30 minutes after).
+- **Non-blocking still open:** 4 (`viewerUids` fixed at the start), 6
+  (`tokenHash` readable by viewers; harmless, move later), 9 (Valify
+  `matchFace` stub answers "error" until the contract), 10 (per-IP limit
+  on `tripLocation`), 11 (check on the iPhone that `ready()` at launch
+  asks no permission), 12 (trip docs' retention: Prompt 12 list).
+- **CLAUDE.md not edited by the agent** (only the owner changes the rules
+  file). Owner: please change the COST MODE line "flutter_background_geolocation:
+  no license needed for debug or iOS; buy it before the Android release
+  build" to "no licence for debug builds; v5 needs the licence for iOS
+  and Android release builds (buy it before the first TestFlight build
+  with trips)".
+
+## Legal questions for the owner's lawyer
+
+1. **Kept face images:** the identity selfie is now kept as the face
+   reference for selfie checks (and the optional driver photo for the
+   driver card), beyond the 7 days DECISIONS.md cleared for ID images.
+   Retention: until the account is deleted, a later rejection or a ban
+   (deletion on those paths is on the Prompt 12 list). OK?
+2. **Emergency contact by WhatsApp:** the contact is not a user and never
+   agreed to messages; they receive the driver's first name and the car's
+   exact location. Is the driver's statement enough, or must the contact
+   opt in first?
+3. **Driver's live-location consent "in writing"** (spec section 7): today
+   the explanation screen and the phone's "Always" permission. Should a
+   recorded consent (consent register, `users/{uid}/consents`) be added
+   before the first run?
+
 ## Open questions for the owner
 
-1. **Selfie check on 20 percent of runs** (for drivers with a photo). OK, or
-   another share? Should a driver without a photo be asked to add one
-   before driving?
+1. **Selfie check on 20 percent of runs** (every driver now has a face
+   reference). OK, or another share?
 2. **Location stopped after 2 minutes** without a point. OK?
 3. **Morning drop-offs at school** are one-sided (no parent confirmation).
    OK?
-4. **Emergency contact by WhatsApp**: the contact is not an app user and
-   never agreed to messages; the driver is asked to tell them. OK with the
-   lawyer? Should the emergency also call the contact (no: the app cannot
-   call by itself)?
-5. **Driver photo kept** after approval (a new kept image of a face; the
-   ID and selfie are still deleted). Spec F33 says the photo is approved
-   during verification; please confirm with the lawyer (DECISIONS.md asks
-   for a check when a new data type is kept).
+4. **Emergency contact by WhatsApp**: see "Legal questions" above.
+5. **Face images kept** after approval: see "Legal questions" above.
 
 ## Not done / known gaps
 

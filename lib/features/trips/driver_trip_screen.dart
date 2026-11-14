@@ -27,7 +27,7 @@ final _tripProvider = StreamProvider.autoDispose.family<Trip?, (String, String)>
   (Ref ref, (String, String) key) => ref.watch(tripRepositoryProvider).watchTrip(key.$1, key.$2),
 );
 
-enum _Phase { loading, permission, selfie, ready, running, done, paused, offline, failed }
+enum _Phase { loading, permission, selfie, ready, running, done, paused, noPhoto, offline, failed }
 
 /// A tap that could not be sent (no connection): sent again with the same
 /// request ID, so the server applies it once (spec section 11).
@@ -125,6 +125,8 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
       }
       if (failure.kind == TripFailureKind.drivingPaused) {
         _set(_Phase.paused);
+      } else if (failure.kind == TripFailureKind.noReference) {
+        _set(_Phase.noPhoto);
       } else if (failure.isOffline) {
         _set(_Phase.offline);
       } else {
@@ -205,6 +207,8 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     } on TripFailure catch (failure) {
       if (failure.kind == TripFailureKind.selfieRequired) {
         _set(_Phase.selfie);
+      } else if (failure.kind == TripFailureKind.noReference) {
+        _set(_Phase.noPhoto);
       } else if (failure.kind == TripFailureKind.drivingPaused) {
         _set(_Phase.paused);
       } else {
@@ -290,6 +294,47 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     _retry = null;
   }
 
+  /// Not coming asks first: the parent is told and the stop is closed.
+  Future<void> _notComing(TripStop stop) async {
+    final AppLocalizations l10n = context.l10n;
+    final bool sure = await showConfirmDialog(
+      context: context,
+      title: l10n.tripNotComingTitle(stop.firstName),
+      body: l10n.tripNotComingBody,
+      confirmLabel: l10n.tripActionNotComing,
+    );
+    if (sure && mounted) {
+      await _tap(_Pending(requestId: newRequestId(), childId: stop.childId, action: StopAction.notComing), l10n.tripNotComingSent);
+    }
+  }
+
+  /// End run asks first; refused by the server while a child is in the car.
+  Future<void> _end() async {
+    final AppLocalizations l10n = context.l10n;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final bool sure = await showConfirmDialog(
+      context: context,
+      title: l10n.tripEndTitle,
+      body: l10n.tripEndBody,
+      confirmLabel: l10n.tripEnd,
+      destructive: true,
+    );
+    if (!sure || !mounted) {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(tripRepositoryProvider).endTrip(widget.carpoolId, widget.runId);
+      showAppSnackBarOn(messenger, l10n.tripEnded);
+    } on TripFailure catch (failure) {
+      showAppSnackBarOn(messenger, failure.message(l10n));
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
   Future<void> _emergency() async {
     final AppLocalizations l10n = context.l10n;
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
@@ -325,6 +370,14 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
       _Phase.loading => const _DriveSkeleton(),
       _Phase.offline => OfflineStateView(onRetry: () => unawaited(_load())),
       _Phase.failed => ErrorStateView(body: _error, onRetry: () => unawaited(_load())),
+      _Phase.noPhoto => EmptyStateView(
+        key: const Key('drive.noPhoto'),
+        icon: Icons.face_outlined,
+        title: l10n.tripNoPhotoTitle,
+        body: l10n.tripErrorNoPhoto,
+        actionLabel: l10n.tripAddPhoto,
+        onAction: () => context.go('/profile/driving'),
+      ),
       _Phase.paused => EmptyStateView(
         key: const Key('drive.paused'),
         icon: Icons.pause_circle_outline_rounded,
@@ -426,15 +479,18 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
             direction: trip.direction,
             current: i == current,
             busy: _sending[riding[i].childId],
+            arrivedReady: arrivedAvailable(riding[i], now),
             onAction: (StopAction a) => unawaited(
-              _tap(
-                _Pending(requestId: newRequestId(), childId: riding[i].childId, action: a),
-                switch (a) {
-                  StopAction.arrived => l10n.tripArrivedSent,
-                  StopAction.pickedUp => l10n.tripPickedUpSent,
-                  StopAction.dropped => l10n.tripDroppedSent,
-                },
-              ),
+              a == StopAction.notComing
+                  ? _notComing(riding[i])
+                  : _tap(
+                      _Pending(requestId: newRequestId(), childId: riding[i].childId, action: a),
+                      switch (a) {
+                        StopAction.arrived => l10n.tripArrivedSent,
+                        StopAction.pickedUp => l10n.tripPickedUpSent,
+                        StopAction.dropped || StopAction.notComing => l10n.tripDroppedSent,
+                      },
+                    ),
             ),
           ),
         ],
@@ -451,6 +507,19 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
             expand: true,
             loading: _quickBusy == k,
             onPressed: _quickBusy != null ? null : () => unawaited(_tap(_Pending(requestId: newRequestId(), quick: k), l10n.tripQuickSent)),
+          ),
+        ],
+        if (!childOnBoard(trip)) ...<Widget>[
+          const SizedBox(height: AppSpacing.s32),
+          AppButton(
+            key: const Key('drive.end'),
+            label: l10n.tripEnd,
+            icon: Icons.flag_outlined,
+            size: AppButtonSize.large,
+            variant: AppButtonVariant.secondary,
+            expand: true,
+            loading: _busy,
+            onPressed: _busy ? null : () => unawaited(_end()),
           ),
         ],
         const SizedBox(height: AppSpacing.s32),

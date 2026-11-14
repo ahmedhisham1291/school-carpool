@@ -149,6 +149,12 @@ class FakeTripRepository implements TripRepository {
   }
 
   @override
+  Future<void> endTrip(String carpoolId, String runId) => _maybeFail('end');
+
+  @override
+  Future<void> stopMyTrips() => _maybeFail('stopMine');
+
+  @override
   Future<bool> emergency({required String carpoolId, required String runId, GeoPin? point}) async {
     await _maybeFail('emergency');
     return contactSent;

@@ -324,6 +324,51 @@ void main() {
       expect(find.text('Alert sent to all'), findsOneWidget);
     });
 
+    testWidgets('Not coming asks first, then tells the parent', (WidgetTester tester) async {
+      final (FakeTripRepository trips, FakeLocationTracker _) = await running(tester);
+      await _tapInList(tester, 'drive.notComing.h1');
+      expect(find.text('Laila not coming?'), findsOneWidget);
+      await tester.tap(find.text('Not coming').last);
+      await tester.pumpAndSettle();
+      expect(trips.calls, contains('act:h1:notComing'));
+      expect(find.text('Parent told'), findsOneWidget);
+    });
+
+    testWidgets('End run asks first; shown only with no child in the car', (WidgetTester tester) async {
+      final (FakeTripRepository trips, FakeLocationTracker tracker) = await running(tester);
+      await _tapInList(tester, 'drive.end');
+      expect(find.text('End the run?'), findsOneWidget);
+      await tester.tap(find.text('End run').last);
+      await tester.pumpAndSettle();
+      expect(trips.calls, contains('end'));
+      trips.trip = testTrip(status: TripStatus.ended);
+      trips.emit();
+      await tester.pumpAndSettle();
+      expect(tracker.stops, 1);
+      expect(find.byKey(const Key('drive.done')), findsOneWidget);
+    });
+
+    testWidgets('End run is hidden while a child is in the car', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(
+        run: _today(),
+        trip: testTrip(stops: const <TripStop>[TripStop(childId: 'c1', firstName: 'Adam', parentUid: 'uid-1', state: StopState.onBoard)]),
+      );
+      final FakeLocationTracker tracker = FakeLocationTracker(permission: TrackerPermission.always);
+      addTearDown(trips.dispose);
+      addTearDown(tracker.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker));
+      await _tap(tester, 'drive.start');
+      expect(find.byKey(const Key('drive.end')), findsNothing);
+    });
+
+    testWidgets('a driver without a face reference is asked to add a photo', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today())..failure = const TripFailure(TripFailureKind.noReference);
+      addTearDown(trips.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips));
+      expect(find.byKey(const Key('drive.noPhoto')), findsOneWidget);
+      expect(find.byKey(const Key('drive.start')), findsNothing);
+    });
+
     testWidgets('driver buttons are large (at least 64 dp high)', (WidgetTester tester) async {
       await running(tester);
       final Size size = tester.getSize(find.byKey(const Key('drive.pickedUp.c1')));
@@ -520,6 +565,16 @@ void main() {
                   l10n.tripActionPickedUp,
                   l10n.tripActionAtSchool,
                   l10n.tripActionDropped,
+                  l10n.tripActionNotComing,
+                  l10n.tripActionArrivedSent,
+                  l10n.tripNotComingTitle('Mohamed'),
+                  l10n.tripEnd,
+                  l10n.tripEndTitle,
+                  l10n.tripEnded,
+                  l10n.tripNoPhotoTitle,
+                  l10n.tripAddPhoto,
+                  l10n.tripNotComingSent,
+                  l10n.notifNotComingTitle,
                   l10n.tripQuickLate,
                   l10n.tripQuickGate,
                   l10n.tripQuickAllIn,

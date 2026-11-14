@@ -42,12 +42,35 @@ bool canFollowRun(ScheduleRun run, String uid, DateTime now) {
 List<StopAction> stopActions(TripStop stop, RunDirection direction) {
   final bool morning = direction == RunDirection.toSchool;
   return switch (stop.state) {
-    StopState.waiting => morning ? const <StopAction>[StopAction.arrived, StopAction.pickedUp] : const <StopAction>[StopAction.pickedUp],
-    StopState.arrived => morning ? const <StopAction>[StopAction.arrived, StopAction.pickedUp] : const <StopAction>[StopAction.arrived, StopAction.dropped],
+    StopState.waiting =>
+      morning
+          ? const <StopAction>[StopAction.arrived, StopAction.notComing, StopAction.pickedUp]
+          : const <StopAction>[StopAction.notComing, StopAction.pickedUp],
+    StopState.arrived =>
+      morning
+          ? const <StopAction>[StopAction.arrived, StopAction.notComing, StopAction.pickedUp]
+          : const <StopAction>[StopAction.arrived, StopAction.dropped],
     StopState.onBoard => morning ? const <StopAction>[StopAction.dropped] : const <StopAction>[StopAction.arrived, StopAction.dropped],
     StopState.dropped || StopState.received || StopState.absent => const <StopAction>[],
   };
 }
+
+/// Arrived alerts per stop and the pause between two (same as the server).
+const int kMaxArrived = 5;
+const Duration kArrivedGap = Duration(seconds: 30);
+
+/// Arrived can be sent now (not just sent, not used up).
+bool arrivedAvailable(TripStop stop, DateTime now) {
+  if (stop.arrivedCount >= kMaxArrived) {
+    return false;
+  }
+  final DateTime? at = stop.arrivedAt;
+  return at == null || now.difference(at) >= kArrivedGap;
+}
+
+/// A child is in the car (End run is refused then).
+bool childOnBoard(Trip trip) =>
+    trip.stops.any((TripStop s) => s.state == StopState.onBoard || (trip.direction == RunDirection.toHome && s.state == StopState.arrived));
 
 /// The stop the driver should look at first: the first one not done.
 int currentStopIndex(Trip trip) {

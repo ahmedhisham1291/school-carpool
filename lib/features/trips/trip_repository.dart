@@ -52,6 +52,12 @@ abstract interface class TripRepository {
   /// Returns false when the same message went out less than two minutes ago.
   Future<bool> quick({required String carpoolId, required String runId, required QuickKind kind, required String requestId});
 
+  /// Review item 4: ends the run (no child on board).
+  Future<void> endTrip(String carpoolId, String runId);
+
+  /// Review item 5: ends this parent's live trips (before signing out).
+  Future<void> stopMyTrips();
+
   /// Returns whether the saved emergency contact got the WhatsApp message.
   Future<bool> emergency({required String carpoolId, required String runId, GeoPin? point});
 
@@ -203,6 +209,12 @@ class FirebaseTripRepository implements TripRepository {
     final Object? result = await _call('quickMessage', <String, Object?>{..._run(carpoolId, runId), 'kind': kind.name, 'requestId': requestId});
     return _map(result)['posted'] == true;
   }
+
+  @override
+  Future<void> endTrip(String carpoolId, String runId) => _call('endTrip', _run(carpoolId, runId));
+
+  @override
+  Future<void> stopMyTrips() => _call('stopMyTrips', <String, Object?>{});
 
   @override
   Future<bool> emergency({required String carpoolId, required String runId, GeoPin? point}) async {
