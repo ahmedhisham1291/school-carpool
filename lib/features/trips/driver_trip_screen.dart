@@ -8,8 +8,10 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/schedule/schedule_labels.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
+import 'package:school_carpool/features/trips/always_location_screen.dart';
 import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
+import 'package:school_carpool/features/trips/run_recovery.dart';
 import 'package:school_carpool/features/trips/trip_logic.dart';
 import 'package:school_carpool/features/trips/trip_models.dart';
 import 'package:school_carpool/features/trips/trip_repository.dart';
@@ -229,12 +231,21 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final TripRepository repo = ref.read(tripRepositoryProvider);
     final LocationTracker tracker = ref.read(locationTrackerProvider);
+    final RunRecoveryService recovery = ref.read(runRecoveryProvider);
+    final SessionState signedIn = ref.read(sessionProvider);
     if (!resume && !await ensureReadyToDrive(context, ref)) {
       // The steps were closed: no run starts; the rest of the app stays open.
       return;
     }
     if (!mounted) {
       return;
+    }
+    if (!resume) {
+      // Optional "Always" (run recovery), once per install, never required.
+      await offerAlwaysIfUseful(context, ref);
+      if (!mounted) {
+        return;
+      }
     }
     setState(() {
       _busy = true;
@@ -249,6 +260,11 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
         return;
       }
       _stopped = false;
+      if (signedIn is SessionSignedIn) {
+        // The local marker (IDs only) lets the app resume this run after iOS
+        // closes it (run_recovery.dart).
+        await recovery.runStarted(uid: signedIn.uid, carpoolId: widget.carpoolId, runId: widget.runId);
+      }
       if (!resume) {
         showAppSnackBarOn(messenger, l10n.tripStarted);
       }

@@ -6,6 +6,7 @@ import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
 import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
+import 'package:school_carpool/features/trips/run_recovery.dart';
 import 'package:school_carpool/features/trips/trip_repository.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 
@@ -237,6 +238,7 @@ List<Override> carpoolOverrides({
   TripRepository? trips,
   LocationTracker? tracker,
   DrivingReadiness? readiness,
+  RecoveryNative? recovery,
 }) => <Override>[
   carpoolRepositoryProvider.overrideWithValue(carpools ?? FakeCarpoolRepository()),
   linkSharerProvider.overrideWithValue(sharer ?? FakeLinkSharer()),
@@ -244,5 +246,5 @@ List<Override> carpoolOverrides({
   scheduleClockProvider.overrideWithValue(() => testNow),
   // Prompt 10: the carpool screen shows today's driver card; run sheets
   // open trips. Always the same overrides.
-  ...tripOverrides(trips: trips, tracker: tracker, readiness: readiness),
+  ...tripOverrides(trips: trips, tracker: tracker, readiness: readiness, recovery: recovery),
 ];

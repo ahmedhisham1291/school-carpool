@@ -8899,5 +8899,41 @@
   "adminAuditDeviceOther": "فحص هاتف جديد: تأكيد آخر",
   "@adminAuditDeviceOther": {
     "description": "Audit action label"
+  },
+  "alwaysTitle": "استئناف المشوار تلقائيًا",
+  "@alwaysTitle": {
+    "description": "Title of the optional Always location screen (one line)"
+  },
+  "alwaysHeading": "اختياري: اسمح بالموقع «دائمًا»",
+  "@alwaysHeading": {
+    "description": "Heading of the optional Always screen"
+  },
+  "alwaysBody": "إذا أغلق الآيفون التطبيق أثناء مشوار تقوده، تعود مشاركة موقعك مع أولياء الأمور وحدها. يُستخدم ذلك فقط أثناء مشاوير المدرسة التي تبدؤها، مع ظهور المؤشر الأزرق، ويتوقف عند نهاية المشوار.",
+  "@alwaysBody": {
+    "description": "Body of the optional Always screen"
+  },
+  "alwaysWithout": "بدون ذلك يعمل كل شيء، فقط أبقِ التطبيق مفتوحًا أثناء المشوار.",
+  "@alwaysWithout": {
+    "description": "Optional Always screen: what happens if declined"
+  },
+  "alwaysAllow": "السماح دائمًا",
+  "@alwaysAllow": {
+    "description": "Primary button (one line)"
+  },
+  "alwaysNotNow": "ليس الآن",
+  "@alwaysNotNow": {
+    "description": "Secondary button (one line)"
+  },
+  "alwaysGranted": "سيُستأنف المشوار تلقائيًا",
+  "@alwaysGranted": {
+    "description": "Snack bar after Always was allowed"
+  },
+  "recoveryResumedTitle": "استُؤنف تتبع المشوار",
+  "@recoveryResumedTitle": {
+    "description": "Local notification after a run was recovered"
+  },
+  "recoveryResumedBody": "يُشارَك موقع سيارتك مع أولياء الأمور مرة أخرى.",
+  "@recoveryResumedBody": {
+    "description": "Local notification body after a run was recovered"
   }
 }

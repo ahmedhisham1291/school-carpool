@@ -10,6 +10,7 @@ import 'package:school_carpool/features/notifications/push_messaging.dart';
 import 'package:school_carpool/features/trips/geolocator_tracker.dart';
 import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
+import 'package:school_carpool/features/trips/run_recovery.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/observability/sentry_setup.dart';
@@ -41,25 +42,28 @@ Future<void> bootstrap(Flavor flavor) async {
       registerPushBackgroundHandler();
 
       final SettingsStore store = await SharedPrefsSettingsStore.create();
-      runApp(
-        ProviderScope(
-          overrides: [
-            flavorConfigProvider.overrideWithValue(config),
-            settingsStoreProvider.overrideWithValue(store),
-            // Live location on the phone only (drivers never run a trip from
-            // the website); tests and the web keep the fakes. Prompt 13: the
-            // free geolocator plugin for every flavor (DECISIONS.md).
-            if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android))
-              locationTrackerProvider.overrideWithValue(GeolocatorTracker(store: store)),
-            if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android))
-              drivingReadinessProvider.overrideWithValue(const DeviceDrivingReadiness()),
-            // Prompt 12: usage analytics on the phone (no PII; switch in Settings).
-            if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android))
-              analyticsSinkProvider.overrideWithValue(FirebaseAnalyticsSink()),
-          ],
-          child: const CarpoolApp(),
-        ),
+      final bool phone = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+      // Prompt 13: one container created before the first frame, so run
+      // recovery also works when iOS relaunches the app in the background
+      // (no screen, possibly no frames).
+      final ProviderContainer container = ProviderContainer(
+        overrides: [
+          flavorConfigProvider.overrideWithValue(config),
+          settingsStoreProvider.overrideWithValue(store),
+          // Live location on the phone only (drivers never run a trip from
+          // the website); tests and the web keep the fakes. Prompt 13: the
+          // free geolocator plugin for every flavor (DECISIONS.md).
+          if (phone) locationTrackerProvider.overrideWithValue(GeolocatorTracker(store: store)),
+          if (phone) drivingReadinessProvider.overrideWithValue(const DeviceDrivingReadiness()),
+          // Run recovery: our own plugin on iPhone; a no-op elsewhere.
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) recoveryNativeProvider.overrideWithValue(PluginRecoveryNative()),
+          // Prompt 12: usage analytics on the phone (no PII; switch in Settings).
+          if (phone) analyticsSinkProvider.overrideWithValue(FirebaseAnalyticsSink()),
+        ],
       );
+      // Resumes a run iOS closed (marker + server check), headless-safe.
+      container.read(runRecoveryLauncherProvider);
+      runApp(UncontrolledProviderScope(container: container, child: const CarpoolApp()));
     },
   );
 }
