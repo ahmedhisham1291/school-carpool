@@ -2,7 +2,7 @@
   "projects": {
     "default": "demo-school-carpool",
     "dev": "REPLACE-school-carpool-dev",
-    "staging": "REPLACE-school-carpool-staging",
+    "staging": "school-carpool-staging",
     "prod": "REPLACE-school-carpool-prod"
   },
   "targets": {
@@ -13,6 +13,16 @@
         ],
         "links": [
           "demo-school-carpool-links"
+        ]
+      }
+    },
+    "school-carpool-staging": {
+      "hosting": {
+        "admin": [
+          "school-carpool-staging-admin"
+        ],
+        "links": [
+          "school-carpool-staging-links"
         ]
       }
     }

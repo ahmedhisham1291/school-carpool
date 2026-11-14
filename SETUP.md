@@ -470,8 +470,9 @@ Prefer the commands above.
    add the admin site's domains (`<site id>.web.app`, `<site id>.firebaseapp.com`).
 6. **Images in the panel (Storage CORS):** the panel draws document images
    on the canvas (never as a downloadable `<img>`), which needs CORS on the
-   bucket for the admin site only. Put the site's domains in
-   `tool/storage_cors.json`, then
+   bucket for the admin site only. `tool/storage_cors.json` holds the
+   staging admin site (`school-carpool-staging-admin`); for another project
+   put that project's admin site domains in it, then
    `gsutil cors set tool/storage_cors.json gs://<bucket>`.
 7. **Deploy the rules, indexes and functions:**
    `firebase deploy --only firestore:rules,firestore:indexes,functions --project dev`.
