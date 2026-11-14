@@ -153,10 +153,11 @@ class _FamilyContent extends ConsumerWidget {
               subtitle: guardianRelationLabel(l10n, r.relation),
               leadingIcon: Icons.hourglass_top_rounded,
               showChevron: false,
-              trailing: AppButton(
+              // An icon button keeps the row's title room at 320 dp and 200 percent text.
+              trailing: IconButton(
                 key: Key('family.cancel.${r.id}'),
-                label: l10n.actionCancel,
-                variant: AppButtonVariant.tertiary,
+                tooltip: l10n.familyCancelRequest,
+                icon: const Icon(Icons.close_rounded),
                 onPressed: () => unawaited(_run(context, ref, (TrustRepository repo) => repo.cancelLinkRequest(r.id), l10n.familyCancelled)),
               ),
             ),

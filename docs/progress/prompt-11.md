@@ -217,3 +217,14 @@ SETUP.md section 22.4, step by step:
   Valify stub answers "error", so phone changes wait for the contract in
   prod).
 - Not verified here: `flutter analyze`, `flutter test`, the rules tests.
+
+## CI fixes (run 43579130520)
+
+- Admin rail: with the Trust page a super admin's rail (10 sections) was
+  taller than an 800 px window; the rail now scrolls (fixed height from
+  the number of sections, never less than the window).
+- Family links: the "Your requests" row uses an icon button (Take back
+  request) so the row fits at 320 dp and 200 percent text; English header
+  "Shared by you" (fits 320 dp).
+- Test: the sample parent ID had an "I", which parent IDs never contain.
+

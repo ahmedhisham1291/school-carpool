@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -114,7 +115,14 @@ class _AdminShellState extends ConsumerState<AdminShell> {
               // Labels stay on one line: text scale is clamped in the rail
               // only (like the app's bottom bar), and a label that is still
               // too wide scales down, never wraps (docs/DESIGN.md).
-              MediaQuery.withClampedTextScaling(
+              // Prompt 11: with every section the rail can be taller than
+              // the window; it then scrolls instead of overflowing.
+              LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints box) => SingleChildScrollView(
+                  key: const Key('admin.railScroll'),
+                  child: SizedBox(
+                    height: math.max(box.maxHeight.isFinite ? box.maxHeight : 0, _railHeight(sections.length)),
+                    child: MediaQuery.withClampedTextScaling(
                 maxScaleFactor: AppTypeScale.maxNavTextScale,
                 child: NavigationRail(
                   selectedIndex: index < 0 ? null : index,
@@ -177,6 +185,9 @@ class _AdminShellState extends ConsumerState<AdminShell> {
                     ),
                   ),
                 ),
+                    ),
+                  ),
+                ),
               ),
               const VerticalDivider(),
               Expanded(child: widget.child),
@@ -186,6 +197,11 @@ class _AdminShellState extends ConsumerState<AdminShell> {
       ),
     );
   }
+
+  /// Room the rail needs: the avatar, each section (icon and a label at the
+  /// clamped text scale, generous) and the three buttons at the bottom.
+  static double _railHeight(int sections) =>
+      AppSpacing.s16 * 2 + AppSpacing.s40 + sections * AppSpacing.s64 * 1.25 + AppSpacing.minTouchTarget * 3 + AppSpacing.s16;
 
   static String _initial(String name) {
     final String trimmed = name.trim();

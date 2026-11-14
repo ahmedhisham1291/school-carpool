@@ -158,10 +158,10 @@ void main() {
       await _pump(tester, ProfileRoutes.family, trust: trust);
       await _tap(tester, find.byKey(const Key('family.link')));
       expect(_button(tester, 'family.send').onPressed, isNull);
-      await _type(tester, find.byKey(const Key('family.parentId')), 'sami 2345');
+      await _type(tester, find.byKey(const Key('family.parentId')), 'sama 2345');
       await _tap(tester, find.byKey(const Key('family.relation.mother')));
       await _tap(tester, find.byKey(const Key('family.send')));
-      expect(trust.lastLinkRequest, ('SAMI2345', GuardianRelation.mother));
+      expect(trust.lastLinkRequest, ('SAMA2345', GuardianRelation.mother));
       expect(find.text('Request sent to Sami'), findsOneWidget);
     });
 

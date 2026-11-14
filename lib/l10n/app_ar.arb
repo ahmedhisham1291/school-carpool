@@ -7986,5 +7986,9 @@
   "adminTrustOutcomeEscalated": "تم التصعيد",
   "@adminTrustOutcomeEscalated": {
     "description": "Outcome"
+  },
+  "familyCancelRequest": "سحب الطلب",
+  "@familyCancelRequest": {
+    "description": "Tooltip of the cancel button on an outgoing link request"
   }
 }
