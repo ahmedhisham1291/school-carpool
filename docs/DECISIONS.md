@@ -91,3 +91,30 @@ periods with the lawyer** (as the legal section above requires for longer retent
   off.
 - **App Review:** localized purpose strings, a reviewer note on background location, and a
   short run recording from the owner's iPhone.
+- **Built in Prompt 13:** `lib/features/trips/geolocator_tracker.dart` (tracker),
+  `location_gate.dart` (gate, banner), `reportTrackingLost` and the `run-still-on` push.
+  The paid plugin, its licence (`BG_GEO_LICENSE`) and its native settings were removed so
+  the iOS release build needs no licence.
+- **How to bring the paid plugin back** (if the Android stage or the pilot shows tracking is
+  unreliable): buy the v5 licence for `org.schoolcarpool.app` (+ `.stg`, `.dev`); add
+  `flutter_background_geolocation: ^5.x` to pubspec; restore
+  `lib/features/trips/background_location_tracker.dart`, `patch_bggeo_ios()` and
+  `patch_bggeo_android()` in `tool/patch_native.py`, the `fetch`/`processing` background
+  modes and `com.transistorsoft.fetch`, and SETUP.md 20.5 from git (the commit before
+  Prompt 13's "remove the paid location plugin"); swap the tracker in `lib/bootstrap.dart`
+  (one line); add `BG_GEO_LICENSE` to Codemagic's `staging_defines`/`dev_defines`. The
+  server (`tripLocation`) accepts both plugins' upload bodies. The gate stays as it is.
+
+## Owner answers (14 Nov 2026, 13:29)
+
+1. **Wallet transfer records: kept 5 years** (confirmed; no longer a placeholder). Still
+   append-only; any deletion job at the end of the 5 years needs the owner's go.
+2. **Trips of a closed carpool are not deleted as a whole 1 year after the carpool closes.**
+   Each parent's trip data is kept while that parent's account is active + 1 year (the
+   retention rule above). The closed-carpool purge keeps a trip while any parent who took part
+   (driver or a parent of a child on it) still has an account, or closed theirs less than
+   1 year ago; a parent's part is anonymised 1 year after their account closes (deleted
+   parents already show as initials); the trip is deleted only when every participant's
+   account has been closed for more than 1 year.
+3. **Chat connection up to 60 minutes after sign-out** (Stream token lifetime): accepted for
+   now, not a bug (docs/open-items.md).

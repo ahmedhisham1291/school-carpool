@@ -1,9 +1,8 @@
-/* Arabic texts shown by iOS. PLACEHOLDERS until Prompt 13 and legal review. */
+/* Arabic texts shown by iOS (Prompt 13 wording; same meaning as the English). */
 "CFBundleDisplayName" = "مشوار المدرسة";
-"NSCameraUsageDescription" = "نستخدم الكاميرا لتصوير بطاقتك الشخصية والتقاط صورة سيلفي مباشرة للتحقق من هويتك، ولإرسال الصور في المحادثات الخاصة ومحادثات المشوار.";
-"NSPhotoLibraryUsageDescription" = "اختر صورة لإرسالها في محادثة خاصة أو محادثة المشوار. نحذف بيانات الموقع من الصورة أولًا.";
-"NSLocationWhenInUseUsageDescription" = "نستخدم موقعك لتحديد منزلك على الخريطة ولعرض سيارتك لأولياء الأمور أثناء المشوار.";
-"NSLocationAlwaysAndWhenInUseUsageDescription" = "أثناء قيادتك للمشوار يستمر تحديث موقعك لأولياء أمور الأطفال الموجودين في سيارتك حتى لو كان الهاتف مقفلًا، ويتوقف عند انتهاء المشوار.";
-"NSMotionUsageDescription" = "تساعد بيانات الحركة على توفير البطارية أثناء انتظار سيارتك في المشوار.";
-"NSFaceIDUsageDescription" = "نستخدم بصمة الوجه لقفل التطبيق وتأكيد كل تحويل من المحفظة.";
+"NSCameraUsageDescription" = "تُستخدم الكاميرا لتصوير بطاقتك الشخصية والتقاط سيلفي مباشر للتحقق من هويتك، ولالتقاط الصور التي تختار إرسالها في المحادثات.";
+"NSPhotoLibraryUsageDescription" = "اختر صورة لإرسالها في محادثة. نحذف بيانات الموقع من الصورة قبل إرسالها.";
+"NSLocationWhenInUseUsageDescription" = "يحدد موقعك منزلك على الخريطة. وعندما تقود مشوار المدرسة يُظهر سيارتك لأولياء أمور الأطفال الذين معك، حتى والهاتف مقفل، إلى أن ينتهي المشوار.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "يطلب مشوار المدرسة إذن «أثناء استخدام التطبيق» فقط. يُشارَك موقعك فقط أثناء قيادتك لمشوار المدرسة، مع أولياء أمور الأطفال الذين في سيارتك، ويتوقف عند انتهاء المشوار.";
+"NSFaceIDUsageDescription" = "تُستخدم بصمة الوجه لفتح التطبيق وتأكيد كل تحويل من المحفظة.";
 "NSLocalNetworkUsageDescription" = "نسخ المطورين تتصل بخوادم تجريبية على شبكتك المحلية.";

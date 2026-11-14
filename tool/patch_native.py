@@ -36,6 +36,9 @@ What it changes
            FlutterFragmentActivity (biometric prompt). iPhone uses
            NSFaceIDUsageDescription (Arabic and English texts above and in
            tool/ios/*.lproj).
+  Location (Prompt 13) geolocator: background mode `location`, "While
+           Using the App" texts; the paid plugin's keys, licence and
+           background task are removed (no licence is needed).
 """
 
 from __future__ import annotations
@@ -54,31 +57,36 @@ IOS_OVERRIDES = ROOT / "tool" / "ios"
 MIN_IOS = "15.0"
 MIN_ANDROID_SDK = 26
 
-# English base texts. Arabic and English localized copies live in
-# tool/ios/<lang>.lproj/InfoPlist.strings. PLACEHOLDERS: final wording comes
-# with Prompt 13 (permission texts) and the lawyer's review.
+# English base texts (Info.plist). Arabic and English localized copies live
+# in tool/ios/<lang>.lproj/InfoPlist.strings (Prompt 13 wording; same
+# meaning in both). Notifications have no Info.plist text on iOS: the
+# app's own screen explains them before the system prompt.
 PERMISSION_TEXTS = {
     "NSCameraUsageDescription":
-        "The camera is used to photograph your ID, take a live selfie for verification, "
-        "and send photos in private and carpool chats.",
-    # Prompt 9 (image_picker): choose a photo to send in a chat. Location
-    # data is removed from the photo before it is sent.
+        "The camera takes photos of your ID and a live selfie to verify you, "
+        "and photos you choose to send in chats.",
+    # Prompt 9 (image_picker): choose a photo to send in a chat.
     "NSPhotoLibraryUsageDescription":
-        "Choose a photo to send in a private or carpool chat. Location data is removed first.",
+        "Choose a photo to send in a chat. Its location data is removed before it is sent.",
+    # Prompt 13: "While Using the App" is the only location permission asked.
     "NSLocationWhenInUseUsageDescription":
-        "Your location sets your home on the map and shows your car to parents during a run.",
+        "Your location sets your home on the map. When you drive a school run, it shows your car "
+        "to the parents of the children in it, also with the phone locked, until the run ends.",
+    # Required by App Store Connect because the location plugin links the
+    # "Always" API. The app never asks for "Always".
     "NSLocationAlwaysAndWhenInUseUsageDescription":
-        "While you drive a run, your location keeps updating for the parents of the children "
-        "in your car, even when the phone is locked. It stops when the run ends.",
-    # Prompt 10: flutter_background_geolocation uses the motion sensors to
-    # save battery while the car waits.
-    "NSMotionUsageDescription":
-        "Motion data helps save battery while your car waits during a run.",
+        "School Carpool only asks for While Using the App. Your location is shared only while you "
+        "drive a school run, with the parents of the children in your car, and stops when the run ends.",
     "NSFaceIDUsageDescription":
-        "Face ID locks the app and confirms every wallet transfer.",
+        "Face ID unlocks the app and confirms every wallet transfer.",
     "NSLocalNetworkUsageDescription":
         "Developer builds connect to test servers on your local network.",
 }
+
+# Keys and values from the paid location plugin (removed in Prompt 13),
+# dropped from an Info.plist generated before.
+REMOVED_INFO_KEYS = ("NSMotionUsageDescription", "TSLocationManagerLicense")
+REMOVED_BG_TASKS = ("com.transistorsoft.fetch",)
 
 
 def log(message: str) -> None:
@@ -138,20 +146,24 @@ def patch_ios(bundle_id: str, display_name: str) -> None:
     # Only standard HTTPS/TLS: exempt from export documentation.
     info["ITSAppUsesNonExemptEncryption"] = False
     info.update(PERMISSION_TEXTS)
+    for key in REMOVED_INFO_KEYS:
+        info.pop(key, None)
     ats = dict(info.get("NSAppTransportSecurity", {}))
     ats["NSAllowsLocalNetworking"] = True  # dev builds talk to the emulators
     info["NSAppTransportSecurity"] = ats
-    modes = list(info.get("UIBackgroundModes", []))
-    # Firebase Cloud Messaging; Prompt 10: live location during a run with
-    # the phone locked, and the plugin's background fetch.
-    for mode in ("remote-notification", "location", "fetch", "processing"):
+    # Firebase Cloud Messaging, and (Prompt 13) live location during a run
+    # with the phone locked. fetch and processing were only for the paid
+    # location plugin.
+    modes = [m for m in info.get("UIBackgroundModes", []) if m not in ("fetch", "processing")]
+    for mode in ("remote-notification", "location"):
         if mode not in modes:
             modes.append(mode)
     info["UIBackgroundModes"] = modes
-    tasks = list(info.get("BGTaskSchedulerPermittedIdentifiers", []))
-    if "com.transistorsoft.fetch" not in tasks:
-        tasks.append("com.transistorsoft.fetch")
-    info["BGTaskSchedulerPermittedIdentifiers"] = tasks
+    tasks = [t for t in info.get("BGTaskSchedulerPermittedIdentifiers", []) if t not in REMOVED_BG_TASKS]
+    if tasks:
+        info["BGTaskSchedulerPermittedIdentifiers"] = tasks
+    else:
+        info.pop("BGTaskSchedulerPermittedIdentifiers", None)
     # Prompt 5: the Maps key comes from ios/Flutter/Maps.xcconfig (patch_maps_ios).
     info["GMSApiKey"] = "$(MAPS_API_KEY)"
     # Prompt 6: universal links (invite links) reach go_router.
@@ -461,6 +473,8 @@ def patch_alerts_android() -> None:
 # --------------------------------------------------------------------------
 # Wallet (Prompt 11B): local_auth
 # --------------------------------------------------------------------------
+# Wallet (Prompt 11B): local_auth
+# --------------------------------------------------------------------------
 
 def fragment_activity(text: str) -> str:
     """MainActivity extends FlutterFragmentActivity (local_auth needs a
@@ -479,87 +493,6 @@ def patch_wallet_android() -> None:
         return
     for activity in kotlin.rglob("MainActivity.kt"):
         patch_text(activity, fragment_activity)
-# Live location (Prompt 10): flutter_background_geolocation on Android
-# --------------------------------------------------------------------------
-
-BGGEO_MARKER = "school-carpool: background geolocation"
-BGGEO_LICENSE_META = (
-    '<meta-data android:name="com.transistorsoft.locationmanager.license" android:value="${bgGeoLicense}" />'
-)
-_JWT = re.compile(r"^[A-Za-z0-9_.-]*$")
-
-
-def bggeo_license() -> str:
-    """flutter_background_geolocation 5 licence (a JWT) from BG_GEO_LICENSE; never committed."""
-    value = os.environ.get("BG_GEO_LICENSE", "").strip()
-    if not _JWT.match(value):
-        sys.exit("patch_native: BG_GEO_LICENSE does not look like a licence key")
-    return value
-
-
-def patch_bggeo_ios() -> None:
-    """v5 needs the licence on iPhone release builds too (debug works without).
-
-    The key goes to ios/Flutter/BgGeo.xcconfig (not committed) and Info.plist
-    reads it as $(BG_GEO_LICENSE). The CocoaPods integration needs static
-    framework linkage (the SDK ships a static xcframework).
-    """
-    ios = ROOT / "ios"
-    flutter_dir = ios / "Flutter"
-    if not flutter_dir.is_dir():
-        return
-    key = bggeo_license()
-    (flutter_dir / "BgGeo.xcconfig").write_text(
-        f"// Generated by tool/patch_native.py from BG_GEO_LICENSE. Not committed.\nBG_GEO_LICENSE={key}\n",
-        encoding="utf-8",
-    )
-    for name in ("Debug.xcconfig", "Release.xcconfig", "Profile.xcconfig"):
-        path = flutter_dir / name
-        if path.exists():
-            patch_text(path, lambda t: t if "BgGeo.xcconfig" in t else t.rstrip("\n") + '\n#include? "BgGeo.xcconfig"\n')
-    info_path = ios / "Runner" / "Info.plist"
-    if info_path.exists():
-        with info_path.open("rb") as f:
-            info = plistlib.load(f)
-        before = dict(info)
-        if key:
-            info["TSLocationManagerLicense"] = "$(BG_GEO_LICENSE)"
-        else:
-            # Debug builds: no key at all (an empty one would count as invalid).
-            info.pop("TSLocationManagerLicense", None)
-        if info != before:
-            with info_path.open("wb") as f:
-                plistlib.dump(info, f, sort_keys=False)
-            log("updated ios/Runner/Info.plist (background geolocation licence)")
-    log("background geolocation licence: " + ("set" if key else "none (debug builds only)"))
-    podfile = ios / "Podfile"
-    if podfile.exists():
-        patch_text(podfile, lambda t: re.sub(r"^(\s*)use_frameworks!\s*$", r"\1use_frameworks! :linkage => :static", t, flags=re.M))
-
-
-def patch_bggeo_android() -> None:
-    """v5 needs no extra Maven folders; the licence (release builds) comes from the build."""
-    gradle = ROOT / "android" / "app" / "build.gradle.kts"
-    if gradle.exists():
-        def kts(text: str) -> str:
-            if BGGEO_MARKER in text:
-                return text
-            # The licence key comes from the build (Gradle property or
-            # environment, never the repository). Debug builds need none.
-            line = (
-                "        // " + BGGEO_MARKER + ": licence key for release builds (SETUP.md section 20).\n"
-                '        manifestPlaceholders["bgGeoLicense"] = (project.findProperty("BG_GEO_LICENSE") as String?)\n'
-                '            ?: System.getenv("BG_GEO_LICENSE") ?: ""\n'
-            )
-            return re.sub(r"(defaultConfig\s*\{\n)", lambda m: m.group(1) + line, text, count=1)
-        patch_text(gradle, kts)
-    manifest = ROOT / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
-    if manifest.exists():
-        def xml(text: str) -> str:
-            if "com.transistorsoft.locationmanager.license" in text:
-                return text
-            return re.sub(r"(<application[^>]*>\n)", lambda m: m.group(1) + f"        <!-- {BGGEO_MARKER} -->\n        {BGGEO_LICENSE_META}\n", text, count=1)
-        patch_text(manifest, xml)
 
 
 def main() -> int:
@@ -577,8 +510,6 @@ def main() -> int:
     patch_alerts_ios()
     patch_alerts_android()
     patch_wallet_android()
-    patch_bggeo_ios()
-    patch_bggeo_android()
     return 0
 
 

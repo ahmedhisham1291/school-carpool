@@ -1154,37 +1154,27 @@ asked to tell that person.
 
 ### 20.4 iPhone: background location (applied by tool/patch_native.py)
 
-- `UIBackgroundModes`: `location`, `fetch`, `processing` (plus
-  `remote-notification`), `BGTaskSchedulerPermittedIdentifiers`:
-  `com.transistorsoft.fetch`.
+Prompt 13 (owner decision, docs/DECISIONS.md "Location tracking on
+iPhone"): the free `geolocator` plugin, "While Using the App" with Precise
+Location; "Always" is never asked.
+
+- `UIBackgroundModes`: `location` and `remote-notification` only.
 - Permission texts in Arabic and English (`tool/ios/<lang>.lproj/InfoPlist.strings`):
-  `NSLocationAlwaysAndWhenInUseUsageDescription`,
-  `NSLocationWhenInUseUsageDescription`, `NSMotionUsageDescription`.
-- App Store review: say in the review notes that location runs in the
-  background only while a parent drives a school run, for the parents of
-  the children in the car, and stops at the last drop-off.
-- flutter_background_geolocation 5: CocoaPods needs
-  `use_frameworks! :linkage => :static` in `ios/Podfile` (patched). Debug
-  builds run without a licence; **release builds (TestFlight, App Store)
-  need the v5 licence** in Info.plist `TSLocationManagerLicense`, which
-  the patch sets to `$(BG_GEO_LICENSE)` from `ios/Flutter/BgGeo.xcconfig`
-  (written from the `BG_GEO_LICENSE` environment variable; not committed).
+  `NSLocationWhenInUseUsageDescription` and
+  `NSLocationAlwaysAndWhenInUseUsageDescription` (required by App Store
+  Connect because the plugin links the "Always" API; never requested).
+- The blue location indicator shows while a run tracks with the app in
+  the background. Swiping the app away stops tracking on iPhone; the server
+  pushes the driver "Run still on" after 2 minutes and tells the parents.
+- App Store review: docs/app-review-notes.md.
 
-### 20.5 Licence (before the first TestFlight build with trips)
+### 20.5 Licence: none needed
 
-flutter_background_geolocation **5** uses a new JWT licence (the "New" tab
-in Transistor's customer dashboard; v4 keys do not work) and checks it on
-**release builds on both iPhone and Android**; debug builds work without.
-Buy it for the bundle and application IDs (`org.schoolcarpool.app`,
-`.stg`, `.dev`). Never commit it. Give it to the build as the
-environment variable `BG_GEO_LICENSE`: in Codemagic add it as an
-encrypted variable to the `staging_defines` and `dev_defines` groups (the
-iOS workflows read them; `codemagic.yaml` names it). Android also reads it
-as a Gradle property.
-`tool/patch_native.py` writes it to `ios/Flutter/BgGeo.xcconfig` (Info.plist
-`TSLocationManagerLicense`) and to the Android manifest
-(`com.transistorsoft.locationmanager.license`). A value that is not
-key-shaped stops the patch. No extra Maven folders are needed in v5.
+No licence or build secret is needed for live location. The paid
+flutter_background_geolocation (and its `BG_GEO_LICENSE`) was removed in
+Prompt 13; DECISIONS.md says how to bring it back. If an old
+`BG_GEO_LICENSE` variable is still in Codemagic's `staging_defines` or
+`dev_defines` group, delete it.
 
 ### 20.6 Try it (the "Done when" check)
 

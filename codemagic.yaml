@@ -42,9 +42,8 @@ workflows:
       groups:
         # SENTRY_DSN_APP_STAGING, RECAPTCHA_SITE_KEY (web, later),
         # MAPS_API_KEY_IOS (Prompt 5; the staging project's iOS Maps key),
-        # BG_GEO_LICENSE (Prompt 10: flutter_background_geolocation 5 JWT
-        # licence; v5 checks it on iPhone release builds; read by
-        # tool/patch_native.py, never committed; SETUP.md 20.5)
+        # INVITE_LINK_DOMAIN (optional, Prompt 6). No location licence:
+        # Prompt 13 uses the free geolocator plugin (docs/testflight.md).
         - staging_defines
       vars:
         APP_STORE_APPLE_ID: "0000000000"
@@ -100,8 +99,7 @@ workflows:
         distribution_type: app_store
         bundle_identifier: org.schoolcarpool.app.dev
       groups:
-        # SENTRY_DSN_APP_DEV, MAPS_API_KEY_IOS (Prompt 5; the dev project's key),
-        # BG_GEO_LICENSE (Prompt 10, as above; App Store builds are release builds)
+        # SENTRY_DSN_APP_DEV, MAPS_API_KEY_IOS (Prompt 5; the dev project's key)
         - dev_defines
       vars:
         APP_STORE_APPLE_ID: "0000000000"
