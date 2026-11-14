@@ -132,7 +132,7 @@ calls flutter_background_geolocation; its API could not be checked here).
 - `flutter_background_geolocation: ^4.16.0` — in the STACK list ("Live
   location on the phone: flutter_background_geolocation (paid license)").
   iOS and debug need no licence; Android release reads `BG_GEO_LICENSE`
-  (SETUP.md 19.5). It brings `background_fetch`. If CI cannot resolve
+  (SETUP.md 20.5). It brings `background_fetch`. If CI cannot resolve
   4.16 with our Flutter version, pin the newest 4.x it accepts (or move to
   5.x and adjust the one tracker file).
 
@@ -162,7 +162,7 @@ calls flutter_background_geolocation; its API could not be checked here).
 
 ## How to test it on the iPhone (the "Done when" check)
 
-SETUP.md section 19.6 step by step: start a run on the iPhone after
+SETUP.md section 20.6 step by step: start a run on the iPhone after
 allowing Always, lock it, follow the car and the arrival time on a second
 device (Simulator signed in as Hoda), Arrived / pickup / drop-off reach
 her, Airplane mode for 2 minutes then `carpool:emulator -- triptick` sends

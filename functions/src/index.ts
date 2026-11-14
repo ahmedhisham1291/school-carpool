@@ -43,8 +43,10 @@ export {
 export {
   adminApproveSchool,
   adminCreateAdmin,
+  adminGetReport,
   adminGetSchool,
   adminGetUser,
+  adminLiftDrivingPause,
   adminListAdmins,
   adminListAuditLog,
   adminListReports,
@@ -52,6 +54,9 @@ export {
   adminMergeSchool,
   adminModerateUser,
   adminPing,
+  adminRemoveChatMember,
+  adminRemoveChatMessage,
+  adminResolveReport,
   adminSaveArea,
   adminSaveSchool,
   adminSearchUsers,
@@ -126,6 +131,27 @@ export {
   updateNotificationSettings,
 } from "./notifications/callables";
 
+// Chat (Prompt 9: F8, F9, F10, F13) on Stream Chat: tokens for verified,
+// non-suspended parents only; every channel and member decided here;
+// requests, blocks, mutes and reports; the Stream webhook feeds chat push
+// into the one notification sender; daily retention.
+export {
+  answerChatRequest,
+  blockChatUser,
+  cancelChatRequest,
+  chatRetentionDaily,
+  chatWebhook,
+  getChatToken,
+  reportChat,
+  sendChatRequest,
+  setChatMute,
+  syncChatOnCarpoolMemberWrite,
+  syncChatOnLocationWrite,
+  syncChatOnUserWrite,
+  syncMyChats,
+  unblockChatUser,
+  updateChatSettings,
+} from "./chat/callables";
 // Trips and live location (Prompt 10: F15, F16, F20, F29, F33, F34, F35,
 // F38, F41): start a run (selfie check first on some runs), live points from
 // the phone's location plugin, stops, quick buttons, emergency, handover

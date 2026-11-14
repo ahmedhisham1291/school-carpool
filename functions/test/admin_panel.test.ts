@@ -410,8 +410,8 @@ describe("reports and audit log", () => {
   it("lists open reports", async () => {
     const store = new MemoryListsStore();
     store.reports = [
-      { id: "r1", reporterUid: "u1", targetType: "user", targetId: "u2", reason: "spam", status: "open", createdAtMs: 1 },
-      { id: "r2", reporterUid: "u1", targetType: "user", targetId: "u3", reason: "spam", status: "handled", createdAtMs: 2 },
+      { id: "r1", reporterUid: "u1", targetType: "user", targetId: "u2", reason: "spam", status: "open", createdAtMs: 1, urgent: false, kind: "" },
+      { id: "r2", reporterUid: "u1", targetType: "user", targetId: "u3", reason: "spam", status: "handled", createdAtMs: 2, urgent: true, kind: "carpool" },
     ];
     assert.deepEqual((await listReports(store, {})).reports.map((r) => r.id), ["r1"]);
     await assert.rejects(listReports(store, { status: "x" }), expectReason("invalid-request"));

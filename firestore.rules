@@ -385,6 +385,44 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
+    // Prompt 9 (F8, F9, F10, F13): chat. Messages live in Stream Chat;
+    // Cloud Functions write every record below. A verified parent reads
+    // only their own: requests they sent or got (first names only),
+    // parents they blocked, their mute choices and their settings. The
+    // channel registry, group memberships, limits and chat push records
+    // (users/{uid}/chatPushes) stay closed. Reports stay closed (admins
+    // read them through functions).
+    match /chatRequests/{id} {
+      allow get: if verifiedParent()
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow list: if verifiedParent() && request.query.limit <= 50
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+    match /chatBlocks/{id} {
+      allow get: if verifiedParent() && resource.data.blockerUid == request.auth.uid;
+      allow list: if verifiedParent() && request.query.limit <= 200 && resource.data.blockerUid == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+    match /chatMutes/{id} {
+      allow get: if verifiedParent() && resource.data.uid == request.auth.uid;
+      allow list: if verifiedParent() && request.query.limit <= 500 && resource.data.uid == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+    match /chatSettings/{uid} {
+      allow get: if isSelf(uid) && verifiedParent();
+      allow list, create, update, delete: if false;
+    }
+    match /chatChannels/{cid} {
+      allow read, write: if false;
+    }
+    match /chatMemberships/{uid} {
+      allow read, write: if false;
+    }
+    match /chatLimits/{uid} {
+      allow read, write: if false;
+    }
+
     // Reserved parent IDs, sign-in codes and sign-in limits: Cloud
     // Functions only. Parent ID lookups (F44) will go through a
     // rate-limited function, never a direct read.

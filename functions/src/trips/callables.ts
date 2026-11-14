@@ -22,6 +22,7 @@ import {
   WHATSAPP_TEMPLATE_LANG_EN,
 } from "../config";
 import { CAIRO_TZ } from "../schedule/cairo";
+import { pauseDriverRuns } from "../schedule/pause";
 import { reportError } from "../sentry";
 import { createKycProvider, type FaceMatcher as KycFaceMatcher } from "../verification/kyc";
 import { CloudStorageFiles, readFakeKycSetting } from "../verification/store";
@@ -44,7 +45,6 @@ import {
   type TripDeps,
 } from "./flow";
 import { TRIP_ERROR_CODES, TripError, tripSettings } from "./model";
-import { releaseDriverRuns } from "./release";
 import { createRoutesProvider } from "./routes";
 import { FirestoreTripStore } from "./store";
 
@@ -93,7 +93,8 @@ function tripDeps(): TripDeps {
           (message) => logger.info(message),
         ).sendTemplate(to, template, language, params, preview),
     },
-    releaseRuns: (uid, nowMs) => releaseDriverRuns(carpools.store, uid, nowMs, carpools.deadlines ?? { confirmBy: "21:00", lateLeadMin: 60 }),
+    // Prompt 9's pause release: every run the driver drives from today on.
+    releaseRuns: async (uid) => (await pauseDriverRuns(carpools, uid)).runs,
     now: () => Date.now(),
     newToken: () => randomBytes(32).toString("base64url"),
     roll: () => randomInt(0, 100),

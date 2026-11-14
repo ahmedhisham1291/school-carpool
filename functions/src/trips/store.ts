@@ -433,7 +433,13 @@ export class FirestoreTripStore implements TripStore {
   }
 
   async pauseDriving(uid: string, nowMs: number, reason: string): Promise<void> {
-    await this.db.collection(USERS).doc(uid).update({ drivingPaused: { at: ts(nowMs), reason }, updatedAt: FieldValue.serverTimestamp() });
+    // Same fields as Prompt 9's urgent-report pause, so the admin's "lift" clears it.
+    await this.db.collection(USERS).doc(uid).update({
+      drivingPaused: true,
+      drivingPausedAt: ts(nowMs),
+      drivingPauseReason: reason,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
   }
 
   async deleteExpired(nowMs: number, limit: number): Promise<number> {

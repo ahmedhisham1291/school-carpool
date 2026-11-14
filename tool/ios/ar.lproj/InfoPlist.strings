@@ -1,6 +1,7 @@
 /* Arabic texts shown by iOS. PLACEHOLDERS until Prompt 13 and legal review. */
 "CFBundleDisplayName" = "مشوار المدرسة";
-"NSCameraUsageDescription" = "نستخدم الكاميرا لتصوير بطاقتك الشخصية والتقاط صورة سيلفي مباشرة للتحقق من هويتك.";
+"NSCameraUsageDescription" = "نستخدم الكاميرا لتصوير بطاقتك الشخصية والتقاط صورة سيلفي مباشرة للتحقق من هويتك، ولإرسال الصور في المحادثات الخاصة ومحادثات المشوار.";
+"NSPhotoLibraryUsageDescription" = "اختر صورة لإرسالها في محادثة خاصة أو محادثة المشوار. نحذف بيانات الموقع من الصورة أولًا.";
 "NSLocationWhenInUseUsageDescription" = "نستخدم موقعك لتحديد منزلك على الخريطة ولعرض سيارتك لأولياء الأمور أثناء المشوار.";
 "NSLocationAlwaysAndWhenInUseUsageDescription" = "أثناء قيادتك للمشوار يستمر تحديث موقعك لأولياء أمور الأطفال الموجودين في سيارتك حتى لو كان الهاتف مقفلًا، ويتوقف عند انتهاء المشوار.";
 "NSMotionUsageDescription" = "تساعد بيانات الحركة على توفير البطارية أثناء انتظار سيارتك في المشوار.";

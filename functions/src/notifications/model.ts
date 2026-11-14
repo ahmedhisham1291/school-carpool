@@ -62,6 +62,8 @@ export interface OutboxEvent {
   point: LatLng | null;
   /** critical-alarm: the event whose record is repeated. */
   refEventId: string | null;
+  /** chat-message (Prompt 9): the chat's cid ("type:id"), for the screen to open. */
+  chatCid: string | null;
   critical: boolean;
   status: EventStatus;
   createdAtMs: number;
@@ -252,7 +254,7 @@ export function buildRecord(event: OutboxEvent, uid: string, nowMs: number, alar
     runId: event.runId,
     date: event.date,
     direction: event.direction,
-    route: routeFor({ type: event.type, carpoolId: event.carpoolId, runId: event.runId }),
+    route: routeFor({ type: event.type, carpoolId: event.carpoolId, runId: event.runId, chatCid: event.chatCid }),
     createdAtMs: nowMs,
     readAtMs: null,
     alarmAtMs: critical ? nowMs + alarmDelayMs : null,
@@ -350,6 +352,7 @@ export function newEvent(
     schoolIds: extra.schoolIds ?? [],
     point: extra.point ?? null,
     refEventId: extra.refEventId ?? null,
+    chatCid: extra.chatCid ?? null,
     critical: extra.critical ?? TYPES[type].critical,
     status: "pending",
     createdAtMs: nowMs,
@@ -387,6 +390,7 @@ export function eventFromDoc(id: string, d: Record<string, unknown>, createdAtMs
     schoolIds: strings(d.schoolIds),
     point,
     refEventId: str(d.refEventId),
+    chatCid: str(d.chatCid),
     critical: d.critical === true,
     status,
     createdAtMs,

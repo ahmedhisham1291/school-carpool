@@ -42,8 +42,6 @@ import {
   type Stop,
 } from "../src/trips/model";
 import { FakeRoutesProvider, GoogleRoutesProvider } from "../src/trips/routes";
-import { releaseDriverRuns } from "../src/trips/release";
-import { MemoryCarpoolStore } from "./helpers/memory_carpools";
 import { MemoryTripFiles, MemoryTripStore } from "./helpers/memory_trips";
 
 const DATE = "2026-11-16";
@@ -626,30 +624,5 @@ describe("trips: handover list (F29) and driver card (F33)", () => {
     // p3's child is marked absent: p3 cannot act on the run either.
     assert.equal(await reason(confirmHandover(h.deps, p3, { ...ids(), childId: "c3" })), "wrong-state");
     assert.equal(await reason(confirmHandover(h.deps, { uid: "x1", verifiedClaim: true }, { ...ids(), childId: "c1" })), "not-parent");
-  });
-});
-
-describe("trips: a paused driver's runs are released (F38, Prompt 7 release)", () => {
-  it("every future run the driver drives loses its driver; the group is told", async () => {
-    const store = new MemoryCarpoolStore();
-    const member = (uid: string) => ({ uid, role: "member" as const, firstName: uid, children: [], car: null, drivingDays: [], pickupShared: false, joinedAtMs: 0 });
-    store.memberships.set("k1_d1", {
-      carpoolId: "k1", uid: "d1", status: "approved", role: "member", firstName: "Dina", children: [], car: null, drivingDays: [],
-      acceptedRules: true, acceptedContribution: true, requestedAtMs: 0, decidedAtMs: 0, decidedBy: null, updatedAtMs: 0,
-    });
-    store.members.set("k1", new Map([["d1", member("d1")], ["p1", member("p1")]]));
-    const runs = new Map<string, RunRecord>();
-    runs.set(runId(), run("toSchool"));
-    runs.set(runId(false), run("toHome"));
-    runs.set("2026-11-17_am", { ...run("toSchool"), id: "2026-11-17_am", date: "2026-11-17", startMs: AM + 24 * 3_600_000, driverUid: "p1" });
-    store.runs.set("k1", runs);
-    const n = await releaseDriverRuns(store, "d1", AM - 3 * 3_600_000, { confirmBy: "21:00", lateLeadMin: 60 });
-    assert.equal(n, 2);
-    const after = store.runs.get("k1");
-    assert.equal(after?.get(runId())?.driverUid, null);
-    assert.equal(after?.get(runId(false))?.driverUid, null);
-    assert.equal(after?.get("2026-11-17_am")?.driverUid, "p1", "other drivers keep their runs");
-    assert.ok(store.events.every((e) => !e.recipients.includes("d1")));
-    assert.ok(store.events.length >= 2);
   });
 });

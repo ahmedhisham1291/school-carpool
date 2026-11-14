@@ -88,7 +88,9 @@ enum WhatsAppGroup {
 abstract final class NotificationRoutes {
   static const String fallback = '/notifications';
   static final RegExp _allowed = RegExp(
-    r'^/(notifications|profile|chats|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule|/emergency|/trip/\d{4}-\d{2}-\d{2}_(am|pm))?)$',
+    // Prompt 9: a chat push opens that chat (/chats/<type>/<id>); Prompt 10:
+    // the live run and the group's emergencies.
+    r'^/(notifications|profile|chats|chats/cp_(private|school|area|carpool)/[A-Za-z0-9_-]{1,64}|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule|/emergency|/trip/\d{4}-\d{2}-\d{2}_(am|pm))?)$',
   );
 
   static String safe(Object? route) => route is String && _allowed.hasMatch(route) ? route : fallback;

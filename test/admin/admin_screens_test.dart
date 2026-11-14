@@ -1,6 +1,7 @@
 // Admin panel screens (F14) with fake functions and a fixed session.
 // Written, not run here (no Flutter SDK in the build workspace).
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
@@ -254,6 +255,64 @@ void main() {
       await settle(tester);
       expect(find.text('Admins'), findsWidgets);
       expect(find.byKey(const Key('admins.admin1')), findsOneWidget);
+    });
+  });
+
+  group('chat reports (Prompt 9)', () {
+    testWidgets('urgent reports come first with a badge; a row opens the report', (WidgetTester tester) async {
+      final GoRouter router = await pumpAdminPanel(tester, session: signedIn, location: AdminRoutes.reports, locale: 'en');
+      await settle(tester);
+      final double urgentY = tester.getTopLeft(find.byKey(const Key('reports.r2'))).dy;
+      final double otherY = tester.getTopLeft(find.byKey(const Key('reports.r1'))).dy;
+      expect(urgentY, lessThan(otherY));
+      expect(find.text('Urgent'), findsWidgets);
+      await tester.tap(find.byKey(const Key('reports.r2')));
+      await settle(tester);
+      expect(router.routerDelegate.currentConfiguration.uri.path, '/reports/r2');
+    });
+
+    testWidgets('the report shows the message with a little context, never the photo', (WidgetTester tester) async {
+      await pumpAdminPanel(tester, session: signedIn, location: '/reports/r1', locale: 'en');
+      await settle(tester);
+      expect(find.byKey(const Key('report.urgent')), findsOneWidget);
+      expect(find.text('The reported one'), findsOneWidget);
+      expect(find.text('Before'), findsOneWidget);
+      expect(find.text('Photo not shown'), findsOneWidget);
+      expect(find.text('Driving paused'), findsOneWidget);
+    });
+
+    testWidgets('remove the message after confirming; the report closes', (WidgetTester tester) async {
+      final FakeAdminApi api = FakeAdminApi();
+      // Tall: every action button is built (the page is a lazy list).
+      await pumpAdminPanel(tester, session: signedIn, location: '/reports/r1', api: api, locale: 'en', size: const Size(1280, 2400));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const Key('report.removeMessage')));
+      await tester.tap(find.byKey(const Key('report.removeMessage')));
+      await settle(tester);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Remove message')));
+      await settle(tester);
+      expect(api.calls, contains('removeMessage:r1'));
+      expect(find.byKey(const Key('report.removeMessage')), findsNothing);
+    });
+
+    testWidgets('remove the member and lift the driving pause', (WidgetTester tester) async {
+      final FakeAdminApi api = FakeAdminApi();
+      // Tall: every action button is built (the page is a lazy list).
+      await pumpAdminPanel(tester, session: signedIn, location: '/reports/r1', api: api, locale: 'en', size: const Size(1280, 2400));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const Key('report.liftPause')));
+      await tester.tap(find.byKey(const Key('report.liftPause')));
+      await settle(tester);
+      await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Let them drive')));
+      await settle(tester);
+      expect(api.calls, contains('liftPause:r1'));
+      await tester.ensureVisible(find.byKey(const Key('report.removeMember')));
+      await tester.tap(find.byKey(const Key('report.removeMember')));
+      await settle(tester);
+      await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Remove parent')));
+      await settle(tester);
+      expect(api.calls, contains('removeMember:r1'));
     });
   });
 }

@@ -22,6 +22,7 @@ export function outboxDoc(e: OutboxEvent): DocumentData {
     schoolIds: e.schoolIds,
     point: e.point ? new GeoPoint(e.point.lat, e.point.lng) : null,
     refEventId: e.refEventId,
+    chatCid: e.chatCid,
     critical: e.critical,
     status: e.status,
     createdAt: ts(e.createdAtMs),

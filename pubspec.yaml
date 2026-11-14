@@ -77,6 +77,18 @@ dependencies:
   # already depends on.
   timezone: ^0.10.0
 
+  # Chat (Prompt 9, F8 to F10, F13; justified in docs/progress/prompt-09.md).
+  # Stream Chat's official Flutter SDK, UI-free layer: client, channel list
+  # controller and offline send queue. Our own screens from the design
+  # system (stream_chat_flutter's UI kit still imports the deprecated
+  # in-SDK Material library, whose types do not match material_ui).
+  stream_chat_flutter_core: ^10.7.0
+  # Stream's offline storage (SQLite via drift): chats open offline and a
+  # message written offline is kept and sent when back online.
+  stream_chat_persistence: ^10.7.0
+  # Official flutter.dev plugin: take or choose a photo for a private or
+  # carpool chat (EXIF removed by flutter_image_compress before upload).
+  image_picker: ^1.2.2
   # Live location during runs (Prompt 10, F15; in the STACK list:
   # "flutter_background_geolocation (paid license)"). Transistor Software.
   # Keeps sending with the phone locked, uploads points itself (HTTP to the

@@ -472,6 +472,8 @@ export class FirestoreListsStore implements ListsStore {
       reason: String(doc.get("reason") ?? ""),
       status: String(doc.get("status") ?? ""),
       createdAtMs: millis(doc.get("createdAt")),
+      urgent: doc.get("urgent") === true,
+      kind: String(doc.get("kind") ?? ""),
     }));
   }
 

@@ -566,6 +566,8 @@ class ReportItem {
     required this.targetId,
     required this.reason,
     required this.createdAt,
+    this.urgent = false,
+    this.kind = '',
   });
 
   factory ReportItem.fromJson(Json j) => ReportItem(
@@ -574,6 +576,8 @@ class ReportItem {
     targetId: j.str('targetId'),
     reason: j.str('reason'),
     createdAt: j.time('createdAtMs'),
+    urgent: j.flag('urgent'),
+    kind: j.str('kind'),
   );
 
   final String id;
@@ -583,6 +587,99 @@ class ReportItem {
   final String targetId;
   final String reason;
   final DateTime? createdAt;
+
+  /// Prompt 9: child safety or dangerous driving (review the same day).
+  final bool urgent;
+
+  /// Prompt 9: kind of chat ("private", "school", "area", "carpool"), or ''.
+  final String kind;
+}
+
+/// One message kept with a chat report (Prompt 9): first name, parent ID,
+/// text cut short; photos are never copied.
+@immutable
+class ReportContextMessage {
+  const ReportContextMessage({
+    required this.id,
+    required this.authorName,
+    required this.authorParentId,
+    required this.text,
+    required this.attachment,
+    required this.createdAt,
+    required this.reported,
+  });
+
+  factory ReportContextMessage.fromJson(Json j) => ReportContextMessage(
+    id: j.str('id'),
+    authorName: j.str('authorName'),
+    authorParentId: j.str('authorParentId'),
+    text: j.str('text'),
+    attachment: j.strOrNull('attachment'),
+    createdAt: j.time('createdAtMs'),
+    reported: j.flag('reported'),
+  );
+
+  final String id;
+  final String authorName;
+  final String authorParentId;
+  final String text;
+
+  /// "image", "location" or null.
+  final String? attachment;
+  final DateTime? createdAt;
+  final bool reported;
+}
+
+/// Outcomes an admin can close a report with (functions/src/chat/admin.ts).
+enum ReportOutcome { noAction, warned }
+
+/// A chat report as the report screen shows it (adminGetReport).
+@immutable
+class ReportDetail {
+  const ReportDetail({
+    required this.id,
+    required this.targetType,
+    required this.reason,
+    required this.urgent,
+    required this.open,
+    required this.kind,
+    required this.note,
+    required this.subjectUid,
+    required this.pausedDriving,
+    required this.outcome,
+    required this.createdAt,
+    required this.context,
+  });
+
+  factory ReportDetail.fromJson(Json j) => ReportDetail(
+    id: j.str('id'),
+    targetType: j.str('targetType'),
+    reason: j.str('reason'),
+    urgent: j.flag('urgent'),
+    open: j.str('status') != 'handled',
+    kind: j.str('kind'),
+    note: j.str('note'),
+    subjectUid: j.strOrNull('subjectUid'),
+    pausedDriving: j.flag('pausedDriving'),
+    outcome: j.strOrNull('outcome'),
+    createdAt: j.time('createdAtMs'),
+    context: j.list('context').map(ReportContextMessage.fromJson).toList(),
+  );
+
+  final String id;
+  final String targetType;
+  final String reason;
+  final bool urgent;
+  final bool open;
+  final String kind;
+  final String note;
+
+  /// The reported parent, when there is one.
+  final String? subjectUid;
+  final bool pausedDriving;
+  final String? outcome;
+  final DateTime? createdAt;
+  final List<ReportContextMessage> context;
 }
 
 @immutable

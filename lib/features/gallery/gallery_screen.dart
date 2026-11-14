@@ -138,6 +138,8 @@ class GalleryScreen extends ConsumerWidget {
             trailing: AppUnreadDot(semanticLabel: l10n.notifUnread),
             onTap: () => _done(context),
           ),
+          AppSectionHeader(l10n.gallerySectionChat),
+          const _ChatSamples(),
           // Prompt 10: trip pieces (driver rule: large buttons, few words).
           AppSectionHeader(l10n.gallerySectionTrips),
           _Padded(
@@ -201,6 +203,64 @@ class GalleryScreen extends ConsumerWidget {
 }
 
 void _done(BuildContext context) => showAppSnackBar(context, context.l10n.sampleDone);
+
+/// Prompt 9: chat bubbles (theirs, mine read, mine sending, mine failed),
+/// the unread count pill and the composer.
+class _ChatSamples extends StatefulWidget {
+  const _ChatSamples();
+
+  @override
+  State<_ChatSamples> createState() => _ChatSamplesState();
+}
+
+class _ChatSamplesState extends State<_ChatSamples> {
+  final TextEditingController _text = TextEditingController();
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        AppChatBubble(mine: false, author: l10n.sampleChatAuthor, time: '07:21', child: Text(l10n.sampleChatTheirs)),
+        AppChatBubble(mine: true, time: '07:22', status: AppChatStatus.read, statusLabel: l10n.chatRead, child: Text(l10n.sampleChatMine)),
+        AppChatBubble(mine: true, time: '07:23', status: AppChatStatus.sending, statusLabel: l10n.chatSending, child: Text(l10n.sampleChatMine)),
+        AppChatBubble(
+          mine: true,
+          time: '07:24',
+          status: AppChatStatus.failed,
+          statusLabel: l10n.chatFailed,
+          onTap: () => _done(context),
+          child: Text(l10n.sampleChatMine),
+        ),
+        AppListRow(
+          title: l10n.chatKindCarpool,
+          subtitle: l10n.sampleChatTheirs,
+          leadingIcon: Icons.directions_car_outlined,
+          showChevron: false,
+          trailing: AppCountPill(count: 3, semanticLabel: l10n.chatUnreadCount(3)),
+          onTap: () => _done(context),
+        ),
+        AppChatComposer(
+          controller: _text,
+          hint: l10n.chatComposerHint,
+          sendLabel: l10n.chatSend,
+          onSend: () => _done(context),
+          onPhoto: () => _done(context),
+          photoLabel: l10n.chatPhotoTitle,
+          onLocation: () => _done(context),
+          locationLabel: l10n.chatLocationSend,
+        ),
+      ],
+    );
+  }
+}
 
 class _Padded extends StatelessWidget {
   const _Padded({required this.child});

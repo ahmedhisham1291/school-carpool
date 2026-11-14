@@ -179,9 +179,25 @@ export const OPEN_TO_UNVERIFIED: readonly NotificationType[] = ["verification-ap
 export interface RouteInput {
   type: NotificationType;
   carpoolId: string | null;
+  /** chat-message: "type:id" of the chat (Prompt 9). */
+  chatCid?: string | null;
   /** Prompt 10: trip types open the run's trip screen. */
   runId?: string | null;
 }
+
+/**
+ * Chat pushes (Prompt 9) are push only: their delivery record lives in
+ * users/{uid}/chatPushes (never shown in the Notifications tab; TTL two
+ * days), so chat never floods the tab or its unread dot. Their event IDs
+ * start with this prefix ("chat_" + the Stream message ID).
+ */
+export const PUSH_ONLY_PREFIX = "chat_";
+
+export function isPushOnlyId(id: string): boolean {
+  return id.startsWith(PUSH_ONLY_PREFIX);
+}
+
+const CHAT_PART = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** Trip types (Prompt 10): they open /carpools/{id}/trip/{runId}. */
 export const TRIP_TYPES: readonly NotificationType[] = [
@@ -222,8 +238,12 @@ export function routeFor(input: RouteInput): string {
       return "/profile";
     case "new-parent":
       return "/home/nearby";
-    case "chat-message":
-      return "/chats";
+    case "chat-message": {
+      const at = input.chatCid ? input.chatCid.indexOf(":") : -1;
+      const type = at > 0 ? (input.chatCid as string).slice(0, at) : "";
+      const id = at > 0 ? (input.chatCid as string).slice(at + 1) : "";
+      return CHAT_PART.test(type) && CHAT_PART.test(id) ? `/chats/${type}/${id}` : "/chats";
+    }
     case "critical-alarm":
       return "/notifications";
     default:

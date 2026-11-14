@@ -1,6 +1,7 @@
 /* English texts shown by iOS. PLACEHOLDERS until Prompt 13 and legal review. */
 "CFBundleDisplayName" = "School Carpool";
-"NSCameraUsageDescription" = "The camera is used to photograph your ID and take a live selfie for verification.";
+"NSCameraUsageDescription" = "The camera is used to photograph your ID, take a live selfie for verification, and send photos in private and carpool chats.";
+"NSPhotoLibraryUsageDescription" = "Choose a photo to send in a private or carpool chat. Location data is removed first.";
 "NSLocationWhenInUseUsageDescription" = "Your location sets your home on the map and shows your car to parents during a run.";
 "NSLocationAlwaysAndWhenInUseUsageDescription" = "While you drive a run, your location keeps updating for the parents of the children in your car, even when the phone is locked. It stops when the run ends.";
 "NSMotionUsageDescription" = "Motion data helps save battery while your car waits during a run.";

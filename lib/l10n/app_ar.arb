@@ -4877,6 +4877,625 @@
       }
     }
   },
+  "chatEmptyTitle": "لا توجد محادثات بعد",
+  "@chatEmptyTitle": {
+    "description": "Empty state title"
+  },
+  "chatEmptyBody": "تظهر هنا محادثات المشوار والمدرسة بعد انضمامك.",
+  "@chatEmptyBody": {
+    "description": "Empty state body"
+  },
+  "chatOfflineNote": "لا يوجد اتصال. تُرسل الرسائل عند عودة الاتصال.",
+  "@chatOfflineNote": {
+    "description": "Offline note on chat screens"
+  },
+  "chatRequestsWaiting": "{count, plural, =1{طلب محادثة واحد} =2{طلبا محادثة} few{{count} طلبات محادثة} many{{count} طلب محادثة} other{{count} طلب محادثة}}",
+  "@chatRequestsWaiting": {
+    "description": "Row on top of the chat list",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatMuted": "مكتومة",
+  "@chatMuted": {
+    "description": "Screen reader label of the muted icon"
+  },
+  "chatUnreadCount": "{count, plural, =1{رسالة غير مقروءة} =2{رسالتان غير مقروءتين} few{{count} رسائل غير مقروءة} many{{count} رسالة غير مقروءة} other{{count} رسالة غير مقروءة}}",
+  "@chatUnreadCount": {
+    "description": "Screen reader label of the unread count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatKindPrivate": "محادثة خاصة",
+  "@chatKindPrivate": {
+    "description": "Kind of chat"
+  },
+  "chatKindSchool": "مجموعة المدرسة",
+  "@chatKindSchool": {
+    "description": "Kind of chat"
+  },
+  "chatKindArea": "مجموعة الحي",
+  "@chatKindArea": {
+    "description": "Kind of chat"
+  },
+  "chatKindCarpool": "محادثة المشوار",
+  "@chatKindCarpool": {
+    "description": "Kind of chat"
+  },
+  "chatNoMessages": "لا توجد رسائل بعد",
+  "@chatNoMessages": {
+    "description": "Preview and empty state title"
+  },
+  "chatSayHello": "ابدأ المحادثة بالتحية.",
+  "@chatSayHello": {
+    "description": "Empty conversation body"
+  },
+  "chatPhoto": "صورة",
+  "@chatPhoto": {
+    "description": "Message kind"
+  },
+  "chatLocation": "الموقع",
+  "@chatLocation": {
+    "description": "Message kind"
+  },
+  "chatMessageRemoved": "تم حذف الرسالة",
+  "@chatMessageRemoved": {
+    "description": "Deleted message"
+  },
+  "chatPreviewMine": "أنت: {text}",
+  "@chatPreviewMine": {
+    "description": "Preview of the parent's own message",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "chatRequestsTitle": "طلبات المحادثة",
+  "@chatRequestsTitle": {
+    "description": "App bar title"
+  },
+  "chatRequestsIncoming": "بانتظار ردك",
+  "@chatRequestsIncoming": {
+    "description": "Section header"
+  },
+  "chatRequestsSent": "أرسلتها أنت",
+  "@chatRequestsSent": {
+    "description": "Section header"
+  },
+  "chatRequestsEmptyTitle": "لا توجد طلبات",
+  "@chatRequestsEmptyTitle": {
+    "description": "Empty state title"
+  },
+  "chatRequestsEmptyBody": "اضغط مراسلة في بطاقة ولي الأمر لطلب محادثة خاصة.",
+  "@chatRequestsEmptyBody": {
+    "description": "Empty state body"
+  },
+  "chatRequestBody": "يريد مراسلتك. يبقى رقم هاتفك مخفيًا.",
+  "@chatRequestBody": {
+    "description": "Incoming request text"
+  },
+  "chatRequestAccept": "قبول",
+  "@chatRequestAccept": {
+    "description": "Button"
+  },
+  "chatRequestDecline": "رفض",
+  "@chatRequestDecline": {
+    "description": "Button"
+  },
+  "chatRequestCancel": "إلغاء",
+  "@chatRequestCancel": {
+    "description": "Button"
+  },
+  "chatRequestWaiting": "بانتظار الرد",
+  "@chatRequestWaiting": {
+    "description": "Sent request subtitle"
+  },
+  "chatRequestAccepted": "تم فتح المحادثة",
+  "@chatRequestAccepted": {
+    "description": "Snackbar"
+  },
+  "chatRequestDeclined": "تم رفض الطلب",
+  "@chatRequestDeclined": {
+    "description": "Snackbar"
+  },
+  "chatRequestCancelled": "تم إلغاء الطلب",
+  "@chatRequestCancelled": {
+    "description": "Snackbar"
+  },
+  "chatRequestSentTo": "تم إرسال الطلب إلى {name}",
+  "@chatRequestSentTo": {
+    "description": "Snackbar",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatSettingsTitle": "إعدادات المحادثة",
+  "@chatSettingsTitle": {
+    "description": "App bar title"
+  },
+  "chatSettingsAllowRequests": "طلبات محادثة جديدة",
+  "@chatSettingsAllowRequests": {
+    "description": "Switch title"
+  },
+  "chatSettingsAllowRequestsBody": "يمكن لأولياء أمور مدرستك طلب مراسلتك.",
+  "@chatSettingsAllowRequestsBody": {
+    "description": "Switch subtitle"
+  },
+  "chatSettingsBlocked": "أولياء أمور محظورون",
+  "@chatSettingsBlocked": {
+    "description": "Section header"
+  },
+  "chatSettingsNoBlocked": "لم تحظر أحدًا.",
+  "@chatSettingsNoBlocked": {
+    "description": "Empty blocked list"
+  },
+  "chatSettingsSaved": "تم الحفظ",
+  "@chatSettingsSaved": {
+    "description": "Snackbar"
+  },
+  "chatUnblock": "إلغاء الحظر",
+  "@chatUnblock": {
+    "description": "Button"
+  },
+  "chatUnblockConfirmTitle": "إلغاء الحظر؟",
+  "@chatUnblockConfirmTitle": {
+    "description": "Dialog title"
+  },
+  "chatUnblockConfirmBody": "سيتمكن {name} من طلب مراسلتك مرة أخرى.",
+  "@chatUnblockConfirmBody": {
+    "description": "Dialog body",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatUnblocked": "تم إلغاء الحظر",
+  "@chatUnblocked": {
+    "description": "Snackbar"
+  },
+  "chatComposerHint": "اكتب رسالة",
+  "@chatComposerHint": {
+    "description": "Composer hint"
+  },
+  "chatSend": "إرسال",
+  "@chatSend": {
+    "description": "Send button label"
+  },
+  "chatSending": "جارٍ الإرسال",
+  "@chatSending": {
+    "description": "Delivery status"
+  },
+  "chatSent": "تم الإرسال",
+  "@chatSent": {
+    "description": "Delivery status"
+  },
+  "chatRead": "تمت القراءة",
+  "@chatRead": {
+    "description": "Delivery status"
+  },
+  "chatFailed": "لم تُرسل. اضغط لإعادة المحاولة.",
+  "@chatFailed": {
+    "description": "Delivery status"
+  },
+  "chatTypingOne": "{name} يكتب…",
+  "@chatTypingOne": {
+    "description": "Typing line",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatTypingMany": "{count, plural, =1{ولي أمر يكتب…} =2{وليا أمر يكتبان…} few{{count} أولياء أمور يكتبون…} many{{count} ولي أمر يكتبون…} other{{count} ولي أمر يكتبون…}}",
+  "@chatTypingMany": {
+    "description": "Typing line",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatClosed": "هذه المحادثة مغلقة. لا يمكن لأحد الكتابة هنا.",
+  "@chatClosed": {
+    "description": "Frozen chat"
+  },
+  "chatHiddenBlocked": "مخفية: لقد حظرت ولي الأمر هذا.",
+  "@chatHiddenBlocked": {
+    "description": "Message of a blocked parent"
+  },
+  "chatInfoTitle": "معلومات المحادثة",
+  "@chatInfoTitle": {
+    "description": "Tooltip"
+  },
+  "chatInfoPrivate": "محادثة خاصة بين وليي أمر موثقين. تبقى أرقام الهواتف مخفية.",
+  "@chatInfoPrivate": {
+    "description": "Info sheet text"
+  },
+  "chatInfoGroup": "{count, plural, =1{ولي أمر موثق واحد} =2{وليا أمر موثقان} few{{count} أولياء أمور موثقين} many{{count} ولي أمر موثقًا} other{{count} ولي أمر موثق}}",
+  "@chatInfoGroup": {
+    "description": "Info sheet text",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatMute": "كتم",
+  "@chatMute": {
+    "description": "Switch title"
+  },
+  "chatMuteBody": "لا تنبيهات على الهاتف من هذه المحادثة.",
+  "@chatMuteBody": {
+    "description": "Switch subtitle"
+  },
+  "chatMutedDone": "تم كتم المحادثة",
+  "@chatMutedDone": {
+    "description": "Snackbar"
+  },
+  "chatUnmutedDone": "تم تشغيل التنبيهات",
+  "@chatUnmutedDone": {
+    "description": "Snackbar"
+  },
+  "chatMessageActions": "الرسالة",
+  "@chatMessageActions": {
+    "description": "Sheet title"
+  },
+  "chatPhotoTitle": "إرسال صورة",
+  "@chatPhotoTitle": {
+    "description": "Sheet title and tooltip"
+  },
+  "chatPhotoPrivacy": "نحذف بيانات الموقع من الصورة قبل إرسالها.",
+  "@chatPhotoPrivacy": {
+    "description": "Sheet text"
+  },
+  "chatPhotoCamera": "التقاط صورة",
+  "@chatPhotoCamera": {
+    "description": "Row"
+  },
+  "chatPhotoGallery": "اختيار صورة",
+  "@chatPhotoGallery": {
+    "description": "Row"
+  },
+  "chatLocationSend": "إرسال الموقع",
+  "@chatLocationSend": {
+    "description": "Button and tooltip"
+  },
+  "chatLocationConfirmTitle": "إرسال موقعك؟",
+  "@chatLocationConfirmTitle": {
+    "description": "Dialog title"
+  },
+  "chatLocationConfirmBody": "سيرى كل من في هذه المحادثة علامة بمكانك الحالي.",
+  "@chatLocationConfirmBody": {
+    "description": "Dialog body"
+  },
+  "chatLocationDenied": "اسمح بالموقع من الإعدادات لإرساله.",
+  "@chatLocationDenied": {
+    "description": "Snackbar"
+  },
+  "chatLocationFailed": "تعذر تحديد موقعك. حاول مرة أخرى في مكان مفتوح.",
+  "@chatLocationFailed": {
+    "description": "Snackbar"
+  },
+  "chatOpenMap": "فتح الخريطة",
+  "@chatOpenMap": {
+    "description": "Button"
+  },
+  "chatCarpoolRow": "محادثة المجموعة",
+  "@chatCarpoolRow": {
+    "description": "Carpool detail row"
+  },
+  "chatCarpoolRowHelper": "لأعضاء هذا المشوار فقط",
+  "@chatCarpoolRowHelper": {
+    "description": "Carpool detail row subtitle"
+  },
+  "chatReportMessage": "الإبلاغ عن الرسالة",
+  "@chatReportMessage": {
+    "description": "Sheet title and row"
+  },
+  "chatReportParent": "الإبلاغ عن ولي الأمر",
+  "@chatReportParent": {
+    "description": "Sheet title and row"
+  },
+  "chatReportGroup": "الإبلاغ عن المحادثة",
+  "@chatReportGroup": {
+    "description": "Sheet title and row"
+  },
+  "chatReportIntro": "اختر سببًا. يراجعه أحد المشرفين خلال 24 ساعة.",
+  "@chatReportIntro": {
+    "description": "Report sheet text"
+  },
+  "chatReasonHarassment": "مضايقة",
+  "@chatReasonHarassment": {
+    "description": "Report reason chip"
+  },
+  "chatReasonSpam": "رسائل مزعجة",
+  "@chatReasonSpam": {
+    "description": "Report reason chip"
+  },
+  "chatReasonInappropriate": "محتوى غير لائق",
+  "@chatReasonInappropriate": {
+    "description": "Report reason chip"
+  },
+  "chatReasonPrivacy": "خصوصية",
+  "@chatReasonPrivacy": {
+    "description": "Report reason chip"
+  },
+  "chatReasonChildSafety": "سلامة طفل",
+  "@chatReasonChildSafety": {
+    "description": "Report reason chip"
+  },
+  "chatReasonDriving": "قيادة خطرة",
+  "@chatReasonDriving": {
+    "description": "Report reason chip"
+  },
+  "chatReasonOther": "أخرى",
+  "@chatReasonOther": {
+    "description": "Report reason chip"
+  },
+  "chatReportUrgentNote": "عاجل: تتوقف أيام قيادة ولي الأمر الآن ويراجعها مشرف اليوم.",
+  "@chatReportUrgentNote": {
+    "description": "Urgent reason note"
+  },
+  "chatReportNote": "ملاحظة (اختياري)",
+  "@chatReportNote": {
+    "description": "Field label"
+  },
+  "chatReportNoteHelp": "باختصار، دون أرقام هواتف أو عناوين.",
+  "@chatReportNoteHelp": {
+    "description": "Field helper"
+  },
+  "chatReportPickReason": "اختر سببًا لإرسال البلاغ.",
+  "@chatReportPickReason": {
+    "description": "Error"
+  },
+  "chatReportSend": "إرسال البلاغ",
+  "@chatReportSend": {
+    "description": "Button"
+  },
+  "chatReportSent": "تم إرسال البلاغ. شكرًا لك.",
+  "@chatReportSent": {
+    "description": "Snackbar"
+  },
+  "chatReportSentUrgent": "تم إرسال البلاغ. القيادة متوقفة حتى المراجعة.",
+  "@chatReportSentUrgent": {
+    "description": "Snackbar"
+  },
+  "chatBlock": "حظر",
+  "@chatBlock": {
+    "description": "Dialog confirm"
+  },
+  "chatBlockName": "حظر {name}",
+  "@chatBlockName": {
+    "description": "Row",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatBlockConfirmTitle": "حظر ولي الأمر؟",
+  "@chatBlockConfirmTitle": {
+    "description": "Dialog title"
+  },
+  "chatBlockConfirmBody": "لن يتمكن {name} من مراسلتك أو طلب محادثة. يمكنك إلغاء الحظر من إعدادات المحادثة.",
+  "@chatBlockConfirmBody": {
+    "description": "Dialog body",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatBlocked": "تم حظر {name}",
+  "@chatBlocked": {
+    "description": "Snackbar",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatErrorNotVerified": "تُفتح المحادثات بعد توثيق حسابك.",
+  "@chatErrorNotVerified": {
+    "description": "Error"
+  },
+  "chatErrorSuspended": "حسابك موقوف. المحادثات مغلقة.",
+  "@chatErrorSuspended": {
+    "description": "Error"
+  },
+  "chatErrorNotFound": "ولي الأمر أو المحادثة غير متاحة.",
+  "@chatErrorNotFound": {
+    "description": "Error"
+  },
+  "chatErrorNotMember": "أنت لست في هذه المحادثة.",
+  "@chatErrorNotMember": {
+    "description": "Error"
+  },
+  "chatErrorBlocked": "لا يمكنك مراسلة ولي الأمر هذا.",
+  "@chatErrorBlocked": {
+    "description": "Error"
+  },
+  "chatErrorRequestsOff": "ولي الأمر هذا لا يستقبل طلبات محادثة.",
+  "@chatErrorRequestsOff": {
+    "description": "Error"
+  },
+  "chatErrorNoSharedSchool": "يمكنك مراسلة أولياء أمور مدارسك أو مشاويرك فقط.",
+  "@chatErrorNoSharedSchool": {
+    "description": "Error"
+  },
+  "chatErrorAlreadyPending": "أرسلت طلبًا بالفعل. انتظر الرد.",
+  "@chatErrorAlreadyPending": {
+    "description": "Error"
+  },
+  "chatErrorAlreadyConnected": "لديك محادثة مع ولي الأمر هذا بالفعل.",
+  "@chatErrorAlreadyConnected": {
+    "description": "Error"
+  },
+  "chatErrorTooMany": "محاولات كثيرة. حاول لاحقًا.",
+  "@chatErrorTooMany": {
+    "description": "Error"
+  },
+  "chatErrorUnavailable": "المحادثات غير متاحة الآن. حاول بعد قليل.",
+  "@chatErrorUnavailable": {
+    "description": "Error"
+  },
+  "chatErrorPhoto": "تعذر تجهيز الصورة. جرّب صورة أخرى.",
+  "@chatErrorPhoto": {
+    "description": "Error"
+  },
+  "chatErrorUnknown": "حدث خطأ. حاول مرة أخرى.",
+  "@chatErrorUnknown": {
+    "description": "Error"
+  },
+  "gallerySectionChat": "المحادثة",
+  "@gallerySectionChat": {
+    "description": "Gallery section"
+  },
+  "sampleChatAuthor": "هدى",
+  "@sampleChatAuthor": {
+    "description": "Gallery sample (fake name)"
+  },
+  "sampleChatTheirs": "سأتأخر خمس دقائق.",
+  "@sampleChatTheirs": {
+    "description": "Gallery sample"
+  },
+  "sampleChatMine": "لا مشكلة، نحن جاهزون.",
+  "@sampleChatMine": {
+    "description": "Gallery sample"
+  },
+  "adminReportTitle": "البلاغ",
+  "@adminReportTitle": {
+    "description": "App bar title"
+  },
+  "adminReportUrgent": "عاجل",
+  "@adminReportUrgent": {
+    "description": "Badge"
+  },
+  "adminReportTarget": "بخصوص",
+  "@adminReportTarget": {
+    "description": "Fact label"
+  },
+  "adminReportChat": "المحادثة",
+  "@adminReportChat": {
+    "description": "Fact label"
+  },
+  "adminReportWhen": "أُرسل",
+  "@adminReportWhen": {
+    "description": "Fact label"
+  },
+  "adminReportNote": "ملاحظة",
+  "@adminReportNote": {
+    "description": "Fact label"
+  },
+  "adminReportDriving": "القيادة",
+  "@adminReportDriving": {
+    "description": "Fact label"
+  },
+  "adminReportDrivingPaused": "القيادة متوقفة",
+  "@adminReportDrivingPaused": {
+    "description": "Fact value"
+  },
+  "adminReportOutcome": "النتيجة",
+  "@adminReportOutcome": {
+    "description": "Fact label"
+  },
+  "adminReportContext": "الرسالة المبلغ عنها",
+  "@adminReportContext": {
+    "description": "Section header"
+  },
+  "adminReportContextNote": "نحفظ الرسالة المبلغ عنها وبضع رسائل حولها فقط. لا تظهر الصور أبدًا.",
+  "@adminReportContextNote": {
+    "description": "Note under the context"
+  },
+  "adminReportPhotoHidden": "الصورة غير معروضة",
+  "@adminReportPhotoHidden": {
+    "description": "Context message that was a photo"
+  },
+  "adminReportRemoveMessage": "حذف الرسالة",
+  "@adminReportRemoveMessage": {
+    "description": "Button"
+  },
+  "adminReportRemoveMessageTitle": "حذف هذه الرسالة؟",
+  "@adminReportRemoveMessageTitle": {
+    "description": "Dialog title"
+  },
+  "adminReportRemoveMessageBody": "تُحذف للجميع في المحادثة. لا يمكن التراجع.",
+  "@adminReportRemoveMessageBody": {
+    "description": "Dialog body"
+  },
+  "adminReportRemoveMember": "إزالة ولي الأمر",
+  "@adminReportRemoveMember": {
+    "description": "Button"
+  },
+  "adminReportRemoveMemberTitle": "إزالة من هذه المحادثة؟",
+  "@adminReportRemoveMemberTitle": {
+    "description": "Dialog title"
+  },
+  "adminReportRemoveMemberBody": "يخرج ولي الأمر من هذه المحادثة ولا يُضاف مرة أخرى.",
+  "@adminReportRemoveMemberBody": {
+    "description": "Dialog body"
+  },
+  "adminReportCloseNoAction": "دون إجراء",
+  "@adminReportCloseNoAction": {
+    "description": "Button"
+  },
+  "adminReportCloseWarned": "تم التحذير",
+  "@adminReportCloseWarned": {
+    "description": "Button"
+  },
+  "adminReportClose": "إغلاق",
+  "@adminReportClose": {
+    "description": "Dialog confirm"
+  },
+  "adminReportCloseTitle": "إغلاق هذا البلاغ؟",
+  "@adminReportCloseTitle": {
+    "description": "Dialog title"
+  },
+  "adminReportCloseBody": "يخرج من قائمة البلاغات المفتوحة بهذه النتيجة.",
+  "@adminReportCloseBody": {
+    "description": "Dialog body"
+  },
+  "adminReportLiftPause": "السماح بالقيادة",
+  "@adminReportLiftPause": {
+    "description": "Button"
+  },
+  "adminReportLiftPauseTitle": "السماح لولي الأمر بالقيادة؟",
+  "@adminReportLiftPauseTitle": {
+    "description": "Dialog title"
+  },
+  "adminReportLiftPauseBody": "تعود أيام قيادته. افعل ذلك بعد المراجعة فقط.",
+  "@adminReportLiftPauseBody": {
+    "description": "Dialog body"
+  },
+  "adminReportOpenParent": "فتح ولي الأمر",
+  "@adminReportOpenParent": {
+    "description": "Button"
+  },
+  "adminReportDone": "تم",
+  "@adminReportDone": {
+    "description": "Snackbar"
+  },
+  "adminReportInappropriate": "محتوى غير لائق",
+  "@adminReportInappropriate": {
+    "description": "Report reason"
+  },
+  "adminReportPrivacy": "خصوصية",
+  "@adminReportPrivacy": {
+    "description": "Report reason"
+  },
+  "adminReportChildSafety": "سلامة طفل",
+  "@adminReportChildSafety": {
+    "description": "Report reason"
+  },
   "notifConsentRow": "رسائل واتساب",
   "@notifConsentRow": {
     "description": "Switch: agree to WhatsApp messages"

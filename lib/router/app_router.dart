@@ -15,6 +15,9 @@ import 'package:school_carpool/features/carpools/carpools_screen.dart';
 import 'package:school_carpool/features/carpools/create_carpool_screen.dart';
 import 'package:school_carpool/features/carpools/invite_screen.dart';
 import 'package:school_carpool/features/carpools/looking_screen.dart';
+import 'package:school_carpool/features/chat/chat_models.dart';
+import 'package:school_carpool/features/chat/chats_screen.dart';
+import 'package:school_carpool/features/chat/conversation_screen.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
 import 'package:school_carpool/features/home/home_screen.dart';
 import 'package:school_carpool/features/maps/driving_schools_screen.dart';
@@ -29,7 +32,6 @@ import 'package:school_carpool/features/onboarding/starting_screen.dart';
 import 'package:school_carpool/features/onboarding/terms_screen.dart';
 import 'package:school_carpool/features/onboarding/verify_account_screen.dart';
 import 'package:school_carpool/features/onboarding/welcome_screen.dart';
-import 'package:school_carpool/features/placeholder/placeholder_tab_screen.dart';
 import 'package:school_carpool/features/profile/profile_screen.dart';
 import 'package:school_carpool/features/schedule/balance_screen.dart';
 import 'package:school_carpool/features/schedule/exceptions_screen.dart';
@@ -241,9 +243,28 @@ GoRouter buildAppRouter({
                     AppTab.home => const HomeScreen(),
                     AppTab.carpools => const CarpoolsScreen(),
                     AppTab.notifications => const NotificationsScreen(),
-                    AppTab.chats => PlaceholderTabScreen(tab: tab),
+                    AppTab.chats => const ChatsScreen(),
                   },
                   routes: <RouteBase>[
+                    if (tab == AppTab.chats) ...<RouteBase>[
+                      GoRoute(
+                        path: ChatRoutes.requestsSegment,
+                        builder: (BuildContext context, GoRouterState state) => const ChatRequestsScreen(),
+                      ),
+                      GoRoute(
+                        path: ChatRoutes.settingsSegment,
+                        builder: (BuildContext context, GoRouterState state) => const ChatSettingsScreen(),
+                      ),
+                      // A chat by its Stream type and ID (pushes open these).
+                      GoRoute(
+                        path: ':type/:id',
+                        redirect: (BuildContext context, GoRouterState state) =>
+                            ChatRef.parse(state.pathParameters['type'], state.pathParameters['id']) == null ? AppTab.chats.path : null,
+                        builder: (BuildContext context, GoRouterState state) => ConversationScreen(
+                          chat: ChatRef.parse(state.pathParameters['type'], state.pathParameters['id']) ?? const ChatRef(ChatKind.private, 'none'),
+                        ),
+                      ),
+                    ],
                     if (tab == AppTab.home)
                       GoRoute(
                         path: HomeRoutes.nearbySegment,
