@@ -209,9 +209,9 @@ gallery under "Wallet" with `BalanceCard`, `ReceiverCard` and
 | All Functions unit tests | **Run here: 481 pass** (only the known stub type gaps in `tsc`) |
 | `tests/rules/wallet.test.ts`, `deny_all.test.ts` paths | Written, not run here (CI); type-checked against a stub |
 | `test/wallet/wallet_logic_test.dart` (piastres parsing incl. Arabic digits, no rounding, formatting, contribution, request IDs, parent IDs, request JSON, failures, wallet info) | Written, not run here |
-| `test/wallet/wallet_screens_test.dart` (wallet states: data, open with terms, frozen, off, not verified, offline + retry, partner down, RTL; send by parent ID with Face ID, from a carpool, Pay contribution prefill, double tap, lost answer retry with the same ID, no Face ID / no passcode, over the limit as typed, server refusal, pending + Check again, unknown ID, unverified receiver; add money, withdraw with Face ID, report from history, "Not me"; carpool Pay contribution route; one line at 320 dp AR/EN x1/x2) | Written, not run here |
+| `test/wallet/wallet_screens_test.dart` (wallet states: data, open with terms, frozen, off, not verified, offline + retry, partner down, RTL; send by parent ID with Face ID, from a carpool, Pay contribution prefill, double tap, lost answer retry with the same ID, no Face ID / no passcode, over the limit as typed, server refusal, pending + Check again, unknown ID, unverified receiver; add money, withdraw with Face ID, report from history, "Not me"; one line at 320 dp AR/EN x1/x2) | Written, not run here |
 | `test/admin/admin_wallet_test.dart` (log and alerts, no money buttons, resolve, freeze with reason after confirming, user page link, one line) | Written, not run here |
-| `test/notifications/notification_logic_test.dart` (wallet group default, route) | Written, not run here |
+| `test/notifications/notification_logic_test.dart` (wallet group default, route); `test/carpools/carpool_screens_test.dart` (+1: Pay contribution opens Send with the carpool and 50 EGP x 1 child, nothing sent) | Written, not run here |
 | Screenshots `wallet_wallet`, `wallet_open`, `wallet_send_who`, `wallet_send_confirm`, `wallet_transfer`, `wallet_add` (AR/EN, light/dark) | Written, not run here (CI artifact) |
 
 ## Open questions
