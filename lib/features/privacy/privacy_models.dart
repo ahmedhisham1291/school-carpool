@@ -147,7 +147,19 @@ class ConsentView {
   final String? version;
 }
 
-enum RequestKind { export, delete, correct, withdraw, consent, photoCopy }
+/// What a logged privacy request was (server: REQUEST_KINDS).
+enum RequestKind {
+  exportData('export'),
+  delete('delete'),
+  correct('correct'),
+  withdraw('withdraw'),
+  consent('consent'),
+  photoCopy('photoCopy');
+
+  const RequestKind(this.wire);
+
+  final String wire;
+}
 
 enum RequestStatus { done, open, refused, failed }
 
@@ -158,7 +170,7 @@ class PrivacyRequest {
 
   factory PrivacyRequest.fromMap(Map<Object?, Object?> m) => PrivacyRequest(
     id: _str(m['id']),
-    kind: RequestKind.values.firstWhere((RequestKind k) => k.name == m['kind'], orElse: () => RequestKind.correct),
+    kind: RequestKind.values.firstWhere((RequestKind k) => k.wire == m['kind'], orElse: () => RequestKind.correct),
     status: RequestStatus.values.firstWhere((RequestStatus s) => s.name == m['status'], orElse: () => RequestStatus.open),
     createdAt: _time(m['createdAtMs']) ?? DateTime.utc(2026),
     subject: m['subject'] is String ? m['subject']! as String : null,

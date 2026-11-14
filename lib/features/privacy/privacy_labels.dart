@@ -84,7 +84,7 @@ String consentTitle(AppLocalizations l10n, ConsentKind k) => switch (k) {
 };
 
 String requestTitle(AppLocalizations l10n, PrivacyRequest r) => switch (r.kind) {
-  RequestKind.export => l10n.requestExport,
+  RequestKind.exportData => l10n.requestExport,
   RequestKind.delete => l10n.requestDelete,
   RequestKind.correct => l10n.requestCorrect,
   RequestKind.withdraw => l10n.requestWithdraw,
