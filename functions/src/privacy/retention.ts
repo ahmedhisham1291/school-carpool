@@ -96,6 +96,7 @@ export const DATA_TYPES = [
   "notifications",
   "devices",
   "wallet",
+  "settleUp",
   "reports",
   "analytics",
   "crashReports",
@@ -140,6 +141,18 @@ export const RETENTION: readonly RetentionRule[] = [
   // Nothing deletes them yet (MONEY: append-only); a deletion job at the
   // end of the period needs the owner's go.
   { id: "wallet", where: "transfers, transferResults (append-only), wallets/{uid} (partner reference); the money is held by the partner", days: TRANSFER_RECORD_YEARS * YEAR_DAYS, from: "created", enforcedBy: ["kept"] },
+  // Settle up (F45): records of payments between two parents (never the
+  // money). Same rule as trips: while either party's account is active + 1
+  // year (settle_up/model.ts planRetention). The InstaPay address goes at
+  // once with the account. The owner and the lawyer confirm the period
+  // (docs/open-items.md).
+  {
+    id: "settleUp",
+    where: "settleUps/{id} (payment records between two parents; a deleted parent becomes an initial), settleUpAddresses/{uid} (InstaPay address, deleted at once), settleUpLimits",
+    days: AFTER_CLOSURE_DAYS,
+    from: "accountClosed",
+    enforcedBy: ["accountDeletion", "retentionDaily"],
+  },
   { id: "reports", where: "reports (open reports are kept after deletion), message copies in reports", days: REPORT_CONTEXT_DAYS, from: "handled", enforcedBy: ["retentionDaily"] },
   { id: "analytics", where: "Google Analytics for Firebase (screens and features, no names, numbers, IDs, text or places)", days: 60, from: "created", enforcedBy: ["kept"] },
   { id: "crashReports", where: "Sentry (scrubbed errors)", days: 90, from: "created", enforcedBy: ["kept"] },
@@ -153,6 +166,7 @@ export const KEPT_AFTER_DELETION = [
   { what: "auditLog", why: "admin actions (2 years)" },
   { what: "parentIds/{id}", why: "the parent ID is reserved forever so it is never reused (holds only the uid)" },
   { what: "closedAccounts/{uid}", why: "the purge date and the deletion report (no name, phone or ID)" },
+  { what: "settleUps", why: "payment records between two parents stay for the other parent while either account is active + 1 year; the deleted parent shows as an initial" },
   { what: "photos, trip summaries, route archives, consents, chat", why: "1 year after closure (owner decision 14 Nov 2026), admin-only with a logged reason" },
 ] as const;
 

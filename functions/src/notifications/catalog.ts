@@ -72,6 +72,11 @@ export const NOTIFICATION_TYPES = [
   "phone-changed",
   // Prompt 12: a sign-in from a new phone (reaches the old phone too).
   "new-device",
+  // Settle up (F45): push only, never WhatsApp. No amount, name, note or
+  // InstaPay address in the text.
+  "settle-requested",
+  "settle-paid",
+  "settle-updated",
   // Prompt 13: to the driver when no location came for 2 minutes during a
   // run ("Run still on, open the app"). Urgent, not critical.
   "run-still-on",
@@ -110,7 +115,8 @@ export const WHATSAPP_GROUPS = [
 ] as const;
 
 export type WhatsAppGroup = (typeof WHATSAPP_GROUPS)[number];
-export type NotificationGroup = WhatsAppGroup | "chat" | "alarm";
+/** "settleUp" (F45) is push only like chat: it has no WhatsApp switch. */
+export type NotificationGroup = WhatsAppGroup | "chat" | "alarm" | "settleUp";
 
 /**
  * COST MODE: every WhatsApp template message is paid, so only the critical
@@ -214,6 +220,9 @@ export const TYPES: Readonly<Record<NotificationType, TypeSpec>> = {
   "guardian-declined": spec("trust", "cp_guardian_declined", false),
   "phone-changed": spec("trust", "cp_phone_changed", false),
   "new-device": spec("trust", "cp_new_device", false),
+  "settle-requested": spec("settleUp", null, false),
+  "settle-paid": spec("settleUp", null, false),
+  "settle-updated": spec("settleUp", null, false),
   "run-still-on": spec("tripAlerts", "cp_run_still_on", true, false, true),
   "critical-alarm": spec("alarm", null, false, true),
 };
@@ -309,6 +318,10 @@ export function routeFor(input: RouteInput): string {
       return "/profile";
     case "new-device":
       return "/profile/privacy/devices";
+    case "settle-requested":
+    case "settle-paid":
+    case "settle-updated":
+      return "/profile/settle-up";
     case "run-still-on":
       // The driver's own run screen.
       return carpool && run ? `/carpools/${carpool}/trip/${run}/drive` : carpool ? `/carpools/${carpool}/schedule` : "/notifications";

@@ -151,8 +151,15 @@ service cloud.firestore {
     match /bannedIds/{hash} {
       allow read, write: if false;
     }
+    // Pilot feature switches (owner decision 14 Nov 2026): config/features
+    // says which optional features are on (wallet, ratings and vouching,
+    // yearly checks, Settle up). A signed-in parent may read that one
+    // document (the app hides what is off); only Cloud Functions write it
+    // (a super admin, from the admin panel, with an audit entry). Every
+    // other settings document stays closed.
     match /config/{name} {
-      allow read, write: if false;
+      allow get: if name == 'features' && sessionValid();
+      allow list, write: if false;
     }
     // Audit log (Prompt 3, Prompt 4): written only by Cloud Functions.
     // Admins signed in with two steps may read it; nobody edits or deletes
@@ -490,6 +497,25 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /fakeWalletOps/{id} {
+      allow read, write: if false;
+    }
+
+    // Settle up by InstaPay (F45): records of payment requests between two
+    // parents. The app never moves, holds or sees money, and never writes
+    // a record: Cloud Functions do (settle_up/callables.ts), so the history
+    // is append-only. A record is read only by its two parties (`parties`;
+    // a deleted parent is taken out). The InstaPay address is private:
+    // nobody reads it here, the owner included; the payer of an open
+    // request gets it through getSettleUpAddress. Admins read through a
+    // function with a logged reason.
+    match /settleUps/{id} {
+      allow get, list: if deviceChecked() && request.auth.uid in resource.data.parties;
+      allow write: if false;
+    }
+    match /settleUpAddresses/{uid} {
+      allow read, write: if false;
+    }
+    match /settleUpLimits/{uid} {
       allow read, write: if false;
     }
 

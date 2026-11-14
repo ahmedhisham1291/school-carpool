@@ -507,6 +507,34 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "settleUps",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "parties",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "settleUps",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "parties",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "finished",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

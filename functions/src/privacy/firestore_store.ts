@@ -1,3 +1,5 @@
+import { anonymiseSettleUp, planRetention } from "../settle_up/model";
+import { SETTLE_ADDRESSES, SETTLE_UPS, settleFromDoc, settleToDoc } from "../settle_up/store";
 import type { Bucket } from "../verification/store";
 import { FieldPath, FieldValue, Timestamp, type DocumentData, type Firestore, type Query, type QueryDocumentSnapshot, type QuerySnapshot } from "firebase-admin/firestore";
 import { USERS } from "../auth/accounts";
@@ -459,6 +461,18 @@ export class FirestoreDeletionRunner implements DeletionRunner {
     const tripChange = (d: DocumentData, u: string) => keepForClosedParent(d, anonymiseTrip(d, u), nowMs);
     await apply((await this.db.collection("trips").where("viewerUids", "array-contains", uid).limit(2_000).get()).docs, tripChange);
     await apply((await this.db.collection("trips").where("driverUid", "==", uid).limit(2_000).get()).docs, tripChange);
+    // Settle up (F45): the parent's side of each record becomes an initial,
+    // an unfinished record ends, and it is kept for the other parent
+    // (retention: purgeSettleUps). A retry finds nothing left (the parent
+    // is no longer in `parties`).
+    for (;;) {
+      const page = await this.db.collection(SETTLE_UPS).where("parties", "array-contains", uid).limit(BATCH).get();
+      for (const d of page.docs) {
+        const next = anonymiseSettleUp(settleFromDoc(d.id, d.data()), uid, nowMs);
+        if (next) await d.ref.set(settleToDoc(next));
+      }
+      if (page.size < BATCH) break;
+    }
     // The carpools the parent was ever in (memberships of any status).
     const carpoolIds = new Set<string>();
     for (const m of (await this.db.collection("memberships").where("uid", "==", uid).limit(500).get()).docs) {
@@ -640,6 +654,24 @@ export class FirestoreRetentionStore implements RetentionStore {
     // re-reading the same kept trips every day).
     const snap = await this.db.collection("trips").where("driverUid", "==", DELETED_ID).where("keptUntilMs", "<=", nowMs).limit(limit).get();
     return applyTripRetention(this.db, snap.docs, nowMs);
+  }
+
+  async purgeSettleUps(nowMs: number, limit: number): Promise<number> {
+    const snap = await this.db.collection(SETTLE_UPS).where("keptUntilMs", "<=", nowMs).limit(limit).get();
+    let deleted = 0;
+    for (const d of snap.docs) {
+      const r = settleFromDoc(d.id, d.data());
+      const active = new Set<string>();
+      for (const p of r.parties) if ((await this.db.collection(USERS).doc(p).get()).exists) active.add(p);
+      const plan = planRetention(r, active, nowMs);
+      if (plan === "delete") {
+        await d.ref.delete();
+        deleted += 1;
+      } else if (plan === "clear") {
+        await d.ref.update({ keptUntilMs: null });
+      }
+    }
+    return deleted;
   }
 
   async endedChatsBefore(before: number, limit: number): Promise<string[]> {
@@ -984,6 +1016,30 @@ export class FirestoreExportSource implements ExportSource {
             direction: d.get("fromUid") === uid ? "out" : "in",
             result: pick(results.get(d.id), ["status", "reason", "settledAt", "partnerRef"]),
           })),
+        };
+      }
+      case "settleUp": {
+        // The parent's own InstaPay address and their payment records. The
+        // other parent appears by first name only; never their address.
+        const records = await this.read(db.collection(SETTLE_UPS).where("parties", "array-contains", uid), 1_000);
+        return {
+          instaPayAddress: text((await db.collection(SETTLE_ADDRESSES).doc(uid).get()).get("address")) || null,
+          records: records.docs.map((d) => {
+            const r = settleFromDoc(d.id, d.data());
+            const payee = r.payeeUid === uid;
+            return {
+              id: r.id,
+              role: payee ? "payee" : "payer",
+              otherFirstName: payee ? r.payerFirstName : r.payeeFirstName,
+              amount: r.amount,
+              currency: r.currency,
+              reason: r.reason,
+              note: r.note,
+              status: r.status,
+              createdAt: new Date(r.createdAtMs).toISOString(),
+              history: r.events.map((e) => ({ type: e.type, by: e.by, at: new Date(e.atMs).toISOString() })),
+            };
+          }),
         };
       }
       case "reports": {

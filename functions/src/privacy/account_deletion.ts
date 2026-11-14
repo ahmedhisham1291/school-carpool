@@ -82,6 +82,10 @@ export const IMMEDIATE_TARGETS: ReadonlyArray<{ collection: string; target: Targ
   { collection: "vehicles", target: { kind: "doc", path: "vehicles/{uid}" } },
   // Wallet (Prompt 11B): counters only; transfers stay (TRANSFER_RECORD_YEARS), wallets/{uid} is closed, not deleted.
   { collection: "walletLimits", target: { kind: "doc", path: "walletLimits/{uid}" } },
+  // Settle up (F45): the InstaPay address and the counters go at once; the
+  // records stay for the other parent with an initial only (anonymise step).
+  { collection: "settleUpAddresses", target: { kind: "doc", path: "settleUpAddresses/{uid}" } },
+  { collection: "settleUpLimits", target: { kind: "doc", path: "settleUpLimits/{uid}" } },
   // Devices and privacy (Prompt 12)
   { collection: "users/devices", target: { kind: "subcollection", path: "users/{uid}/devices" } },
   { collection: "users/logins", target: { kind: "subcollection", path: "users/{uid}/logins" } },
@@ -127,6 +131,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   wallets: "closed, not deleted: the partner reference the transfer records need",
   fakeWalletAccounts: "fake partner (dev/staging test money)",
   fakeWalletOps: "fake partner (dev/staging test money)",
+  settleUps: "payment records between two parents (F45): the deleted parent becomes an initial and leaves `parties` at once (anonymise step); the record goes when neither account is active and the last closure is 1 year old (retentionDaily)",
   parentIds: "the parent ID is reserved forever so it is never reused (holds only the uid)",
   admins: "not a parent record",
   adminLimits: "not a parent record",
@@ -176,7 +181,8 @@ export const SUBCOLLECTIONS: Readonly<Record<string, string>> = {
 /**
  * anonymise: the parent's and children's names in records that stay with
  * other parents (other drivers' trips, the carpools' past runs, swaps,
- * balances, carpool cards) become initials (anonymise.ts). After
+ * balances, carpool cards, settle-up records) become initials
+ * (anonymise.ts, settle_up/model.ts). After
  * "carpools" (future runs released) and before "records" (memberships,
  * used to find the carpools, are deleted there).
  */
