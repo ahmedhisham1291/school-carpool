@@ -8935,5 +8935,13 @@
   "recoveryResumedBody": "يُشارَك موقع سيارتك مع أولياء الأمور مرة أخرى.",
   "@recoveryResumedBody": {
     "description": "Local notification body after a run was recovered"
+  },
+  "homeRunsRow": "مشاوير اليوم",
+  "@homeRunsRow": {
+    "description": "Home row title (one line): opens the carpools"
+  },
+  "homeRunsHelper": "في صفحة كل مشوار جماعي",
+  "@homeRunsHelper": {
+    "description": "Home row subtitle"
   }
 }

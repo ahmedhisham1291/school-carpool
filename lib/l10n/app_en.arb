@@ -2006,5 +2006,7 @@
   "alwaysNotNow": "Not now",
   "alwaysGranted": "Runs will resume by themselves",
   "recoveryResumedTitle": "Tracking resumed",
-  "recoveryResumedBody": "Your car's location is shared with the parents again."
+  "recoveryResumedBody": "Your car's location is shared with the parents again.",
+  "homeRunsRow": "Today's runs",
+  "homeRunsHelper": "On each carpool's page"
 }

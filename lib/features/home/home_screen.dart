@@ -12,8 +12,8 @@ import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 
-/// Home tab. Until trips arrive (Prompts 6 to 8) it leads to the maps:
-/// parents nearby, the parent's home and their driving schools.
+/// Home tab: the location banner (Prompt 13), the maps (parents nearby,
+/// the parent's home, driving schools) and a way to today's runs.
 ///
 /// States: the home row says "Loading" while the home loads and "Not set
 /// yet" when there is none or it could not be read (the row still opens
@@ -65,12 +65,14 @@ class HomeScreen extends ConsumerWidget {
             onTap: () => context.go(ProfileRoutes.drivingSchools),
           ),
           AppSectionHeader(l10n.homeTripsSection),
-          Padding(
-            padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter),
-            child: Text(
-              l10n.placeholderHomeBody,
-              style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant),
-            ),
+          // Prompt 13 design pass: the old "will appear here" text is gone;
+          // today's runs live on each carpool's page (Prompt 10).
+          AppListRow(
+            key: const Key('home.runs'),
+            title: l10n.homeRunsRow,
+            subtitle: l10n.homeRunsHelper,
+            leadingIcon: Icons.directions_car_outlined,
+            onTap: () => context.go(AppTab.carpools.path),
           ),
         ],
       ),
