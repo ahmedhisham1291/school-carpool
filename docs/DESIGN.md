@@ -160,6 +160,19 @@ focused and hovered controls get a veil of their label color at
   one-line title, the sentence as subtitle, time and dot trailing) under
   "New" and "Earlier" section headers; alert settings reuse
   `AppSwitchRow`. Notification text never names a child or parent.
+- **Trips** (Prompt 10, `lib/features/trips/trip_widgets.dart`, in the
+  gallery under "Trips"): `DriverStopCard` (one card per child on the
+  driver screen: first name in `headlineSmall`, a state badge, the allowed
+  adults in the afternoon, then one or two `AppButtonSize.large` buttons;
+  the step forward is the primary button on the current stop only, the
+  current stop is the one raised card), `DriverCardView` (today's driver:
+  64 dp round photo or initial, first name, "model, color" and the plate as
+  a left-to-right badge) and `TripLocationBadge` (Live, Waiting, Stopped,
+  Off: the word always says it). Driver screens follow the driver rule:
+  large buttons, few words, no typing; the emergency button is
+  `AppButtonVariant.danger` at the end of the list and asks first. The
+  parents' live run reuses `AppMapView` with a `car` marker,
+  `AppInlineMessage` for "location stopped" and `AppListRow` per child.
 - New component: add it to the gallery first, then use it.
 
 ## One-line wording

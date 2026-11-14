@@ -238,6 +238,13 @@ describe("trips: random selfie check (F38)", () => {
     assert.equal(await reason(startTrip(h.deps, driver, ids())), "selfie-required");
   });
 
+  it("calling start without prepare still asks for the selfie", async () => {
+    const h = harness();
+    h.files.files.set(driverPhotoPath("d1"), Buffer.from("ref"));
+    h.roll.value = 0;
+    assert.equal(await reason(startTrip(h.deps, driver, ids())), "selfie-required");
+  });
+
   it("a match lets the run start; the live selfie is deleted at once", async () => {
     const h = harness();
     h.files.files.set(driverPhotoPath("d1"), Buffer.from("ref"));

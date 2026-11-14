@@ -346,7 +346,15 @@ export async function startTrip(deps: TripDeps, caller: Caller, data: unknown): 
   const nowMs = deps.now();
   const run = await deps.store.run(carpoolId, runId);
   if (!run) throw new TripError("not-found");
-  const check = await deps.store.ensureCheck(id, { driverUid: caller.uid, status: "none", decidedAtMs: nowMs, checkedAtMs: null });
+  // The same random decision as prepareTrip, so skipping prepareTrip never
+  // skips the selfie check (F38).
+  const hasReference = await deps.files.exists(driverPhotoPath(caller.uid));
+  const check = await deps.store.ensureCheck(id, {
+    driverUid: caller.uid,
+    status: selfieRequired(settingsOf(deps).selfiePercent, deps.roll(), hasReference) ? "required" : "none",
+    decidedAtMs: nowMs,
+    checkedAtMs: null,
+  });
   if (check.status === "required") throw new TripError("selfie-required");
   if (check.status === "failed") throw new TripError("driving-paused");
 

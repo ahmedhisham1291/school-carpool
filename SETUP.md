@@ -932,3 +932,135 @@ from section 17.2 can stay; nothing writes there any more.
   then `GCLOUD_PROJECT=<dev project id> npm --prefix functions run notify:cloud -- <your uid> drive-hour`
   (needs `gcloud auth application-default login`; refuses any project
   that does not end in `-dev`).
+
+## 19. Trips and live location (Prompt 10)
+
+### 19.1 Functions settings and deploy (each cloud project)
+
+In `functions/.env.<alias>` (defaults shown; dev on the emulators needs none):
+
+```
+ROUTES_PROVIDER=google      # fake in dev and CI; refused as fake in prod
+ROUTES_TRAFFIC=true         # traffic-aware arrival times (Routes "Pro" SKU)
+TRIP_STALE_SEC=120          # no point for this long: "location stopped"
+TRIP_SELFIE_PERCENT=20      # share of runs that ask for a live selfie (F38)
+TRIP_HANDOVER_MIN=10        # F34: minutes to confirm an afternoon drop-off
+```
+
+- The server key `MAPS_SERVER_KEY` (section 15) must also allow
+  **Routes API**: Google Cloud > APIs & Services > enable "Routes API",
+  then Credentials > the server key > API restrictions > add Routes API.
+  Set a per-day quota on Routes API (Quotas) as for Places.
+- `firebase deploy --only functions,firestore:rules,firestore:indexes,storage --project <alias>`.
+  New functions: `prepareTrip`, `submitSelfieCheck`, `startTrip`,
+  `tripAction`, `confirmHandover`, `quickMessage`, `tripEmergency`,
+  `saveHandoverAdults`, `getHandoverAdults`, `setEmergencyContact`,
+  `getTodayDriverCards`, `tripLocation` (HTTPS, called by the phone's
+  location plugin with the run's own token; App Check cannot run there) and
+  `tripTick` (every minute, Africa/Cairo: the fourth Cloud Scheduler job,
+  see COSTS.md).
+- `tripLocation` must allow public invocation (it checks the trip token
+  itself): Cloud Run > `triplocation` > Security > "Allow unauthenticated
+  invocations" (the deploy asks once).
+
+### 19.2 Expiry (each cloud project)
+
+`tripTick` deletes live points, arrival times and emergencies past their
+time every minute. As a second line, add Firestore TTL policies on field
+`expiresAt` for collection groups `points`, `eta`, `emergencies` and
+collection `tripStops` and `tripChecks`:
+
+```
+for g in points eta emergencies tripStops tripChecks; do
+  gcloud firestore fields ttls update expiresAt --collection-group=$g --enable-ttl --project <id>
+done
+```
+
+### 19.3 WhatsApp templates (with section 18.4)
+
+| Template | English body |
+| --- | --- |
+| `cp_driver_arrived` | The car is outside for the {{1}} run. Send your child now. |
+| `cp_location_stopped` | The car's location stopped during the {{1}} run. |
+| `cp_emergency` | The driver pressed Emergency on the {{1}} run. Open the app. |
+| `cp_emergency_contact` | {{1}} pressed the emergency button during a school run. Location: {{2}} |
+| `cp_trip_started` | The car is on its way: {{1}}. |
+| `cp_child_picked_up` | Your child got in for the {{1}} run. |
+| `cp_child_dropped` | Your child was dropped off: {{1}}. |
+| `cp_driver_late` | The driver is running late: {{1}}. |
+| `cp_driver_at_gate` | The driver is at the school gate: {{1}}. |
+| `cp_all_children_in` | All children are in the car: {{1}}. |
+
+Arabic bodies: `functions/src/notifications/texts.ts` (the emergency
+contact one: "ضغط {{1}} زر الطوارئ أثناء مشوار المدرسة. الموقع: {{2}}").
+On by default (COST MODE: urgent only): Arrived and location stopped
+(group "Car outside, location") and Emergency. The others are push only
+unless the parent switches "Run updates" on. `cp_emergency_contact` goes to
+a number that is not a parent of the app: the driver saved it and is
+asked to tell that person.
+
+### 19.4 iPhone: background location (applied by tool/patch_native.py)
+
+- `UIBackgroundModes`: `location`, `fetch`, `processing` (plus
+  `remote-notification`), `BGTaskSchedulerPermittedIdentifiers`:
+  `com.transistorsoft.fetch`.
+- Permission texts in Arabic and English (`tool/ios/<lang>.lproj/InfoPlist.strings`):
+  `NSLocationAlwaysAndWhenInUseUsageDescription`,
+  `NSLocationWhenInUseUsageDescription`, `NSMotionUsageDescription`.
+- App Store review: say in the review notes that location runs in the
+  background only while a parent drives a school run, for the parents of
+  the children in the car, and stops at the last drop-off.
+- No licence key is needed on iPhone (Transistor's licence is checked on
+  Android release builds only).
+
+### 19.5 Android licence (before the first Android release build)
+
+Buy the flutter_background_geolocation licence for the Android
+application IDs (`org.schoolcarpool.app`, `.staging`, `.dev`). Never commit
+it. Give it to the release build as a Gradle property or environment
+variable `BG_GEO_LICENSE` (Codemagic: an encrypted environment variable);
+`tool/patch_native.py` puts it into the manifest
+(`com.transistorsoft.locationmanager.license`). Debug builds work without.
+
+### 19.6 Try it (the "Done when" check)
+
+1. Emulators, seed and the dev app with `--dart-define=EMULATOR_HOST=<Mac IP>`
+   as in sections 16.5 and 17.3. Your car is approved; give it a driver
+   photo in Profile > Driving (optional: then some runs ask for a selfie;
+   set `TRIP_SELFIE_PERCENT=100` in `functions/.env.local` to see it every
+   time, `0` to skip it).
+2. Plan and confirm a run of today within the next hour (Prompt 7 steps).
+3. Second device: an iOS Simulator (or a second iPhone) signed in as the
+   seed parent Hoda (`+201000000101`, code in the functions log), whose
+   child rides your run.
+
+4. On your iPhone: Carpool > Week plan > today's run > **Start run**. Read
+   the location screen, tap **Turn on location** and choose **Always**
+   (iOS may first offer "While Using": allow it, then the app asks again
+   for "Change to Always Allow"). Tap **Start run**. Lock the phone and
+   walk or drive a little.
+5. On the second device: Carpools > the carpool > **Today** > the driver
+   card (or Week plan > the run > **Follow run**). The car moves on the
+   map (the sketch map without a Maps key) and "Car in about N min" shows
+   (straight-line times with `ROUTES_PROVIDER=fake`).
+   `npm --prefix functions run carpool:emulator -- trip <carpoolId> <runId> --as any`
+   prints the status and how old the last point is.
+6. On the iPhone tap **Arrived** for Hoda's child: her Alerts tab shows "Car
+   is outside" (the functions log shows the push and `[fake WhatsApp]
+   template cp_driver_arrived`). Tap it again: a second alert. Then
+   **Picked up** and **At school** (or, in the afternoon, Picked up,
+   Arrived and **Handed over**): an alert each time.
+7. Location stopped: on the iPhone turn on Airplane mode for more than two
+   minutes, then run `... carpool:emulator -- triptick --as any` (the
+   emulators do not run scheduled functions). Hoda's Alerts shows
+   "Location stopped" and the live run shows a warning.
+8. A parent whose child is not on the run: sign the second device in as
+   another seed parent (or remove Hoda's child from the run with Away):
+   the live run shows "Not started" and Firestore refuses the reads
+   (`tests/rules/trips.test.ts` proves it).
+9. After the last drop-off the driver screen shows "Run finished", the
+   location arrow leaves the iPhone's status bar and the `trip` command
+   shows `ended` with no new points. In the afternoon, leave a handover
+   unconfirmed for 10 minutes and run `triptick`: "Child not confirmed"
+   reaches both parents (critical, with the alarm). Confirm with
+   `... carpool:emulator -- home <carpoolId> <runId> <childId> --as seed-map-parent-1`.
