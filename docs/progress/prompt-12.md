@@ -179,10 +179,12 @@ docs/restore-test.md, SETUP.md 21.6 and 23, COSTS.md "Privacy and security
    screen say so.
 2. Withdrawn verification cases are still deleted by the job (the parent
    took them back); decided ones (approved and rejected) are kept.
-3. A new-phone selfie the face check cannot decide (Valify stub, no
-   contract) lets the parent in and files a non-urgent report for an admin
-   to compare the kept selfie by hand; a clear mismatch keeps everything
-   closed and files an urgent report.
+3. (Changed in the review round) A new-phone selfie the face check cannot
+   decide FAILS CLOSED: everything stays closed, an urgent report is filed,
+   and an admin clears the check after comparing the kept selfie
+   (`adminClearDeviceCheck`, logged reason). In prod the face match uses the
+   project's KycProvider settings (Valify); while Valify's `matchFace` is a
+   stub, every prod new-phone check waits for an admin.
 4. Firebase can only end every session of an account at once: signing out
    one phone signs out all others too, and the asking phone signs in again
    with a fresh token at once (the screen says other phones need a new
@@ -200,13 +202,13 @@ docs/restore-test.md, SETUP.md 21.6 and 23, COSTS.md "Privacy and security
 1. **PITR:** decided by the owner (14 Nov 2026): ON in prod, daily
    backups kept (SETUP 23.7, `tool/setup_retention.sh <prod-id> --prod`,
    COSTS). The coordinator updates the CLAUDE.md cost line.
-2. **Lawyer** (DECISIONS.md requires a check for longer retention and new
-   data): the new periods (photos and run summaries 1 year after closure,
-   route archives 1 year, chat life + 1 year), usage analytics, the selfie
-   archive, **ratings and vouches, guardian links** (Prompt 11 review item
-   9), the emergency contact who never opted in, the driver's live-location
-   consent (not yet a consent record), and **how long transfer records stay
-   after deletion** (kept for now).
+2. **Lawyer:** confirmed (DECISIONS.md, owner update 14 Nov 2026): the
+   periods, the selfie archive, ratings and links, the emergency contact,
+   the driver's live-location consent and the transfer-record period.
+   **Open for the owner:** write down that transfer-record period.
+   `TRANSFER_RECORD_YEARS = 5` (retention.ts) is a placeholder; nothing
+   deletes transfer records yet (MONEY: append-only), so a deletion job at
+   the end of the period needs your go.
 3. **Email provider** for the new-phone email (Trigger Email extension).
 4. Existing parents accepted the 2026-11-13 privacy policy. Ask them to
    accept the new version (a one-time screen), or rely on the notice?
@@ -256,7 +258,7 @@ remains in the console).
 | Prompt 3 review N1 | Soft delete keeps deleted images 7 more days | Superseded: photos are kept now; 7-day soft delete kept on purpose (SETUP 23.3) |
 | Prompt 5 #5 | Deleting `homes`, `mapLimits`, `newParentEvents` with the account | Fixed |
 | Prompt 6 | Memberships, members, requests, consents, pickup points, `carpoolWanted` | Fixed (`removeFromCarpool` + targets) |
-| Prompt 7 | Remove from future runs and balances | Future runs fixed (released); per-term balances keep the parent's counts (group statistics), deleted with the carpool. Still open if the lawyer wants them cleared |
+| Prompt 7 | Remove from future runs and balances | Fixed: future runs released; past runs, swaps and balances keep counts with an initial only (anonymise step); a closed carpool is deleted 1 year after it closed |
 | Prompt 8 #11 | `notificationSettings`, `pushTokens`, `notificationLimits`, `users/{uid}/notifications` | Fixed |
 | Prompt 9 | Stream user and chat records on deletion | Fixed (cut off at once, private chats ended, user and messages hard-deleted after 1 year) |
 | Prompt 9 review #3 | Retention job truncates every channel nightly | Fixed (removed; chats end and are deleted a year later) |
@@ -265,19 +267,19 @@ remains in the console).
 | Prompt 9 review #2 | Chat does not open offline at a cold start | Still open (needs a cached Stream token; not in Prompt 12's list) |
 | Prompt 9 | New-device selfie before chats open | Fixed |
 | Prompt 10 | `handoverAdults`, `emergencyContacts`, `tripLimits`, driver photo | Fixed (driver photo kept while the account is open, purged 1 year after closure) |
-| Prompt 10 review #12 | Trip docs never expire | Fixed (purged 1 year after the driver's account closes; `tripStops` within a day) |
+| Prompt 10 review #12 | Trip docs never expire | Fixed: purged 1 year after the driver's account closes, or with the closed carpool 1 year after it closed; other drivers' trips keep only an initial for a deleted parent's children; `tripStops` within a day |
 | Prompt 10 follow-up 1 | KMS key for kept photos | Done as a setup script (code cannot create keys) |
 | Prompt 10 follow-up 2 | Deletion 1 year after closure; on ban or rejection | Fixed for closure; on a ban or a later rejection photos stay while the account exists (owner decision; investigations) |
 | Prompt 10 follow-up 3 | Admin access only with a logged reason | Fixed (case view, photos, routes) |
 | Prompt 10 follow-up 4 | Live selfie checks: kept or deleted | Fixed: kept in the selfie archive (owner decision) |
-| Prompt 10 review #8b, #8c | Emergency contact opt-in; driver location consent record | Still open (lawyer; question 2) |
+| Prompt 10 review #8b, #8c | Emergency contact opt-in; driver location consent record | Allowed by the lawyer (DECISIONS.md); a written consent record for the driver is still a nice-to-have |
 | Prompt 11 review #1 | `child-in-carpool` generic error | Fixed |
 | Prompt 11 review #2 | Grade change not copied to linked parent's carpools | Fixed |
 | Prompt 11 review #3 | Overdue mark stuck | Fixed |
 | Prompt 11 review #4 | Two ratings across a month boundary | Fixed |
-| Prompt 11 review #9 | Ratings and links: privacy screen, export, deletion, lawyer | Fixed (lawyer: question 2); phone-change selfie kept (archive) |
+| Prompt 11 review #9 | Ratings and links: privacy screen, export, deletion, lawyer | Fixed (lawyer confirmed); phone-change selfie kept (archive) |
 | Prompt 11 | Ratings, summaries, flags, links, requests, `trustLimits` on deletion | Fixed (open flags stay like reports) |
-| Prompt 11B #5 | Transfer records after deletion | Kept; lawyer to set the period (question 2) |
+| Prompt 11B #5 | Transfer records after deletion | Kept; period confirmed by the lawyer, 5-year placeholder until the owner records it (question 2) |
 | Prompt 11B | App lock for the whole app; wallet export and deletion | Fixed |
 | Prompt 11B review new #1 | Stuck alerts mislabeled | Fixed |
 | Prompt 11B review new #2 | Nothing settles a stuck transfer | Fixed (script, SETUP 21.6) |
@@ -296,6 +298,7 @@ remains in the console).
   only run confirmations are kept on the phone.
 - Not verified here: `flutter analyze`, `flutter test`, the rules tests,
   the iOS build with firebase_analytics, the deploy with sharp.
+- Admin panel button for `adminClearDeviceCheck` (callable only for now).
 
 ## CI fixes (run 43585030380)
 
@@ -307,3 +310,79 @@ remains in the console).
   `fromMap` (no nested const).
 - PITR on in prod (owner decision): SETUP 23.7, COSTS, restore test,
   `tool/setup_retention.sh --prod`.
+
+## Review fixes (docs/reviews/prompt-12-review.md, one round)
+
+Blocking:
+
+1. **New-phone gate on the server.** `users/{uid}.newDeviceCheck` and the
+   new `sessionsValidAfter` are checked by Firestore rules
+   (`sessionValid()`, `deviceChecked()`: children, carpool members, join
+   requests, driver consents, pickup points, runs, swaps, exceptions,
+   balances, emergencies, trips, live points, arrival times, trip checks,
+   handover adults, homes, emergency contacts, notifications, chat records;
+   memberships and the user record need a valid session) and by
+   `gatedCall` around every callable that reads or changes child, carpool,
+   schedule, trip, location, chat, wallet, family-link, notification or
+   privacy data (export and deletion included). `sessionCall` (session
+   only) for the selfie confirmation, place search, schools and
+   `stopMyTrips`; `touchDevice` stays open so a signed-out phone learns it.
+   The app shows only the profile page, About and the selfie screen during
+   a check. Tests: rules SIM-swap and signed-out-phone cases
+   (`tests/rules/privacy.test.ts`, written, not run here); functions
+   SIM-swap test (`gateRefusal`, run here). SECURITY.md AUTH-2 rewritten.
+2. **Deletion and the wallet.** The wallet is locked FIRST (frozen with
+   reason `accountClosing` in a transaction, then at the partner), then
+   both directions are checked (walletPending by `parties`, legacy entries
+   by `uid`, and the last 30 days of transfers without a result); any
+   balance or pending transfer refuses and puts the wallet back. A wallet
+   locked by deletion can never be unfrozen by an admin. Bug found: a
+   `closed` wallet was read as `active` (`walletFromDoc`); now anything but
+   `active` moves no money. Tests: incoming pending refused, a transfer
+   arriving mid-deletion refused (also between its checks and its
+   transaction), partner down refuses without deleting.
+3. **No end date.** New `anonymise` deletion step: other drivers' trips
+   (stop name to an initial, child ID, parent and handover names removed,
+   parent out of `viewerUids`), past runs (riders, absent, driver), swaps,
+   balances (counts kept under an anonymous key) and the carpool card.
+   `retentionDaily` deletes a closed carpool (with subcollections,
+   memberships, invites and its trips) 1 year after it closed.
+   `walletDaily` gets `expiresAt` (35 days) and a TTL policy. The cascade
+   test now also checks every carpool and trip subcollection.
+
+Non-blocking, done now: real face match from the project's KycProvider
+settings, failing closed (also for a failed sign-in record); signed-out
+phones lose access at once (`sessionsValidAfter` in rules and callables);
+export gaps (pickup points, join requests, driver consents, chat requests,
+blocks, mutes, settings, family requests, privacy requests, vouches
+received, own chat image links) and `truncated` sections; thumbnails remade
+for a new photo version, deleted with the photo, served thumbnail-only
+unless full, full views logged as full, `thumbs:backfill` script;
+`setup_kms.sh` portable (GNU/BSD date, python3) and SETUP 23.2 rewrites
+every prefix; lawyer-confirmed wording everywhere current (SETUP, COSTS,
+SECURITY, config, consents, retention, deletion, App Store doc); transfer
+records 5-year placeholder; App Store answers (Device ID purposes, Coarse
+Location, handover numbers); APNs in SECURITY part 2; closed-carpool chats
+looked back 30 days; scraping counters store hashes; mail outbox carries
+the uid and is deleted with the account; restore test re-applies
+deletions (`deletions:reapply`); offline queue cleared on sign-out or a
+new account; app lock re-prompts (keyed on `locked`).
+
+Listed, not done:
+
+- Review #11: `archiveRouteOnTripWrite` fires on every trip write (watch
+  the free invocation quota; move to the end-of-run event if it grows).
+- Review #16: Android `firebase_analytics_collection_enabled=false`
+  manifest flag (Stage 3).
+- Review #17: screenshots of the 4 new screens (full workflow at merge).
+- Stream tokens issued before a sign-out stay valid until they expire
+  (new ones are refused); revoke them in `revokeSessions` once the Stream
+  secret is bound to the privacy functions.
+- Other parents' in-app notifications naming a deleted parent's child
+  expire with their 60-day TTL (not rewritten).
+- The `termsDraftNotice` string still calls the texts drafts: the lawyer
+  confirmed the content, the owner decides when the final wording ships.
+- Admin panel button for `adminClearDeviceCheck`.
+
+Tests in this round: functions **612 pass, run here**; rules and Flutter
+**written, not run here**.
