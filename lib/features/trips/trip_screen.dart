@@ -255,7 +255,7 @@ class _EtaLine extends StatelessWidget {
       StopState.arrived when direction == RunDirection.toSchool => l10n.tripEtaOutside,
       _ when minutes == null => stopStateLabel(l10n, stop.state, direction),
       _ when minutes == 0 => l10n.tripEtaNow,
-      _ => waiting && direction == RunDirection.toSchool ? l10n.tripEtaPickup(minutes!) : l10n.tripEtaArrive(minutes!),
+      _ => waiting && direction == RunDirection.toSchool ? l10n.tripEtaPickup(minutes) : l10n.tripEtaArrive(minutes),
     };
     return AppCard(
       key: Key('trip.eta.${stop.childId}'),

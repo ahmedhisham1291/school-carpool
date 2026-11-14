@@ -141,8 +141,8 @@ void main() {
         'driverUid': 'd1',
         'driverFirstName': 'Dina',
         'status': 'handover',
-        'car': <String, dynamic>{'model': 'Corolla', 'color': 'White', 'plate': 'ABC 123'},
-        'stops': <Object?>[
+        'car': const <String, dynamic>{'model': 'Corolla', 'color': 'White', 'plate': 'ABC 123'},
+        'stops': const <Object?>[
           <String, dynamic>{
             'childId': 'c1',
             'firstName': 'Adam',
@@ -153,7 +153,7 @@ void main() {
           },
           <String, dynamic>{'childId': 'c2', 'firstName': 'Omar', 'parentUid': 'p3', 'state': 'odd'},
         ],
-        'last': <String, dynamic>{'location': const GeoPoint(30, 31)},
+        'last': const <String, dynamic>{'location': GeoPoint(30, 31)},
         'lastPointAt': Timestamp.fromMillisecondsSinceEpoch(1000),
         'messages': <Object?>[
           <String, dynamic>{'kind': 'late', 'at': Timestamp.fromMillisecondsSinceEpoch(2000)},
@@ -178,7 +178,7 @@ void main() {
         'stops': <String, dynamic>{'c1': Timestamp.fromMillisecondsSinceEpoch(5000), 'bad': 'x'},
       });
       expect(eta.stops.keys, <String>['c1']);
-      final DriverCard card = DriverCard.fromMap(<Object?, Object?>{
+      final DriverCard card = DriverCard.fromMap(const <Object?, Object?>{
         'runId': 'r',
         'direction': 'toSchool',
         'time': '07:30',
@@ -186,7 +186,7 @@ void main() {
         'photoUrl': 'http://not-https.example/x.jpg',
       });
       expect(card.photoUrl, isNull, reason: 'only https links are shown');
-      final TripSession s = TripSession.fromMap(<Object?, Object?>{'tripId': 't', 'token': 'x', 'expiresAtMs': 1000, 'staleSeconds': 90});
+      final TripSession s = TripSession.fromMap(const <Object?, Object?>{'tripId': 't', 'token': 'x', 'expiresAtMs': 1000, 'staleSeconds': 90});
       expect(s.staleSeconds, 90);
       expect(s.expiresAt, DateTime.fromMillisecondsSinceEpoch(1000, isUtc: true));
     });

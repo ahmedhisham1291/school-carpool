@@ -51,8 +51,7 @@ class BackgroundLocationTracker implements LocationTracker {
     bg.BackgroundGeolocation.onLocation(
       (bg.Location location) {
         // v5: an ISO-8601 string by default (or epoch ms when configured).
-        final Object? ts = location.timestamp;
-        final DateTime? at = switch (ts) {
+        final DateTime? at = switch (location.timestamp) {
           final String iso => DateTime.tryParse(iso)?.toUtc(),
           final int ms => DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true),
           _ => null,

@@ -83,8 +83,7 @@ abstract interface class LocationTracker {
 
 /// For tests, CI, the website (drivers use the phone app) and the gallery.
 class FakeLocationTracker implements LocationTracker {
-  FakeLocationTracker({TrackerPermission permission = TrackerPermission.notAsked, this.grantOnRequest = TrackerPermission.always})
-    : _permission = permission;
+  FakeLocationTracker({this._permission = TrackerPermission.notAsked, this.grantOnRequest = TrackerPermission.always});
 
   TrackerPermission _permission;
 
