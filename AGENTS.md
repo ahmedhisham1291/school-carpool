@@ -41,7 +41,7 @@ plan's limit. Code must not depend on any paid-only feature being on.
 - Firebase: Blaze plan (needed for Cloud Functions) but stay inside the free
   quotas. minInstances = 0 for every function (no warm instances) - keep it
   a config value so it can be raised later. Firestore point-in-time recovery
-  OFF for now (document how to switch on); daily backup ON in prod only.
+  ON in prod (owner: best option even if paid); daily backup ON in prod.
   Auth: Identity Platform free tier.
 - Stream Chat: Build (free) plan, later Maker Account.
 - Algolia: free Build plan (10k searches/month); keep the fake search for dev.
