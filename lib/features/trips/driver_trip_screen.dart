@@ -145,9 +145,14 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     unawaited(
       ref.read(tripRepositoryProvider).reportTrackingLost(widget.carpoolId, widget.runId, item.name).then((_) {}, onError: (Object _) {}),
     );
-    final bool back = await showLocationSteps(context, blocking: true);
+    // Location items only: notifications are required before a run starts,
+    // never to go on with one.
+    final DrivingReadiness readiness = ref.read(drivingReadinessProvider);
+    final bool back = await showLocationSteps(context, blocking: true, locationOnly: true);
     _lostShown = false;
-    if (back && mounted && _phase == _Phase.running) {
+    // Closed by hand after fixing it in Settings counts too.
+    final bool ready = back || (await readiness.check()).locationReady;
+    if (ready && mounted && _phase == _Phase.running) {
       setState(() => _error = null);
       await _begin(resume: true);
     }

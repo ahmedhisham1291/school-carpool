@@ -320,6 +320,44 @@ void main() {
       expect(find.byKey(const Key('gate.screen')), findsNothing);
     });
 
+    testWidgets('mid-run: notifications off never block going on once location is back', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
+      final FakeLocationTracker tracker = FakeLocationTracker();
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness();
+      addTearDown(trips.dispose);
+      addTearDown(tracker.dispose);
+      addTearDown(readiness.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
+      await _tap(tester, 'drive.start');
+      readiness.current = const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.notifications});
+      readiness.service(false);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('gate.item.service')), findsOneWidget);
+      expect(find.byKey(const Key('gate.item.notifications')), findsNothing, reason: 'location items only during a run');
+      readiness.current = const DrivingCheck(missing: <GateItem>{GateItem.notifications});
+      readiness.service(true);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('gate.screen')), findsNothing);
+      expect(tracker.starts, 2);
+    });
+
+    testWidgets('mid-run: steps closed by hand after fixing location: tracking restarts', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
+      final FakeLocationTracker tracker = FakeLocationTracker();
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness();
+      addTearDown(trips.dispose);
+      addTearDown(tracker.dispose);
+      addTearDown(readiness.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
+      await _tap(tester, 'drive.start');
+      readiness.current = const DrivingCheck(missing: <GateItem>{GateItem.precise});
+      readiness.service(false);
+      await tester.pumpAndSettle();
+      readiness.current = DrivingCheck.ready;
+      await _tap(tester, 'gate.close');
+      expect(tracker.starts, 2);
+    });
+
     testWidgets('permission taken away in Settings: found on return to the app', (WidgetTester tester) async {
       final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
       final FakeLocationTracker tracker = FakeLocationTracker();

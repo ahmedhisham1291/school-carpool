@@ -246,12 +246,17 @@ Future<bool> ensureReadyToDrive(BuildContext context, WidgetRef ref) async {
   return showLocationSteps(context, blocking: true);
 }
 
-/// Opens the steps full screen. [blocking]: the driving gate (every item,
-/// closes with true once all pass). Otherwise the home banner's steps
-/// (location items only, never blocks).
-Future<bool> showLocationSteps(BuildContext context, {required bool blocking}) async {
+/// Opens the steps full screen. [blocking]: the driving gate (closes with
+/// true once all pass). Otherwise the home banner's steps (never blocks).
+/// [locationOnly] (default: not blocking): only Location Services,
+/// permission and Precise Location count; used by the banner and during a
+/// run (notifications are required only before a run starts).
+Future<bool> showLocationSteps(BuildContext context, {required bool blocking, bool? locationOnly}) async {
   final bool? ok = await Navigator.of(context).push<bool>(
-    MaterialPageRoute<bool>(fullscreenDialog: true, builder: (BuildContext _) => LocationStepsScreen(blocking: blocking)),
+    MaterialPageRoute<bool>(
+      fullscreenDialog: true,
+      builder: (BuildContext _) => LocationStepsScreen(blocking: blocking, locationOnly: locationOnly ?? !blocking),
+    ),
   );
   return ok ?? false;
 }
@@ -265,9 +270,10 @@ Future<bool> showLocationSteps(BuildContext context, {required bool blocking}) a
 /// shows (it closes); an error in a check counts as missing (the steps
 /// still help); offline does not apply (all checks are on the phone).
 class LocationStepsScreen extends ConsumerStatefulWidget {
-  const LocationStepsScreen({required this.blocking, super.key});
+  const LocationStepsScreen({required this.blocking, required this.locationOnly, super.key});
 
   final bool blocking;
+  final bool locationOnly;
 
   @override
   ConsumerState<LocationStepsScreen> createState() => _LocationStepsScreenState();
@@ -294,15 +300,16 @@ class _LocationStepsScreenState extends ConsumerState<LocationStepsScreen> {
     super.dispose();
   }
 
-  List<GateItem> get _items => _check?.items(locationOnly: !widget.blocking) ?? const <GateItem>[];
+  List<GateItem> get _items => _check?.items(locationOnly: widget.locationOnly) ?? const <GateItem>[];
+
+  bool _done(DrivingCheck check) => widget.locationOnly ? check.locationReady : check.isReady;
 
   Future<void> _recheck() async {
     final DrivingCheck check = await ref.read(drivingReadinessProvider).check();
     if (!mounted || _closed) {
       return;
     }
-    final bool done = widget.blocking ? check.isReady : check.locationReady;
-    if (done) {
+    if (_done(check)) {
       _closed = true;
       Navigator.of(context).pop(true);
       return;
@@ -318,7 +325,7 @@ class _LocationStepsScreenState extends ConsumerState<LocationStepsScreen> {
       if (!mounted) {
         return;
       }
-      if (widget.blocking ? after.isReady : after.locationReady) {
+      if (_done(after)) {
         await _recheck();
         return;
       }
@@ -339,7 +346,7 @@ class _LocationStepsScreenState extends ConsumerState<LocationStepsScreen> {
           tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
           onPressed: () => Navigator.of(context).pop(false),
         ),
-        title: AppBarTitle(widget.blocking ? l10n.gateTitle : l10n.gateLocationTitle),
+        title: AppBarTitle(widget.locationOnly ? l10n.gateLocationTitle : l10n.gateTitle),
       ),
       body: SafeArea(
         top: false,
