@@ -61,6 +61,15 @@ export const NOTIFICATION_TYPES = [
   "wallet-failed",
   "wallet-frozen",
   "wallet-updated",
+  // Trust (Prompt 11, F17): driving papers, the yearly check, guardian
+  // links and a changed phone number. No names in the text.
+  "licence-expiring",
+  "licence-expired",
+  "year-check-due",
+  "guardian-requested",
+  "guardian-linked",
+  "guardian-declined",
+  "phone-changed",
   // The second, louder push of a critical alert nobody opened in time.
   "critical-alarm",
 ] as const;
@@ -91,6 +100,8 @@ export const WHATSAPP_GROUPS = [
   "trips",
   "emergency",
   "wallet",
+  // Prompt 11: papers, the yearly check, guardian links, phone changes.
+  "trust",
 ] as const;
 
 export type WhatsAppGroup = (typeof WHATSAPP_GROUPS)[number];
@@ -117,6 +128,8 @@ export const WHATSAPP_DEFAULTS: Readonly<Record<WhatsAppGroup, boolean>> = {
   // Prompt 11B: COST MODE, push only unless the parent switches WhatsApp
   // on (owner decision; the app's own alerts are always sent).
   wallet: false,
+  // Prompt 11: COST MODE, push only unless the parent switches WhatsApp on.
+  trust: false,
 };
 
 export function isWhatsAppGroup(value: unknown): value is WhatsAppGroup {
@@ -188,6 +201,13 @@ export const TYPES: Readonly<Record<NotificationType, TypeSpec>> = {
   "wallet-failed": spec("wallet", "cp_wallet_failed", false),
   "wallet-frozen": spec("wallet", "cp_wallet_frozen", false),
   "wallet-updated": spec("wallet", "cp_wallet_updated", false),
+  "licence-expiring": spec("trust", "cp_licence_expiring", true),
+  "licence-expired": spec("trust", "cp_licence_expired", false),
+  "year-check-due": spec("trust", "cp_year_check", false),
+  "guardian-requested": spec("trust", "cp_guardian_requested", false),
+  "guardian-linked": spec("trust", "cp_guardian_linked", false),
+  "guardian-declined": spec("trust", "cp_guardian_declined", false),
+  "phone-changed": spec("trust", "cp_phone_changed", false),
   "critical-alarm": spec("alarm", null, false, true),
 };
 
@@ -269,6 +289,17 @@ export function routeFor(input: RouteInput): string {
     case "wallet-frozen":
     case "wallet-updated":
       return "/profile/wallet";
+    case "licence-expiring":
+    case "licence-expired":
+      return "/profile/driving";
+    case "year-check-due":
+      return "/profile/school-year";
+    case "guardian-requested":
+    case "guardian-linked":
+    case "guardian-declined":
+      return "/profile/family";
+    case "phone-changed":
+      return "/profile";
     case "critical-alarm":
       return "/notifications";
     default:

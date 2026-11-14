@@ -8,6 +8,7 @@ import { nameSearchFields } from "../text/normalize";
 import type { KycOutcome, KycResult } from "./kyc";
 import { asKycResult } from "./kyc";
 import { VERIFICATION_CONSENT_VERSIONS, VerificationError, type DriverSubmission } from "./submission";
+import { keptApproval } from "./vehicle";
 import type {
   AccountStatus,
   CaseChild,
@@ -113,6 +114,12 @@ export class FirestoreVerificationStore implements VerificationStore {
       for (const doc of mine.docs) if (doc.id !== hash) tx.delete(doc.ref);
       tx.set(claimRef, { uid: c.uid, caseId: c.id, createdAt: FieldValue.serverTimestamp() });
     }
+    // Prompt 11 (F17): read before any write. New details for the SAME car
+    // (same plate) keep its approval until the reviewer decides; a new car
+    // gets no driving days until it is checked (verification/vehicle.ts).
+    const vehicleRef = this.db.collection(VEHICLES).doc(c.uid);
+    const currentVehicle = c.driver ? await tx.get(vehicleRef) : null;
+    const kept = c.driver && currentVehicle?.exists ? keptApproval(currentVehicle.data(), c.driver.plate) : null;
     for (const id of write.replaceChildIds) tx.delete(this.db.collection(CHILDREN).doc(id));
 
     tx.create(this.db.collection(VERIFICATIONS).doc(c.id), {
@@ -153,12 +160,13 @@ export class FirestoreVerificationStore implements VerificationStore {
     }
 
     if (c.driver) {
-      tx.set(this.db.collection(VEHICLES).doc(c.uid), {
+      tx.set(vehicleRef, {
         driverUid: c.uid,
         ...c.driver,
         status: "pending",
         reasonCode: null,
         caseId: c.id,
+        approved: kept,
         updatedAt: now,
       });
     }
@@ -218,7 +226,15 @@ export class FirestoreVerificationStore implements VerificationStore {
         if (record.children[i].isNew) tx.delete(childRefs[i]);
         else tx.update(childRefs[i], { status: "rejected", reasonCode: null, updatedAt: FieldValue.serverTimestamp() });
       });
-      if (vehicle?.exists && vehicle.get("caseId") === caseId) tx.delete(vehicleRef);
+      if (vehicle?.exists && vehicle.get("caseId") === caseId) {
+        // Prompt 11: a withdrawn renewal of the same car puts the approved car back.
+        const kept = vehicle.get("approved") as Record<string, unknown> | null | undefined;
+        if (kept && typeof kept === "object") {
+          tx.set(vehicleRef, { driverUid: uid, ...kept, status: "approved", reasonCode: null, caseId: null, approved: null, updatedAt: FieldValue.serverTimestamp() });
+        } else {
+          tx.delete(vehicleRef);
+        }
+      }
       if (claimRef && claim?.exists && claim.get("uid") === uid) tx.delete(claimRef);
       tx.create(this.db.collection(AUDIT_LOG).doc(), {
         actorUid: uid,
@@ -285,7 +301,14 @@ export class FirestoreVerificationStore implements VerificationStore {
         }
       });
       if (vehicle?.exists && vehicle.get("caseId") === w.caseId) {
-        tx.update(vehicleRef, { status: w.status, reasonCode: w.reasonCode, updatedAt: FieldValue.serverTimestamp() });
+        // Prompt 11: once approved, the kept copy of the earlier approval goes;
+        // a rejected renewal keeps it (the car as approved before stays usable).
+        tx.update(vehicleRef, {
+          status: w.status,
+          reasonCode: w.reasonCode,
+          ...(approved ? { approved: null } : {}),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
       }
       if (claimRef && claim?.exists && claim.get("uid") === w.uid) tx.delete(claimRef);
       if (w.banNationalIdHash) {

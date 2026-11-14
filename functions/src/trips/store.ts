@@ -12,6 +12,7 @@ import { runFromDoc, SCHEDULE } from "../schedule/store";
 import type { RunRecord } from "../schedule/model";
 import { asLanguage } from "../whatsapp/sender";
 import { CHILDREN, VEHICLES } from "../verification/store";
+import { usableVehicle } from "../verification/vehicle";
 import type { CarpoolPlace, HandoverEntry, TripAccount, TripChange, TripReport, TripStore } from "./flow";
 import {
   QUICK_KINDS,
@@ -265,8 +266,10 @@ export class FirestoreTripStore implements TripStore {
 
   async car(uid: string): Promise<CarCard | null> {
     const snap = await this.db.collection(VEHICLES).doc(uid).get();
-    if (!snap.exists || snap.get("status") !== "approved") return null;
-    return { model: text(snap.get("model")), color: text(snap.get("color")), plate: text(snap.get("plate")) };
+    // Prompt 11: a renewal of the same car waiting for review keeps the approved car.
+    const v = snap.exists ? usableVehicle(snap.data()) : null;
+    if (!v || v.status !== "approved") return null;
+    return { model: v.model, color: v.color, plate: v.plate };
   }
 
   async handover(childIds: string[]): Promise<Map<string, HandoverAdult[]>> {

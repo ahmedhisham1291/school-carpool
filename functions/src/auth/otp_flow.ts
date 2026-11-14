@@ -271,6 +271,19 @@ export interface VerifyCodeResult {
 }
 
 export async function verifyCode(deps: OtpDeps, input: VerifyCodeInput): Promise<VerifyCodeResult> {
+  const phone = await checkCode(deps, input);
+  const { uid, suspended } = await deps.accounts.signInWithPhone(phone, input.language);
+  if (suspended) throw new OtpError("suspended");
+  return { uid, token: await deps.accounts.createToken(uid) };
+}
+
+/**
+ * Checks (and uses up) a code for [input.phone] with every limit and lock
+ * of sign-in, and returns the number in E.164. Prompt 11 (phone change)
+ * uses it with its own key (trust/phone.ts), so a sign-in code never works
+ * for a phone change and the other way round.
+ */
+export async function checkCode(deps: Pick<OtpDeps, "store" | "hmacKey" | "now" | "limits">, input: Omit<VerifyCodeInput, "language">): Promise<string> {
   const limits = deps.limits ?? DEFAULT_OTP_LIMITS;
   const phone = toEgyptE164(input.phone);
   if (!phone) throw new OtpError("invalid-phone");
@@ -330,8 +343,5 @@ export async function verifyCode(deps: OtpDeps, input: VerifyCodeInput): Promise
     return new OtpError("wrong-code", { attemptsLeft: limits.maxAttemptsPerCode - attempts });
   });
   if (refusal) throw refusal;
-
-  const { uid, suspended } = await deps.accounts.signInWithPhone(phone, input.language);
-  if (suspended) throw new OtpError("suspended");
-  return { uid, token: await deps.accounts.createToken(uid) };
+  return phone;
 }

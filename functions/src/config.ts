@@ -235,3 +235,23 @@ export const WALLET_PARTNER_ENABLED = defineBoolean("WALLET_PARTNER_ENABLED", { 
  * wallet). COST MODE: 0 by default; raise in functions/.env.<alias>.
  */
 export const MIN_INSTANCES_WALLET = defineInt("MIN_INSTANCES_WALLET", { default: 0 });
+
+/**
+ * Trust (Prompt 11, F17, spec sections 3 and 6). Ratings: a parent may rate
+ * another parent they shared a finished trip with in the last
+ * TRUST_RATE_WINDOW_DAYS, once per pair each month.
+ * Yearly check: every school year starts on SCHOOL_YEAR_START ("MM-DD",
+ * Cairo); parents confirm their children from YEAR_CHECK_OPEN_DAYS before
+ * it until YEAR_CHECK_GRACE_DAYS after it; after that they get no new
+ * driving days until they confirm. YEAR_CHECK_FIRST_YEAR is the first
+ * school year that is checked (2027 = the 2027-28 year), so parents who
+ * verified before the pilot are not blocked at once; set it to the current
+ * year to try the check on the emulators. Driving papers: reminders
+ * LICENCE_REMINDER_DAYS before the earlier expiry ("30,7,1").
+ */
+export const TRUST_RATE_WINDOW_DAYS = defineInt("TRUST_RATE_WINDOW_DAYS", { default: 30 });
+export const SCHOOL_YEAR_START = defineString("SCHOOL_YEAR_START", { default: "09-01" });
+export const YEAR_CHECK_OPEN_DAYS = defineInt("YEAR_CHECK_OPEN_DAYS", { default: 21 });
+export const YEAR_CHECK_GRACE_DAYS = defineInt("YEAR_CHECK_GRACE_DAYS", { default: 14 });
+export const YEAR_CHECK_FIRST_YEAR = defineInt("YEAR_CHECK_FIRST_YEAR", { default: 2027 });
+export const LICENCE_REMINDER_DAYS = defineString("LICENCE_REMINDER_DAYS", { default: "30,7,1" });

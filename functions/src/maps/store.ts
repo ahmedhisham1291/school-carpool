@@ -1,4 +1,5 @@
 import { GeoPoint, Timestamp, type DocumentData, type Firestore } from "firebase-admin/firestore";
+import { linkedChildIds } from "../trust/links";
 import { USERS } from "../auth/accounts";
 import { SCHOOLS } from "../admin_panel/store";
 import { NOTIFICATION_EVENTS, outboxDoc } from "../notifications/outbox";
@@ -86,8 +87,11 @@ export class FirestoreMapStore implements MapStore {
 
   async childSchoolIds(uid: string): Promise<string[]> {
     const snap = await this.db.collection(CHILDREN).where("ownerUid", "==", uid).get();
-    const ids = snap.docs
-      .filter((doc) => doc.get("status") === "approved")
+    // Prompt 11 (F17): linked children (guardian links) count too.
+    const linkedIds = await linkedChildIds(this.db, uid);
+    const linked = linkedIds.length > 0 ? await this.db.getAll(...linkedIds.map((id) => this.db.collection(CHILDREN).doc(id))) : [];
+    const ids = [...snap.docs, ...linked]
+      .filter((doc) => doc.exists && doc.get("status") === "approved")
       .map((doc) => doc.get("schoolId"))
       .filter((id): id is string => typeof id === "string" && id.length > 0);
     return [...new Set(ids)];

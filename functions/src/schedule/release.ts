@@ -144,3 +144,50 @@ export async function releaseAfterPause(
   }
   return freed;
 }
+
+/**
+ * Prompt 11 (F17, spec sections 3 and 6): [driverUid] can no longer drive
+ * some of their runs in this carpool: the car expired, was replaced and
+ * waits for review, or has fewer seats than the run's children. Every
+ * future run they drive for which [invalid] is true loses its driver and
+ * becomes open for the group to take (or missed with the "take your own
+ * child" alert when it is too late). The group is told only that the
+ * driver is unavailable. Returns the runs freed.
+ */
+export async function releaseRunsWhere(
+  tx: CarpoolTx,
+  carpoolId: string,
+  driverUid: string,
+  members: MemberRecord[],
+  today: string,
+  nowMs: number,
+  settings: DeadlineSettings,
+  invalid: (run: RunRecord) => boolean,
+): Promise<number> {
+  let freed = 0;
+  for (const run of await liveRuns(tx, carpoolId, today, nowMs)) {
+    if (run.driverUid !== driverUid || !invalid(run)) continue;
+    const released = releaseRun(run, uids(members), nowMs, settings, null);
+    tx.putRun(released.run);
+    tx.addEvent({ ...released.event, actorUid: driverUid });
+    freed += 1;
+  }
+  return freed;
+}
+
+/**
+ * Prompt 11 (F17): [childId] left this carpool (left the school, or a
+ * guardian link ended): the child leaves every future pickup list. Driving
+ * stays as it is. Returns the runs changed.
+ */
+export async function removeChildFromRuns(tx: CarpoolTx, carpoolId: string, childId: string, today: string, nowMs: number): Promise<number> {
+  let changed = 0;
+  for (const run of await liveRuns(tx, carpoolId, today, nowMs)) {
+    const riders = run.riders.filter((r) => r.id !== childId);
+    const absent = run.absent.filter((r) => r.id !== childId);
+    if (riders.length === run.riders.length && absent.length === run.absent.length) continue;
+    tx.putRun({ ...run, riders, absent, updatedAtMs: nowMs });
+    changed += 1;
+  }
+  return changed;
+}

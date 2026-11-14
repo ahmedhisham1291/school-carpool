@@ -70,6 +70,13 @@ export const TEXTS: Readonly<Texts> = {
   "wallet-failed": t("لم يتم التحويل", "لم تُخصم أي أموال. افتح المحفظة للتفاصيل.", "Transfer failed", "No money left your wallet. Open it for details."),
   "wallet-frozen": t("المحفظة موقوفة", "أوقفنا محفظتك مؤقتًا. افتح التطبيق للتفاصيل.", "Wallet paused", "Your wallet is paused for now. Open the app."),
   "wallet-updated": t("تحديث المحفظة", "افتح المحفظة لرؤية التحديث.", "Wallet update", "Open your wallet to see what changed."),
+  "licence-expiring": t("أوراق القيادة تنتهي قريبًا", "تنتهي رخصتك أو رخصة السيارة يوم {when}. جدّدها وحدّث بيانات القيادة.", "Driving papers expire soon", "Your licence or car licence expires on {when}. Renew it and update your driving details."),
+  "licence-expired": t("انتهت أوراق القيادة", "لن تحصل على أيام قيادة جديدة حتى تحدّث بيانات القيادة.", "Driving papers expired", "You get no new driving days until you update your driving details."),
+  "year-check-due": t("عام دراسي جديد", "أكّد أطفالك وصفوفهم ومدارسهم للعام الجديد.", "New school year", "Confirm your children, grades and schools for the new year."),
+  "guardian-requested": t("طلب ربط بالأطفال", "طلب ولي أمر آخر الربط بأطفالك. افتح التطبيق للرد.", "Link request", "Another parent asked to link to your children. Open the app to answer."),
+  "guardian-linked": t("تم الربط", "تم ربط حسابك بأطفال ولي الأمر الآخر.", "Children linked", "Your account is now linked to the other parent's children."),
+  "guardian-declined": t("لم يتم الربط", "لم يتم ربطك بالأطفال. افتح التطبيق للتفاصيل.", "Link not made", "You were not linked to the children. Open the app for details."),
+  "phone-changed": t("تغيّر رقم الهاتف", "تغيّر رقم هاتف حسابك. إن لم تفعل ذلك تواصل معنا فورًا.", "Phone number changed", "Your account's phone number changed. If it wasn't you, contact us at once."),
 };
 
 const WEEKDAYS: Record<Language, string[]> = {

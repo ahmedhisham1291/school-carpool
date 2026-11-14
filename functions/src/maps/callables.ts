@@ -138,7 +138,7 @@ export const placeDetails = onCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets
   }),
 );
 
-async function refresh(uid: string): Promise<void> {
+export async function refresh(uid: string): Promise<void> {
   try {
     await refreshPublicLocation(deps(), uid);
   } catch (error) {
