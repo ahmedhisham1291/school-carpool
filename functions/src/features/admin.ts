@@ -13,9 +13,12 @@ import { FEATURE_KEYS, parseFeatureChange, PILOT_DEFAULTS, switchesFrom, type Fe
 export interface FeatureAdminStore {
   /** config/features as stored (null: no document yet). */
   read(): Promise<Record<string, unknown> | null>;
-  /** Sets one switch (merge) with who changed it and when. */
-  write(feature: FeatureKey, on: boolean, adminUid: string, nowMs: number): Promise<void>;
-  audit(entry: AuditEntry): Promise<void>;
+  /**
+   * Sets one switch (merge) with who changed it and when, AND writes the
+   * audit entry, in one batch: a change never stands without its log line,
+   * and a log line never without its change.
+   */
+  write(feature: FeatureKey, on: boolean, adminUid: string, nowMs: number, audit: AuditEntry): Promise<void>;
 }
 
 export interface FeatureAdminDeps {
@@ -43,8 +46,7 @@ export async function setFeature(deps: FeatureAdminDeps, caller: AdminCaller, da
   if (!change) throw new AdminError("invalid-request");
   const before = switchesFrom(await deps.store.read());
   if (before[change.feature] !== change.on) {
-    await deps.store.write(change.feature, change.on, caller.uid, deps.now());
-    await deps.store.audit({
+    await deps.store.write(change.feature, change.on, caller.uid, deps.now(), {
       actorUid: caller.uid,
       action: change.on ? "feature.on" : "feature.off",
       target: `config/features#${change.feature}`,

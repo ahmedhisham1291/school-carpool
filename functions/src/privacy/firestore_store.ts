@@ -44,6 +44,8 @@ const LOGINS = "logins";
 const REPORTS = "reports";
 const NOTIFICATION_EVENTS = "notificationEvents";
 const BATCH = 400;
+/** Pages of settle-up records one account deletion may walk (400 each). */
+const SETTLE_UP_ANONYMISE_MAX_PAGES = 50;
 
 const ts = (ms: number): Timestamp => Timestamp.fromMillis(ms);
 
@@ -465,11 +467,18 @@ export class FirestoreDeletionRunner implements DeletionRunner {
     // an unfinished record ends, and it is kept for the other parent
     // (retention: purgeSettleUps). A retry finds nothing left (the parent
     // is no longer in `parties`).
-    for (;;) {
+    // Bounded: every pass takes the parent out of `parties` of each record
+    // it read, so the next page is new records; a damaged record (the uid
+    // in `parties` but neither payee nor payer) is taken out too, and the
+    // page cap stops a loop that makes no progress (the step then fails
+    // and is retried and reported by retentionDaily).
+    for (let pass = 0; ; pass++) {
+      if (pass >= SETTLE_UP_ANONYMISE_MAX_PAGES) throw new Error("settle-up anonymise: page cap reached; retried tomorrow");
       const page = await this.db.collection(SETTLE_UPS).where("parties", "array-contains", uid).limit(BATCH).get();
       for (const d of page.docs) {
         const next = anonymiseSettleUp(settleFromDoc(d.id, d.data()), uid, nowMs);
         if (next) await d.ref.set(settleToDoc(next));
+        else await d.ref.update({ parties: FieldValue.arrayRemove(uid) });
       }
       if (page.size < BATCH) break;
     }

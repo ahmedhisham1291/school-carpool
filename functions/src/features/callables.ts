@@ -4,7 +4,7 @@ import { HttpsError, onCall, type FunctionsErrorCode } from "firebase-functions/
 import { adminDb } from "../admin";
 import { ipOf, requireAdminCaller } from "../admin_panel/access";
 import { ADMIN_ERROR_CODES, AdminError } from "../admin_panel/errors";
-import { FirestoreListsStore } from "../admin_panel/store";
+import { AUDIT_LOG, auditDoc } from "../admin_panel/store";
 import { ENFORCE_APP_CHECK } from "../config";
 import { reportError } from "../sentry";
 import { getFeatures, setFeature, type FeatureAdminDeps } from "./admin";
@@ -19,14 +19,16 @@ import { FEATURES_DOC } from "./model";
 
 function deps(): FeatureAdminDeps {
   const db = adminDb();
-  const lists = new FirestoreListsStore(db);
   return {
     store: {
       read: async () => (await db.doc(FEATURES_DOC).get()).data() ?? null,
-      write: async (feature, on, adminUid, nowMs) => {
-        await db.doc(FEATURES_DOC).set({ [feature]: on, updatedBy: adminUid, updatedAt: Timestamp.fromMillis(nowMs), serverUpdatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      write: async (feature, on, adminUid, nowMs, audit) => {
+        // One batch: the switch and its audit entry, or neither.
+        const batch = db.batch();
+        batch.set(db.doc(FEATURES_DOC), { [feature]: on, updatedBy: adminUid, updatedAt: Timestamp.fromMillis(nowMs), serverUpdatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        batch.create(db.collection(AUDIT_LOG).doc(), auditDoc(audit));
+        await batch.commit();
       },
-      audit: (entry) => lists.audit(entry),
     },
     now: () => Date.now(),
     changed: clearFeatureCache,

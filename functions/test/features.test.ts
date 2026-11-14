@@ -15,6 +15,7 @@ import {
   ALL_ON,
   FEATURE_CACHE_MS,
   FEATURE_KEYS,
+  FEATURE_MAX_FAILED_READS,
   FeatureCache,
   FeatureOffError,
   FEATURES_DOC,
@@ -116,6 +117,37 @@ describe("feature switches: the per-instance cache", () => {
     fail = true;
     now += FEATURE_CACHE_MS + 1;
     assert.equal(await cache.isOn("wallet"), true, "the last known value");
+  });
+
+  it("fails closed: after 3 failed reads in a row a stale ON is dropped for the pilot defaults, until a read works", async () => {
+    let fail = false;
+    let now = NOW;
+    const cache = new FeatureCache(
+      async () => {
+        if (fail) throw new Error("firestore down");
+        return { wallet: true, ratingsAndVouching: true, yearlyChecks: true, settleUp: true };
+      },
+      () => now,
+    );
+    assert.equal(await cache.isOn("wallet"), true);
+    fail = true;
+    for (let i = 1; i < FEATURE_MAX_FAILED_READS; i++) {
+      now += FEATURE_CACHE_MS + 1;
+      assert.equal(await cache.isOn("wallet"), true, `failed read ${i}: the last known value`);
+    }
+    now += FEATURE_CACHE_MS + 1;
+    assert.deepEqual(await cache.get(), PILOT_DEFAULTS, "the wallet, ratings and yearly checks are off; Settle up (default on) stays");
+    assert.equal(await cache.isOn("wallet"), false);
+    await assert.rejects(cache.require("wallet"), (e: unknown) => e instanceof FeatureOffError);
+    // Firestore answers again: the stored values are back.
+    fail = false;
+    now += FEATURE_CACHE_MS + 1;
+    assert.equal(await cache.isOn("wallet"), true);
+    // The count starts again after a good read.
+    fail = true;
+    now += FEATURE_CACHE_MS + 1;
+    assert.equal(await cache.isOn("wallet"), true);
+    assert.equal(FEATURE_MAX_FAILED_READS, 3);
   });
 
   it("require throws FeatureOffError with the feature; clear reads again", async () => {
@@ -284,19 +316,22 @@ describe("admin panel: Settings (feature switches)", () => {
     const audit: AuditEntry[] = [];
     const writes: Array<{ feature: string; on: boolean; adminUid: string }> = [];
     let cleared = 0;
+    let failWrite = false;
     const deps: FeatureAdminDeps = {
       store: {
         read: async () => doc,
-        write: async (feature, on, adminUid) => {
+        // One batch on the server: the switch and its audit entry together.
+        write: async (feature, on, adminUid, _nowMs, entry) => {
+          if (failWrite) throw new Error("batch failed");
           doc = { ...(doc ?? {}), [feature]: on };
           writes.push({ feature, on, adminUid });
+          audit.push(entry);
         },
-        audit: async (entry) => void audit.push(entry),
       },
       now: () => NOW,
       changed: () => void (cleared += 1),
     };
-    return { deps, audit, writes, cleared: () => cleared };
+    return { deps, audit, writes, cleared: () => cleared, failNextWrites: () => void (failWrite = true) };
   }
   const superAdmin = { uid: "root", role: "superAdmin" as const };
   const admin = { uid: "ops", role: "admin" as const };
@@ -325,6 +360,16 @@ describe("admin panel: Settings (feature switches)", () => {
     const off = await setFeature(t.deps, superAdmin, { feature: "wallet", on: false }, null);
     assert.equal(off.features.wallet, false);
     assert.equal(t.audit[1].action, "feature.off");
+  });
+
+  it("the switch and its audit entry are one write: when it fails neither stands", async () => {
+    const t = setup();
+    t.failNextWrites();
+    await assert.rejects(setFeature(t.deps, superAdmin, { feature: "wallet", on: true }, null), /batch failed/);
+    assert.equal(t.writes.length, 0);
+    assert.equal(t.audit.length, 0);
+    assert.equal((await getFeatures(t.deps)).features.wallet, false);
+    assert.equal(t.cleared(), 0);
   });
 
   it("setting a switch to the value it has writes nothing and logs nothing", async () => {

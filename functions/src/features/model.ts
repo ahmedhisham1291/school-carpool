@@ -37,6 +37,17 @@ export const FEATURES_DOC = "config/features";
 /** How long one function instance trusts its copy of the switches. */
 export const FEATURE_CACHE_MS = 30_000;
 
+/**
+ * FAIL CLOSED: after this many reads in a row have failed, an instance
+ * stops trusting its last known copy and uses the pilot defaults until a
+ * read works again. So a stale "on" cannot outlive a switch-off for long
+ * when Firestore cannot be read: the wallet, ratings and vouching and the
+ * yearly check go off (their defaults). Settle up's default is on: it
+ * moves no money and each of its calls needs Firestore anyway, so staying
+ * on changes nothing while Firestore is unreachable.
+ */
+export const FEATURE_MAX_FAILED_READS = 3;
+
 export function isFeatureKey(value: unknown): value is FeatureKey {
   return typeof value === "string" && (FEATURE_KEYS as readonly string[]).includes(value);
 }
@@ -65,12 +76,15 @@ export type FeatureReader = () => Promise<Record<string, unknown> | null | undef
 /**
  * The switches with a short cache, so a busy instance reads config/features
  * about twice a minute, not on every call. A failed read uses the last
- * known value when there is one, else the pilot defaults (never "all on").
+ * known value when there is one, else the pilot defaults (never "all on");
+ * after FEATURE_MAX_FAILED_READS failures in a row it is the pilot
+ * defaults whatever was known (fail closed).
  */
 export class FeatureCache {
   private value: FeatureSwitches | null = null;
   private readAtMs = 0;
   private pending: Promise<FeatureSwitches> | null = null;
+  private failedReads = 0;
 
   constructor(
     private readonly read: FeatureReader,
@@ -92,9 +106,11 @@ export class FeatureCache {
   private async load(nowMs: number): Promise<FeatureSwitches> {
     try {
       this.value = switchesFrom(await this.read());
+      this.failedReads = 0;
     } catch (error) {
       this.onError(error);
-      this.value ??= PILOT_DEFAULTS;
+      this.failedReads += 1;
+      if (!this.value || this.failedReads >= FEATURE_MAX_FAILED_READS) this.value = PILOT_DEFAULTS;
     }
     this.readAtMs = nowMs;
     return this.value;
@@ -104,6 +120,7 @@ export class FeatureCache {
   clear(): void {
     this.value = null;
     this.readAtMs = 0;
+    this.failedReads = 0;
   }
 
   async isOn(key: FeatureKey): Promise<boolean> {

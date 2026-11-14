@@ -16,6 +16,8 @@
 // - settleUpAddresses/{uid}: nobody reads or writes an InstaPay address
 //   directly, the owner included (it is shown only through functions).
 // - settleUpLimits/{uid}: closed.
+// - Collection-group queries on settleUpAddresses, settleUpLimits and
+//   settleUps are refused for everyone (no recursive rule opens them).
 // - A phone waiting for the new-phone check reads no settle-up record.
 //
 // Runs only against the emulators. Written, not run here (no npm registry
@@ -219,6 +221,21 @@ describe("settleUpAddresses: the InstaPay address is private", () => {
       await assertFails(db.doc("settleUpAddresses/bob").set({ uid: "bob", address: "bob.test@instapay" }));
     });
   }
+
+  it("collection-group reads cannot reach an address or another parent's records", async () => {
+    for (const ctx of [as("alice"), as("bob"), as("cara"), as("stranger", unverified), as("admin1", adminClaim), env.unauthenticatedContext()]) {
+      const db = ctx.firestore();
+      await assertFails(db.collectionGroup("settleUpAddresses").limit(10).get());
+      await assertFails(db.collectionGroup("settleUpAddresses").where("uid", "==", "alice").get());
+      await assertFails(db.collectionGroup("settleUpLimits").limit(10).get());
+      // Records: a collection-group query is refused even for a party (the
+      // rule is on the top-level collection only), so no query shape reads
+      // records the caller is not in.
+      await assertFails(db.collectionGroup("settleUps").limit(10).get());
+      await assertFails(db.collectionGroup("settleUps").where("parties", "array-contains", "alice").get());
+      await assertFails(db.collectionGroup("settleUps").where("payeeUid", "==", "alice").get());
+    }
+  });
 
   it("the counters are closed too", async () => {
     await assertFails(as("alice").firestore().doc("settleUpLimits/alice").get());
