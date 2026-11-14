@@ -8,7 +8,8 @@ browser that already has every tool it needs. Nothing goes on your Mac.
 ## Before: four console clicks (about 10 minutes)
 
 1. console.firebase.google.com > **Add project** > id
-   `school-carpool-staging`, Google Analytics **off**.
+   `school-carpool-staging`. Google Analytics: off is suggested, but if you
+   already turned it on, that is fine; the script works either way.
 2. In that project: **Upgrade** (bottom left) > **Blaze**, pick your billing
    account.
 3. **Build > Firestore Database > Create database**: Standard edition,
@@ -102,9 +103,11 @@ The script lists them with direct links. Usually:
 
 ## Run it again safely
 
-Run the same command again at any time (in Cloud Shell: `cd school-carpool
-&& git pull && bash tool/cloud_setup.sh staging school-carpool-staging
-<admin-email>`). Finished steps are skipped, secrets and keys are kept,
+Run the same command again at any time (in Cloud Shell: `cd ~/school-carpool
+&& git checkout -- . && git pull && bash tool/cloud_setup.sh staging
+school-carpool-staging <admin-email>`; `git checkout -- .` drops the files
+the last run wrote, such as the Firebase options file, so `git pull` does
+not stop on them; the script writes them again). Finished steps are skipped, secrets and keys are kept,
 schools are not duplicated, and your admin account is not recreated (if you
 never used the first password link, a new one is printed). If it stops with
 **STOPPED**, read the line under it, fix that (usually a console click), and
