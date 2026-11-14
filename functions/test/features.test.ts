@@ -26,6 +26,9 @@ import {
 import { NOTIFICATION_TYPES } from "../src/notifications/catalog";
 import { dispatchEvent, type DispatchDeps } from "../src/notifications/dispatch";
 import { newEvent } from "../src/notifications/model";
+import { deleteAccount, pathFor, type ClosedAccount, type DeletionRunner } from "../src/privacy/account_deletion";
+import { buildExport } from "../src/privacy/export";
+import { DATA_TYPES } from "../src/privacy/retention";
 import { MemoryNotifyStore, RecordingPush, RecordingWhatsApp } from "./helpers/memory_notifications";
 
 const NOW = Date.UTC(2026, 10, 14, 8);
@@ -342,5 +345,54 @@ describe("admin panel: Settings (feature switches)", () => {
 
   it("ALL_ON is what the features' own unit tests run with", () => {
     assert.ok(FEATURE_KEYS.every((k) => ALL_ON[k]));
+  });
+});
+
+describe("wallet switched off: account deletion and export still work with no wallet", () => {
+  it("a parent who never opened a wallet deletes the account: no wallet call, the InstaPay address goes", async () => {
+    const ran: string[] = [];
+    const walletCalls: string[] = [];
+    const closed = new Map<string, ClosedAccount>();
+    const runner: DeletionRunner = {
+      facts: async () => ({ exists: true, drivingNow: false, parentId: "ABCD2345", banned: false }),
+      // No wallets/{uid} document (the pilot): nothing to lock.
+      lockWallet: async () => null,
+      walletFacts: async () => {
+        walletCalls.push("facts");
+        return { balance: 0, pending: 0 };
+      },
+      unlockWallet: async () => void walletCalls.push("unlock"),
+      saveClosed: async (c) => void closed.set(c.uid, c),
+      closed: async (uid) => closed.get(uid) ?? null,
+      runFlowStep: async (_uid, step) => void ran.push(`flow:${step}`),
+      runTarget: async (uid, target) => {
+        ran.push(target.kind === "doc" || target.kind === "subcollection" ? pathFor(target.path, uid) : target.kind === "storage" ? pathFor(target.prefix, uid) : `${target.collection}.${target.field}`);
+        return 1;
+      },
+      runPurgeStep: async () => undefined,
+    };
+    const result = await deleteAccount(runner, "alice", NOW, () => assert.fail("no step may fail"));
+    assert.equal(result.closed, true);
+    assert.equal(result.failed, 0);
+    assert.deepEqual(walletCalls, [], "the partner is never asked when there is no wallet");
+    assert.ok(ran.includes("settleUpAddresses/alice"), "the InstaPay address is deleted at once");
+    assert.ok(ran.includes("settleUpLimits/alice"));
+    assert.ok(ran.includes("flow:anonymise"), "settle-up records keep an initial only");
+    assert.ok(ran.indexOf("settleUpAddresses/alice") < ran.indexOf("users/alice"));
+  });
+
+  it("the export has every section when the wallet section is empty, and a Settle up section", async () => {
+    const file = await buildExport(
+      {
+        section: async (_uid, id) => (id === "wallet" ? { wallet: null, transfers: [] } : id === "settleUp" ? { instaPayAddress: "alice.test@instapay", records: [] } : { id }),
+      },
+      "alice",
+      NOW,
+      () => assert.fail("no section may fail"),
+    );
+    assert.deepEqual(file.missing, []);
+    assert.deepEqual(file.sections.wallet, { wallet: null, transfers: [] });
+    assert.deepEqual(file.sections.settleUp, { instaPayAddress: "alice.test@instapay", records: [] });
+    assert.deepEqual(Object.keys(file.sections), [...DATA_TYPES]);
   });
 });
