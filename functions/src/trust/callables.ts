@@ -168,6 +168,10 @@ class StoragePhoneFiles implements PhoneFiles {
     const [exists] = await this.bucket.file(path).exists();
     return exists;
   }
+
+  async copy(from: string, to: string): Promise<void> {
+    await this.bucket.file(from).copy(this.bucket.file(to));
+  }
 }
 
 function phoneDeps(): PhoneChangeDeps {

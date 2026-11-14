@@ -139,7 +139,6 @@ export {
   answerChatRequest,
   blockChatUser,
   cancelChatRequest,
-  chatRetentionDaily,
   chatWebhook,
   getChatToken,
   reportChat,

@@ -203,13 +203,6 @@ export const CHAT_REQUESTS_PER_DAY = defineInt("CHAT_REQUESTS_PER_DAY", { defaul
 export const CHAT_REPORTS_PER_DAY = defineInt("CHAT_REPORTS_PER_DAY", { default: 20 });
 /** Blocks, mutes and settings changes per parent per day. */
 export const CHAT_CHANGES_PER_DAY = defineInt("CHAT_CHANGES_PER_DAY", { default: 100 });
-/**
- * Chat retention (spec sections 5 and 7: "chat after the chosen period").
- * Messages older than this are deleted from Stream by chatRetentionDaily.
- * The owner and the lawyer choose the period (open question); 180 days
- * until then.
- */
-export const CHAT_RETENTION_DAYS = defineInt("CHAT_RETENTION_DAYS", { default: 180 });
 
 /**
  * Trips (Prompt 10: F15, F16, F20, F29, F33, F34, F35, F38, F41).

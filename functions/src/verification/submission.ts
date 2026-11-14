@@ -31,7 +31,8 @@ export type VerificationErrorReason =
   | "invalid-decision"
   | "own-case"
   | "name-check-missing"
-  | "not-admin";
+  | "not-admin"
+  | "reason-required";
 
 export class VerificationError extends Error {
   constructor(

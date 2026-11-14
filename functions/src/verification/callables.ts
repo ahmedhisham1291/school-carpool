@@ -65,6 +65,7 @@ const ERROR_CODES: Record<VerificationErrorReason, FunctionsErrorCode> = {
   "own-case": "permission-denied",
   "name-check-missing": "failed-precondition",
   "not-admin": "permission-denied",
+  "reason-required": "failed-precondition",
 };
 
 export function toVerificationHttpsError(error: unknown): HttpsError {

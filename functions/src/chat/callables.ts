@@ -1,7 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall, onRequest, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
-import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminDb } from "../admin";
 import { deps as carpoolDeps } from "../carpools/callables";
 import {
@@ -9,7 +8,6 @@ import {
   CHAT_PROVIDER,
   CHAT_REPORTS_PER_DAY,
   CHAT_REQUESTS_PER_DAY,
-  CHAT_RETENTION_DAYS,
   CHAT_TOKEN_TTL_MIN,
   CHAT_TOKENS_PER_HOUR,
   ENFORCE_APP_CHECK,
@@ -18,7 +16,6 @@ import {
   STREAM_API_KEY,
   STREAM_API_SECRET,
 } from "../config";
-import { CAIRO_TZ } from "../schedule/cairo";
 import { reportError } from "../sentry";
 import { FirestoreChatStore, FirestoreDrivingPauser } from "./firestore_store";
 import {
@@ -37,7 +34,6 @@ import {
   type ChatDeps,
 } from "./flow";
 import { CHAT_ERROR_CODES, ChatError } from "./model";
-import { runChatRetention } from "./retention";
 import { createChatServer, verifyWebhookSignature, type ChatServer } from "./server";
 import { accountFromDoc, syncAccess, syncCarpoolMember, syncParentGroups, type SyncDeps } from "./sync";
 import { handleWebhook } from "./webhook";
@@ -59,7 +55,7 @@ function secretValue(): string {
   }
 }
 
-function server(): ChatServer {
+export function server(): ChatServer {
   return createChatServer(CHAT_PROVIDER.value(), process.env.APP_ENV ?? "dev", STREAM_API_KEY.value(), secretValue(), (m) => logger.info(m));
 }
 
@@ -257,12 +253,6 @@ export const chatWebhook = onRequest(
   },
 );
 
-/** Every night, Cairo time: chat older than CHAT_RETENTION_DAYS is deleted (spec section 7). */
-export const chatRetentionDaily = onSchedule(
-  { schedule: "every day 03:30", timeZone: CAIRO_TZ, retryCount: 1, timeoutSeconds: 540, minInstances: MIN_INSTANCES, secrets },
-  async () => {
-    const result = await runChatRetention({ store: new FirestoreChatStore(adminDb()), server: server(), now: () => Date.now() }, CHAT_RETENTION_DAYS.value());
-    logger.info("chat retention", result);
-    if (result.failed > 0) await reportError(new Error(`chat retention: ${result.failed} channel(s) failed`));
-  },
-);
+// Prompt 12: chat retention moved to retentionDaily (privacy/jobs.ts): a
+// chat is kept for its life + 1 year (owner decision), so nothing is
+// truncated nightly any more (Prompt 9 review item 3).

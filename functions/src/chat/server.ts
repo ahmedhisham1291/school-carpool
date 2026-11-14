@@ -20,6 +20,15 @@ export interface StreamUser {
   language: "ar" | "en";
 }
 
+/** One of the parent's own messages, for the data export. */
+export interface ExportedMessage {
+  id: string;
+  cid: string;
+  text: string;
+  createdAt: string;
+  attachment: "image" | "location" | "other" | null;
+}
+
 export interface ChannelData {
   nameAr: string;
   nameEn: string;
@@ -48,8 +57,15 @@ export interface ChatServer {
   /** The message and its neighbours ([before] older, [after] newer); empty when gone. */
   messageWithContext(type: string, id: string, messageId: string, before: number, after: number): Promise<MessageSnapshot[]>;
   deleteMessage(messageId: string): Promise<void>;
-  /** Hard-deletes every message older than [beforeMs] (retention). */
-  truncateBefore(type: string, id: string, beforeMs: number): Promise<void>;
+  /**
+   * Prompt 12 (owner decision: chat kept for the life of the chat + 1
+   * year): hard-deletes an ended chat with all its messages.
+   */
+  deleteChannel(type: string, id: string): Promise<void>;
+  /** Prompt 12: hard-deletes the Stream user and their messages (1 year after the account closed). */
+  deleteUser(uid: string): Promise<void>;
+  /** Prompt 12 (export): the parent's own messages, newest first, at most [limit]. */
+  userMessages(uid: string, limit: number): Promise<ExportedMessage[]>;
   /**
    * Prompt 10 (F35): a message from the system user into a group channel
    * (the driver's quick messages in the carpool chat). [messageId] is
@@ -280,17 +296,60 @@ export class StreamChatServer implements ChatServer {
     }
   }
 
-  async truncateBefore(type: string, id: string, beforeMs: number): Promise<void> {
+  async deleteChannel(type: string, id: string): Promise<void> {
     try {
-      await this.call("POST", `${StreamChatServer.path(type, id)}/truncate`, {
-        hard_delete: true,
-        skip_push: true,
-        truncated_at: new Date(beforeMs).toISOString(),
-      });
+      await this.call("DELETE", `${StreamChatServer.path(type, id)}?hard_delete=true`);
     } catch (error) {
       if (error instanceof ChatServiceError && error.status === 404) return;
       throw error;
     }
+  }
+
+  async deleteUser(uid: string): Promise<void> {
+    try {
+      await this.call("DELETE", `/users/${encodeURIComponent(uid)}?mark_messages_deleted=true&hard_delete=true`);
+    } catch (error) {
+      // Never connected: nothing to delete.
+      if (error instanceof ChatServiceError && (error.status === 404 || error.status === 400)) return;
+      throw error;
+    }
+  }
+
+  async userMessages(uid: string, limit: number): Promise<ExportedMessage[]> {
+    const out: ExportedMessage[] = [];
+    let next: string | null = null;
+    while (out.length < limit) {
+      const payload: Record<string, unknown> = {
+        filter_conditions: { members: { $in: [uid] } },
+        message_filter_conditions: { "user.id": uid },
+        sort: [{ field: "created_at", direction: -1 }],
+        limit: Math.min(100, limit - out.length),
+      };
+      if (next) payload.next = next;
+      let json: Record<string, unknown>;
+      try {
+        json = await this.call("GET", `/search?payload=${encodeURIComponent(JSON.stringify(payload))}`);
+      } catch (error) {
+        if (error instanceof ChatServiceError && (error.status === 404 || error.status === 400)) return out;
+        throw error;
+      }
+      const results = Array.isArray(json.results) ? (json.results as Array<{ message?: RawMessage & { cid?: unknown } }>) : [];
+      for (const r of results) {
+        const m = r.message;
+        if (!m || typeof m.id !== "string") continue;
+        const att = Array.isArray(m.attachments) && m.attachments.length > 0 ? m.attachments[0]?.type : null;
+        out.push({
+          id: m.id,
+          cid: typeof m.cid === "string" ? m.cid : "",
+          text: typeof m.text === "string" ? m.text : "",
+          createdAt: typeof m.created_at === "string" ? m.created_at : "",
+          attachment: att === "image" || att === "location" ? att : att ? "other" : null,
+        });
+      }
+      next = typeof json.next === "string" && json.next ? json.next : null;
+      if (!next || results.length === 0) break;
+    }
+    return out;
   }
 
   async postSystemMessage(type: string, id: string, messageId: string, text: string, extra: Record<string, string>): Promise<void> {
@@ -329,7 +388,7 @@ export class FakeChatServer implements ChatServer {
   /** cid -> messages, oldest first (test data). */
   messages = new Map<string, RawMessage[]>();
   deleted: string[] = [];
-  truncated: Array<{ cid: string; beforeMs: number }> = [];
+  deletedChannels: string[] = [];
   calls: string[] = [];
   /** Makes the next calls fail (tests of retries and errors). */
   failing = false;
@@ -421,9 +480,29 @@ export class FakeChatServer implements ChatServer {
     this.deleted.push(messageId);
   }
 
-  async truncateBefore(type: string, id: string, beforeMs: number): Promise<void> {
-    this.note(`truncate ${type}:${id}`);
-    this.truncated.push({ cid: `${type}:${id}`, beforeMs });
+  async deleteChannel(type: string, id: string): Promise<void> {
+    this.note(`deleteChannel ${type}:${id}`);
+    this.channels.delete(`${type}:${id}`);
+    this.messages.delete(`${type}:${id}`);
+    this.deletedChannels.push(`${type}:${id}`);
+  }
+
+  async deleteUser(uid: string): Promise<void> {
+    this.note(`deleteUser ${uid}`);
+    this.users.delete(uid);
+    for (const [cid, list] of this.messages) this.messages.set(cid, list.filter((m) => m.user?.id !== uid));
+  }
+
+  async userMessages(uid: string, limit: number): Promise<ExportedMessage[]> {
+    this.note(`userMessages ${uid}`);
+    const out: ExportedMessage[] = [];
+    for (const [cid, list] of this.messages) {
+      for (const m of list) {
+        if (m.user?.id !== uid || typeof m.id !== "string") continue;
+        out.push({ id: m.id, cid, text: typeof m.text === "string" ? m.text : "", createdAt: typeof m.created_at === "string" ? m.created_at : "", attachment: null });
+      }
+    }
+    return out.slice(0, limit);
   }
 
   /** Prompt 10: system messages posted (cid, id, text, extra); one per ID. */

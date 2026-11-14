@@ -2,7 +2,7 @@
 import { strict as assert } from "node:assert";
 import { beforeEach, describe, it } from "node:test";
 import { DEFAULT_OTP_LIMITS, verifyCode, type OtpDeps } from "../src/auth/otp_flow";
-import { createCarpool, decideJoinRequest, DEFAULT_CARPOOL_LIMITS, requestToJoin, setDriverConsent, type Caller, type CarpoolDeps } from "../src/carpools/flow";
+import { createCarpool, decideJoinRequest, DEFAULT_CARPOOL_LIMITS, removeFromCarpool, requestToJoin, setDriverConsent, type Caller, type CarpoolDeps } from "../src/carpools/flow";
 import { CarpoolError } from "../src/carpools/model";
 import { routeFor, TYPES } from "../src/notifications/catalog";
 import { planWeek, setDrivingDays } from "../src/schedule/flow";
@@ -683,5 +683,29 @@ describe("phone change (re-verification)", () => {
     await rejects(confirmPhoneChange(deps, bob, { phone: "01033333333", code: sender.sent[0].code, deviceId: DEVICE }), "check-unavailable");
     assert.equal(store.accounts.get("bob")?.phone, "+201011111111");
     assert.deepEqual(store.reports, []);
+  });
+});
+
+// --------------------------------------------------------------------------
+// Prompt 12: account deletion takes the parent out of every carpool
+// --------------------------------------------------------------------------
+
+describe("removeFromCarpool (account deletion)", () => {
+  it("the admin's carpool passes to the longest-standing member; the last one out closes it", async () => {
+    const t = setup(NOW);
+    const k = await readyCarpool(t.carpools);
+    assert.equal(await removeFromCarpool(t.carpools, "alice", k), "left");
+    assert.equal(t.carpoolStore.members.get(k)?.get("alice"), undefined);
+    assert.equal(t.carpoolStore.memberships.get(`${k}_alice`)?.status, "left");
+    assert.equal(t.carpoolStore.members.get(k)?.get("bob")?.role, "admin", "Bob joined first");
+    assert.equal(t.carpoolStore.memberships.get(`${k}_bob`)?.role, "admin");
+    assert.equal(t.carpoolStore.carpools.get(k)?.status, "active");
+    // Alice's runs lose their driver; no consent mentions her any more.
+    assert.ok(runsOf(t.carpoolStore, k).every((r) => r.driverUid !== "alice"));
+    assert.equal(await removeFromCarpool(t.carpools, "alice", k), "none", "idempotent");
+    await removeFromCarpool(t.carpools, "bob", k);
+    assert.equal(await removeFromCarpool(t.carpools, "cara", k), "closed");
+    assert.equal(t.carpoolStore.carpools.get(k)?.status, "closed");
+    assert.equal(t.carpoolStore.carpools.get(k)?.memberCount, 0);
   });
 });

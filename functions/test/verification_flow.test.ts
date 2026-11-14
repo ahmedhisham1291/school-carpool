@@ -6,7 +6,6 @@ import {
   casePrefix,
   DAY_MS,
   decideVerification,
-  IMAGE_RETENTION_MS,
   openVerificationCase,
   pendingPath,
   purgeVerificationImages,
@@ -15,6 +14,7 @@ import {
   withdrawVerification,
   type VerificationDeps,
 } from "../src/verification/flow";
+import { thumbPath } from "../src/privacy/photos";
 import { FakeKycProvider, type KycResult } from "../src/verification/kyc";
 import { nationalIdHash } from "../src/verification/national_id";
 import {
@@ -242,15 +242,15 @@ describe("decideVerification", () => {
     return (await submitVerification(deps, "alice", submission({ driver }))).caseId;
   }
 
-  it("approve: verified status, claim set, children and vehicle approved, images kept until the purge time", async () => {
+  it("approve: verified status, claim set, children and vehicle approved, images kept while the account is active", async () => {
     const caseId = await submitted();
     await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
     assert.equal(store.users.get("alice")?.status, "verified");
     assert.equal(claims.verified.get("alice"), true);
     assert.ok([...store.children.values()].every((c) => c.status === "approved"));
     assert.equal(store.vehicles.get("alice")?.status, "approved");
-    assert.equal(store.cases.get(caseId)?.purgeAtMs, NOW + IMAGE_RETENTION_MS);
-    assert.ok(IMAGE_RETENTION_MS + DAY_MS <= 7 * DAY_MS, "deleted within 7 days of the decision");
+    // Prompt 12 (owner decision): no purge date; deleted 1 year after the account closes.
+    assert.equal(store.cases.get(caseId)?.purgeAtMs, null);
     assert.deepEqual(store.audit.at(-1), { actorUid: "admin1", action: "verification.approved", target: `verifications/${caseId}` });
   });
 
@@ -334,6 +334,11 @@ describe("decideVerification", () => {
     assert.ok(view.children[0].imageUrl);
     assert.equal(store.audit.at(-1)?.action, "verification.view");
     assert.ok(!JSON.stringify(view).includes(NID));
+    // Prompt 12: a server-made thumbnail is linked under the same name.
+    const front = store.cases.get(caseId)!.files.find((f) => f.endsWith("/id_front.jpg"))!;
+    files.put(thumbPath(front)!, "t", NOW);
+    const again = await openVerificationCase(deps, "admin1", { caseId });
+    assert.deepEqual(Object.keys(again.thumbs), ["id_front.jpg"]);
   });
 });
 
@@ -432,42 +437,42 @@ describe("the child's school (F4)", () => {
 });
 
 describe("purgeVerificationImages (retention job)", () => {
-  it("removes the images of decided cases within 7 days of the decision, and nothing earlier", async () => {
+  it("Prompt 12: keeps the images of decided cases (approved and rejected) while the account is active", async () => {
     uploadAll("alice");
     const { caseId } = await submitVerification(deps, "alice", submission());
     const prefix = casePrefix("alice", caseId);
     assert.equal((await files.list(prefix)).length, 5);
-
-    // Waiting for review: the job keeps the images.
     clock = NOW + 30 * DAY_MS;
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
+    clock += 400 * DAY_MS;
     assert.deepEqual(await purgeVerificationImages(deps), { cases: 0, files: 0 });
     assert.equal((await files.list(prefix)).length, 5);
-
-    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
-    const decidedAt = clock;
-
-    clock = decidedAt + 4 * DAY_MS;
-    await purgeVerificationImages(deps);
-    assert.equal((await files.list(prefix)).length, 5, "kept for a few days after the decision");
-
-    clock = decidedAt + 6 * DAY_MS;
-    const result = await purgeVerificationImages(deps);
-    assert.deepEqual(result, { cases: 1, files: 5 });
-    assert.equal((await files.list(prefix)).length, 0);
-    assert.equal(store.cases.get(caseId)?.imagesDeleted, true);
-
-    // Runs again without work, and the admin view has no links any more.
-    assert.deepEqual(await purgeVerificationImages(deps), { cases: 0, files: 0 });
-    assert.deepEqual((await openVerificationCase(deps, "admin1", { caseId })).images, {});
+    // A decided case opens only with a stated reason, which is logged (Prompt 12).
+    await assert.rejects(openVerificationCase(deps, "admin1", { caseId }), expectReason("reason-required"));
+    await assert.rejects(openVerificationCase(deps, "admin1", { caseId, reason: "curious" }), expectReason("reason-required"));
+    const view = await openVerificationCase(deps, "admin1", { caseId, reason: "investigation" });
+    assert.equal(Object.keys(view.images).length, 5);
+    assert.deepEqual(view.thumbs, {}, "no thumbnails made in this test");
   });
 
-  it("removes rejected cases' images too", async () => {
+  it("Prompt 12: rejected cases keep their images too", async () => {
     uploadAll("alice");
     const { caseId } = await submitVerification(deps, "alice", submission());
     await decideVerification(deps, "admin1", { caseId, decision: "reject", reasonCode: "selfie_mismatch" });
-    clock += 7 * DAY_MS;
+    clock += 30 * DAY_MS;
     await purgeVerificationImages(deps);
-    assert.equal((await files.list(casePrefix("alice", caseId))).length, 0);
+    assert.equal((await files.list(casePrefix("alice", caseId))).length, 5);
+  });
+
+  it("Prompt 12: an old purge date on a decided case (set before the owner's decision) is cleared, not acted on", async () => {
+    uploadAll("alice");
+    const { caseId } = await submitVerification(deps, "alice", submission());
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
+    store.cases.get(caseId)!.purgeAtMs = clock; // as written by the Prompt 3 code
+    clock += DAY_MS;
+    assert.deepEqual(await purgeVerificationImages(deps), { cases: 0, files: 0 });
+    assert.equal(store.cases.get(caseId)?.purgeAtMs, null);
+    assert.equal((await files.list(casePrefix("alice", caseId))).length, 5);
   });
 
   it("removes old uploads never submitted and orphaned case folders, keeps fresh ones", async () => {

@@ -213,4 +213,9 @@ export class MemoryFiles implements PhoneFiles {
   async exists(path: string) {
     return this.files.has(path);
   }
+  async copy(from: string, to: string) {
+    const f = this.files.get(from);
+    if (!f) throw new Error("missing");
+    this.files.set(to, { ...f });
+  }
 }

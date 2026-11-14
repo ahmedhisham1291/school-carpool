@@ -1,3 +1,4 @@
+import { selfieArchivePath } from "../privacy/photos";
 import { checkCode, requestCode, type OtpDeps, type RequestCodeResult } from "../auth/otp_flow";
 import { toEgyptE164 } from "../auth/phone";
 import { newEvent, type OutboxEvent } from "../notifications/model";
@@ -40,6 +41,8 @@ export interface PhoneFiles {
   read(path: string): Promise<Buffer>;
   delete(path: string): Promise<void>;
   exists(path: string): Promise<boolean>;
+  /** Prompt 12: keeps the live selfie in the selfie archive. */
+  copy(from: string, to: string): Promise<void>;
 }
 
 export interface PhoneChangeDeps {
@@ -116,7 +119,12 @@ export async function confirmPhoneChange(
     return { changed: true };
   } finally {
     try {
-      if (await deps.files.exists(selfie)) await deps.files.delete(selfie);
+      if (await deps.files.exists(selfie)) {
+        // Prompt 12 (owner decision: live selfie checks are kept): a copy
+        // goes to the selfie archive (KMS key, 1 year after closure).
+        await deps.files.copy(selfie, selfieArchivePath(caller.uid, `phone_${deps.now()}.jpg`));
+        await deps.files.delete(selfie);
+      }
     } catch (error) {
       deps.reportError(error);
     }
