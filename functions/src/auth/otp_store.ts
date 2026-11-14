@@ -75,6 +75,16 @@ class FirestoreOtpTransaction implements OtpTransaction {
   deleteCode(key: string): void {
     this.tx.delete(this.db.collection(OTP_CODES).doc(key));
   }
+
+  async getKnownDevice(key: string): Promise<number> {
+    const snap = await this.tx.get(this.db.collection(OTP_LIMITS).doc(key));
+    return snap.exists ? num(snap.data(), "knownUntilMs") : 0;
+  }
+
+  setKnownDevice(key: string, untilMs: number): void {
+    // Same collection (closed to the app), its own key prefix ("k_").
+    this.tx.set(this.db.collection(OTP_LIMITS).doc(key), { knownUntilMs: untilMs, expireAt: Timestamp.fromMillis(untilMs) });
+  }
 }
 
 export class FirestoreOtpStore implements OtpStore {

@@ -79,6 +79,13 @@ export const VALIFY_PASSWORD_NAME = "VALIFY_PASSWORD";
  */
 export const OTP_MAX_SENDS_PER_IP = defineInt("OTP_MAX_SENDS_PER_IP", { default: 60 });
 
+/**
+ * Wrong codes for one number per day across all devices before the number
+ * is closed for the rest of that day (review 2, N1). Devices where the
+ * number signed in before are not closed by it (otp_flow.ts).
+ */
+export const OTP_MAX_FAILURES_PER_DAY = defineInt("OTP_MAX_FAILURES_PER_DAY", { default: 30 });
+
 /** Which X-Forwarded-For entry is the client, counted from the end (auth/client_ip.ts). */
 export const CLIENT_IP_HOP = defineInt("CLIENT_IP_HOP", { default: 1 });
 

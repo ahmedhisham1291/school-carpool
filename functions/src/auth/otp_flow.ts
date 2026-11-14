@@ -38,6 +38,13 @@ export interface OtpLimits {
    * 5 tries each) to reach it.
    */
   maxFailuresPerPhonePerDay: number;
+  /**
+   * Prompt 12 (review 2, N1): a device where this number signed in before
+   * stays "known" this long. The daily cap above does not close the number
+   * on a known device, so a stranger rotating device IDs cannot lock the
+   * parent out of their own phone. The per-device lock still applies.
+   */
+  knownDeviceDays: number;
 }
 
 export const DEFAULT_OTP_LIMITS: OtpLimits = {
@@ -51,6 +58,7 @@ export const DEFAULT_OTP_LIMITS: OtpLimits = {
   maxFailuresBeforeLock: 10,
   lockSeconds: 3600,
   maxFailuresPerPhonePerDay: 30,
+  knownDeviceDays: 90,
 };
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -78,6 +86,9 @@ export interface OtpTransaction {
   setLimit(key: string, record: LimitRecord): void;
   setCode(key: string, record: CodeRecord): void;
   deleteCode(key: string): void;
+  /** Until when (ms) this number counts as known on this device; 0 when never. */
+  getKnownDevice(key: string): Promise<number>;
+  setKnownDevice(key: string, untilMs: number): void;
 }
 
 export interface OtpStore {
@@ -144,6 +155,11 @@ export function deviceKey(hmacKey: string, deviceId: string): string {
   return `d_${hmacHex(hmacKey, `device:${deviceId}`)}`;
 }
 
+/** "This number signed in on this device before" (Prompt 12). */
+export function knownKey(hmacKey: string, phoneE164: string, deviceId: string): string {
+  return `k_${hmacHex(hmacKey, `known:${phoneE164}:${deviceId}`)}`;
+}
+
 /** Failure counter and lock for one number on one device. */
 export function lockKey(hmacKey: string, phoneE164: string, deviceId: string): string {
   return `l_${hmacHex(hmacKey, `lock:${phoneE164}:${deviceId}`)}`;
@@ -204,6 +220,7 @@ export async function requestCode(deps: OtpDeps, input: RequestCodeInput): Promi
   const dKey = deviceKey(deps.hmacKey, input.deviceId);
   const iKey = ipKey(deps.hmacKey, input.ip || "unknown");
   const lKey = lockKey(deps.hmacKey, phone, input.deviceId);
+  const kKey = knownKey(deps.hmacKey, phone, input.deviceId);
   const code = (deps.newCode ?? newSixDigitCode)();
   const windowMs = limits.windowSeconds * 1000;
   const cooldownMs = limits.resendCooldownSeconds * 1000;
@@ -214,11 +231,12 @@ export async function requestCode(deps: OtpDeps, input: RequestCodeInput): Promi
     const deviceRecord = rollSendWindow((await tx.getLimit(dKey)) ?? emptyLimit(), now, windowMs);
     const ipRecord = rollSendWindow((await tx.getLimit(iKey)) ?? emptyLimit(), now, windowMs);
     const lockRecord = (await tx.getLimit(lKey)) ?? emptyLimit();
+    const known = (await tx.getKnownDevice(kKey)) > now;
 
     if (lockRecord.lockedUntilMs > now) {
       return new OtpError("locked", { retryAfterSeconds: secondsUntil(lockRecord.lockedUntilMs - now) });
     }
-    const dailyRefusal = dailyLimitRefusal(phoneRecord, now, limits);
+    const dailyRefusal = known ? null : dailyLimitRefusal(phoneRecord, now, limits);
     if (dailyRefusal) return dailyRefusal;
     if (phoneRecord.lastSendMs > 0 && now - phoneRecord.lastSendMs < cooldownMs) {
       return new OtpError("too-soon", { retryAfterSeconds: secondsUntil(phoneRecord.lastSendMs + cooldownMs - now) });
@@ -296,6 +314,7 @@ export async function checkCode(deps: Pick<OtpDeps, "store" | "hmacKey" | "now" 
   const code: string = input.code;
   const pKey = phoneKey(deps.hmacKey, phone);
   const lKey = lockKey(deps.hmacKey, phone, input.deviceId);
+  const kKey = knownKey(deps.hmacKey, phone, input.deviceId);
   const windowMs = limits.windowSeconds * 1000;
 
   const refusal = await deps.store.run(async (tx): Promise<OtpError | null> => {
@@ -303,11 +322,12 @@ export async function checkCode(deps: Pick<OtpDeps, "store" | "hmacKey" | "now" 
     const limit = (await tx.getLimit(lKey)) ?? emptyLimit();
     const phoneRecord = (await tx.getLimit(pKey)) ?? emptyLimit();
     const stored = await tx.getCode(pKey);
+    const known = (await tx.getKnownDevice(kKey)) > now;
 
     if (limit.lockedUntilMs > now) {
       return new OtpError("locked", { retryAfterSeconds: secondsUntil(limit.lockedUntilMs - now) });
     }
-    const dailyRefusal = dailyLimitRefusal(phoneRecord, now, limits);
+    const dailyRefusal = known ? null : dailyLimitRefusal(phoneRecord, now, limits);
     if (dailyRefusal) return dailyRefusal;
     if (!stored) return new OtpError("expired");
     if (now >= stored.expiresAtMs) {
@@ -319,6 +339,7 @@ export async function checkCode(deps: Pick<OtpDeps, "store" | "hmacKey" | "now" 
       // Single use: the code is gone after one success.
       tx.deleteCode(pKey);
       tx.setLimit(lKey, { ...limit, failures: 0, failWindowStartMs: 0 });
+      tx.setKnownDevice(kKey, now + limits.knownDeviceDays * DAY_MS);
       return null;
     }
 

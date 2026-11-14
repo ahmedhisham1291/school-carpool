@@ -7,6 +7,7 @@ import {
   ENFORCE_APP_CHECK,
   MIN_INSTANCES_SIGNIN,
   OTP_HMAC_KEY,
+  OTP_MAX_FAILURES_PER_DAY,
   OTP_MAX_SENDS_PER_IP,
   WHATSAPP_ACCESS_TOKEN,
   WHATSAPP_API_VERSION,
@@ -101,7 +102,7 @@ export function otpDeps(): OtpDeps {
     accounts: new FirebaseAccountService(adminAuth(), db),
     hmacKey: otpHmacKey(),
     now: () => Date.now(),
-    limits: { ...DEFAULT_OTP_LIMITS, maxSendsPerIp: OTP_MAX_SENDS_PER_IP.value() },
+    limits: { ...DEFAULT_OTP_LIMITS, maxSendsPerIp: OTP_MAX_SENDS_PER_IP.value(), maxFailuresPerPhonePerDay: OTP_MAX_FAILURES_PER_DAY.value() },
     reportError: (error) => {
       logger.error("WhatsApp send failed", { message: error instanceof Error ? error.message : "unknown" });
       void reportError(error);
@@ -139,8 +140,14 @@ const signInOptions = {
   secrets: [OTP_HMAC_KEY, WHATSAPP_ACCESS_TOKEN],
 };
 
-/** { phone, deviceId, language } -> { expiresInSeconds, resendAfterSeconds } */
-export const requestCode = onCall(signInOptions, (request) =>
+/**
+ * { phone, deviceId, language } -> { expiresInSeconds, resendAfterSeconds }
+ *
+ * Prompt 12 (review 2, item 5): App Check replay protection. The app sends
+ * a limited-use token that is consumed here, so one captured token cannot
+ * be replayed to send many paid WhatsApp codes.
+ */
+export const requestCode = onCall({ ...signInOptions, consumeAppCheckToken: true }, (request) =>
   run("requestCode", async () => {
     const deps = otpDeps();
     const ip = clientIp(request.rawRequest.headers, request.rawRequest.ip, CLIENT_IP_HOP.value());
