@@ -1893,7 +1893,7 @@
   "devicesNewPhone": "New phone",
   "devicesOnlyThis": "No other phones are signed in.",
   "devicesSignOut": "Sign out",
-  "devicesSignOutAll": "Sign out other phones",
+  "devicesSignOutAll": "Sign out others",
   "devicesSignOutTitle": "Sign out this phone?",
   "devicesSignOutAllTitle": "Sign out other phones?",
   "devicesSignOutBody": "It is signed out at once. Other phones need a new code to sign in.",

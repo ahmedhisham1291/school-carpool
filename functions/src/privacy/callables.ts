@@ -10,6 +10,7 @@ import { ipOf, requireAdminCaller } from "../admin_panel/access";
 import { AdminError, ADMIN_ERROR_CODES } from "../admin_panel/errors";
 import { FirestoreListsStore } from "../admin_panel/store";
 import { errorCode } from "../auth/accounts";
+import { CONSENT_VERSIONS } from "../auth/consents";
 import { removeFromCarpool } from "../carpools/flow";
 import { deps as carpoolDeps } from "../carpools/callables";
 import { server as chatServer } from "../chat/callables";
@@ -243,9 +244,12 @@ export const setConsent = onCall(opts, (r) =>
     const store = new FirestorePrivacyStore(adminDb());
     const nowMs = Date.now();
     if (granted) {
-      if (kind !== "analytics" && kind !== "showOnMap") fail("invalid-request");
+      if (kind !== "analytics" && kind !== "showOnMap" && kind !== "whatsapp") fail("invalid-request");
       if (kind === "analytics") await store.setConsent(uid, "analytics", ANALYTICS_CONSENT_VERSION, true, nowMs);
-      else await updateMapSettings(mapDeps(), uid, { showOnMap: true });
+      else if (kind === "whatsapp") {
+        await store.setConsent(uid, "whatsapp", CONSENT_VERSIONS.whatsapp, true, nowMs);
+        await adminDb().collection("users").doc(uid).update({ whatsappOptIn: true });
+      } else await updateMapSettings(mapDeps(), uid, { showOnMap: true });
       await logRequest(uid, "consent", kind, "done", null);
       return { effect: "granted" };
     }
@@ -255,7 +259,7 @@ export const setConsent = onCall(opts, (r) =>
         await store.setConsent(uid, "analytics", ANALYTICS_CONSENT_VERSION, false, nowMs);
         break;
       case "whatsappOff":
-        await store.setConsent(uid, "whatsapp", "", false, nowMs);
+        await store.setConsent(uid, "whatsapp", CONSENT_VERSIONS.whatsapp, false, nowMs);
         await adminDb().collection("users").doc(uid).update({ whatsappOptIn: false });
         break;
       case "hiddenFromMap":

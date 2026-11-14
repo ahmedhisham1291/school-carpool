@@ -8460,7 +8460,7 @@
   "@devicesSignOut": {
     "description": "Button"
   },
-  "devicesSignOutAll": "أخرج الهواتف الأخرى",
+  "devicesSignOutAll": "أخرج الأخرى",
   "@devicesSignOutAll": {
     "description": "Button"
   },
