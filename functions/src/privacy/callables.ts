@@ -4,7 +4,7 @@ import * as logger from "firebase-functions/logger";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { onObjectFinalized } from "firebase-functions/v2/storage";
+import { onObjectDeleted, onObjectFinalized } from "firebase-functions/v2/storage";
 import { adminAuth, adminDb, adminStorage } from "../admin";
 import { ipOf, requireAdminCaller } from "../admin_panel/access";
 import { AdminError, ADMIN_ERROR_CODES } from "../admin_panel/errors";
@@ -50,7 +50,8 @@ import {
   SECURITY_ALERTS,
 } from "./firestore_store";
 import { runRetention } from "./jobs";
-import { accessReason, selfieArchivePath, thumbOwner, thumbPath, THUMB_EDGE, THUMB_QUALITY } from "./photos";
+import { accessReason, selfieArchivePath, thumbPath } from "./photos";
+import { dropThumb, ensureThumb } from "./thumbs";
 import { consentKind, consentViews, correctionField, needsAdmin, newRequest, withdrawEffect, type PrivacyRequest } from "./requests";
 import { routeArchivePurgeAt } from "./retention";
 import { archivePath, packArchive, unpackArchive, type TrackPoint } from "./route_archive";
@@ -501,15 +502,13 @@ export const archiveRouteOnTripWrite = onDocumentWritten({ document: "trips/{tri
  * photo (account deletion, thumbs/{uid}/).
  */
 export const makePhotoThumbnail = onObjectFinalized({ region: REGION, memory: "1GiB", timeoutSeconds: 60 }, async (event) => {
-  const path = event.data.name;
-  const target = thumbPath(path);
-  if (!target || !thumbOwner(path)) return;
-  const file = bucket().file(target);
-  if ((await file.exists())[0]) return;
-  const [original] = await bucket().file(path).download();
-  const sharp = (await import("sharp")).default;
-  const thumb = await sharp(original).rotate().resize({ width: THUMB_EDGE, height: THUMB_EDGE, fit: "inside", withoutEnlargement: true }).webp({ quality: THUMB_QUALITY }).toBuffer();
-  await file.save(thumb, { contentType: "image/webp", resumable: false });
+  // Remade when the original was replaced (its generation changed).
+  await ensureThumb(bucket(), event.data.name, event.data.generation === undefined ? null : String(event.data.generation));
+});
+
+/** A kept photo was deleted (withdrawn case, purge): its thumbnail goes too. */
+export const dropPhotoThumbnail = onObjectDeleted({ region: REGION }, async (event) => {
+  await dropThumb(bucket(), event.data.name);
 });
 
 // --------------------------------------------------------------------------
@@ -532,7 +531,7 @@ function reasonOf(raw: Record<string, unknown>) {
  * decided case images). Thumbnails by default; full images only with
  * full=true. Logged first, with the reason; links work 5 minutes.
  */
-export const adminOpenUserPhotos = onCall(opts, (r) =>
+export const adminOpenUserPhotos = onCall({ ...opts, memory: "1GiB", timeoutSeconds: 120 }, (r) =>
   run("adminOpenUserPhotos", async () => {
     const caller = await requireAdminCaller(r);
     const raw = data(r);
@@ -540,9 +539,10 @@ export const adminOpenUserPhotos = onCall(opts, (r) =>
     if (!uid) throw new AdminError("invalid-request");
     const reason = reasonOf(raw);
     const full = raw.full === true;
-    await audit(caller.uid, full ? "photos.view.full" : "photos.view", `users/${uid}`, reason, ipOf(r));
-    const expires = Date.now() + 5 * 60_000;
-    const out: Array<{ name: string; kind: string; storedAt: string; url: string }> = [];
+    // Which file each photo is served from is decided BEFORE the audit
+    // entry, so the log says "full" whenever any full image is served (a
+    // photo without a thumbnail yet included).
+    const picked: Array<{ name: string; kind: string; storedAt: string; path: string; isFull: boolean }> = [];
     for (const [prefix, kind] of [
       [`faceRefs/${uid}/`, "faceRef"],
       [`driverPhotos/${uid}/`, "driverPhoto"],
@@ -552,10 +552,17 @@ export const adminOpenUserPhotos = onCall(opts, (r) =>
       const [files] = await bucket().getFiles({ prefix });
       for (const f of files.slice(0, 60)) {
         const thumb = thumbPath(f.name);
-        const useThumb = !full && thumb !== null && (await bucket().file(thumb).exists())[0];
-        const [url] = await bucket().file(useThumb ? (thumb as string) : f.name).getSignedUrl({ version: "v4", action: "read", expires });
-        out.push({ name: f.name.slice(f.name.lastIndexOf("/") + 1), kind, storedAt: String(f.metadata.timeCreated ?? ""), url });
+        const useThumb = !full && thumb !== null && (await ensureThumb(bucket(), f.name, null).catch(() => "skipped")) !== "skipped";
+        picked.push({ name: f.name.slice(f.name.lastIndexOf("/") + 1), kind, storedAt: String(f.metadata.timeCreated ?? ""), path: useThumb ? (thumb as string) : f.name, isFull: !useThumb });
       }
+    }
+    const fullCount = picked.filter((p) => p.isFull).length;
+    await audit(caller.uid, fullCount > 0 ? "photos.view.full" : "photos.view", `users/${uid}`, reason, ipOf(r), { photos: picked.length, full: fullCount });
+    const expires = Date.now() + 5 * 60_000;
+    const out: Array<{ name: string; kind: string; storedAt: string; url: string; full: boolean }> = [];
+    for (const p of picked) {
+      const [url] = await bucket().file(p.path).getSignedUrl({ version: "v4", action: "read", expires });
+      out.push({ name: p.name, kind: p.kind, storedAt: p.storedAt, url, full: p.isFull });
     }
     return { photos: out };
   }),

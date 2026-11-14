@@ -60,6 +60,7 @@ import {
   routeArchivePurgeAt,
   rule,
 } from "../src/privacy/retention";
+import { dropThumb, ensureThumb, SOURCE_GENERATION } from "../src/privacy/thumbs";
 import { archivePath, decodePolyline, downsample, encodePolyline, packArchive, unpackArchive, type TrackPoint } from "../src/privacy/route_archive";
 import type { OutboxEvent } from "../src/notifications/model";
 
@@ -838,5 +839,31 @@ describe("kept photos", () => {
     assert.equal(selfieArchivePath("u1", "phone_1.jpg"), "selfieArchive/u1/phone_1.jpg");
     assert.throws(() => selfieArchivePath("../u1", "x.jpg"));
     assert.throws(() => selfieArchivePath("u1", "x.png"));
+  });
+
+  it("a thumbnail is current only for the same version of the photo; it goes when the photo goes", async () => {
+    const files = new Map<string, { generation: string; meta: Record<string, string> }>();
+    const bucket = {
+      file: (name: string) => ({
+        exists: async () => [files.has(name)],
+        getMetadata: async () => [{ generation: files.get(name)?.generation, metadata: files.get(name)?.meta }],
+        delete: async () => void files.delete(name),
+      }),
+    } as unknown as Parameters<typeof ensureThumb>[0];
+    const photo = "faceRefs/u1/selfie.jpg";
+    const thumb = thumbPath(photo)!;
+    files.set(photo, { generation: "2", meta: {} });
+    files.set(thumb, { generation: "9", meta: { [SOURCE_GENERATION]: "2" } });
+    assert.equal(await ensureThumb(bucket, photo, "2"), "current");
+    assert.equal(await ensureThumb(bucket, "verification/u1/pending/id_front.jpg", "1"), "skipped", "never a pending upload");
+    // A new face reference (generation 3): the old thumb is not current (it is remade; sharp is not loaded here).
+    await assert.rejects(ensureThumb(bucket, photo, "3"));
+    // The photo exists again after an overwrite: its thumb stays.
+    assert.equal(await dropThumb(bucket, photo), false);
+    assert.ok(files.has(thumb));
+    // Deleted (withdrawn case, purge): the thumb goes.
+    files.delete(photo);
+    assert.equal(await dropThumb(bucket, photo), true);
+    assert.ok(!files.has(thumb));
   });
 });

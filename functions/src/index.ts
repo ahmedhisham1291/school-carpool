@@ -243,6 +243,7 @@ export {
   adminResolveSecurityAlert,
   archiveRouteOnTripWrite,
   confirmNewDevice,
+  dropPhotoThumbnail,
   deleteMyAccount,
   exportMyData,
   getPrivacyOverview,
