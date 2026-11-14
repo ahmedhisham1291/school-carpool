@@ -90,6 +90,13 @@ dependencies:
   # carpool chat (EXIF removed by flutter_image_compress before upload).
   image_picker: ^1.2.2
 
+  # Wallet (Prompt 11B, MONEY rules; justified in docs/progress/prompt-11b.md):
+  # a fresh Face ID, fingerprint or phone passcode check before every
+  # transfer and withdrawal. Official flutter.dev plugin (LocalAuthentication
+  # on iPhone, AndroidX Biometric on Android); free. 3.x API: authenticate()
+  # with named options, LocalAuthException on failure.
+  local_auth: ^3.0.0
+
   # Persists the language, theme mode and dev design direction on the phone.
   # Official Flutter plugin; flagged to the owner in docs/progress/prompt-01.md.
   shared_preferences: ^2.5.3

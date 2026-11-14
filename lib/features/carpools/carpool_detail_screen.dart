@@ -15,6 +15,7 @@ import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/verification/verification_labels.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/features/verification/verification_repository.dart';
+import 'package:school_carpool/features/wallet/wallet_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 
@@ -195,7 +196,7 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
         ),
         if (member) _MembersSection(carpoolId: _id, busy: _busy, run: _run),
         if (admin) _RequestsSection(carpool: c, busy: _busy, run: _run),
-        if (member) _ScheduleLinks(carpoolId: _id),
+        if (member) _ScheduleLinks(carpoolId: _id, contribution: contribution),
         const SizedBox(height: AppSpacing.s32),
         Padding(
           padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter),
@@ -433,14 +434,29 @@ class _MembersSection extends ConsumerWidget {
 
 /// Prompt 7: the week plan (F7, F11, F27, F28), days off and times (F30)
 /// and the drive balance (F37); approved members only.
-class _ScheduleLinks extends StatelessWidget {
-  const _ScheduleLinks({required this.carpoolId});
+class _ScheduleLinks extends ConsumerWidget {
+  const _ScheduleLinks({required this.carpoolId, this.contribution});
 
   final String carpoolId;
 
+  /// F25 + F43 (Prompt 11B): "Pay contribution" opens Send with the
+  /// organizer and the agreed amount for my children filled in. Optional;
+  /// nothing is ever taken automatically.
+  final Contribution? contribution;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppLocalizations l10n = context.l10n;
+    final Contribution? agreed = contribution;
+    final List<CarpoolMember>? members = ref.watch(_membersProvider(carpoolId)).value;
+    final SessionState session = ref.watch(sessionProvider);
+    final String? uid = session is SessionSignedIn ? session.uid : null;
+    int? payAmount;
+    if (agreed != null && members != null) {
+      final int children = members.where((CarpoolMember m) => m.uid == uid).fold<int>(0, (int n, CarpoolMember m) => n + m.children.length);
+      payAmount = Money.contribution(poundsPerChild: agreed.amount, children: children);
+    }
+    final int? amount = payAmount;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -453,6 +469,14 @@ class _ScheduleLinks extends StatelessWidget {
           leadingIcon: Icons.forum_outlined,
           onTap: () => context.go(ChatRef.carpool(carpoolId).route),
         ),
+        if (amount != null)
+          AppListRow(
+            key: const Key('detail.payContribution'),
+            title: l10n.walletPayContribution,
+            subtitle: l10n.walletPayContributionHelper(Money.format(l10n, amount)),
+            leadingIcon: Icons.account_balance_wallet_outlined,
+            onTap: () => context.go(WalletRoutes.send(carpoolId: carpoolId, amount: amount)),
+          ),
         AppListRow(
           key: const Key('detail.schedule'),
           title: l10n.scheduleWeekPlan,

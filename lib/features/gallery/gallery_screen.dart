@@ -11,6 +11,8 @@ import 'package:school_carpool/features/carpools/carpool_widgets.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_view.dart';
 import 'package:school_carpool/features/shell/home_shell.dart';
+import 'package:school_carpool/features/wallet/wallet_models.dart';
+import 'package:school_carpool/features/wallet/wallet_widgets.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/settings/app_settings.dart';
 
@@ -136,6 +138,9 @@ class GalleryScreen extends ConsumerWidget {
           ),
           AppSectionHeader(l10n.gallerySectionChat),
           const _ChatSamples(),
+          // Prompt 11B: wallet pieces (fake data only).
+          AppSectionHeader(l10n.gallerySectionWallet),
+          const _WalletSamples(),
           AppSectionHeader(l10n.gallerySectionSheets),
           const _Padded(child: _SheetSamples()),
           AppSectionHeader(l10n.gallerySectionSkeleton),
@@ -171,6 +176,41 @@ void _done(BuildContext context) => showAppSnackBar(context, context.l10n.sample
 
 /// Prompt 9: chat bubbles (theirs, mine read, mine sending, mine failed),
 /// the unread count pill and the composer.
+class _WalletSamples extends StatelessWidget {
+  const _WalletSamples();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    final DateTime at = DateTime.utc(2026, 11, 16, 8, 30);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const _Padded(child: BalanceCard(info: WalletInfo(available: true, status: WalletStatus.active, termsVersion: '', balance: 125050, todayOut: 20000))),
+        _Padded(
+          child: Row(
+            children: <Widget>[
+              AppInitialAvatar(name: l10n.sampleChatAuthor),
+              const SizedBox(width: AppSpacing.s16),
+              Expanded(child: AppAmount(Money.format(l10n, 30000))),
+            ],
+          ),
+        ),
+        _Padded(child: ReceiverCard(name: l10n.sampleChatAuthor, verified: true)),
+        TransferRow(
+          transfer: WalletTransfer(id: 'g1', kind: TransferKind.transfer, outgoing: false, amount: 30000, status: TransferStatus.done, createdAt: at, otherName: l10n.sampleChatAuthor),
+        ),
+        TransferRow(
+          transfer: WalletTransfer(id: 'g2', kind: TransferKind.transfer, outgoing: true, amount: 12550, status: TransferStatus.pending, createdAt: at, otherName: l10n.sampleChatAuthor),
+        ),
+        TransferRow(
+          transfer: WalletTransfer(id: 'g3', kind: TransferKind.withdraw, outgoing: true, amount: 5000, status: TransferStatus.failed, createdAt: at),
+        ),
+      ],
+    );
+  }
+}
+
 class _ChatSamples extends StatefulWidget {
   const _ChatSamples();
 

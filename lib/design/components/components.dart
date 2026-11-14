@@ -6,6 +6,7 @@
 library;
 
 export 'package:school_carpool/design/components/alert_banner.dart';
+export 'package:school_carpool/design/components/amount_text.dart';
 export 'package:school_carpool/design/components/app_bar_title.dart';
 export 'package:school_carpool/design/components/app_button.dart';
 export 'package:school_carpool/design/components/app_card.dart';
@@ -15,6 +16,7 @@ export 'package:school_carpool/design/components/app_navigation_bar.dart';
 export 'package:school_carpool/design/components/app_sheet.dart';
 export 'package:school_carpool/design/components/app_snack_bar.dart';
 export 'package:school_carpool/design/components/app_text_field.dart';
+export 'package:school_carpool/design/components/avatar.dart';
 export 'package:school_carpool/design/components/capture_tile.dart';
 export 'package:school_carpool/design/components/chat_bubble.dart';
 export 'package:school_carpool/design/components/check_row.dart';

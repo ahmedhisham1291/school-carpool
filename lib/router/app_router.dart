@@ -40,6 +40,10 @@ import 'package:school_carpool/features/shell/home_shell.dart';
 import 'package:school_carpool/features/verification/children_screen.dart';
 import 'package:school_carpool/features/verification/driving_screen.dart';
 import 'package:school_carpool/features/verification/verification_flow_screen.dart';
+import 'package:school_carpool/features/wallet/money_screens.dart';
+import 'package:school_carpool/features/wallet/send_screen.dart';
+import 'package:school_carpool/features/wallet/transfer_screen.dart';
+import 'package:school_carpool/features/wallet/wallet_screen.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 
 /// The five bottom tabs from spec section 10, in order.
@@ -71,6 +75,33 @@ abstract final class ProfileRoutes {
 
   /// Prompt 8: alert settings (WhatsApp per group, quiet hours).
   static const String notifications = '/profile/$notificationsSegment';
+
+  /// Prompt 11B: the wallet (F43).
+  static const String walletSegment = 'wallet';
+  static const String wallet = '/profile/$walletSegment';
+}
+
+/// Wallet screens under Profile > Wallet (Prompt 11B). Verified parents
+/// use them; the functions refuse everyone else.
+abstract final class WalletRoutes {
+  static const String sendSegment = 'send';
+  static const String addSegment = 'add';
+  static const String withdrawSegment = 'withdraw';
+  static const String transferSegment = 't/:id';
+  static const String add = '${ProfileRoutes.wallet}/$addSegment';
+  static const String withdraw = '${ProfileRoutes.wallet}/$withdrawSegment';
+
+  static String transfer(String id) => '${ProfileRoutes.wallet}/t/$id';
+
+  /// Send money; from a carpool's "Pay contribution" with the carpool and
+  /// the agreed amount (piastres) filled in (F25). Nothing is sent until the
+  /// parent confirms.
+  static String send({String? carpoolId, int? amount}) => Uri(
+    path: '${ProfileRoutes.wallet}/$sendSegment',
+    queryParameters: carpoolId == null && amount == null
+        ? null
+        : <String, String>{'carpool': ?carpoolId, if (amount != null) 'amount': '$amount'},
+  ).toString();
 }
 
 /// Screens under the Home tab (Prompt 5). Verified parents only (the
@@ -332,6 +363,32 @@ GoRouter buildAppRouter({
                       GoRoute(
                         path: ProfileRoutes.notificationsSegment,
                         builder: (BuildContext context, GoRouterState state) => const NotificationSettingsScreen(),
+                      ),
+                      GoRoute(
+                        path: ProfileRoutes.walletSegment,
+                        builder: (BuildContext context, GoRouterState state) => const WalletScreen(),
+                        routes: <RouteBase>[
+                          GoRoute(
+                            path: WalletRoutes.sendSegment,
+                            builder: (BuildContext context, GoRouterState state) => SendMoneyScreen(
+                              carpoolId: state.uri.queryParameters['carpool'],
+                              amount: int.tryParse(state.uri.queryParameters['amount'] ?? ''),
+                            ),
+                          ),
+                          GoRoute(
+                            path: WalletRoutes.addSegment,
+                            builder: (BuildContext context, GoRouterState state) => const AddMoneyScreen(),
+                          ),
+                          GoRoute(
+                            path: WalletRoutes.withdrawSegment,
+                            builder: (BuildContext context, GoRouterState state) => const WithdrawScreen(),
+                          ),
+                          GoRoute(
+                            path: WalletRoutes.transferSegment,
+                            builder: (BuildContext context, GoRouterState state) =>
+                                TransferScreen(transferId: state.pathParameters['id'] ?? ''),
+                          ),
+                        ],
                       ),
                     ],
                   ],
