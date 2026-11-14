@@ -578,8 +578,30 @@ if [ -f functions/package-lock.json ]; then
 else
   npm --prefix functions install --no-audit --no-fund
 fi
-deploy_backend() { fb deploy --only firestore:rules,firestore:indexes,storage,functions --force; }
+DEPLOY_LOG="$(mktemp)"
+deploy_backend() {
+  fb deploy --only firestore:rules,firestore:indexes,storage,functions --force 2>&1 | tee "${DEPLOY_LOG}"
+  return "${PIPESTATUS[0]}"
+}
+# A function half-created by an earlier failed deploy can have the wrong
+# kind (HTTPS vs event); Firebase then refuses to update it. Staging only:
+# delete exactly those functions so the next deploy creates them afresh.
+fix_wrong_kind() {
+  local names
+  names="$(grep -oE '\[[A-Za-z0-9_]+\([a-z0-9-]+\)\] Changing from an? [A-Za-z ]+ function to an? [A-Za-z ]+ function is not allowed' "${DEPLOY_LOG}" \
+    | sed -E 's/^\[([A-Za-z0-9_]+)\(.*/\1/' | sort -u || true)"
+  [ -n "${names}" ] || return 1
+  local n
+  for n in ${names}; do
+    echo "  ${n} was left half-created by an earlier run: deleting it so it is created again."
+    fb functions:delete "${n}" --region "${REGION}" --force || true
+  done
+  return 0
+}
 run_step deploy_backend
+if [ "${STEP_RC}" -ne 0 ] && fix_wrong_kind; then
+  run_step deploy_backend
+fi
 if [ "${STEP_RC}" -ne 0 ]; then
   echo "  First deploys often fail while Google sets up permissions (Eventarc). Trying again in 60 seconds..."
   sleep 60
