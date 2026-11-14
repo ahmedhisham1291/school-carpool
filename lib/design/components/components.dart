@@ -30,6 +30,7 @@ export 'package:school_carpool/design/components/picker_field.dart';
 export 'package:school_carpool/design/components/section_header.dart';
 export 'package:school_carpool/design/components/select_field.dart';
 export 'package:school_carpool/design/components/skeleton.dart';
+export 'package:school_carpool/design/components/star_rating.dart';
 export 'package:school_carpool/design/components/state_views.dart';
 export 'package:school_carpool/design/components/status_badge.dart';
 export 'package:school_carpool/design/components/step_progress.dart';

@@ -25,4 +25,5 @@ String reviewStatusLabel(AppLocalizations l10n, ReviewStatus status) => switch (
   ReviewStatus.pending => l10n.statusPending,
   ReviewStatus.approved => l10n.reviewApproved,
   ReviewStatus.rejected => l10n.statusRejected,
+  ReviewStatus.left => l10n.statusLeftSchool,
 };

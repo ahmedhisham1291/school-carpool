@@ -15,6 +15,7 @@ import 'package:school_carpool/features/trips/trip_models.dart';
 import 'package:school_carpool/features/trips/trip_repository.dart';
 import 'package:school_carpool/features/trips/trip_widgets.dart';
 import 'package:school_carpool/l10n/l10n.dart';
+import 'package:school_carpool/router/app_router.dart';
 
 final _tripProvider = StreamProvider.autoDispose.family<Trip?, (String, String)>(
   (Ref ref, (String, String) key) => ref.watch(tripRepositoryProvider).watchTrip(key.$1, key.$2),
@@ -170,6 +171,18 @@ class _TripScreenState extends ConsumerState<TripScreen> {
               if (!trip.tracking) ...<Widget>[
                 const SizedBox(height: AppSpacing.s16),
                 AppInlineMessage(key: const Key('trip.finished'), message: l10n.tripFinishedNote, icon: Icons.location_off_outlined),
+              ],
+              // Prompt 11 (F17): after a finished trip, rate the driver or the parents.
+              if (trip.status == TripStatus.ended) ...<Widget>[
+                const SizedBox(height: AppSpacing.s16),
+                AppButton(
+                  key: const Key('trip.rate'),
+                  label: l10n.tripRateAction,
+                  icon: Icons.star_outline_rounded,
+                  variant: AppButtonVariant.secondary,
+                  expand: true,
+                  onPressed: () => context.go(ProfileRoutes.ratings),
+                ),
               ],
               for (final TripStop s in mine) ...<Widget>[
                 const SizedBox(height: AppSpacing.s16),

@@ -63,7 +63,12 @@ enum Grade {
 enum ReviewStatus {
   pending,
   approved,
-  rejected;
+  rejected,
+
+  /// Prompt 11: the parent said in the yearly check that the child left the
+  /// school; the child left its carpools and chats. Edit the child to add
+  /// the new school (reviewed again).
+  left;
 
   static ReviewStatus? fromName(Object? name) {
     for (final ReviewStatus status in values) {
