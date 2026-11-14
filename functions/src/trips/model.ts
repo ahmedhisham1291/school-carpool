@@ -103,7 +103,8 @@ export interface TripRecord {
   /** When tracking stopped (last drop-off, or timeout). */
   trackingEndedAtMs: number | null;
   endedAtMs: number | null;
-  endReason: "done" | "timeout" | null;
+  /** done: last drop-off; ended: the driver ended it; timeout: 4 h; revoked: sign-out, suspension or ban. */
+  endReason: "done" | "ended" | "timeout" | "revoked" | null;
   /** The driver and the parents of the children on this run. */
   viewerUids: string[];
   /** Child IDs (array-contains queries for handover updates). */
@@ -118,6 +119,8 @@ export interface TripRecord {
   tokenHash: string;
   tokenExpiresAtMs: number;
   lastEtaAtMs: number | null;
+  /** Last time an upload re-checked the driver's account (at most once a minute). */
+  accountCheckedAtMs: number | null;
   /** Quick messages posted (F35), newest last, at most MAX_MESSAGES. */
   messages: Array<{ kind: QuickKind; atMs: number }>;
   /** Request IDs already applied (offline retries never apply twice). */
@@ -226,6 +229,8 @@ export type TripErrorReason =
   | "trip-not-active"
   | "wrong-state"
   | "no-contact"
+  | "no-children"
+  | "children-on-board"
   | "rate-limited";
 
 export const TRIP_ERROR_CODES: Record<TripErrorReason, string> = {
@@ -245,6 +250,8 @@ export const TRIP_ERROR_CODES: Record<TripErrorReason, string> = {
   "trip-not-active": "failed-precondition",
   "wrong-state": "failed-precondition",
   "no-contact": "failed-precondition",
+  "no-children": "failed-precondition",
+  "children-on-board": "failed-precondition",
   "rate-limited": "resource-exhausted",
 };
 
@@ -273,6 +280,8 @@ export function startProblem(run: RunRecord, uid: string, nowMs: number): TripEr
   if (run.status !== "confirmed" && run.status !== "completed") return "not-confirmed";
   if (nowMs < run.startMs - START_EARLY_MS) return "too-early";
   if (nowMs > run.startMs + START_LATE_MS) return "too-late";
+  // Every child absent: nothing to drive, so nothing to track (review item 4).
+  if (run.riders.length === 0) return "no-children";
   return null;
 }
 
@@ -314,8 +323,18 @@ export function selfieRequired(percent: number, roll: number, hasReference: bool
 // Driver actions (F16, F41)
 // --------------------------------------------------------------------------
 
-export type DriverAction = "arrived" | "pickedUp" | "dropped";
-export const DRIVER_ACTIONS: readonly DriverAction[] = ["arrived", "pickedUp", "dropped"];
+/** notComing (review item 4): the child did not come; the stop is done. */
+export type DriverAction = "arrived" | "pickedUp" | "dropped" | "notComing";
+export const DRIVER_ACTIONS: readonly DriverAction[] = ["arrived", "pickedUp", "dropped", "notComing"];
+/** Arrived alerts per stop (each is a paid WhatsApp template and a loud push). */
+export const MAX_ARRIVED_PER_STOP = 5;
+/** A second Arrived within this time sends nothing (the first is still fresh). */
+export const ARRIVED_GAP_MS = 30_000;
+
+/** The child is in the car (morning: picked up; afternoon: picked up, at home not handed over yet). */
+export function onBoard(stop: Stop, direction: Direction): boolean {
+  return stop.state === "onBoard" || (direction === "toHome" && stop.state === "arrived");
+}
 
 /**
  * The stop after [action], or null when it does not fit the stop's state.
@@ -342,6 +361,12 @@ export function applyAction(stop: Stop, action: DriverAction, direction: Directi
       if (!ok) return null;
       return { ...stop, state: "dropped", droppedAtMs: nowMs };
     }
+    case "notComing": {
+      // Not picked up yet: morning at the home, afternoon at the school.
+      const ok = morning ? stop.state === "waiting" || stop.state === "arrived" : stop.state === "waiting";
+      if (!ok) return null;
+      return { ...stop, state: "absent" };
+    }
   }
 }
 
@@ -367,8 +392,8 @@ export function withRequest(done: string[], requestId: string | null): string[] 
 }
 
 /** The trip after the last drop-off: tracking stops (and the last point goes). */
-export function stopTracking(trip: TripRecord, nowMs: number, reason: "done" | "timeout"): TripRecord {
-  const waiting = reason === "done" && pendingHandovers(trip).length > 0;
+export function stopTracking(trip: TripRecord, nowMs: number, reason: "done" | "ended" | "timeout" | "revoked"): TripRecord {
+  const waiting = (reason === "done" || reason === "ended") && pendingHandovers(trip).length > 0;
   return {
     ...trip,
     status: waiting ? "handover" : "ended",
@@ -386,11 +411,25 @@ export function stopTracking(trip: TripRecord, nowMs: number, reason: "done" | "
 // Live location (F15)
 // --------------------------------------------------------------------------
 
-/** True when "location stopped" should be sent now. */
-export function isStale(trip: Pick<TripRecord, "status" | "lastPointAtMs" | "startedAtMs" | "staleAlertedAtMs">, nowMs: number, staleMs: number): boolean {
+/** The car stood still at its last point (km/h): traffic, a gate, a home. */
+export const STILL_KMH = 3;
+/** While still, the phone sends only a heartbeat fix a minute: allow this much. */
+export const STILL_STALE_MS = 3 * 60_000;
+
+/**
+ * True when "location stopped" should be sent now. Traffic tolerant: when
+ * the last point says the car stood still, the phone sends only the
+ * minute heartbeat, so the gap may be up to STILL_STALE_MS before it counts.
+ */
+export function isStale(
+  trip: Pick<TripRecord, "status" | "lastPointAtMs" | "startedAtMs" | "staleAlertedAtMs"> & { last?: TripPoint | null },
+  nowMs: number,
+  staleMs: number,
+): boolean {
   if (trip.status !== "active" || trip.staleAlertedAtMs !== null) return false;
   const since = trip.lastPointAtMs ?? trip.startedAtMs;
-  return nowMs - since > staleMs;
+  const still = trip.last?.speed !== null && trip.last?.speed !== undefined && trip.last.speed < STILL_KMH;
+  return nowMs - since > (still ? Math.max(staleMs, STILL_STALE_MS) : staleMs);
 }
 
 function finite(v: unknown): number | null {

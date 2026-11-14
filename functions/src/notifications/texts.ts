@@ -58,6 +58,7 @@ export const TEXTS: Readonly<Texts> = {
   "child-picked-up": t("ركب الطفل", "ركب طفلك في مشوار {when}.", "Child picked up", "Your child got in for the {when} run."),
   "child-dropped": t("نزل الطفل", "نزل طفلك من مشوار {when}.", "Child dropped off", "Your child was dropped off: {when}."),
   "child-received": t("تم الاستلام", "أكّد ولي الأمر الاستلام في مشوار {when}.", "Handover confirmed", "A parent confirmed the handover: {when}."),
+  "child-not-coming": t("لم يركب الطفل", "سُجّل طفلك غير قادم لمشوار {when}.", "Child not picked up", "Your child was marked not coming for the {when} run."),
   "location-stopped": t("توقف الموقع", "توقف موقع السيارة في مشوار {when}.", "Location stopped", "The car's location stopped during the {when} run."),
   "driver-late": t("السائق متأخر", "السائق متأخر قليلًا في مشوار {when}.", "Driver running late", "The driver is running late: {when}."),
   "driver-at-gate": t("عند البوابة", "السائق عند بوابة المدرسة: مشوار {when}.", "At the gate", "The driver is at the school gate: {when}."),

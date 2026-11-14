@@ -1,6 +1,7 @@
 import { randomBytes, randomInt } from "node:crypto";
 import * as logger from "firebase-functions/logger";
 import { HttpsError, onCall, onRequest, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminDb, adminStorage } from "../admin";
 import { deps as carpoolDeps } from "../carpools/callables";
@@ -11,6 +12,7 @@ import {
   ENFORCE_APP_CHECK,
   MAPS_SERVER_KEY,
   MIN_INSTANCES,
+  REGION,
   ROUTES_PROVIDER,
   ROUTES_TRAFFIC,
   STREAM_API_KEY,
@@ -34,6 +36,9 @@ import { CloudStorageFiles, readFakeKycSetting } from "../verification/store";
 import { createWhatsAppSender } from "../whatsapp/sender";
 import {
   confirmHandover as confirmFlow,
+  endDriverTrips,
+  endTrip as endFlow,
+  stopMyTrips as stopMineFlow,
   emergency as emergencyFlow,
   getHandoverAdults as getHandoverFlow,
   prepareTrip as prepareFlow,
@@ -165,6 +170,38 @@ export const startTrip = onCall(opts, (r) => run("startTrip", () => startFlow(tr
 
 /** F16, F41: { carpoolId, runId, childId, action, requestId? } -> { state, status, applied } */
 export const tripAction = onCall(opts, (r) => run("tripAction", () => actionFlow(tripDeps(), caller(r), r.data)));
+
+/** Review item 4: { carpoolId, runId } -> { status } (the driver ends the run; no child on board) */
+export const endTrip = onCall(opts, (r) => run("endTrip", () => endFlow(tripDeps(), caller(r), r.data)));
+
+/** Review item 5: {} -> { ended } (the app calls it before signing out; signed in, any status) */
+export const stopMyTrips = onCall(opts, (r) => {
+  const uid = r.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
+  return run("stopMyTrips", () => stopMineFlow(tripDeps(), { uid, verifiedClaim: r.auth?.token?.verified === true }));
+});
+
+/**
+ * Review item 5: a suspended, banned or deleted account stops tracking of
+ * its live trips at once (the upload key dies; the run's parents get
+ * "location stopped"). Uploads also re-check the account once a minute.
+ */
+export const endTripsOnUserWrite = onDocumentWritten({ document: "users/{uid}", region: REGION, retry: true }, async (event) => {
+  const uid = (event.params as Record<string, string>).uid;
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  const blocked = (d: Record<string, unknown> | undefined) => !d || d.banned === true || d.status === "suspended";
+  if (blocked(before) === blocked(after) && after !== undefined) return;
+  if (!blocked(after)) return;
+  try {
+    const ended = await endDriverTrips(tripDeps(), uid, Date.now());
+    if (ended > 0) logger.info("trips ended for a blocked account", { ended });
+  } catch (error) {
+    logger.error("ending trips failed", { message: error instanceof Error ? error.message : "unknown" });
+    await reportError(error);
+    throw error;
+  }
+});
 
 /** F34: { carpoolId, runId, childId } -> { status } (the receiving parent) */
 export const confirmHandover = onCall(opts, (r) => run("confirmHandover", () => confirmFlow(tripDeps(), caller(r), r.data)));

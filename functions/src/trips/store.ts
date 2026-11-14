@@ -134,7 +134,7 @@ export function tripFromDoc(id: string, d: DocumentData): TripRecord {
     startedAtMs: ms(d.startedAt),
     trackingEndedAtMs: msOrNull(d.trackingEndedAt),
     endedAtMs: msOrNull(d.endedAt),
-    endReason: d.endReason === "done" || d.endReason === "timeout" ? d.endReason : null,
+    endReason: d.endReason === "done" || d.endReason === "ended" || d.endReason === "timeout" || d.endReason === "revoked" ? d.endReason : null,
     viewerUids: strings(d.viewerUids),
     childIds: strings(d.childIds),
     stops: Array.isArray(d.stops) ? d.stops.map((s: unknown) => stopFrom(typeof s === "object" && s !== null ? (s as Record<string, unknown>) : {})) : [],
@@ -144,6 +144,7 @@ export function tripFromDoc(id: string, d: DocumentData): TripRecord {
     tokenHash: text(d.tokenHash),
     tokenExpiresAtMs: ms(d.tokenExpiresAt),
     lastEtaAtMs: msOrNull(d.lastEtaAt),
+    accountCheckedAtMs: msOrNull(d.accountCheckedAt),
     messages: Array.isArray(d.messages)
       ? d.messages
           .map((m: unknown) => (typeof m === "object" && m !== null ? (m as Record<string, unknown>) : {}))
@@ -179,6 +180,7 @@ export function tripToDoc(t: TripRecord): DocumentData {
     tokenHash: t.tokenHash,
     tokenExpiresAt: ts(t.tokenExpiresAtMs),
     lastEtaAt: tsOrNull(t.lastEtaAtMs),
+    accountCheckedAt: tsOrNull(t.accountCheckedAtMs),
     messages: t.messages.map((m) => ({ kind: m.kind, at: ts(m.atMs) })),
     doneRequests: t.doneRequests,
     updatedAt: ts(t.updatedAtMs),
@@ -362,6 +364,11 @@ export class FirestoreTripStore implements TripStore {
   async liveTripsWithChild(childId: string): Promise<string[]> {
     // Index: firestore.indexes.json (childIds array-contains, status).
     const snap = await this.db.collection(TRIPS).where("childIds", "array-contains", childId).where("status", "in", ["active", "handover"]).limit(10).get();
+    return snap.docs.map((d) => d.id);
+  }
+
+  async liveTripsOfDriver(uid: string): Promise<string[]> {
+    const snap = await this.db.collection(TRIPS).where("driverUid", "==", uid).where("status", "==", "active").limit(10).get();
     return snap.docs.map((d) => d.id);
   }
 

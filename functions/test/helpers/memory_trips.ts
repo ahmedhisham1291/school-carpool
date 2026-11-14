@@ -113,6 +113,9 @@ export class MemoryTripStore implements TripStore {
   async liveTripsWithChild(childId: string) {
     return [...this.trips.values()].filter((t) => t.status !== "ended" && t.childIds.includes(childId)).map((t) => t.id);
   }
+  async liveTripsOfDriver(uid: string) {
+    return [...this.trips.values()].filter((t) => t.status === "active" && t.driverUid === uid).map((t) => t.id);
+  }
   async child(childId: string) {
     return this.children.get(childId) ?? null;
   }
@@ -166,6 +169,10 @@ export class MemoryTripStore implements TripStore {
 /** Files in memory (photos and live selfies). */
 export class MemoryTripFiles implements TripFiles {
   files = new Map<string, Buffer>();
+  created = new Map<string, number>();
+  async list(prefix: string) {
+    return [...this.files.keys()].filter((p) => p.startsWith(prefix)).map((path) => ({ path, createdMs: this.created.get(path) ?? 0 }));
+  }
   deleted: string[] = [];
   async exists(path: string) {
     return this.files.has(path);

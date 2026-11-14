@@ -215,6 +215,10 @@ describe("storage: live selfies and driver photos", () => {
     await assertFails(as("bob").storage().ref("selfieChecks/alice/k1_2026-11-16_am.jpg").putString("x", "raw", jpeg).then(() => undefined));
     await assertFails(as("alice", token).storage().ref("selfieChecks/alice/k1_2026-11-16_am.jpg").putString("x", "raw", jpeg).then(() => undefined));
     await assertFails(as("alice").storage().ref("selfieChecks/alice/x.png").putString("x", "raw", { contentType: "image/png" }).then(() => undefined));
+    // Only a run's name (no other images under this folder).
+    await assertFails(as("alice").storage().ref("selfieChecks/alice/holiday.jpg").putString("x", "raw", jpeg).then(() => undefined));
+    await assertFails(as("bob").storage().ref("faceRefs/alice/selfie.jpg").getDownloadURL());
+    await assertFails(as("alice").storage().ref("faceRefs/alice/selfie.jpg").putString("x", "raw", jpeg).then(() => undefined));
   });
 
   it("the driver photo is uploaded only as part of verification and never read by the app", async () => {

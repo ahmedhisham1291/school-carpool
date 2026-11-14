@@ -587,6 +587,13 @@ describe("driver photo (Prompt 10: F33, F38)", () => {
     assert.equal(files.files.has("driverPhotos/alice/photo.jpg"), false);
   });
 
+  it("an approved identity case keeps the selfie as the face reference for selfie checks (F38)", async () => {
+    uploadAll("alice");
+    const { caseId } = await submitVerification(deps, "alice", submission());
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
+    assert.ok(files.files.has("faceRefs/alice/selfie.jpg"));
+  });
+
   it("the photo is optional", async () => {
     uploadAll("alice", [...IDENTITY_FILES, "school_id_c1.jpg", "license.jpg", "car_license.jpg"]);
     const { caseId } = await submitVerification(deps, "alice", submission({ driver }));

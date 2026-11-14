@@ -5,7 +5,7 @@ import type { LatLng } from "../maps/geo";
 import type { NotificationType } from "../notifications/catalog";
 import { newEvent, type OutboxEvent } from "../notifications/model";
 import { parseRunId, type RunRecord } from "../schedule/model";
-import { driverPhotoPath } from "../verification/submission";
+import { driverPhotoPath, faceRefPath } from "../verification/submission";
 import type { Language } from "../whatsapp/sender";
 import {
   acceptPoints,
@@ -19,7 +19,10 @@ import {
   idOf,
   isStale,
   mapsLink,
+  ARRIVED_GAP_MS,
+  MAX_ARRIVED_PER_STOP,
   MAX_HANDOVER_ADULTS,
+  onBoard,
   MAX_HANDOVER_WATCH_MS,
   MAX_MESSAGES,
   MAX_TRACKING_MS,
@@ -131,6 +134,8 @@ export interface TripStore {
   liveTripIds(limit: number): Promise<string[]>;
   /** Live trips with [childId] on them. */
   liveTripsWithChild(childId: string): Promise<string[]>;
+  /** Trips [uid] is driving that are still tracked. */
+  liveTripsOfDriver(uid: string): Promise<string[]>;
   child(childId: string): Promise<{ ownerUid: string; status: string } | null>;
   handoverEntries(childId: string): Promise<HandoverEntry[]>;
   putHandover(childId: string, ownerUid: string, adults: HandoverEntry[], nowMs: number): Promise<void>;
@@ -148,6 +153,8 @@ export interface TripStore {
 }
 
 export interface TripFiles {
+  /** Files under [prefix] with their creation time (the selfie sweep). */
+  list(prefix: string): Promise<Array<{ path: string; createdMs: number }>>;
   exists(path: string): Promise<boolean>;
   read(path: string): Promise<Buffer>;
   delete(path: string): Promise<void>;
@@ -198,6 +205,8 @@ export interface Caller {
 /** Storage paths (storage.rules): the driver uploads the live selfie; the photo is kept from verification. */
 export { driverPhotoPath };
 export const selfiePath = (uid: string, id: string): string => `selfieChecks/${uid}/${id}.jpg`;
+/** The identity selfie kept as the face reference when the account was approved (F38). */
+export { faceRefPath };
 export const EMERGENCY_TEMPLATE = "cp_emergency_contact";
 
 const settingsOf = (deps: TripDeps): TripSettings => ({ ...DEFAULT_TRIP_SETTINGS, ...(deps.settings ?? {}) });
@@ -258,11 +267,12 @@ export interface PrepareResult {
 }
 
 /**
- * The driver opens the start screen. Decides once per run whether a live
- * selfie is needed first (F38: some runs, at random, when the driver has a
- * photo approved during verification). Checks the run like start does.
+ * Who may act on the run before it starts: the verified, not paused,
+ * confirmed driver of the run (or the driver of the trip already started).
+ * Checked BEFORE any check record is written, so another parent can never
+ * block a run or decide its selfie check (review item 2).
  */
-export async function prepareTrip(deps: TripDeps, caller: Caller, data: unknown): Promise<PrepareResult> {
+async function runForDriver(deps: TripDeps, caller: Caller, data: unknown): Promise<{ carpoolId: string; runId: string; id: string; run: RunRecord; existing: TripRecord | null; nowMs: number }> {
   const account = await requireVerified(deps, caller);
   if (account.drivingPaused) throw new TripError("driving-paused");
   const { carpoolId, runId } = parseRun(data);
@@ -271,61 +281,97 @@ export async function prepareTrip(deps: TripDeps, caller: Caller, data: unknown)
   const nowMs = deps.now();
   const id = tripId(carpoolId, runId);
   const existing = await deps.store.trip(id);
-  if (existing && existing.status !== "active") throw new TripError("too-late");
-  const problem = startProblem(run, caller.uid, nowMs);
-  if (problem && !existing) throw new TripError(problem);
-  const hasReference = await deps.files.exists(driverPhotoPath(caller.uid));
-  const check = await deps.store.ensureCheck(id, {
-    driverUid: caller.uid,
-    status: selfieRequired(settingsOf(deps).selfiePercent, deps.roll(), hasReference) ? "required" : "none",
+  if (existing) {
+    if (existing.driverUid !== caller.uid) throw new TripError("not-driver");
+    if (existing.status !== "active") throw new TripError("too-late");
+  } else {
+    const problem = startProblem(run, caller.uid, nowMs);
+    if (problem) throw new TripError(problem);
+  }
+  return { carpoolId, runId, id, run, existing, nowMs };
+}
+
+/**
+ * The face reference of a driver (F38): the driver photo approved during
+ * verification, else the identity selfie kept when the account was
+ * approved. A driver without one cannot start a run (review item 6).
+ */
+export async function faceReference(deps: TripDeps, uid: string): Promise<string | null> {
+  for (const path of [driverPhotoPath(uid), faceRefPath(uid)]) {
+    if (await deps.files.exists(path)) return path;
+  }
+  return null;
+}
+
+/** The selfie-check record of one run AND one driver: a swap gets a new decision. */
+export const checkId = (tripIdValue: string, uid: string): string => `${tripIdValue}_${uid}`;
+
+/** Decides once per run and driver whether a live selfie is needed first (F38). */
+async function decideCheck(deps: TripDeps, id: string, uid: string, nowMs: number): Promise<TripCheck> {
+  return deps.store.ensureCheck(checkId(id, uid), {
+    driverUid: uid,
+    status: selfieRequired(settingsOf(deps).selfiePercent, deps.roll(), true) ? "required" : "none",
     decidedAtMs: nowMs,
     checkedAtMs: null,
   });
+}
+
+/**
+ * The driver opens the start screen. Checks the run like start does, needs
+ * a face reference, and decides once per run and driver whether a live
+ * selfie is needed first (F38: some runs, at random).
+ */
+export async function prepareTrip(deps: TripDeps, caller: Caller, data: unknown): Promise<PrepareResult> {
+  const { id, existing, nowMs } = await runForDriver(deps, caller, data);
+  if (!(await faceReference(deps, caller.uid))) throw new TripError("no-reference");
+  const check = await decideCheck(deps, id, caller.uid, nowMs);
   return { tripId: id, selfieRequired: check.status === "required" || check.status === "failed", selfieStatus: check.status, active: existing?.status === "active" };
 }
 
 /**
  * F38: the driver took the live selfie (uploaded to selfieChecks/{uid}/{tripId}.jpg).
- * Matched against the photo approved during verification (KycProvider's
- * face match); the selfie is deleted at once either way. A mismatch pauses
- * the driver's driving days (every future run they drive is released, as
- * in Prompt 7) and files an urgent report for an admin.
+ * Matched against the driver's face reference (KycProvider's face match).
+ * The selfie is deleted on EVERY path, refusals included (review item 3);
+ * tripTick also sweeps any left behind. A mismatch pauses the driver's
+ * driving days (Prompt 9's pause) and files an urgent report.
  */
 export async function submitSelfieCheck(deps: TripDeps, caller: Caller, data: unknown): Promise<{ status: TripCheck["status"] }> {
-  await requireVerified(deps, caller);
-  const { carpoolId, runId } = parseRun(data);
-  const id = tripId(carpoolId, runId);
+  const raw = record(data);
+  const live = typeof raw.carpoolId === "string" && typeof raw.runId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(raw.carpoolId) && parseRunId(raw.runId)
+    ? selfiePath(caller.uid, tripId(raw.carpoolId, raw.runId))
+    : null;
+  try {
+    return await checkSelfie(deps, caller, data);
+  } finally {
+    // Never kept (spec section 7: face images only as long as needed).
+    if (live) await deps.files.delete(live);
+  }
+}
+
+async function checkSelfie(deps: TripDeps, caller: Caller, data: unknown): Promise<{ status: TripCheck["status"] }> {
+  const { id, nowMs } = await runForDriver(deps, caller, data);
   await take(deps, caller.uid, "selfieChecks", 86_400_000, 10);
-  const nowMs = deps.now();
-  const check = await deps.store.ensureCheck(id, { driverUid: caller.uid, status: "required", decidedAtMs: nowMs, checkedAtMs: null });
-  if (check.driverUid !== caller.uid) throw new TripError("not-driver");
-  if (check.status === "passed" || check.status === "none") return { status: check.status };
+  const reference = await faceReference(deps, caller.uid);
+  if (!reference) throw new TripError("no-reference");
+  const check = await decideCheck(deps, id, caller.uid, nowMs);
+  if (check.status === "passed" || check.status === "none" || check.status === "error") return { status: check.status };
   if (check.status === "failed") throw new TripError("driving-paused");
   const live = selfiePath(caller.uid, id);
   if (!(await deps.files.exists(live))) throw new TripError("invalid-request");
-  if (!(await deps.files.exists(driverPhotoPath(caller.uid)))) {
-    await deps.files.delete(live);
-    throw new TripError("no-reference");
-  }
-  let result: "match" | "no_match" | "error";
-  try {
-    result = await deps.faces.matchFace(() => deps.files.read(driverPhotoPath(caller.uid)), () => deps.files.read(live));
-  } finally {
-    // Never kept (spec section 7: face images only as long as needed).
-    await deps.files.delete(live);
-  }
+  const result = await deps.faces.matchFace(() => deps.files.read(reference), () => deps.files.read(live));
+  const key = checkId(id, caller.uid);
   if (result === "match") {
-    await deps.store.putCheck(id, { ...check, status: "passed", checkedAtMs: nowMs });
+    await deps.store.putCheck(key, { ...check, status: "passed", checkedAtMs: nowMs });
     return { status: "passed" };
   }
   if (result === "error") {
     // The provider could not decide: the run may go on; a person looks later.
-    await deps.store.putCheck(id, { ...check, status: "error", checkedAtMs: nowMs });
+    await deps.store.putCheck(key, { ...check, status: "error", checkedAtMs: nowMs });
     await deps.store.addReport({ targetUid: caller.uid, reason: "selfie-error", urgent: false, tripId: id }, nowMs);
     deps.log("selfie check could not decide; report filed");
     return { status: "error" };
   }
-  await deps.store.putCheck(id, { ...check, status: "failed", checkedAtMs: nowMs });
+  await deps.store.putCheck(key, { ...check, status: "failed", checkedAtMs: nowMs });
   await deps.store.pauseDriving(caller.uid, nowMs, "selfie-mismatch");
   const released = await deps.releaseRuns(caller.uid, nowMs);
   await deps.store.addReport({ targetUid: caller.uid, reason: "selfie-mismatch", urgent: true, tripId: id }, nowMs);
@@ -349,35 +395,17 @@ export interface StartResult {
  */
 export async function startTrip(deps: TripDeps, caller: Caller, data: unknown): Promise<StartResult> {
   const account = await requireVerified(deps, caller);
-  if (account.drivingPaused) throw new TripError("driving-paused");
-  const { carpoolId, runId } = parseRun(data);
+  const { carpoolId, runId, id, run, nowMs } = await runForDriver(deps, caller, data);
   await take(deps, caller.uid, "starts", 86_400_000, 30);
-  const id = tripId(carpoolId, runId);
-  const nowMs = deps.now();
-  const run = await deps.store.run(carpoolId, runId);
-  if (!run) throw new TripError("not-found");
-  // The same random decision as prepareTrip, so skipping prepareTrip never
-  // skips the selfie check (F38).
-  const hasReference = await deps.files.exists(driverPhotoPath(caller.uid));
-  const check = await deps.store.ensureCheck(id, {
-    driverUid: caller.uid,
-    status: selfieRequired(settingsOf(deps).selfiePercent, deps.roll(), hasReference) ? "required" : "none",
-    decidedAtMs: nowMs,
-    checkedAtMs: null,
-  });
+  if (!(await faceReference(deps, caller.uid))) throw new TripError("no-reference");
+  // The same decision as prepareTrip, so skipping prepareTrip never skips
+  // the selfie check (F38).
+  const check = await decideCheck(deps, id, caller.uid, nowMs);
   if (check.status === "required") throw new TripError("selfie-required");
   if (check.status === "failed") throw new TripError("driving-paused");
 
   const token = deps.newToken();
   const expiresAtMs = nowMs + MAX_TRACKING_MS;
-  const existing = await deps.store.trip(id);
-  if (existing) {
-    if (existing.driverUid !== caller.uid) throw new TripError("not-driver");
-    if (existing.status !== "active") throw new TripError("too-late");
-  } else {
-    const problem = startProblem(run, caller.uid, nowMs);
-    if (problem) throw new TripError(problem);
-  }
   // Reads outside the transaction (they do not change during a start).
   const place = await deps.store.carpool(carpoolId);
   if (!place) throw new TripError("not-found");
@@ -419,6 +447,7 @@ export async function startTrip(deps: TripDeps, caller: Caller, data: unknown): 
       tokenHash: hashToken(token),
       tokenExpiresAtMs: expiresAtMs,
       lastEtaAtMs: null,
+      accountCheckedAtMs: nowMs,
       messages: [],
       doneRequests: [],
       updatedAtMs: nowMs,
@@ -441,6 +470,7 @@ const EVENT_FOR: Record<DriverAction, NotificationType> = {
   arrived: "driver-arrived",
   pickedUp: "child-picked-up",
   dropped: "child-dropped",
+  notComing: "child-not-coming",
 };
 
 export interface ActionResult {
@@ -451,7 +481,7 @@ export interface ActionResult {
 }
 
 /**
- * The driver taps Arrived, Picked up or Dropped for one child. Each tap is
+ * The driver taps Arrived, Picked up, Dropped or Not coming for one child. Each tap is
  * a trip event and a notification to that child's parent (Arrived: push
  * with sound and WhatsApp, F41; a second tap repeats it). The last
  * drop-off stops tracking. [requestId] makes an offline retry safe.
@@ -475,6 +505,13 @@ export async function tripAction(deps: TripDeps, caller: Caller, data: unknown):
       return { trip: null, events: [], result: { state: stop.state, status: trip.status, applied: false } };
     }
     if (trip.status !== "active") throw new TripError("trip-not-active");
+    if (action === "arrived" && (stop.state === "arrived" || (trip.direction === "toHome" && stop.state === "onBoard"))) {
+      // Per stop: a repeat within 30 s sends nothing; at most 5 alerts (WhatsApp is paid).
+      if (stop.arrivedCount >= MAX_ARRIVED_PER_STOP) throw new TripError("rate-limited");
+      if (stop.arrivedAtMs !== null && nowMs - stop.arrivedAtMs < ARRIVED_GAP_MS) {
+        return { trip: null, events: [], result: { state: stop.state, status: trip.status, applied: false } };
+      }
+    }
     const next = applyAction(stop, action, trip.direction, nowMs);
     if (!next) throw new TripError("wrong-state");
     let updated: TripRecord = {
@@ -488,6 +525,56 @@ export async function tripAction(deps: TripDeps, caller: Caller, data: unknown):
     if (allDropped(updated.stops)) updated = stopTracking(updated, nowMs, "done");
     return { trip: updated, events, result: { state: next.state, status: updated.status, applied: true } };
   });
+}
+
+/**
+ * Review item 4: the driver ends the run (asked to confirm in the app),
+ * for example when the remaining children do not come. Refused while a
+ * child is in the car. Children not picked up count as not coming, and
+ * their parents are told. Tracking stops at once.
+ */
+export async function endTrip(deps: TripDeps, caller: Caller, data: unknown): Promise<{ status: TripRecord["status"] }> {
+  await requireVerified(deps, caller);
+  const { carpoolId, runId } = parseRun(data);
+  const nowMs = deps.now();
+  return deps.store.mutateTrip<{ status: TripRecord["status"] }>(tripId(carpoolId, runId), (trip) => {
+    if (!trip) throw new TripError("not-found");
+    if (trip.driverUid !== caller.uid) throw new TripError("not-driver");
+    if (trip.status !== "active") return { trip: null, events: [], result: { status: trip.status } };
+    if (trip.stops.some((s) => onBoard(s, trip.direction))) throw new TripError("children-on-board");
+    const left = trip.stops.filter((s) => s.state === "waiting" || s.state === "arrived");
+    const stops = trip.stops.map((s) => (left.includes(s) ? { ...s, state: "absent" as const } : s));
+    const updated = stopTracking({ ...trip, stops }, nowMs, "ended");
+    const events = left.map((s) => tripEvent("child-not-coming", trip, s.childId, [s.parentUid], nowMs, { actorUid: caller.uid, childId: s.childId }));
+    return { trip: updated, events, result: { status: updated.status } };
+  });
+}
+
+/**
+ * Review item 5: tracking of [uid]'s live trips stops at once (sign-out,
+ * suspension, ban, deleted account). The upload key stops working, the
+ * last point goes, and the run's parents get "location stopped".
+ */
+export async function endDriverTrips(deps: TripDeps, uid: string, nowMs: number): Promise<number> {
+  let ended = 0;
+  for (const id of await deps.store.liveTripsOfDriver(uid)) {
+    ended += await deps.store.mutateTrip<number>(id, (trip) => {
+      if (!trip || trip.status !== "active" || trip.driverUid !== uid) return { trip: null, events: [], result: 0 };
+      const parents = parentsOf(trip);
+      return {
+        trip: stopTracking(trip, nowMs, "revoked"),
+        events: parents.length > 0 ? [tripEvent("location-stopped", trip, `revoked_${nowMs}`, parents, nowMs)] : [],
+        result: 1,
+      };
+    });
+  }
+  return ended;
+}
+
+/** The driver signs out: the app calls this first (review item 5). */
+export async function stopMyTrips(deps: TripDeps, caller: Caller): Promise<{ ended: number }> {
+  if (!caller.uid) throw new TripError("not-verified");
+  return { ended: await endDriverTrips(deps, caller.uid, deps.now()) };
 }
 
 /** F34: the receiving parent confirms the child arrived home. The driver is told. */
@@ -600,6 +687,8 @@ export async function emergency(deps: TripDeps, caller: Caller, data: unknown): 
   const trip = await deps.store.trip(id);
   if (!trip) throw new TripError("not-found");
   if (trip.driverUid !== caller.uid) throw new TripError("not-driver");
+  // During the run, or up to 30 minutes after its end (non-blocking 7).
+  if (trip.status === "ended" && nowMs - (trip.endedAtMs ?? 0) > 30 * 60_000) throw new TripError("trip-not-active");
   const point = pointOf(raw.point) ?? (trip.last ? { lat: trip.last.lat, lng: trip.last.lng } : null);
   const emergencyId = await deps.store.addEmergency(carpoolId, {
     tripId: id,
@@ -640,6 +729,9 @@ export async function emergency(deps: TripDeps, caller: Caller, data: unknown): 
 // Live points (F15) and arrival times
 // --------------------------------------------------------------------------
 
+/** How often an upload re-reads the driver's account. */
+export const ACCOUNT_CHECK_MS = 60_000;
+
 export interface UploadResult {
   /** HTTP status for the location plugin: 200 kept, 401 bad token, 410 the run is over. */
   status: 200 | 400 | 401 | 410;
@@ -660,11 +752,16 @@ export async function uploadPoints(deps: TripDeps, id: unknown, token: unknown, 
   const nowMs = deps.now();
   const s = settingsOf(deps);
   const parsed = parseUpload(body);
-  const outcome = await deps.store.mutateTrip<{ status: UploadResult["status"]; points: TripPoint[]; trip: TripRecord | null }>(id, (trip) => {
-    if (!trip || !sameHash(trip.tokenHash, hashToken(token))) return { trip: null, events: [], result: { status: 401, points: [], trip: null } };
-    if (trip.status !== "active" || nowMs > trip.tokenExpiresAtMs) return { trip: null, events: [], result: { status: 410, points: [], trip: null } };
+  const outcome = await deps.store.mutateTrip<{ status: UploadResult["status"]; points: TripPoint[]; trip: TripRecord | null; checkUid: string | null }>(id, (trip) => {
+    if (!trip || !sameHash(trip.tokenHash, hashToken(token))) return { trip: null, events: [], result: { status: 401, points: [], trip: null, checkUid: null } };
+    if (trip.status !== "active" || nowMs > trip.tokenExpiresAtMs) return { trip: null, events: [], result: { status: 410, points: [], trip: null, checkUid: null } };
+    // Review item 5: the driver's account is read again at most once a minute.
+    const checkDue = trip.accountCheckedAtMs === null || nowMs - trip.accountCheckedAtMs >= ACCOUNT_CHECK_MS;
+    const checkUid = checkDue ? trip.driverUid : null;
     const points = acceptPoints(parsed, trip.lastPointAtMs, trip.startedAtMs, nowMs, s.minPointGapMs);
-    if (points.length === 0) return { trip: null, events: [], result: { status: 200, points, trip: null } };
+    if (points.length === 0) {
+      return { trip: checkDue ? { ...trip, accountCheckedAtMs: nowMs } : null, events: [], result: { status: 200, points, trip: null, checkUid } };
+    }
     const last = points[points.length - 1];
     const eta = etaDue(trip.lastEtaAtMs, nowMs, s.etaIntervalMs);
     const updated: TripRecord = {
@@ -673,11 +770,20 @@ export async function uploadPoints(deps: TripDeps, id: unknown, token: unknown, 
       lastPointAtMs: last.atMs,
       staleAlertedAtMs: null,
       lastEtaAtMs: eta ? nowMs : trip.lastEtaAtMs,
+      accountCheckedAtMs: checkDue ? nowMs : trip.accountCheckedAtMs,
       updatedAtMs: nowMs,
     };
-    return { trip: updated, events: [], result: { status: 200, points, trip: eta ? updated : null } };
+    return { trip: updated, events: [], result: { status: 200, points, trip: eta ? updated : null, checkUid } };
   });
   if (outcome.status !== 200) return { status: outcome.status, accepted: 0 };
+  if (outcome.checkUid) {
+    const account = await deps.store.account(outcome.checkUid);
+    if (!account || account.status !== "verified") {
+      // Suspended, banned or deleted: tracking stops and the key dies.
+      await endDriverTrips(deps, outcome.checkUid, nowMs);
+      return { status: 410, accepted: 0 };
+    }
+  }
   if (outcome.points.length > 0) await deps.store.addPoints(id, outcome.points, nowMs + 12 * 3_600_000);
   if (outcome.trip) await refreshEtas(deps, outcome.trip, nowMs);
   return { status: 200, accepted: outcome.points.length };
@@ -706,6 +812,9 @@ export async function refreshEtas(deps: TripDeps, trip: TripRecord, nowMs: numbe
 // --------------------------------------------------------------------------
 // Tick: location stopped (F15), handover not confirmed (F34), cleanup
 // --------------------------------------------------------------------------
+
+/** A live selfie never stays longer than this (normally deleted at once). */
+export const SELFIE_KEEP_MS = 60 * 60_000;
 
 export interface TickResult {
   stale: number;
@@ -767,6 +876,13 @@ export async function runTripTick(deps: TripDeps, limit = 200): Promise<TickResu
     out.ended += r.ended;
   }
   out.deleted = await deps.store.deleteExpired(nowMs, 500);
+  // Review item 3: live selfies left by a failed or abandoned check.
+  for (const f of await deps.files.list("selfieChecks/")) {
+    if (nowMs - f.createdMs > SELFIE_KEEP_MS) {
+      await deps.files.delete(f.path);
+      out.deleted += 1;
+    }
+  }
   return out;
 }
 

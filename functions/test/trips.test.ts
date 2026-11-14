@@ -8,6 +8,11 @@ import {
   confirmHandover,
   driverPhotoPath,
   emergency,
+  endTrip,
+  faceRefPath,
+  stopMyTrips,
+  endDriverTrips,
+  checkId,
   EMERGENCY_TEMPLATE,
   getHandoverAdults,
   hashToken,
@@ -112,6 +117,8 @@ function harness(start = AM - 10 * MIN): Harness {
   store.homes.set("p1", { lat: 30.05, lng: 31.25 });
   store.homes.set("p2", { lat: 30.06, lng: 31.26 });
   store.children.set("c1", { ownerUid: "p1", status: "approved" });
+  // Every verified driver has a face reference (the identity selfie kept at approval).
+  files.files.set(faceRefPath("d1"), Buffer.from("ref"));
   const h: Harness = {
     store,
     files,
@@ -378,6 +385,7 @@ describe("trips: stops (F16, F41)", () => {
     const h = harness();
     await startTrip(h.deps, driver, ids());
     await tripAction(h.deps, driver, { ...ids(), childId: "c1", action: "arrived" });
+    h.clock.now += 31_000;
     await tripAction(h.deps, driver, { ...ids(), childId: "c1", action: "arrived" });
     const arrived = h.store.events.filter((e) => e.type === "driver-arrived");
     assert.equal(arrived.length, 2);
@@ -649,5 +657,151 @@ describe("trips: handover list (F29) and driver card (F33)", () => {
     // p3's child is marked absent: p3 cannot act on the run either.
     assert.equal(await reason(confirmHandover(h.deps, p3, { ...ids(), childId: "c3" })), "wrong-state");
     assert.equal(await reason(confirmHandover(h.deps, { uid: "x1", verifiedClaim: true }, { ...ids(), childId: "c1" })), "not-parent");
+  });
+});
+
+describe("trips: review fixes", () => {
+  it("another parent cannot decide or block the run's selfie check; the driver keeps their own (item 2)", async () => {
+    const h = harness();
+    h.roll.value = 0;
+    h.files.files.set(selfiePath("p1", tripKey()), Buffer.from("x"));
+    assert.equal(await reason(submitSelfieCheck(h.deps, p1, ids())), "not-driver");
+    assert.equal(await reason(startTrip(h.deps, p1, ids())), "not-driver");
+    assert.equal(await reason(prepareTrip(h.deps, p1, ids())), "not-driver");
+    assert.equal(h.store.checks.size, 0, "nothing written for a non-driver");
+    assert.equal(h.files.files.has(selfiePath("p1", tripKey())), false, "their upload is deleted too");
+    assert.equal((await prepareTrip(h.deps, driver, ids())).selfieRequired, true);
+    assert.equal(h.store.checks.get(checkId(tripKey(), "d1"))?.driverUid, "d1");
+  });
+
+  it("after a swap the new driver gets their own decision", async () => {
+    const h = harness();
+    h.roll.value = 99;
+    await prepareTrip(h.deps, driver, ids());
+    h.store.runs.set(`k1/${runId()}`, { ...run("toSchool"), driverUid: "p1", driverFirstName: "P" });
+    h.files.files.set(faceRefPath("p1"), Buffer.from("ref"));
+    h.roll.value = 0;
+    assert.equal((await prepareTrip(h.deps, p1, ids())).selfieRequired, true);
+    assert.equal(await reason(startTrip(h.deps, driver, ids())), "not-driver");
+  });
+
+  it("a live selfie never stays: refusals delete it, and the tick sweeps old ones (item 3)", async () => {
+    const h = harness();
+    h.roll.value = 0;
+    await prepareTrip(h.deps, driver, ids());
+    for (let i = 0; i < 10; i++) h.store.limits.set(`d1/selfieChecks`, 10);
+    h.files.files.set(selfiePath("d1", tripKey()), Buffer.from("live"));
+    assert.equal(await reason(submitSelfieCheck(h.deps, driver, ids())), "rate-limited");
+    assert.equal(h.files.files.has(selfiePath("d1", tripKey())), false);
+    h.files.files.set("selfieChecks/d1/old.jpg", Buffer.from("x"));
+    h.files.created.set("selfieChecks/d1/old.jpg", h.clock.now - 2 * 3_600_000);
+    h.files.files.set("selfieChecks/d1/new.jpg", Buffer.from("x"));
+    h.files.created.set("selfieChecks/d1/new.jpg", h.clock.now);
+    await runTripTick(h.deps);
+    assert.equal(h.files.files.has("selfieChecks/d1/old.jpg"), false);
+    assert.equal(h.files.files.has("selfieChecks/d1/new.jpg"), true);
+  });
+
+  it("no face reference: no run (item 6)", async () => {
+    const h = harness();
+    h.files.files.delete(faceRefPath("d1"));
+    assert.equal(await reason(prepareTrip(h.deps, driver, ids())), "no-reference");
+    assert.equal(await reason(startTrip(h.deps, driver, ids())), "no-reference");
+    h.files.files.set(driverPhotoPath("d1"), Buffer.from("photo"));
+    await startTrip(h.deps, driver, ids());
+  });
+
+  it("Not coming: that parent is told and the last open stop ends tracking (item 4)", async () => {
+    const h = harness();
+    const { token } = await startTrip(h.deps, driver, ids());
+    await tripAction(h.deps, driver, { ...ids(), childId: "c1", action: "pickedUp" });
+    await tripAction(h.deps, driver, { ...ids(), childId: "c1", action: "dropped" });
+    const r = await tripAction(h.deps, driver, { ...ids(), childId: "c2", action: "notComing" });
+    assert.equal(r.state, "absent");
+    assert.equal(r.status, "ended");
+    const ev = h.store.events.find((e) => e.type === "child-not-coming");
+    assert.deepEqual(ev?.recipients, ["p2"]);
+    assert.equal((await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now) })).status, 410);
+  });
+
+  it("a run where every child is absent cannot start (item 4)", async () => {
+    const h = harness();
+    h.store.runs.set(`k1/${runId()}`, { ...run("toSchool"), riders: [], absent: run("toSchool").riders });
+    assert.equal(await reason(startTrip(h.deps, driver, ids())), "no-children");
+  });
+
+  it("End run: refused with a child in the car; otherwise ends and tells the waiting parents (item 4)", async () => {
+    const h = harness();
+    const { token } = await startTrip(h.deps, driver, ids());
+    await tripAction(h.deps, driver, { ...ids(), childId: "c1", action: "pickedUp" });
+    assert.equal(await reason(endTrip(h.deps, driver, ids())), "children-on-board");
+    assert.equal(await reason(endTrip(h.deps, p1, ids())), "not-driver");
+    await tripAction(h.deps, driver, { ...ids(), childId: "c1", action: "dropped" });
+    assert.equal((await endTrip(h.deps, driver, ids())).status, "ended");
+    const trip = h.store.trips.get(tripKey());
+    assert.equal(trip?.endReason, "ended");
+    assert.equal(trip?.last, null);
+    assert.equal(trip?.stops.find((s) => s.childId === "c2")?.state, "absent");
+    assert.deepEqual(h.store.events.filter((e) => e.type === "child-not-coming").map((e) => e.recipients), [["p2"]]);
+    assert.equal((await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now) })).status, 410);
+  });
+
+  it("Arrived per stop: a repeat within 30 s sends nothing; at most 5 alerts", async () => {
+    const h = harness();
+    await startTrip(h.deps, driver, ids());
+    await tripAction(h.deps, driver, { ...ids(), childId: "c1", action: "arrived" });
+    assert.equal((await tripAction(h.deps, driver, { ...ids(), childId: "c1", action: "arrived" })).applied, false);
+    for (let i = 0; i < 4; i++) {
+      h.clock.now += 31_000;
+      assert.equal((await tripAction(h.deps, driver, { ...ids(), childId: "c1", action: "arrived" })).applied, true);
+    }
+    h.clock.now += 31_000;
+    assert.equal(await reason(tripAction(h.deps, driver, { ...ids(), childId: "c1", action: "arrived" })), "rate-limited");
+    assert.equal(h.store.events.filter((e) => e.type === "driver-arrived").length, 5);
+  });
+
+  it("a suspended driver's uploads are refused and the trip stops; checked once a minute (item 5)", async () => {
+    const h = harness();
+    const { token } = await startTrip(h.deps, driver, ids());
+    h.clock.now += 61_000;
+    assert.equal((await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now) })).status, 200);
+    h.store.accounts.set("d1", { status: "suspended", firstName: "Dina", drivingPaused: false, language: "en" });
+    h.clock.now += 10_000;
+    assert.equal((await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now) })).status, 200, "within the minute");
+    h.clock.now += 61_000;
+    assert.equal((await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now) })).status, 410);
+    const trip = h.store.trips.get(tripKey());
+    assert.equal(trip?.status, "ended");
+    assert.equal(trip?.endReason, "revoked");
+    const stopped = h.store.events.filter((e) => e.type === "location-stopped");
+    assert.deepEqual(stopped[stopped.length - 1].recipients, ["p1", "p2"]);
+  });
+
+  it("sign-out (and the account hooks) end the driver's live trips (item 5)", async () => {
+    const h = harness();
+    const { token } = await startTrip(h.deps, driver, ids());
+    assert.deepEqual(await stopMyTrips(h.deps, driver), { ended: 1 });
+    assert.equal((await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now) })).status, 410);
+    assert.equal(await endDriverTrips(h.deps, "d1", h.clock.now), 0, "nothing left");
+  });
+
+  it("traffic: a still car with the minute heartbeat is not 'location stopped'", async () => {
+    const h = harness();
+    const { token } = await startTrip(h.deps, driver, ids());
+    await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now, 30.04, 31.24, { speed: 0 }) });
+    h.clock.now += 2 * MIN + 30_000;
+    await runTripTick(h.deps);
+    assert.equal(h.store.events.filter((e) => e.type === "location-stopped").length, 0);
+    h.clock.now += MIN;
+    await runTripTick(h.deps);
+    assert.equal(h.store.events.filter((e) => e.type === "location-stopped").length, 1);
+  });
+
+  it("emergency only during the run or 30 minutes after it", async () => {
+    const h = harness();
+    await startTrip(h.deps, driver, ids());
+    await endTrip(h.deps, driver, ids());
+    h.clock.now += 31 * MIN;
+    assert.equal(await reason(emergency(h.deps, driver, ids())), "trip-not-active");
   });
 });

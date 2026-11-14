@@ -159,6 +159,8 @@ export {
 // (location stopped, child not confirmed, deleting live points).
 export {
   confirmHandover,
+  endTrip,
+  endTripsOnUserWrite,
   getHandoverAdults,
   getTodayDriverCards,
   prepareTrip,
@@ -166,6 +168,7 @@ export {
   saveHandoverAdults,
   setEmergencyContact,
   startTrip,
+  stopMyTrips,
   submitSelfieCheck,
   tripAction,
   tripEmergency,

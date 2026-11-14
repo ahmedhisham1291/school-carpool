@@ -5,6 +5,7 @@ import {
   cairoDate,
   DRIVER_PHOTO_FILE,
   driverPhotoPath,
+  faceRefPath,
   parseDecision,
   parseSubmission,
   requiredFiles,
@@ -419,9 +420,15 @@ export async function decideVerification(
   // Prompt 10 (F33, F38): an approved driver photo is kept for the driver
   // card and the selfie checks; every other image is deleted after review.
   const photo = record.files.find((f) => f.endsWith(`/${DRIVER_PHOTO_FILE}`));
-  if (write.status === "approved" && photo) {
+  // The identity selfie becomes the face reference of the selfie checks
+  // (F38), so every verified driver has one (Prompt 10 review).
+  const selfie = record.files.find((f) => f.endsWith("/selfie.jpg"));
+  const keep: Array<[string, string]> = [];
+  if (write.status === "approved" && photo) keep.push([photo, driverPhotoPath(record.uid)]);
+  if (write.status === "approved" && selfie && record.scope === "identity") keep.push([selfie, faceRefPath(record.uid)]);
+  for (const [from, to] of keep) {
     try {
-      await deps.files.copy(photo, driverPhotoPath(record.uid));
+      await deps.files.copy(from, to);
     } catch (error) {
       deps.reportError(error);
     }

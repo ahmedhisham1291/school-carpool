@@ -66,7 +66,7 @@ function tripDeps(): TripDeps {
   };
   return {
     store: new FirestoreTripStore(db),
-    files: { exists: async () => false, read: async () => none(), delete: async () => undefined, signedReadUrl: async () => none() },
+    files: { list: async () => [], exists: async () => false, read: async () => none(), delete: async () => undefined, signedReadUrl: async () => none() },
     faces: { matchFace: async () => "error" },
     routes: new FakeRoutesProvider(),
     whatsapp: { sendTemplate: async (_to, template) => console.log(`[fake WhatsApp] ${template}`) },

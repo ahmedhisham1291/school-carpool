@@ -120,6 +120,12 @@ export const DRIVER_FILES = ["license.jpg", "car_license.jpg"] as const;
 export const DRIVER_PHOTO_FILE = "driver_photo.jpg";
 /** Where the approved driver photo is kept (storage.rules: Cloud Functions only). */
 export const driverPhotoPath = (uid: string): string => `driverPhotos/${uid}/photo.jpg`;
+/**
+ * Prompt 10 review (F38): the identity selfie of an approved account is
+ * kept as the face reference for the random selfie checks before runs
+ * (Cloud Functions only; open legal question in docs/progress/prompt-10.md).
+ */
+export const faceRefPath = (uid: string): string => `faceRefs/${uid}/selfie.jpg`;
 export function schoolIdFile(ref: string): string {
   return `school_id_${ref}.jpg`;
 }
