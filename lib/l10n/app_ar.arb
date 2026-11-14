@@ -8943,5 +8943,9 @@
   "homeRunsHelper": "في صفحة كل مشوار جماعي",
   "@homeRunsHelper": {
     "description": "Home row subtitle"
+  },
+  "adminDeviceShowPhotos": "اعرض الصور",
+  "@adminDeviceShowPhotos": {
+    "description": "Admin button: open the photos after choosing a reason (one line)"
   }
 }

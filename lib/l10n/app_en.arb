@@ -2008,5 +2008,6 @@
   "recoveryResumedTitle": "Tracking resumed",
   "recoveryResumedBody": "Your car's location is shared with the parents again.",
   "homeRunsRow": "Today's runs",
-  "homeRunsHelper": "On each carpool's page"
+  "homeRunsHelper": "On each carpool's page",
+  "adminDeviceShowPhotos": "Show photos"
 }

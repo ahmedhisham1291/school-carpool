@@ -210,7 +210,12 @@ void main() {
       expect(find.text('New phone check open'), findsOneWidget);
       await tester.tap(find.byKey(const Key('user.deviceCheck.open')));
       await settle(tester);
-      expect(api.calls, contains('photos:parent1:review'));
+      expect(api.calls.where((String c) => c.startsWith('photos:')), isEmpty, reason: 'nothing opened before a reason');
+      await choose(tester, const Key('deviceCheck.reason'), 'Review');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('deviceCheck.showPhotos')));
+      await settle(tester);
+      expect(api.calls.where((String c) => c.startsWith('photos:')).toList(), <String>['photos:parent1:review']);
       expect(find.byKey(const Key('deviceCheck.face')), findsOneWidget);
       expect(find.byKey(const Key('deviceCheck.selfie')), findsOneWidget);
       expect(tester.widget<AppButton>(find.byKey(const Key('deviceCheck.submit'))).onPressed, isNull, reason: 'choose how first');

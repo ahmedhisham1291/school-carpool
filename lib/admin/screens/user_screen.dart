@@ -381,17 +381,13 @@ class _DeviceCheckForm extends ConsumerStatefulWidget {
 }
 
 class _DeviceCheckFormState extends ConsumerState<_DeviceCheckForm> {
-  AccessReasonCode _reason = AccessReasonCode.review;
+  /// Chosen by the admin first: the photos open (and are logged) only after.
+  AccessReasonCode? _reason;
   DeviceCheckOutcome? _outcome;
   Future<List<AdminPhoto>>? _photos;
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  void _load() => _photos = ref.read(adminApiProvider).userPhotos(widget.uid, _reason);
+  /// One logged access, with the reason the admin picked.
+  void _open(AccessReasonCode reason) => setState(() => _photos = ref.read(adminApiProvider).userPhotos(widget.uid, reason));
 
   @override
   Widget build(BuildContext context) {
@@ -407,12 +403,19 @@ class _DeviceCheckFormState extends ConsumerState<_DeviceCheckForm> {
             for (final AccessReasonCode r in AccessReasonCode.values) (r, accessReasonLabel(l10n, r)),
           ],
           value: _reason,
-          onChanged: (AccessReasonCode r) => setState(() {
-            _reason = r;
-            _load();
-          }),
+          // Locked once the photos are open (a new reason would be a new access).
+          onChanged: _photos != null ? null : (AccessReasonCode r) => setState(() => _reason = r),
         ),
         const SizedBox(height: AppSpacing.s16),
+        if (_photos == null)
+          AppButton(
+            key: const Key('deviceCheck.showPhotos'),
+            label: l10n.adminDeviceShowPhotos,
+            variant: AppButtonVariant.secondary,
+            expand: true,
+            onPressed: _reason == null ? null : () => _open(_reason!),
+          )
+        else
         FutureBuilder<List<AdminPhoto>>(
           future: _photos,
           builder: (BuildContext context, AsyncSnapshot<List<AdminPhoto>> snap) {
@@ -458,9 +461,9 @@ class _DeviceCheckFormState extends ConsumerState<_DeviceCheckForm> {
           key: const Key('deviceCheck.submit'),
           label: l10n.adminDeviceCheckClose,
           expand: true,
-          onPressed: outcome == null
+          onPressed: outcome == null || _reason == null
               ? null
-              : () => Navigator.of(context).pop<(DeviceCheckOutcome, AccessReasonCode)>((outcome, _reason)),
+              : () => Navigator.of(context).pop<(DeviceCheckOutcome, AccessReasonCode)>((outcome, _reason!)),
         ),
       ],
     );
