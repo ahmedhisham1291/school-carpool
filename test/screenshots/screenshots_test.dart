@@ -52,6 +52,7 @@ import 'package:school_carpool/features/trips/location_tracker.dart';
 import 'package:school_carpool/features/trips/trip_models.dart';
 import 'package:school_carpool/features/trips/trip_repository.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
+import 'package:school_carpool/features/trust/trust_models.dart';
 import 'package:school_carpool/features/wallet/wallet_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
@@ -70,6 +71,7 @@ import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
 import '../helpers/trip_fakes.dart';
 import '../helpers/verification_fakes.dart';
+import '../helpers/trust_fakes.dart';
 import '../helpers/wallet_fakes.dart';
 
 Future<void> _pumpScreen(
@@ -92,6 +94,7 @@ Future<void> _pumpScreen(
   TripRepository? trips,
   LocationTracker? tracker,
   FakeWalletRepository? wallet,
+  FakeTrustRepository? trust,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -126,6 +129,7 @@ Future<void> _pumpScreen(
           trips: trips,
           tracker: tracker,
           wallet: wallet,
+          trust: trust,
         ),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
         ...extraOverrides,
@@ -777,6 +781,36 @@ void main() {
             logicalSize: const Size(390, 844),
             pixelRatio: 3,
             wallet: FakeWalletRepository(info: screen.value.$2),
+          );
+          await tester.pump(const Duration(milliseconds: 400));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Prompt 11 (F17): rate parents, family links, the yearly check and the
+  // phone change. Fake parents only.
+  final Map<String, String> trustScreens = <String, String>{
+    'rate': ProfileRoutes.ratings,
+    'family': ProfileRoutes.family,
+    'school_year': ProfileRoutes.schoolYear,
+    'phone': ProfileRoutes.phone,
+  };
+  for (final MapEntry<String, String> screen in trustScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'trust_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: screen.value,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            trust: FakeTrustRepository(overviewValue: const TrustOverview(summary: TrustSummary(ratings: 4, average: 4.5, vouches: 2), toRate: 2, yearCheck: sampleYearCheck)),
           );
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));

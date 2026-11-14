@@ -1307,3 +1307,91 @@ Change them to the partner's limits when the contract is signed.
   how add money (payment page) and withdraw (to which account) work, the
   dispute process, and that transfers between parents carry no fee.
 
+
+## 22. Trust and yearly checks (Prompt 11)
+
+Ratings and vouching, family (guardian) links, driving papers, the yearly
+check of children and the re-verification of a new phone number or car.
+All of it runs in Cloud Functions (`functions/src/trust/`); the app reads
+and writes no trust record directly (`tests/rules/trust.test.ts`).
+
+### 22.1 Functions settings (each cloud project)
+
+In `functions/.env.<alias>` (defaults shown):
+
+```
+TRUST_RATE_WINDOW_DAYS=30   # a finished trip can be rated for 30 days
+SCHOOL_YEAR_START=09-01     # first day of the school year (Cairo)
+YEAR_CHECK_OPEN_DAYS=21     # the yearly check opens this many days before it
+YEAR_CHECK_GRACE_DAYS=14    # and closes this many days after it
+YEAR_CHECK_FIRST_YEAR=2027  # first school year that is checked (2027 = 2027-28)
+LICENCE_REMINDER_DAYS=30,7,1
+```
+
+After the deadline a parent who did not confirm gets no new driving days
+until they do (`users.yearCheckOverdue`, written by `trustDaily`).
+
+### 22.2 Indexes, schedule and storage
+
+- `firebase deploy --only firestore:indexes,firestore:rules,storage` (new
+  indexes on `trips` (viewerUids, status, date), `guardianLinks`,
+  `ratings`, `memberships` (uid, status); the `phoneChecks/` upload rule).
+- `trustDaily` runs every morning at 08:10 Cairo time: papers reminders
+  (30, 7 and 1 days before the earlier expiry), "papers expired" with the
+  runs after it released, and the yearly check's reminders and deadline.
+  One more Cloud Scheduler job (docs/COSTS.md).
+- Triggers: `releaseRunsOnUserBlock` (suspend or ban: the driver's runs
+  open for the group), `recheckRunsOnVehicleWrite` (a car that changed or
+  expired: runs it cannot carry are released) and
+  `refreshOnGuardianLinkWrite` (a linked parent's map and school groups).
+
+### 22.3 WhatsApp templates (with section 18.4; off by default)
+
+| Template | English body |
+| --- | --- |
+| `cp_licence_expiring` | Your licence or car licence expires on {{1}}. Renew it and update your driving details. |
+| `cp_licence_expired` | You get no new driving days until you update your driving details. |
+| `cp_year_check` | Confirm your children, grades and schools for the new year. |
+| `cp_guardian_requested` | Another parent asked to link to your children. Open the app to answer. |
+| `cp_guardian_linked` | Your account is now linked to the other parent's children. |
+| `cp_guardian_declined` | You were not linked to the children. Open the app for details. |
+| `cp_phone_changed` | Your account's phone number changed. If it wasn't you, contact us at once. |
+
+Arabic bodies: `functions/src/notifications/texts.ts`. All are in the new
+"Papers and family" group, push only unless the parent switches WhatsApp
+on (COST MODE).
+
+### 22.4 Try it on the emulators and the iPhone (the "Done when" check)
+
+The iPhone is a verified parent in a carpool with the seed's Hoda
+(`seed-map-parent-1`), with the week planned (sections 17.3 and 20.6).
+
+1. **Rate a parent after a finished trip.** Make one run a finished trip
+   (test data): `npm --prefix functions run carpool:emulator -- finishtrip
+   <carpoolId> <runId> --as any` (a run Hoda drives with your child, or
+   you drive with hers). On the iPhone: Profile > Rate parents > Hoda >
+   stars, a tag, "I vouch" > Send rating. "Thanks for rating"; she leaves
+   the list until next month. The finished run's screen also has "Rate this
+   trip". Two stars or "Unsafe driving" go to the admin panel > Trust.
+2. **An expired licence blocks a driving day.** `... -- expire 2026-11-16
+   --as seed-map-parent-1` (her licence's last valid day). Her runs after
+   that day lose the driver (the group hears "driver unavailable"), and
+   taking one of them or planning her refuses ("car expired"). On her
+   Profile > Driving: "Your papers expired". `... -- trustdaily --as any`
+   sends the "papers expire soon / expired" notices.
+3. **Suspending a driver opens swap requests.** Admin panel > Users > Hoda >
+   Suspend (the dialog says her driving days open for her groups). On the
+   iPhone the carpool's schedule shows her runs open ("Needs a driver") and
+   the alert says only that the driver is unavailable; take one with Take.
+4. **Yearly check.** Set `YEAR_CHECK_FIRST_YEAR` to the current year and,
+   for a quick try, `SCHOOL_YEAR_START` to a date within 21 days, restart
+   the emulators, run `... -- trustdaily --as any`. Profile shows "New
+   school year"; confirm with one child "Left school": the child leaves the
+   carpool and the school chats.
+5. **Family links.** Second account: Profile > Family links > Link to a
+   parent > your parent ID, Mother > Send request. On the iPhone: Requests
+   for you > tick the children > Accept. A "Guardian" link waits in the
+   admin panel > Trust.
+6. **Phone change.** Profile > Phone > new number > code (the fake
+   WhatsApp sender logs it in the functions emulator) > selfie. The fake
+   face check answers what `config/kyc` says (section 9).

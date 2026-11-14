@@ -23,7 +23,7 @@ abstract interface class TrustRepository {
   Future<FamilyView> family();
 
   /// Asks the parent with [parentId] to link their children. Returns their first name.
-  Future<String> requestLink({required String parentId, required Relation relation});
+  Future<String> requestLink({required String parentId, required GuardianRelation relation});
 
   Future<void> cancelLinkRequest(String requestId);
 
@@ -84,7 +84,7 @@ class FirebaseTrustRepository implements TrustRepository {
   Future<FamilyView> family() async => FamilyView.fromMap(await _call('getFamily'));
 
   @override
-  Future<String> requestLink({required String parentId, required Relation relation}) async {
+  Future<String> requestLink({required String parentId, required GuardianRelation relation}) async {
     final Object? name = (await _call('requestGuardianLink', <String, Object?>{'parentId': parentId, 'relation': relation.name}))['firstName'];
     return name is String ? name : '';
   }

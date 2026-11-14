@@ -106,7 +106,7 @@ class _FamilyContent extends ConsumerWidget {
     final AppLocalizations l10n = context.l10n;
     final TextStyle? quiet = context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant);
     String linkSubtitle(GuardianLink l, String who) =>
-        l.status == LinkStatus.review ? '$who · ${l10n.familyInReview}' : '$who · ${relationLabel(l10n, l.relation)}';
+        l.status == LinkStatus.review ? '$who · ${l10n.familyInReview}' : '$who · ${guardianRelationLabel(l10n, l.relation)}';
     return ListView(
       key: const Key('family.list'),
       padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),
@@ -139,7 +139,7 @@ class _FamilyContent extends ConsumerWidget {
             AppListRow(
               key: Key('family.incoming.${r.id}'),
               title: r.guardianFirstName,
-              subtitle: relationLabel(l10n, r.relation),
+              subtitle: guardianRelationLabel(l10n, r.relation),
               leadingIcon: Icons.person_add_alt_outlined,
               onTap: () => unawaited(_answer(context, ref, r)),
             ),
@@ -150,7 +150,7 @@ class _FamilyContent extends ConsumerWidget {
             AppListRow(
               key: Key('family.outgoing.${r.id}'),
               title: l10n.familyWaiting,
-              subtitle: relationLabel(l10n, r.relation),
+              subtitle: guardianRelationLabel(l10n, r.relation),
               leadingIcon: Icons.hourglass_top_rounded,
               showChevron: false,
               trailing: AppButton(
@@ -217,7 +217,7 @@ class LinkRequestForm extends ConsumerStatefulWidget {
 class _LinkRequestFormState extends ConsumerState<LinkRequestForm> {
   static final RegExp _parentId = RegExp(r'^[2-9A-HJ-NP-Z]{8}$');
   final TextEditingController _id = TextEditingController();
-  Relation? _relation;
+  GuardianRelation? _relation;
   bool _busy = false;
   String? _error;
 
@@ -242,7 +242,7 @@ class _LinkRequestFormState extends ConsumerState<LinkRequestForm> {
   Future<void> _send() async {
     final AppLocalizations l10n = context.l10n;
     final NavigatorState navigator = Navigator.of(context);
-    final Relation? relation = _relation;
+    final GuardianRelation? relation = _relation;
     if (relation == null) {
       return;
     }
@@ -294,16 +294,16 @@ class _LinkRequestFormState extends ConsumerState<LinkRequestForm> {
           spacing: AppSpacing.s8,
           runSpacing: AppSpacing.s8,
           children: <Widget>[
-            for (final Relation r in Relation.values)
+            for (final GuardianRelation r in GuardianRelation.values)
               AppChip(
                 key: Key('family.relation.${r.name}'),
-                label: relationLabel(l10n, r),
+                label: guardianRelationLabel(l10n, r),
                 selected: _relation == r,
                 onSelected: _busy ? null : (bool on) => setState(() => _relation = on ? r : null),
               ),
           ],
         ),
-        if (_relation == Relation.guardian) ...<Widget>[
+        if (_relation == GuardianRelation.guardian) ...<Widget>[
           const SizedBox(height: AppSpacing.s8),
           AppInlineMessage(message: l10n.familyGuardianNote),
         ],
@@ -373,7 +373,7 @@ class _AnswerRequestFormState extends ConsumerState<AnswerRequestForm> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Text(l10n.familyAnswerBody(widget.request.guardianFirstName, relationLabel(l10n, widget.request.relation))),
+        Text(l10n.familyAnswerBody(widget.request.guardianFirstName, guardianRelationLabel(l10n, widget.request.relation))),
         const SizedBox(height: AppSpacing.s16),
         if (children.isEmpty)
           AppInlineMessage(message: l10n.familyNoChildren)

@@ -22,13 +22,13 @@ const YearCheck sampleYearCheck = YearCheck(
 );
 
 const FamilyView sampleFamily = FamilyView(
-  incoming: <GuardianRequest>[GuardianRequest(id: 'uid-1_uid-dina', guardianFirstName: 'Dina', relation: Relation.mother)],
-  outgoing: <GuardianRequest>[GuardianRequest(id: 'uid-sami_uid-1', guardianFirstName: 'Test', relation: Relation.father)],
+  incoming: <GuardianRequest>[GuardianRequest(id: 'uid-1_uid-dina', guardianFirstName: 'Dina', relation: GuardianRelation.mother)],
+  outgoing: <GuardianRequest>[GuardianRequest(id: 'uid-sami_uid-1', guardianFirstName: 'Test', relation: GuardianRelation.father)],
   shared: <GuardianLink>[
-    GuardianLink(id: 'k1_uid-dina', childFirstName: 'Omar', ownerFirstName: 'Test', guardianFirstName: 'Dina', relation: Relation.mother, status: LinkStatus.active),
+    GuardianLink(id: 'k1_uid-dina', childFirstName: 'Omar', ownerFirstName: 'Test', guardianFirstName: 'Dina', relation: GuardianRelation.mother, status: LinkStatus.active),
   ],
   linked: <GuardianLink>[
-    GuardianLink(id: 'k9_uid-1', childFirstName: 'Laila', ownerFirstName: 'Sami', guardianFirstName: 'Test', relation: Relation.guardian, status: LinkStatus.review),
+    GuardianLink(id: 'k9_uid-1', childFirstName: 'Laila', ownerFirstName: 'Sami', guardianFirstName: 'Test', relation: GuardianRelation.guardian, status: LinkStatus.review),
   ],
 );
 
@@ -50,7 +50,7 @@ class FakeTrustRepository implements TrustRepository {
   final Map<String, TrustFailure> failOnce = <String, TrustFailure>{};
   RatingDraft? lastRating;
   List<YearAnswer>? lastAnswers;
-  (String, Relation)? lastLinkRequest;
+  (String, GuardianRelation)? lastLinkRequest;
   (String, bool, List<String>)? lastAnswer;
   bool flagged = false;
 
@@ -101,7 +101,7 @@ class FakeTrustRepository implements TrustRepository {
   }
 
   @override
-  Future<String> requestLink({required String parentId, required Relation relation}) async {
+  Future<String> requestLink({required String parentId, required GuardianRelation relation}) async {
     await _maybeFail('requestLink:$parentId');
     lastLinkRequest = (parentId, relation);
     return 'Sami';

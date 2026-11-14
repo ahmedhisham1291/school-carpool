@@ -171,19 +171,19 @@ class RatingDraft {
   };
 }
 
-/// Relation of a linked parent to the children (spec section 9).
-enum Relation {
+/// GuardianRelation of a linked parent to the children (spec section 9).
+enum GuardianRelation {
   father,
   mother,
   guardian;
 
-  static Relation fromName(Object? name) {
-    for (final Relation r in values) {
+  static GuardianRelation fromName(Object? name) {
+    for (final GuardianRelation r in values) {
       if (r.name == name) {
         return r;
       }
     }
-    return Relation.guardian;
+    return GuardianRelation.guardian;
   }
 }
 
@@ -194,11 +194,11 @@ class GuardianRequest {
   const GuardianRequest({required this.id, required this.guardianFirstName, required this.relation});
 
   factory GuardianRequest.fromMap(Map<Object?, Object?> m) =>
-      GuardianRequest(id: _str(m['id']), guardianFirstName: _str(m['guardianFirstName']), relation: Relation.fromName(m['relation']));
+      GuardianRequest(id: _str(m['id']), guardianFirstName: _str(m['guardianFirstName']), relation: GuardianRelation.fromName(m['relation']));
 
   final String id;
   final String guardianFirstName;
-  final Relation relation;
+  final GuardianRelation relation;
 }
 
 @immutable
@@ -217,7 +217,7 @@ class GuardianLink {
     childFirstName: _str(m['childFirstName']),
     ownerFirstName: _str(m['ownerFirstName']),
     guardianFirstName: _str(m['guardianFirstName']),
-    relation: Relation.fromName(m['relation']),
+    relation: GuardianRelation.fromName(m['relation']),
     status: switch (m['status']) {
       'review' => LinkStatus.review,
       'active' => LinkStatus.active,
@@ -229,7 +229,7 @@ class GuardianLink {
   final String childFirstName;
   final String ownerFirstName;
   final String guardianFirstName;
-  final Relation relation;
+  final GuardianRelation relation;
   final LinkStatus status;
 }
 

@@ -74,9 +74,9 @@ void main() {
         'incoming': <Object?>[<Object?, Object?>{'id': 'a_b', 'guardianFirstName': 'Dina', 'relation': 'mother'}],
         'linked': <Object?>[<Object?, Object?>{'id': 'k1_b', 'childFirstName': 'Omar', 'status': 'review', 'relation': 'uncle'}],
       });
-      expect(f.incoming.single.relation, Relation.mother);
+      expect(f.incoming.single.relation, GuardianRelation.mother);
       expect(f.linked.single.status, LinkStatus.review);
-      expect(f.linked.single.relation, Relation.guardian);
+      expect(f.linked.single.relation, GuardianRelation.guardian);
       expect(f.isEmpty, isFalse);
       expect(const FamilyView().isEmpty, isTrue);
       final RateableParent p = RateableParent.fromMap(const <Object?, Object?>{'uid': 'u', 'firstName': 'Hoda', 'role': 'driver', 'date': '2026-11-12'});

@@ -111,7 +111,7 @@ class _LinkRow extends ConsumerWidget {
       inset: false,
       title: l10n.adminTrustLinkTitle(link.guardianFirstName, link.childFirstName),
       subtitle: <String>[
-        relationLabel(l10n, Relation.fromName(link.relation)),
+        guardianRelationLabel(l10n, GuardianRelation.fromName(link.relation)),
         l10n.adminTrustLinkOwner(link.ownerFirstName),
         adminDateTime(context, link.createdAt),
       ].join(' · '),

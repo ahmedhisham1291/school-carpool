@@ -18,10 +18,10 @@ String ratingTagLabel(AppLocalizations l10n, RatingTag t) => switch (t) {
   RatingTag.rude => l10n.rateTagRude,
 };
 
-String relationLabel(AppLocalizations l10n, Relation r) => switch (r) {
-  Relation.father => l10n.relationFather,
-  Relation.mother => l10n.relationMother,
-  Relation.guardian => l10n.relationGuardian,
+String guardianRelationLabel(AppLocalizations l10n, GuardianRelation r) => switch (r) {
+  GuardianRelation.father => l10n.relationFather,
+  GuardianRelation.mother => l10n.relationMother,
+  GuardianRelation.guardian => l10n.relationGuardian,
 };
 
 /// "Drove your child · 12 Nov 2026" / "Rode with you · ...".

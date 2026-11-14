@@ -33,6 +33,14 @@
  *   ... -- home <carpoolId> <runId> <childId> --as seed-map-parent-1  (confirm the handover, F34)
  *   ... -- triptick --as any         ("location stopped", "child not confirmed", cleanup: the trip tick)
  *
+ * Trust (Prompt 11, F17):
+ *   ... -- finishtrip <carpoolId> <runId> --as any   (test data: the run as a FINISHED trip, every
+ *       child carried, so its driver and parents can rate each other)
+ *   ... -- expire <YYYY-MM-DD> --as <driver uid>      (test data: the driver's licence expires that
+ *       day; runs after it lose the driver; planning and taking refuse "car-expired")
+ *   ... -- trustdaily --as any                       (papers reminders and the yearly check now;
+ *       set YEAR_CHECK_FIRST_YEAR to this year to try the check)
+ *
  * Emulators and demo- projects only (fake data only).
  */
 import { initializeApp } from "firebase-admin/app";
@@ -57,7 +65,12 @@ import { confirmRun, planWeek, requestSwap, runScheduleTick, setChildAbsent, set
 import { confirmHandover, runTripTick, type TripDeps } from "../src/trips/flow";
 import { TripError } from "../src/trips/model";
 import { FakeRoutesProvider } from "../src/trips/routes";
-import { FirestoreTripStore } from "../src/trips/store";
+import { FirestoreTripStore, tripToDoc } from "../src/trips/store";
+import { applyCarChange } from "../src/trust/carpools";
+import { runTrustDaily } from "../src/trust/jobs";
+import { parseReminderDays, yearSettings } from "../src/trust/model";
+import { FirestoreTrustStore } from "../src/trust/store";
+import { carInfo } from "../src/carpools/model";
 
 /** Trip flows on the emulators: no Storage, no face match, WhatsApp only logged. */
 function tripDeps(): TripDeps {
@@ -108,7 +121,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
   const uid = option(args, "--as");
-  if (!command || !uid) refuse("usage: <search|request|approve|consent|invite|mine|days|plan|runs|confirm|swap|take|absent|tick|remind|trip|home|triptick> ... --as <uid> (see the header)");
+  if (!command || !uid) refuse("usage: <search|request|approve|consent|invite|mine|days|plan|runs|confirm|swap|take|absent|tick|remind|trip|home|triptick|finishtrip|expire|trustdaily> ... --as <uid> (see the header)");
   const caller = { uid, verifiedClaim: true };
   switch (command) {
     case "search": {
@@ -189,6 +202,82 @@ async function main(): Promise<void> {
       return;
     case "mine":
       for (const m of await store.membershipsOf(uid)) console.log(`${m.carpoolId}  ${m.status}  ${m.role}`);
+      return;
+    case "finishtrip": {
+      const run = await store.transact((tx) => tx.run(args[1], args[2]));
+      if (!run || !run.driverUid) refuse("no run with a driver (plan and confirm it first)");
+      const nowMs = Date.now();
+      const carried = run.direction === "toSchool" ? "dropped" : "received";
+      await db.collection("trips").doc(`${run.carpoolId}_${run.id}`).set(
+        tripToDoc({
+          id: `${run.carpoolId}_${run.id}`,
+          carpoolId: run.carpoolId,
+          runId: run.id,
+          date: run.date,
+          direction: run.direction,
+          driverUid: run.driverUid,
+          driverFirstName: run.driverFirstName,
+          car: null,
+          status: "ended",
+          startedAtMs: nowMs - 30 * 60_000,
+          trackingEndedAtMs: nowMs,
+          endedAtMs: nowMs,
+          endReason: "done",
+          viewerUids: [...new Set([run.driverUid, ...run.riders.map((r) => r.parentUid)])],
+          childIds: run.riders.map((r) => r.id),
+          stops: run.riders.map((r) => ({
+            childId: r.id,
+            firstName: r.firstName,
+            parentUid: r.parentUid,
+            state: carried,
+            arrivedCount: 0,
+            arrivedAtMs: null,
+            pickedUpAtMs: nowMs - 20 * 60_000,
+            droppedAtMs: nowMs,
+            receivedAtMs: carried === "received" ? nowMs : null,
+            notConfirmedAtMs: null,
+            handover: [],
+          })),
+          last: null,
+          lastPointAtMs: null,
+          staleAlertedAtMs: null,
+          tokenHash: "",
+          tokenExpiresAtMs: nowMs,
+          lastEtaAtMs: null,
+          accountCheckedAtMs: null,
+          messages: [],
+          doneRequests: [],
+          updatedAtMs: nowMs,
+        }),
+      );
+      console.log(`trip ${run.carpoolId}_${run.id} ended with ${run.riders.length} child(ren)`);
+      return;
+    }
+    case "expire": {
+      const date = args[1];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? "")) refuse("give the last valid day as YYYY-MM-DD");
+      await db.collection("vehicles").doc(uid).update({ licenseExpiry: date });
+      // The vehicle trigger does the same on the functions emulator; here at once.
+      const car = carInfo(await store.vehicle(uid));
+      console.log(`runs released: ${await applyCarChange(deps, uid, car)}`);
+      return;
+    }
+    case "trustdaily":
+      console.log(
+        await runTrustDaily({
+          store: new FirestoreTrustStore(db),
+          carpools: deps,
+          now: () => Date.now(),
+          reminderDays: parseReminderDays(process.env.LICENCE_REMINDER_DAYS ?? "30,7,1"),
+          year: yearSettings(
+            process.env.SCHOOL_YEAR_START ?? "09-01",
+            Number(process.env.YEAR_CHECK_OPEN_DAYS ?? 21),
+            Number(process.env.YEAR_CHECK_GRACE_DAYS ?? 14),
+            Number(process.env.YEAR_CHECK_FIRST_YEAR ?? 2027),
+          ),
+          log: (message, data) => console.log(message, data ?? ""),
+        }),
+      );
       return;
     default:
       refuse(`unknown command ${command}`);

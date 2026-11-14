@@ -161,7 +161,7 @@ void main() {
       await _type(tester, find.byKey(const Key('family.parentId')), 'sami 2345');
       await _tap(tester, find.byKey(const Key('family.relation.mother')));
       await _tap(tester, find.byKey(const Key('family.send')));
-      expect(trust.lastLinkRequest, ('SAMI2345', Relation.mother));
+      expect(trust.lastLinkRequest, ('SAMI2345', GuardianRelation.mother));
       expect(find.text('Request sent to Sami'), findsOneWidget);
     });
 
@@ -306,7 +306,7 @@ void main() {
           expectOneLine(find.byType(AppSectionHeader), 'headers $where', allowEllipsis: scale > 1);
           await _tap(tester, find.byKey(const Key('family.link')));
           expectOneLine(find.byKey(const Key('family.send')), 'send $where', requireText: true);
-          for (final Relation r in Relation.values) {
+          for (final GuardianRelation r in GuardianRelation.values) {
             expectOneLine(find.byKey(Key('family.relation.${r.name}')), 'relation $where', requireText: true, allowEllipsis: scale > 1);
           }
         });
