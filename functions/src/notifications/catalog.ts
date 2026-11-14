@@ -93,9 +93,9 @@ export const WHATSAPP_DEFAULTS: Readonly<Record<WhatsAppGroup, boolean>> = {
   joins: false,
   verification: false,
   newParents: false,
-  // Prompt 11B: money moving is a security signal (a stolen phone), so
-  // wallet messages go to WhatsApp by default; few per parent.
-  wallet: true,
+  // Prompt 11B: COST MODE, push only unless the parent switches WhatsApp
+  // on (owner decision; the app's own alerts are always sent).
+  wallet: false,
 };
 
 export function isWhatsAppGroup(value: unknown): value is WhatsAppGroup {

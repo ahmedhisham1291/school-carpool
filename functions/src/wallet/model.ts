@@ -111,6 +111,8 @@ export function limitsFrom(doc: Record<string, unknown> | null | undefined): Wal
   return out;
 }
 
+/** One reconcile at a time per transfer: a lease on its pending entry. */
+export const RECONCILE_LEASE_MS = 60_000;
 /** A pending transfer is checked with the partner after this long (reconcile job and app polls). */
 export const RECONCILE_AFTER_MS = 30_000;
 /** The partner has no record of it: sent again (same request ID) at most this many times. */
@@ -130,7 +132,11 @@ export type ReportReason = (typeof REPORT_REASONS)[number];
 export const FREEZE_REASONS = ["fraudSuspected", "parentAsked", "stolenPhone", "dispute", "partnerRequest", "other"] as const;
 export type FreezeReason = (typeof FREEZE_REASONS)[number];
 
-export type AlertKind = "new-receivers" | "many-transfers" | "report";
+/**
+ * stuck: a transfer whose outcome the partner could not confirm and could
+ * not cancel; it stays pending until an admin settles it with the partner.
+ */
+export type AlertKind = "new-receivers" | "many-transfers" | "report" | "stuck";
 
 // --------------------------------------------------------------------------
 // Records
@@ -147,6 +153,11 @@ export interface WalletRecord {
   frozenReason: FreezeReason | null;
   frozenAtMs: number | null;
   frozenBy: string | null;
+  /**
+   * False when our status (frozen or active) has not reached the partner
+   * yet; walletReconcile applies it again until it has.
+   */
+  partnerSynced: boolean;
   openedAtMs: number;
   updatedAtMs: number;
 }
@@ -190,6 +201,8 @@ export interface PendingRecord {
   createdAtMs: number;
   resends: number;
   checkedAtMs: number;
+  /** A reconcile holds the entry until then (0: free). */
+  leaseUntilMs: number;
 }
 
 /** walletDaily/{uid}_{day}: what the parent moved out and added that day (server only). */

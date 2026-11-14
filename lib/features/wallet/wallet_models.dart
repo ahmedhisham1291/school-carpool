@@ -18,12 +18,19 @@ abstract final class Money {
   /// Largest amount the app lets a parent type (the server has its own limits).
   static const int maxTyped = 10000000 * perPound;
 
-  static final RegExp _typed = RegExp(r'^(\d{1,8})(?:\.(\d{1,2}))?$');
+  static final RegExp _plain = RegExp(r'^\d{1,8}$');
+  static final RegExp _grouped = RegExp(r'^\d{1,3}(,\d{3})+$');
+  static final RegExp _cents = RegExp(r'^\d{1,2}$');
 
-  /// Piastres from what the parent typed ("125", "12.5", "١٢٫٥٠"), or null.
-  /// Arabic-Indic digits and the Arabic decimal mark are accepted; thousands
-  /// separators and spaces are ignored. More than two decimals is refused,
-  /// never rounded.
+  /// Piastres from what the parent typed, or null when it is not a clear
+  /// amount. Strict, never a guess:
+  /// - Arabic-Indic and Western digits; spaces are ignored;
+  /// - one decimal mark: "." or the Arabic mark, or a single comma followed
+  ///   by one or two digits ("12,50" is 12.50, as some keypads type it);
+  /// - thousands separators (comma or the Arabic one) only in real groups of
+  ///   three ("1,250", "1,250.50"); anything else ("1,2,3", "12,5000",
+  ///   "1.2.3") is refused;
+  /// - at most two decimals: more is refused, never rounded.
   static int? parse(String input) {
     final StringBuffer b = StringBuffer();
     for (final int rune in input.trim().runes) {
@@ -33,20 +40,44 @@ abstract final class Money {
         b.writeCharCode(0x30 + rune - 0x06F0);
       } else if (rune == 0x066B) {
         b.write('.');
-      } else if (rune == 0x066C || rune == 0x2C || rune == 0x20 || rune == 0xA0) {
+      } else if (rune == 0x066C) {
+        b.write(',');
+      } else if (rune == 0x20 || rune == 0xA0) {
         continue;
       } else {
         b.writeCharCode(rune);
       }
     }
-    final RegExpMatch? m = _typed.firstMatch(b.toString());
-    if (m == null) {
+    final String text = b.toString();
+    String whole;
+    String? cents;
+    final List<String> dot = text.split('.');
+    if (dot.length > 2) {
       return null;
     }
-    final int pounds = int.parse(m[1]!);
-    final String? cents = m[2];
-    final int rest = cents == null ? 0 : int.parse(cents.padRight(2, '0'));
-    final int value = pounds * perPound + rest;
+    if (dot.length == 2) {
+      whole = dot[0];
+      cents = dot[1];
+    } else {
+      final List<String> comma = text.split(',');
+      if (comma.length == 2 && _cents.hasMatch(comma[1])) {
+        // A decimal comma: "12,5" or "12,50".
+        whole = comma[0];
+        cents = comma[1];
+      } else {
+        whole = text;
+      }
+    }
+    if (cents != null && !_cents.hasMatch(cents)) {
+      return null;
+    }
+    if (_grouped.hasMatch(whole)) {
+      whole = whole.replaceAll(',', '');
+    }
+    if (!_plain.hasMatch(whole)) {
+      return null;
+    }
+    final int value = int.parse(whole) * perPound + (cents == null ? 0 : int.parse(cents.padRight(2, '0')));
     return value <= maxTyped ? value : null;
   }
 
@@ -82,9 +113,9 @@ abstract final class Money {
   }
 
   /// A carpool contribution (F25): whole pounds per child times the parent's
-  /// children in the carpool, in piastres. Integers only.
+  /// children in the carpool, in piastres. Integers only; 0 without children.
   static int contribution({required int poundsPerChild, required int children}) =>
-      poundsPerChild * perPound * max(children, 1);
+      poundsPerChild * perPound * max(children, 0);
 }
 
 /// A new random request ID (UUID v4) for each money request. Kept while

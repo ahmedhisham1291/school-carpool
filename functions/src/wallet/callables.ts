@@ -25,6 +25,7 @@ import {
   lookupParent as lookupFlow,
   openWallet as openFlow,
   reconcileAll,
+  syncPartnerFreezes,
   reportTransfer as reportFlow,
   sendTransfer as sendFlow,
   walletContacts as contactsFlow,
@@ -65,7 +66,8 @@ function walletProvider(): WalletProvider | null {
 const log = (message: string, data?: Record<string, unknown>) => logger.info(message, data ?? {});
 
 function deps(): WalletDeps {
-  return { store: new FirestoreWalletStore(adminDb()), provider: walletProvider(), now: () => Date.now(), log };
+  const lists = new FirestoreListsStore(adminDb());
+  return { store: new FirestoreWalletStore(adminDb()), provider: walletProvider(), now: () => Date.now(), log, audit: (entry) => lists.audit(entry) };
 }
 
 function caller(request: CallableRequest): Caller {
@@ -123,7 +125,8 @@ export const reportTransfer = onCall(opts, (r) => run("reportTransfer", () => re
 
 /**
  * Every 5 minutes: pending transfers are settled by asking the partner
- * (never by guessing), so a lost answer never leaves money unaccounted for.
+ * (never by guessing), so a lost answer never leaves money unaccounted for;
+ * freezes the partner missed are applied again.
  */
 export const walletReconcile = onSchedule(
   { schedule: "every 5 minutes", timeZone: CAIRO_TZ, retryCount: 0, timeoutSeconds: 300, minInstances: 0 },
@@ -132,7 +135,8 @@ export const walletReconcile = onSchedule(
     if (!d.provider) return;
     try {
       const result = await reconcileAll(d);
-      if (result.checked > 0) logger.info("wallet reconcile", result);
+      const frozen = await syncPartnerFreezes(d);
+      if (result.checked > 0 || frozen > 0) logger.info("wallet reconcile", { ...result, partnerFreezes: frozen });
     } catch (error) {
       logger.error("wallet reconcile failed", { message: error instanceof Error ? error.message : "unknown" });
       await reportError(error);

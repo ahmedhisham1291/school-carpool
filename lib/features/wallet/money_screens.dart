@@ -53,6 +53,10 @@ class _MoneyFormState extends ConsumerState<_MoneyForm> {
   String? _error;
   String? _requestId;
   int? _requestAmount;
+
+  /// A request went out without a definite answer: the amount is locked and
+  /// only the same request ID is sent again (never a second one).
+  bool _locked = false;
   MoneyResult? _result;
 
   @override
@@ -108,8 +112,9 @@ class _MoneyFormState extends ConsumerState<_MoneyForm> {
           return;
         }
       }
-      // Same amount as the last try: the same request (a retry cannot run twice).
-      if (_requestAmount != amount) {
+      // Same amount as the last try: the same request (a retry cannot run
+      // twice). A new ID only for a new amount, and never while locked.
+      if (!_locked && _requestAmount != amount) {
         _requestId = ref.read(requestIdFactoryProvider)();
         _requestAmount = amount;
       }
@@ -133,7 +138,12 @@ class _MoneyFormState extends ConsumerState<_MoneyForm> {
       }
     } on WalletFailure catch (f) {
       if (mounted) {
-        setState(() => _error = f.outcomeUnknown ? l10n.walletSendUnknown : f.message(l10n));
+        setState(() {
+          if (f.outcomeUnknown) {
+            _locked = true;
+          }
+          _error = f.outcomeUnknown ? l10n.walletMoneyLocked : f.message(l10n);
+        });
       }
     } finally {
       if (mounted) {
@@ -199,7 +209,9 @@ class _MoneyFormState extends ConsumerState<_MoneyForm> {
     final String? fieldError = _touched ? _amountError(l10n, info) : null;
     final String? error = _error;
     final int max = widget.withdraw ? info.limits.perTransferMax : info.limits.topUpMax;
-    final bool ready = Money.parse(_amount.text) != null && _amountError(l10n, info) == null;
+    // Locked: the same request is sent again as it was (no new checks that
+    // could block the retry).
+    final bool ready = _locked || (Money.parse(_amount.text) != null && _amountError(l10n, info) == null);
     final TextStyle? quiet = context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant);
     return ListView(
       key: Key(widget.withdraw ? 'withdraw.form' : 'add.form'),
@@ -220,6 +232,7 @@ class _MoneyFormState extends ConsumerState<_MoneyForm> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           textDirection: TextDirection.ltr,
           prefixText: l10n.walletCurrencyShort,
+          enabled: !_locked,
           onChanged: (_) => setState(() => _touched = true),
         ),
         const SizedBox(height: AppSpacing.s8),

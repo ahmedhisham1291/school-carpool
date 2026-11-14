@@ -92,6 +92,7 @@ export function walletToDoc(w: WalletRecord): DocumentData {
     frozenReason: w.frozenReason,
     frozenAt: tsOrNull(w.frozenAtMs),
     frozenBy: w.frozenBy,
+    partnerSynced: w.partnerSynced,
     openedAt: ts(w.openedAtMs),
     updatedAt: ts(w.updatedAtMs),
   };
@@ -108,6 +109,7 @@ export function walletFromDoc(uid: string, d: DocumentData): WalletRecord {
     frozenReason: isFreezeReason(d.frozenReason) ? d.frozenReason : null,
     frozenAtMs: msOrNull(d.frozenAt),
     frozenBy: text(d.frozenBy) || null,
+    partnerSynced: d.partnerSynced !== false,
     openedAtMs: ms(d.openedAt),
     updatedAtMs: ms(d.updatedAt),
   };
@@ -128,9 +130,10 @@ export function transferToDoc(t: TransferRecord): DocumentData {
     note: t.note,
     carpoolId: t.carpoolId,
     day: t.day,
-    // The record is never changed: its first status stays "pending"; the
-    // outcome is transferResults/{id} (spec section 9, "Transfer").
-    status: "pending",
+    // The record is never changed. Its status is NOT here: the outcome is
+    // transferResults/{id} (spec section 9, "Transfer"); this only says how
+    // every transfer starts, so a console reader is not misled.
+    initialStatus: "pending",
     createdAt: ts(t.createdAtMs),
   };
 }
@@ -172,7 +175,7 @@ export function resultFromDoc(id: string, d: DocumentData): TransferResult {
 }
 
 function pendingFromDoc(id: string, d: DocumentData): PendingRecord {
-  return { id, uid: text(d.uid), createdAtMs: ms(d.createdAt), resends: int(d.resends), checkedAtMs: ms(d.checkedAt) };
+  return { id, uid: text(d.uid), createdAtMs: ms(d.createdAt), resends: int(d.resends), checkedAtMs: ms(d.checkedAt), leaseUntilMs: ms(d.leaseUntil) };
 }
 
 function dailyFromDoc(d: DocumentData | undefined): DailyCounter {
@@ -265,10 +268,16 @@ export class FirestoreWalletStore implements WalletStore {
     if (change.frozenReason !== undefined) d.frozenReason = change.frozenReason;
     if (change.frozenAtMs !== undefined) d.frozenAt = tsOrNull(change.frozenAtMs);
     if (change.frozenBy !== undefined) d.frozenBy = change.frozenBy;
+    if (change.partnerSynced !== undefined) d.partnerSynced = change.partnerSynced;
     if (change.updatedAtMs !== undefined) d.updatedAt = ts(change.updatedAtMs);
     // The admin's note stays on the server (never shown to the parent).
     if (note !== undefined) d.adminNote = note;
     await this.db.collection(WALLETS).doc(uid).update(d);
+  }
+
+  async walletsToSync(limit: number): Promise<WalletRecord[]> {
+    const snap = await this.db.collection(WALLETS).where("partnerSynced", "==", false).limit(limit).get();
+    return snap.docs.map((d) => walletFromDoc(d.id, d.data()));
   }
 
   async limits(): Promise<WalletLimits> {
@@ -276,7 +285,7 @@ export class FirestoreWalletStore implements WalletStore {
     return limitsFrom(snap.exists ? snap.data() : null);
   }
 
-  async startTransfer(t: TransferRecord, check: (daily: DailyCounter) => DailyCounter): Promise<StartResult> {
+  async startTransfer(t: TransferRecord, check: (daily: DailyCounter, wallets: Map<string, WalletRecord | null>) => DailyCounter): Promise<StartResult> {
     const ref = this.db.collection(TRANSFERS).doc(t.id);
     const dailyRef = this.db.collection(WALLET_DAILY).doc(dailyId(t.uid, t.day));
     return this.db.runTransaction(async (tx: Transaction) => {
@@ -290,13 +299,19 @@ export class FirestoreWalletStore implements WalletStore {
         };
       }
       const daily = await tx.get(dailyRef);
-      const next = check(dailyFromDoc(daily.exists ? daily.data() : undefined));
+      const wallets = new Map<string, WalletRecord | null>();
+      for (const uid of t.parties) {
+        const w = await tx.get(this.db.collection(WALLETS).doc(uid));
+        wallets.set(uid, w.exists ? walletFromDoc(uid, w.data() ?? {}) : null);
+      }
+      const next = check(dailyFromDoc(daily.exists ? daily.data() : undefined), wallets);
       tx.create(ref, transferToDoc(t));
       tx.create(this.db.collection(WALLET_PENDING).doc(t.id), {
         uid: t.uid,
         createdAt: ts(t.createdAtMs),
         resends: 0,
         checkedAt: ts(t.createdAtMs),
+        leaseUntil: ts(0),
       });
       tx.set(dailyRef, { uid: t.uid, day: t.day, ...next, updatedAt: ts(t.createdAtMs) });
       return { created: true, transfer: t, result: null };
@@ -368,6 +383,18 @@ export class FirestoreWalletStore implements WalletStore {
     } catch {
       // Settled meanwhile (the entry is gone).
     }
+  }
+
+  leasePending(id: string, nowMs: number, leaseMs: number): Promise<PendingRecord | null> {
+    const ref = this.db.collection(WALLET_PENDING).doc(id);
+    return this.db.runTransaction(async (tx: Transaction) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return null;
+      const p = pendingFromDoc(id, snap.data() ?? {});
+      if (p.leaseUntilMs > nowMs) return null;
+      tx.update(ref, { leaseUntil: ts(nowMs + leaseMs) });
+      return { ...p, leaseUntilMs: nowMs + leaseMs };
+    });
   }
 
   private async page(query: Query, limit: number, afterId: string | null): Promise<TransferRecord[]> {

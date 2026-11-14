@@ -66,6 +66,13 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
   /// The request ID of the transfer on review; kept for retries.
   String? _requestId;
+
+  /// A send went out and no definite answer came back (a lost answer): the
+  /// request may exist on the server. Receiver, amount and note are locked
+  /// and only the same request ID can be sent again, so a retry can never
+  /// become a second transfer. Back leaves to the wallet (its history shows
+  /// the transfer once it is settled).
+  bool _locked = false;
   MoneyResult? _result;
 
   @override
@@ -78,16 +85,26 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
   WalletRepository get _repo => ref.read(walletRepositoryProvider);
 
-  void _go(int step) => setState(() {
-    _step = step;
-    _error = null;
-    // Anything changed before the review: a new transfer, a new ID.
-    if (step < 4) {
-      _requestId = null;
+  void _go(int step) {
+    if (_locked) {
+      return;
     }
-  });
+    setState(() {
+      _step = step;
+      _error = null;
+      // Changed before any send went out (or after a definite refusal,
+      // which created nothing): a new transfer, a new ID.
+      if (step < 4) {
+        _requestId = null;
+      }
+    });
+  }
 
   void _back() {
+    if (_locked) {
+      context.go(ProfileRoutes.wallet);
+      return;
+    }
     if (_step > 0) {
       _go(_step - 1);
     } else {
@@ -190,8 +207,14 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       }
     } on WalletFailure catch (f) {
       if (mounted) {
-        // An unknown outcome keeps the request ID: trying again cannot send twice.
-        setState(() => _error = f.outcomeUnknown ? l10n.walletSendUnknown : f.message(l10n));
+        // An unknown outcome keeps the request ID and locks the transfer:
+        // trying again cannot send twice.
+        setState(() {
+          if (f.outcomeUnknown) {
+            _locked = true;
+          }
+          _error = f.outcomeUnknown ? l10n.walletSendUnknown : f.message(l10n);
+        });
       }
     } finally {
       if (mounted) {
@@ -522,6 +545,10 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
           if (error != null) ...<Widget>[
             const SizedBox(height: AppSpacing.s16),
             AppInlineMessage(key: const Key('send.error'), message: error, tone: AppStateTone.error),
+          ],
+          if (_locked) ...<Widget>[
+            const SizedBox(height: AppSpacing.s8),
+            AppInlineMessage(key: const Key('send.locked'), message: l10n.walletSendLocked, tone: AppStateTone.warning, icon: Icons.lock_outline_rounded),
           ],
           const SizedBox(height: AppSpacing.s24),
           AppButton(

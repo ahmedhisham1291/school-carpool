@@ -248,6 +248,39 @@ void main() {
       expect(find.byKey(const Key('wallet.outcome.done')), findsOneWidget);
     });
 
+    testWidgets('lost answer locks the transfer: Back leaves to the wallet, nothing can be edited into a second send', (WidgetTester tester) async {
+      final FakeWalletRepository repo = FakeWalletRepository();
+      final GoRouter router = await _pump(tester, WalletRoutes.send(), repo: repo);
+      await _toReview(tester);
+      repo.failure = const WalletFailure(WalletFailureKind.offline);
+      await _tap(tester, find.byKey(const Key('send.send')));
+      expect(find.byKey(const Key('send.locked')), findsOneWidget);
+      final String first = repo.sends.single.requestId;
+      // Back does not reopen the amount: it leaves to the wallet.
+      await _tap(tester, find.byKey(const Key('send.back')));
+      expect(_path(router), ProfileRoutes.wallet);
+      expect(find.byKey(const Key('send.amount')), findsNothing);
+      expect(repo.sends.map((SendRequest s) => s.requestId), <String>[first]);
+    });
+
+    testWidgets('a definite refusal does not lock: the parent changes the amount and a new request is made', (WidgetTester tester) async {
+      final FakeWalletRepository repo = FakeWalletRepository();
+      await _pump(tester, WalletRoutes.send(), repo: repo);
+      await _toReview(tester);
+      repo.failure = const WalletFailure(WalletFailureKind.overDailyLimit, amount: 5000);
+      await _tap(tester, find.byKey(const Key('send.send')));
+      expect(find.byKey(const Key('send.locked')), findsNothing);
+      await _tap(tester, find.byKey(const Key('send.back')));
+      await _tap(tester, find.byKey(const Key('send.back')));
+      await _type(tester, find.byKey(const Key('send.amount')), '20');
+      await _tap(tester, find.byKey(const Key('send.amountNext')));
+      await _tap(tester, find.byKey(const Key('send.noteNext')));
+      await _tap(tester, find.byKey(const Key('send.send')));
+      expect(repo.sends.map((SendRequest s) => s.requestId).toSet(), hasLength(2));
+      expect(repo.byRequest, hasLength(1));
+      expect(repo.sends.last.amount, 2000);
+    });
+
     testWidgets('no Face ID: nothing is sent', (WidgetTester tester) async {
       final FakeWalletRepository repo = FakeWalletRepository();
       final FakeDeviceAuth auth = FakeDeviceAuth(DeviceAuthResult.cancelled);
@@ -346,6 +379,25 @@ void main() {
       await _tap(tester, find.byKey(const Key('money.submit')));
       expect(auth.reasons, hasLength(1));
       expect(repo.calls.any((String c) => c.startsWith('withdraw:') && c.endsWith(':5000')), isTrue);
+    });
+
+    testWidgets('withdraw: a lost answer locks the amount; the retry sends the same request', (WidgetTester tester) async {
+      final FakeWalletRepository repo = FakeWalletRepository();
+      await _pump(tester, WalletRoutes.withdraw, repo: repo);
+      await _type(tester, find.byKey(const Key('money.amount')), '50');
+      repo.failure = const WalletFailure(WalletFailureKind.offline);
+      await _tap(tester, find.byKey(const Key('money.submit')));
+      expect(find.byKey(const Key('money.error')), findsOneWidget);
+      final TextField field = tester.widget<TextField>(find.descendant(of: find.byKey(const Key('money.amount')), matching: find.byType(TextField)));
+      expect(field.enabled, isFalse, reason: 'the amount is locked');
+      await _tap(tester, find.byKey(const Key('money.submit')));
+      final List<String> ids = <String>[
+        for (final String c in repo.calls)
+          if (c.startsWith('withdraw:')) c.split(':')[1],
+      ];
+      expect(ids, hasLength(2));
+      expect(ids.toSet(), hasLength(1));
+      expect(repo.byRequest, hasLength(1));
     });
 
     testWidgets('report a problem from the history', (WidgetTester tester) async {

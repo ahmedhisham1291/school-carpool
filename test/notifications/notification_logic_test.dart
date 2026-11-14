@@ -47,10 +47,10 @@ void main() {
       expect(AppNotification.fromDoc('t2', NotificationKind.timeChanged, const <String, dynamic>{}).critical, isFalse);
     });
 
-    test('COST MODE: WhatsApp on by default only for the urgent groups and the wallet', () {
+    test('COST MODE: WhatsApp on by default only for the urgent groups (wallet is push only)', () {
       expect(
         WhatsAppGroup.values.where((WhatsAppGroup g) => g.defaultOn),
-        <WhatsAppGroup>[WhatsAppGroup.noDriver, WhatsAppGroup.childNotConfirmed, WhatsAppGroup.wallet],
+        <WhatsAppGroup>[WhatsAppGroup.noDriver, WhatsAppGroup.childNotConfirmed],
       );
       const NotificationSettings s = NotificationSettings();
       expect(s.whatsappOn(WhatsAppGroup.noDriver), isTrue);

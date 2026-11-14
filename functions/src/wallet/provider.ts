@@ -70,6 +70,14 @@ export interface WalletProvider {
   withdraw(input: { walletRef: string; amount: number; requestId: string }): Promise<ProviderOp>;
   /** The partner's record of a money call by our request ID, or null when it never arrived. */
   findOperation(requestId: string): Promise<ProviderOp | null>;
+  /**
+   * Makes sure the partner will NEVER execute [requestId] from now on, and
+   * returns its final state: "failed" when it was cancelled (or never
+   * arrived and is now blocked), "done" when it had already run. Used
+   * before we record a pending transfer as failed: "not found" alone can
+   * also mean "still in flight".
+   */
+  cancelOperation(requestId: string): Promise<ProviderOp>;
   listTransactions(walletRef: string, limit: number): Promise<ProviderTx[]>;
   /** A frozen wallet can neither pay nor be paid at the partner either. */
   freeze(walletRef: string, frozen: boolean): Promise<void>;
@@ -224,6 +232,21 @@ export class FakeWalletProvider implements WalletProvider {
     return op ? toProviderOp(op) : null;
   }
 
+  async cancelOperation(requestId: string): Promise<ProviderOp> {
+    const mode = await this.guard();
+    if (mode === "lost" || mode === "timeout") throw new WalletProviderError("timeout");
+    // A tombstone: a late send with this ID now finds a failed operation.
+    const op = await this.ledger.apply(requestId, [], (_accounts, existing) =>
+      existing
+        ? { accounts: [], op: existing }
+        : {
+            accounts: [],
+            op: this.op({ requestId, kind: "transfer", fromRef: null, toRef: null, amount: 0, status: "failed", reason: "not-received" }),
+          },
+    );
+    return toProviderOp(op);
+  }
+
   async listTransactions(walletRef: string, limit: number): Promise<ProviderTx[]> {
     await this.guard();
     const ops = await this.ledger.opsOf(walletRef, limit);
@@ -283,6 +306,9 @@ export class PartnerWalletProvider implements WalletProvider {
     return this.refuse();
   }
   async findOperation(): Promise<ProviderOp | null> {
+    return this.refuse();
+  }
+  async cancelOperation(): Promise<ProviderOp> {
     return this.refuse();
   }
   async listTransactions(): Promise<ProviderTx[]> {

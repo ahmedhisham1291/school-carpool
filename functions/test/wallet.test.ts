@@ -12,8 +12,10 @@ import {
   listHistory,
   lookupParent,
   openWallet,
+  reconcile,
   reconcileAll,
   reportTransfer,
+  syncPartnerFreezes,
   sendTransfer,
   walletContacts,
   withdraw,
@@ -209,6 +211,11 @@ describe("parent ID lookup", () => {
     await refuses(lookupParent(w.deps, me, { parentId: "ALYZ2345" }), "self");
     await refuses(lookupParent(w.deps, me, { parentId: "ZZZZ2345" }), "receiver-not-found");
     await refuses(lookupParent(w.deps, me, { parentId: "bad" }), "receiver-not-found");
+    // Suspended or banned: not shown at all (no first name).
+    w.store.accounts.set("hoda", { ...w.store.accounts.get("hoda")!, status: "suspended" });
+    await refuses(lookupParent(w.deps, me, { parentId: "HUDA2345" }), "receiver-not-found");
+    w.store.accounts.set("hoda", { ...w.store.accounts.get("hoda")!, status: "verified", banned: true });
+    await refuses(lookupParent(w.deps, me, { parentId: "HUDA2345" }), "receiver-not-found");
   });
 
   it("is rate limited before anything is looked up, so IDs cannot be guessed in bulk", async () => {
@@ -269,8 +276,35 @@ describe("sending", () => {
     assert.equal(a.transfer.id, c.transfer.id);
     assert.equal(await balanceOf(w, "hoda"), 1_000);
     assert.equal([...w.store.transfers.values()].filter((t) => t.kind === "transfer").length, 1);
-    // The same request ID with another amount is a mistake, never a second transfer.
+    // The same request ID with another amount, receiver or note is refused,
+    // never answered with the earlier transfer.
     await refuses(sendTransfer(w.deps, me, { ...body, amount: 2_000 }), "request-reused");
+    w.store.addParent("sami", "SAMY2345", { firstName: "Sami" });
+    await openWallet(w.deps, { uid: "sami", verifiedClaim: true }, { acceptTerms: WALLET_TERMS_VERSION });
+    await refuses(sendTransfer(w.deps, me, { ...body, toParentId: "SAMY2345" }), "request-reused");
+    await refuses(sendTransfer(w.deps, me, { ...body, note: "other" }), "request-reused");
+    await refuses(withdraw(w.deps, me, { requestId: body.requestId, amount: 1_000 }), "request-reused");
+  });
+
+  it("a freeze that lands between the checks and the transaction still stops the transfer", async () => {
+    const w = world();
+    await twoParents(w);
+    w.store.beforeStart = () => void w.store.wallets.set("ali", { ...w.store.wallets.get("ali")!, status: "frozen" });
+    await refuses(sendTransfer(w.deps, me, { requestId: "race-000000000000001", amount: 1_000, toParentId: "HUDA2345" }), "frozen");
+    w.store.beforeStart = () => void w.store.wallets.set("hoda", { ...w.store.wallets.get("hoda")!, status: "frozen" });
+    w.store.wallets.set("ali", { ...w.store.wallets.get("ali")!, status: "active" });
+    await refuses(sendTransfer(w.deps, me, { requestId: "race-000000000000002", amount: 1_000, toParentId: "HUDA2345" }), "receiver-cannot-receive");
+    assert.equal([...w.store.transfers.values()].filter((t) => t.kind === "transfer").length, 0);
+    assert.equal(await w.provider.findOperation(transferId("ali", "race-000000000000002")), null);
+  });
+
+  it("a failed transfer is shown to the sender only", async () => {
+    const w = world();
+    await twoParents(w, 1_000);
+    const r = await sendTransfer(w.deps, me, { requestId: "hid-0000000000000001", amount: 5_000, toParentId: "HUDA2345" });
+    assert.equal(r.transfer.status, "failed");
+    assert.equal((await listHistory(w.deps, me, {})).transfers.some((t) => t.id === r.transfer.id), true);
+    assert.equal((await listHistory(w.deps, hoda, {})).transfers.length, 0);
   });
 
   it("limits per transfer and per day come from the server settings", async () => {
@@ -406,7 +440,9 @@ describe("timeouts, retries and reconciliation never lose or double money", () =
     await reconcileAll(w.deps);
     assert.equal((await w.store.result(r.transfer.id)), null, "the partner did not answer: still pending");
     w.mode.value = "ok";
-    // MAX_RESENDS used up, partner has no record, older than a day: failed, nothing moved.
+    w.clock.now += 120_000;
+    // Older than a day and unknown to the partner: it is CANCELLED at the
+    // partner first, then recorded as failed; nothing moved.
     await reconcileAll(w.deps);
     const view = await getTransfer(w.deps, me, { transferId: r.transfer.id });
     assert.equal(view.status, "failed");
@@ -425,8 +461,42 @@ describe("timeouts, retries and reconciliation never lose or double money", () =
     await w.store.updateWallet("ali", { status: "frozen" });
     w.clock.now += 60_000;
     await reconcileAll(w.deps);
-    assert.equal((await w.store.result(r.transfer.id))?.reason, "sender-frozen");
-    assert.equal(await w.provider.findOperation(r.transfer.id), null);
+    // Cancelled at the partner before it is recorded as failed: a late
+    // arrival of the lost request can no longer move money.
+    assert.equal((await w.store.result(r.transfer.id))?.status, "failed");
+    assert.equal((await w.provider.findOperation(r.transfer.id))?.status, "failed");
+    const late = await w.provider.send({ fromRef: (await w.store.wallet("ali"))!.walletRef, toRef: (await w.store.wallet("hoda"))!.walletRef, amount: 2_000, requestId: r.transfer.id });
+    assert.equal(late.status, "failed");
+    assert.equal(await balanceOf(w, "hoda"), 0);
+  });
+
+  it("the partner cannot confirm or cancel: never recorded as failed; it stays pending and an admin is alerted", async () => {
+    const w = world();
+    await twoParents(w);
+    w.mode.value = "lost";
+    const r = await sendTransfer(w.deps, me, { requestId: "rec-0000000000000006", amount: 2_000, toParentId: "HUDA2345" });
+    await w.store.updateWallet("ali", { status: "frozen" });
+    // "lost": findOperation answers "not found", cancel times out.
+    w.clock.now += 60_000;
+    await reconcileAll(w.deps);
+    assert.equal(await w.store.result(r.transfer.id), null);
+    assert.equal(w.store.alertsMap.get(`stuck_${r.transfer.id}`)?.kind, "stuck");
+  });
+
+  it("two reconciles of one transfer never run at once (lease)", async () => {
+    const w = world();
+    await twoParents(w);
+    w.mode.value = "lost";
+    const r = await sendTransfer(w.deps, me, { requestId: "rec-0000000000000007", amount: 2_000, toParentId: "HUDA2345" });
+    w.mode.value = "ok";
+    w.clock.now += 60_000;
+    const leased = await w.store.leasePending(r.transfer.id, w.clock.now, 60_000);
+    assert.ok(leased);
+    assert.equal(await reconcile(w.deps, (await w.store.transfer(r.transfer.id))!), null, "another reconcile holds the lease");
+    assert.equal(await w.provider.findOperation(r.transfer.id), null, "nothing sent meanwhile");
+    w.clock.now += 61_000;
+    assert.equal((await reconcile(w.deps, (await w.store.transfer(r.transfer.id))!))?.status, "done");
+    assert.equal(await balanceOf(w, "hoda"), 2_000);
   });
 
   it("opening the wallet settles the parent's own stale pending transfers", async () => {
@@ -505,8 +575,11 @@ describe("reports and unusual patterns", () => {
     const r = await sendTransfer(w.deps, me, { requestId: "rep-0000000000000001", amount: 1_000, toParentId: "HUDA2345" });
     const fromHoda = await reportTransfer(w.deps, hoda, { transferId: r.transfer.id, reason: "wrongAmount", note: "Expected 20" });
     assert.equal(fromHoda.frozen, false);
-    const mine = await reportTransfer(w.deps, me, { transferId: r.transfer.id, reason: "unauthorized" });
+    const audit: string[] = [];
+    const mine = await reportTransfer({ ...w.deps, audit: async (e) => void audit.push(e.action) }, me, { transferId: r.transfer.id, reason: "unauthorized" });
     assert.equal(mine.frozen, true);
+    assert.deepEqual(audit, ["wallet.freeze.self"]);
+    assert.ok([...w.store.events.values()].some((e) => e.type === "wallet-frozen" && e.recipients[0] === "ali"));
     assert.equal((await w.store.wallet("ali"))?.status, "frozen");
     assert.equal(w.ledger.accounts.get((await w.store.wallet("ali"))!.walletRef)?.frozen, true);
     await refuses(sendTransfer(w.deps, me, { requestId: "rep-0000000000000002", amount: 1_000, toParentId: "HUDA2345" }), "frozen");
@@ -610,6 +683,37 @@ describe("admin panel", () => {
     assert.ok(calls.every((c) => ["balance", "listTransactions", "freeze"].includes(c)), calls.join());
     const exported = Object.keys(walletAdmin).filter((k) => typeof (walletAdmin as Record<string, unknown>)[k] === "function");
     assert.deepEqual(exported.sort(), ["adminGetWallet", "adminListTransfers", "adminListWalletAlerts", "adminResolveWalletAlert", "adminSetWalletFrozen"]);
+  });
+
+  it("a freeze the partner missed is applied again by the reconcile job", async () => {
+    const w = world();
+    await twoParents(w);
+    const { deps } = adminWorld(w);
+    w.mode.value = "down";
+    await adminSetWalletFrozen(deps, admin, { uid: "ali", frozen: true, reasonCode: "fraudSuspected" }, null);
+    const ref = (await w.store.wallet("ali"))!.walletRef;
+    assert.equal((await w.store.wallet("ali"))?.partnerSynced, false);
+    assert.equal(w.ledger.accounts.get(ref)?.frozen, false, "the partner missed it");
+    assert.equal(await syncPartnerFreezes(w.deps), 0, "still down");
+    w.mode.value = "ok";
+    assert.equal(await syncPartnerFreezes(w.deps), 1);
+    assert.equal(w.ledger.accounts.get(ref)?.frozen, true);
+    assert.equal((await w.store.wallet("ali"))?.partnerSynced, true);
+  });
+
+  it("the audit entry is written before the change", async () => {
+    const w = world();
+    await twoParents(w);
+    const order: string[] = [];
+    const store = w.store;
+    const update = store.updateWallet.bind(store);
+    store.updateWallet = async (...a: Parameters<typeof update>) => {
+      order.push("change");
+      return update(...a);
+    };
+    const deps: WalletAdminDeps = { store, provider: w.provider, now: () => w.clock.now, audit: async () => void order.push("audit") };
+    await adminSetWalletFrozen(deps, admin, { uid: "ali", frozen: true, reasonCode: "dispute" }, null);
+    assert.equal(order[0], "audit");
   });
 
   it("freezing works even when the partner is off (our side is enough); unfreezing needs the partner", async () => {

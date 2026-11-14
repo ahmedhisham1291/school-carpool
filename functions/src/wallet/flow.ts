@@ -1,3 +1,4 @@
+import type { AuditEntry } from "../admin_panel/types";
 import { newEvent, type OutboxEvent } from "../notifications/model";
 import {
   amountField,
@@ -11,6 +12,7 @@ import {
   optionalUid,
   PARTNER_TIMEOUT_MS,
   RECONCILE_AFTER_MS,
+  RECONCILE_LEASE_MS,
   record,
   REPORT_NOTE_MAX,
   requestIdField,
@@ -49,6 +51,8 @@ export interface WalletDeps {
   log: (message: string, data?: Record<string, unknown>) => void;
   /** Time limit of one partner call (PARTNER_TIMEOUT_MS). */
   timeoutMs?: number;
+  /** The audit log (a parent freezing their own wallet is recorded too). */
+  audit?: (entry: AuditEntry) => Promise<void>;
 }
 
 export interface Caller {
@@ -145,6 +149,7 @@ export async function openWallet(deps: WalletDeps, caller: Caller, data: unknown
       frozenReason: null,
       frozenAtMs: null,
       frozenBy: null,
+      partnerSynced: true,
       openedAtMs: nowMs,
       updatedAtMs: nowMs,
     };
@@ -208,7 +213,8 @@ export async function lookupParent(deps: WalletDeps, caller: Caller, data: unkno
   if (!uid) throw new WalletError("receiver-not-found");
   if (uid === caller.uid) throw new WalletError("self");
   const other = await deps.store.account(uid);
-  if (!other) throw new WalletError("receiver-not-found");
+  // Suspended and banned parents are not shown at all (no name).
+  if (!other || other.banned || other.status === "suspended") throw new WalletError("receiver-not-found");
   return { firstName: other.firstName, verified: canUseWallet(other) };
 }
 
@@ -277,9 +283,21 @@ async function resolveReceiver(deps: WalletDeps, caller: Caller, raw: Record<str
   return { uid, account, wallet };
 }
 
+/**
+ * Inside the start transaction: every wallet of the transfer still open
+ * (an admin freeze a moment ago is seen here), then the daily limits.
+ */
+function walletsOpen(t: TransferRecord, wallets: Map<string, WalletRecord | null>): void {
+  for (const uid of t.parties) {
+    const w = wallets.get(uid);
+    if (!w || w.status !== "active") throw new WalletError(uid === t.uid ? "frozen" : "receiver-cannot-receive");
+  }
+}
+
 /** The daily limits for money going out (transfers and withdrawals). */
-function outgoingCheck(limits: WalletLimits, amount: number): (d: DailyCounter) => DailyCounter {
-  return (d) => {
+function outgoingCheck(t: TransferRecord, limits: WalletLimits, amount: number): (d: DailyCounter, wallets: Map<string, WalletRecord | null>) => DailyCounter {
+  return (d, wallets) => {
+    walletsOpen(t, wallets);
     if (d.outCount + 1 > limits.perDayCount) throw new WalletError("too-many-today");
     if (d.outAmount + amount > limits.perDayMax) {
       throw new WalletError("over-daily-limit", { limit: limits.perDayMax, left: Math.max(0, limits.perDayMax - d.outAmount) });
@@ -293,9 +311,31 @@ function checkSingle(limits: WalletLimits, amount: number, max: number): void {
   if (amount > max) throw new WalletError("over-transfer-limit", { limit: max });
 }
 
-/** The same request ID with different details is a mistake in the app, never a second transfer. */
-function sameRequest(a: TransferRecord, kind: TransferKind, amount: number, toUid: string | null): boolean {
-  return a.kind === kind && a.amount === amount && (toUid === null || a.toUid === toUid);
+/**
+ * The same request ID with different details (kind, amount, receiver,
+ * carpool, note) is refused: it is never a second transfer, and the answer
+ * is never about another request.
+ */
+function sameRequest(
+  a: TransferRecord,
+  kind: TransferKind,
+  amount: number,
+  more: { toUid?: string | null; carpoolId?: string | null; note?: string } = {},
+): boolean {
+  return (
+    a.kind === kind &&
+    a.amount === amount &&
+    (more.toUid === undefined || a.toUid === more.toUid) &&
+    (more.carpoolId === undefined || a.carpoolId === more.carpoolId) &&
+    (more.note === undefined || a.note === more.note)
+  );
+}
+
+/** The receiver a send names, without counting a lookup (only to compare with an earlier attempt). */
+async function namedReceiver(deps: WalletDeps, raw: Record<string, unknown>): Promise<string | null> {
+  if (raw.toUid !== undefined && raw.toUid !== null) return optionalUid(raw.toUid);
+  const pid = normalizeParentId(raw.toParentId);
+  return pid ? deps.store.uidOfParentId(pid) : null;
 }
 
 async function replay(deps: WalletDeps, existing: TransferRecord, viewer: string): Promise<MoneyResult> {
@@ -325,7 +365,9 @@ export async function sendTransfer(deps: WalletDeps, caller: Caller, data: unkno
   // A retry (double tap, lost answer): the first attempt, never a second transfer.
   const earlier = await deps.store.transfer(id);
   if (earlier) {
-    if (!sameRequest(earlier, "transfer", amount, null)) throw new WalletError("request-reused");
+    if (!sameRequest(earlier, "transfer", amount, { toUid: await namedReceiver(deps, raw), carpoolId, note })) {
+      throw new WalletError("request-reused");
+    }
     return replay(deps, earlier, caller.uid);
   }
 
@@ -352,9 +394,9 @@ export async function sendTransfer(deps: WalletDeps, caller: Caller, data: unkno
     day: cairoDay(nowMs),
     createdAtMs: nowMs,
   };
-  const started = await deps.store.startTransfer(t, outgoingCheck(limits, amount));
+  const started = await deps.store.startTransfer(t, outgoingCheck(t, limits, amount));
   if (!started.created) {
-    if (!sameRequest(started.transfer, "transfer", amount, to.uid)) throw new WalletError("request-reused");
+    if (!sameRequest(started.transfer, "transfer", amount, { toUid: to.uid, carpoolId, note })) throw new WalletError("request-reused");
     return replay(deps, started.transfer, caller.uid);
   }
   deps.log("transfer started", { id });
@@ -374,7 +416,7 @@ export async function addMoney(deps: WalletDeps, caller: Caller, data: unknown):
   const id = transferId(caller.uid, requestId);
   const earlier = await deps.store.transfer(id);
   if (earlier) {
-    if (!sameRequest(earlier, "topup", amount, null)) throw new WalletError("request-reused");
+    if (!sameRequest(earlier, "topup", amount)) throw new WalletError("request-reused");
     return replay(deps, earlier, caller.uid);
   }
   const limits = await deps.store.limits();
@@ -398,13 +440,17 @@ export async function addMoney(deps: WalletDeps, caller: Caller, data: unknown):
     day: cairoDay(nowMs),
     createdAtMs: nowMs,
   };
-  const started = await deps.store.startTransfer(t, (d) => {
+  const started = await deps.store.startTransfer(t, (d, wallets) => {
+    walletsOpen(t, wallets);
     if (d.topUpAmount + amount > limits.topUpPerDayMax) {
       throw new WalletError("over-daily-limit", { limit: limits.topUpPerDayMax, left: Math.max(0, limits.topUpPerDayMax - d.topUpAmount) });
     }
     return { ...d, topUpAmount: d.topUpAmount + amount };
   });
-  if (!started.created) return replay(deps, started.transfer, caller.uid);
+  if (!started.created) {
+    if (!sameRequest(started.transfer, "topup", amount)) throw new WalletError("request-reused");
+    return replay(deps, started.transfer, caller.uid);
+  }
   const result = await attempt(deps, t, () => p.addMoney({ walletRef: w.walletRef, amount, requestId: id }));
   return { transfer: transferView(t, result.result, caller.uid), checkoutUrl: result.checkoutUrl };
 }
@@ -419,7 +465,7 @@ export async function withdraw(deps: WalletDeps, caller: Caller, data: unknown):
   const id = transferId(caller.uid, requestId);
   const earlier = await deps.store.transfer(id);
   if (earlier) {
-    if (!sameRequest(earlier, "withdraw", amount, null)) throw new WalletError("request-reused");
+    if (!sameRequest(earlier, "withdraw", amount)) throw new WalletError("request-reused");
     return replay(deps, earlier, caller.uid);
   }
   const limits = await deps.store.limits();
@@ -443,8 +489,11 @@ export async function withdraw(deps: WalletDeps, caller: Caller, data: unknown):
     day: cairoDay(nowMs),
     createdAtMs: nowMs,
   };
-  const started = await deps.store.startTransfer(t, outgoingCheck(limits, amount));
-  if (!started.created) return replay(deps, started.transfer, caller.uid);
+  const started = await deps.store.startTransfer(t, outgoingCheck(t, limits, amount));
+  if (!started.created) {
+    if (!sameRequest(started.transfer, "withdraw", amount)) throw new WalletError("request-reused");
+    return replay(deps, started.transfer, caller.uid);
+  }
   const result = await attempt(deps, t, () => p.withdraw({ walletRef: w.walletRef, amount, requestId: id }));
   return { transfer: transferView(t, result.result, caller.uid), checkoutUrl: result.checkoutUrl };
 }
@@ -522,14 +571,19 @@ async function refreshCopies(deps: WalletDeps, t: TransferRecord): Promise<void>
 }
 
 /**
- * Settles a pending transfer WITHOUT ever risking a second payment:
- * 1. ask the partner for our request ID;
- * 2. it knows it: take its answer (done or failed);
- * 3. it does not: the money never moved, so the same request is sent again
- *    (the partner's idempotency key makes a late duplicate harmless), at
- *    most MAX_RESENDS times, and only while both wallets are still open;
- * 4. still unknown to the partner after GIVE_UP_AFTER_MS: failed (nothing
- *    moved). A partner that does not answer leaves it pending.
+ * Settles a pending transfer WITHOUT ever risking a second payment or a
+ * wrong "failed":
+ * 1. one reconcile at a time (a lease on the pending entry);
+ * 2. ask the partner for our request ID; it knows it: take its answer;
+ * 3. it does not, and both wallets are still open: send the same request
+ *    again (the partner's idempotency key makes a late duplicate harmless),
+ *    at most MAX_RESENDS times;
+ * 4. a wallet was frozen meanwhile, or the partner still has no record
+ *    after GIVE_UP_AFTER_MS: we ask the partner to CANCEL the request ID
+ *    first ("not found" may also mean "still in flight"), and record what
+ *    it answers (failed when cancelled, done if it had run after all);
+ * 5. the partner cannot confirm or cancel: it stays pending and an admin
+ *    gets a "stuck" alert. A partner that does not answer leaves it pending.
  */
 export async function reconcile(deps: WalletDeps, t: TransferRecord): Promise<TransferResult | null> {
   const existing = await deps.store.result(t.id);
@@ -537,6 +591,8 @@ export async function reconcile(deps: WalletDeps, t: TransferRecord): Promise<Tr
   const p = deps.provider;
   if (!p) return null;
   const nowMs = deps.now();
+  const pending = await deps.store.leasePending(t.id, nowMs, RECONCILE_LEASE_MS);
+  if (!pending) return deps.store.result(t.id);
   let op: ProviderOp | null;
   try {
     op = await call(deps, p.findOperation(t.id));
@@ -544,27 +600,22 @@ export async function reconcile(deps: WalletDeps, t: TransferRecord): Promise<Tr
     deps.log("reconcile: partner did not answer", { id: t.id });
     return null;
   }
-  const pending = await deps.store.pending(t.id);
   if (op && op.status !== "pending") return settle(deps, t, op, true);
   if (op) {
-    await deps.store.touchPending(t.id, pending?.resends ?? 0, nowMs);
+    await deps.store.touchPending(t.id, pending.resends, nowMs);
     return null;
   }
-  if (nowMs - t.createdAtMs >= GIVE_UP_AFTER_MS) return settle(deps, t, failedOp("not-received"), true);
-  const resends = pending?.resends ?? 0;
-  if (resends >= MAX_RESENDS) {
-    await deps.store.touchPending(t.id, resends, nowMs);
-    return null;
-  }
-  await deps.store.touchPending(t.id, resends + 1, nowMs);
   // The wallets must still be open: a wallet frozen since then must not pay.
   const from = t.fromUid ? await deps.store.wallet(t.fromUid) : null;
   const to = t.toUid ? await deps.store.wallet(t.toUid) : null;
-  if (t.fromUid && (!from || from.status !== "active")) return settle(deps, t, failedOp("sender-frozen"), true);
-  if (t.toUid && (!to || to.status !== "active")) {
-    return settle(deps, t, failedOp(t.kind === "topup" ? "sender-frozen" : "receiver-frozen"), true);
+  const closed = (t.fromUid !== null && from?.status !== "active") || (t.toUid !== null && to?.status !== "active");
+  if (closed || nowMs - t.createdAtMs >= GIVE_UP_AFTER_MS) return cancelAndSettle(deps, p, t);
+  if (pending.resends >= MAX_RESENDS) {
+    await deps.store.touchPending(t.id, pending.resends, nowMs);
+    return null;
   }
-  deps.log("reconcile: sending again", { id: t.id, resends: resends + 1 });
+  await deps.store.touchPending(t.id, pending.resends + 1, nowMs);
+  deps.log("reconcile: sending again", { id: t.id, resends: pending.resends + 1 });
   const run =
     t.kind === "transfer"
       ? () => p.send({ fromRef: (from as WalletRecord).walletRef, toRef: (to as WalletRecord).walletRef, amount: t.amount, requestId: t.id })
@@ -572,6 +623,54 @@ export async function reconcile(deps: WalletDeps, t: TransferRecord): Promise<Tr
         ? () => p.addMoney({ walletRef: (to as WalletRecord).walletRef, amount: t.amount, requestId: t.id })
         : () => p.withdraw({ walletRef: (from as WalletRecord).walletRef, amount: t.amount, requestId: t.id });
   return (await attempt(deps, t, run, true)).result;
+}
+
+/** Step 4 and 5 of reconcile: cancel at the partner, then record its final answer; else alert an admin. */
+async function cancelAndSettle(deps: WalletDeps, p: WalletProvider, t: TransferRecord): Promise<TransferResult | null> {
+  let final: ProviderOp;
+  try {
+    final = await call(deps, p.cancelOperation(t.id));
+  } catch {
+    final = { status: "pending", partnerRef: null, reason: null, checkoutUrl: null };
+  }
+  if (final.status !== "pending") return settle(deps, t, final, true);
+  const nowMs = deps.now();
+  const created = await deps.store.createAlert({
+    id: `stuck_${t.id}`,
+    kind: "stuck",
+    uid: t.uid,
+    transferId: t.id,
+    reason: null,
+    note: "",
+    count: 1,
+    status: "open",
+    outcome: null,
+    handledBy: null,
+    createdAtMs: nowMs,
+    handledAtMs: null,
+  });
+  if (created) deps.log("reconcile: transfer stuck, admin alerted", { id: t.id });
+  return null;
+}
+
+/**
+ * Re-applies our freeze state to the partner for wallets where it did not
+ * arrive (the partner did not answer at the time). Part of walletReconcile.
+ */
+export async function syncPartnerFreezes(deps: WalletDeps, limit = 20): Promise<number> {
+  const p = deps.provider;
+  if (!p) return 0;
+  let synced = 0;
+  for (const w of await deps.store.walletsToSync(limit)) {
+    try {
+      await call(deps, p.freeze(w.walletRef, w.status === "frozen"));
+      await deps.store.updateWallet(w.uid, { partnerSynced: true, updatedAtMs: deps.now() });
+      synced += 1;
+    } catch {
+      deps.log("partner freeze still not applied", { status: w.status });
+    }
+  }
+  return synced;
 }
 
 async function reconcileMine(deps: WalletDeps, uid: string): Promise<void> {
@@ -607,8 +706,10 @@ export async function listHistory(deps: WalletDeps, caller: Caller, data: unknow
   const limit = 30;
   const list = await deps.store.history(caller.uid, limit, afterId);
   const results = await deps.store.results(list.map((t) => t.id));
+  // A transfer that failed never reached the receiver: only the sender sees it.
+  const visible = list.filter((t) => !(t.kind === "transfer" && t.toUid === caller.uid && results.get(t.id)?.status === "failed"));
   return {
-    transfers: list.map((t) => transferView(t, results.get(t.id) ?? null, caller.uid)),
+    transfers: visible.map((t) => transferView(t, results.get(t.id) ?? null, caller.uid)),
     nextAfterId: list.length === limit ? list[list.length - 1].id : null,
   };
 }
@@ -662,13 +763,19 @@ export async function reportTransfer(deps: WalletDeps, caller: Caller, data: unk
   if (raw.reason === "unauthorized" && t.uid === caller.uid) {
     const w = await deps.store.wallet(caller.uid);
     if (w && w.status === "active") {
-      // Our record first: even if the partner does not answer, no money leaves through us.
-      await deps.store.updateWallet(caller.uid, { status: "frozen", frozenReason: "stolenPhone", frozenAtMs: nowMs, frozenBy: caller.uid, updatedAtMs: nowMs });
+      // Recorded first, then our side frozen: even if the partner does not
+      // answer, no money leaves through us; the job retries the partner.
+      await deps.audit?.({ actorUid: caller.uid, action: "wallet.freeze.self", target: `users/${caller.uid}`, reasonCode: "stolenPhone", ip: null });
+      await deps.store.updateWallet(caller.uid, { status: "frozen", frozenReason: "stolenPhone", frozenAtMs: nowMs, frozenBy: caller.uid, partnerSynced: false, updatedAtMs: nowMs });
       try {
-        if (deps.provider) await call(deps, deps.provider.freeze(w.walletRef, true));
+        if (deps.provider) {
+          await call(deps, deps.provider.freeze(w.walletRef, true));
+          await deps.store.updateWallet(caller.uid, { partnerSynced: true });
+        }
       } catch {
-        deps.log("partner freeze failed; frozen on our side", { id: t.id });
+        deps.log("partner freeze failed; frozen on our side, retried by the job", { id: t.id });
       }
+      await deps.store.addEvents([newEvent(`wallet_frozen_${caller.uid}_${nowMs}`, "wallet-frozen", [caller.uid], nowMs)]);
     }
     frozen = true;
   }

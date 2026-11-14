@@ -35,6 +35,8 @@ export class MemoryWalletStore implements WalletStore {
   adminNotes: string[] = [];
   /** Writes by kind, to prove the records are never changed. */
   writes: string[] = [];
+  /** Runs inside startTransfer before the wallets are read (race tests). */
+  beforeStart: (() => void) | null = null;
 
   addParent(uid: string, parentId: string, extra: Partial<WalletAccount> = {}): WalletAccount {
     const a: WalletAccount = { uid, status: "verified", banned: false, firstName: `Name-${uid}`, parentId, ...extra };
@@ -87,13 +89,17 @@ export class MemoryWalletStore implements WalletStore {
   async limits() {
     return clone(this.config);
   }
-  async startTransfer(t: TransferRecord, check: (d: DailyCounter) => DailyCounter): Promise<StartResult> {
+  async startTransfer(t: TransferRecord, check: (d: DailyCounter, wallets: Map<string, WalletRecord | null>) => DailyCounter): Promise<StartResult> {
     const existing = this.transfers.get(t.id);
     if (existing) return { created: false, transfer: clone(existing), result: clone(this.results_.get(t.id) ?? null) };
     const key = dailyId(t.uid, t.day);
-    const next = check(clone(this.daily.get(key) ?? { outAmount: 0, outCount: 0, topUpAmount: 0 }));
+    const wallets = new Map<string, WalletRecord | null>(t.parties.map((u) => [u, clone(this.wallets.get(u) ?? null)]));
+    // Tests can freeze a wallet "between" the checks and the transaction.
+    this.beforeStart?.();
+    for (const u of t.parties) wallets.set(u, clone(this.wallets.get(u) ?? null));
+    const next = check(clone(this.daily.get(key) ?? { outAmount: 0, outCount: 0, topUpAmount: 0 }), wallets);
     this.transfers.set(t.id, clone(t));
-    this.pendingMap.set(t.id, { id: t.id, uid: t.uid, createdAtMs: t.createdAtMs, resends: 0, checkedAtMs: t.createdAtMs });
+    this.pendingMap.set(t.id, { id: t.id, uid: t.uid, createdAtMs: t.createdAtMs, resends: 0, checkedAtMs: t.createdAtMs, leaseUntilMs: 0 });
     this.daily.set(key, next);
     this.writes.push(`transfer:create:${t.id}`);
     return { created: true, transfer: clone(t), result: null };
@@ -147,6 +153,16 @@ export class MemoryWalletStore implements WalletStore {
   async touchPending(id: string, resends: number, checkedAtMs: number) {
     const p = this.pendingMap.get(id);
     if (p) this.pendingMap.set(id, { ...p, resends, checkedAtMs });
+  }
+  async leasePending(id: string, nowMs: number, leaseMs: number) {
+    const p = this.pendingMap.get(id);
+    if (!p || p.leaseUntilMs > nowMs) return null;
+    const leased = { ...p, leaseUntilMs: nowMs + leaseMs };
+    this.pendingMap.set(id, leased);
+    return clone(leased);
+  }
+  async walletsToSync(limit: number) {
+    return [...this.wallets.values()].filter((w) => !w.partnerSynced).slice(0, limit).map(clone);
   }
   private sorted(filter: (t: TransferRecord) => boolean, limit: number, afterId: string | null) {
     const all = [...this.transfers.values()].filter(filter).sort((a, b) => b.createdAtMs - a.createdAtMs || (a.id < b.id ? 1 : -1));

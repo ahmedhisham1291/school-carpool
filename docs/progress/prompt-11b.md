@@ -4,7 +4,7 @@ Branch: `prompt-11b-wallet` (from `main` with Prompts 1 to 9; Prompt 10 is
 on another branch and nothing here depends on it). Date: 14 Nov 2026. The
 coordinator gave "go" on the owner's behalf.
 
-**Status: code complete. Functions unit tests were run here (481 pass, 40
+**Status: code complete. Functions unit tests were run here (487 pass, 46
 of them new in `functions/test/wallet.test.ts`; Node 22 with stand-in
 stubs as before). The Flutter code, the widget, logic, one-line and
 screenshot tests, and the rules tests were written, not run here** (no
@@ -85,10 +85,11 @@ run, most likely around `local_auth` 3.x and the Riverpod `retry:` option on
     `wallet-sent` for every done transfer (both parents), `wallet-failed`
     and `wallet-updated` when a pending one settles later, `wallet-frozen`
     / `wallet-updated` on freeze and unfreeze. No amount, name or note in
-    any text (lock screen). WhatsApp group "Wallet" is **on by default**:
-    money moving is a security signal (a stolen phone). This departs from
-    COST MODE "critical alerts only"; the prompt asks for push and WhatsApp.
-    Parents can switch it off; see COSTS.md.
+    any text (lock screen). WhatsApp group "Wallet" is **off by default**
+    (COST MODE: push and in-app only unless the parent switches it on).
+    **Owner:** say if you want wallet messages on WhatsApp by default
+    (security signal against a stolen phone; up to two paid templates per
+    transfer).
 12. **Admins cannot move money.** The admin flows get only the partner's
     freeze, balance and transaction list (`AdminWalletPort`); a test checks
     that the admin module exports no money path and never calls send, add
@@ -206,7 +207,7 @@ gallery under "Wallet" with `BalanceCard`, `ReceiverCard` and
 | Test | Status |
 | --- | --- |
 | `functions/test/wallet.test.ts` (40): amounts in piastres (floats refused), formatting, parent IDs, notes, transfer IDs, Cairo day, settings clamps; provider factory (fake refused in prod, partner fails closed), fake partner idempotency; opening (verified + terms + consent record, suspended, switched off), balance from the partner (outage = error, not the copy); lookup (first name + badge only, rate limit before reading); send by parent ID (both histories match), from a carpool (membership enforced), **double tap and retry send once**, request ID reuse refused, **limits per transfer and per day** (count, amount, next Cairo day, withdrawals counted), failed transfer gives the day back, **frozen cannot send** / frozen receiver, verification both sides, no fee, append-only writes; **timeout -> pending -> reconciled from the partner's record**, **lost -> resent once with the same ID**, partner down stays pending, give up after a day with nothing moved, frozen meanwhile not resent, opening the wallet settles stale pending; top-up and withdraw limits; notifications (both parents, no amount/name/note), logs without amounts/names/notes; reports ("Not me" freezes own wallet), pattern detection and one alert; admin log (no notes, audited), freeze/unfreeze (reason, audit, event), freeze without the partner, **admins cannot move money**, resolve alert | **Run here: pass** |
-| All Functions unit tests | **Run here: 481 pass** (only the known stub type gaps in `tsc`) |
+| All Functions unit tests | **Run here: 487 pass** (only the known stub type gaps in `tsc`) |
 | `tests/rules/wallet.test.ts`, `deny_all.test.ts` paths | Written, not run here (CI); type-checked against a stub |
 | `test/wallet/wallet_logic_test.dart` (piastres parsing incl. Arabic digits, no rounding, formatting, contribution, request IDs, parent IDs, request JSON, failures, wallet info) | Written, not run here |
 | `test/wallet/wallet_screens_test.dart` (wallet states: data, open with terms, frozen, off, not verified, offline + retry, partner down, RTL; send by parent ID with Face ID, from a carpool, Pay contribution prefill, double tap, lost answer retry with the same ID, no Face ID / no passcode, over the limit as typed, server refusal, pending + Check again, unknown ID, unverified receiver; add money, withdraw with Face ID, report from history, "Not me"; one line at 320 dp AR/EN x1/x2) | Written, not run here |
@@ -220,8 +221,8 @@ gallery under "Wallet" with `BalanceCard`, `ReceiverCard` and
    between parents), identity checks, how add money (payment page) and
    withdraw (to which account) work, and its dispute process. The limits in
    `config/wallet` are placeholders until then.
-2. WhatsApp for wallet messages on by default (decision 11): keep, or
-   push only by default to save cost?
+2. WhatsApp for wallet messages: now push only by default (decision 11).
+   Turn it on by default instead?
 3. Profile photos: the confirmation shows a letter avatar for now. Add
    public profile photos later (would need a review and a privacy decision)?
 4. Wallet terms text and version (`WALLET_TERMS_VERSION` 2026-11-14) are
@@ -230,6 +231,48 @@ gallery under "Wallet" with `BalanceCard`, `ReceiverCard` and
    the lawyer; the records are kept for now.
 6. Contribution amount when the period is per trip: the prefill is one
    period's amount for my children; the parent can change it.
+
+## Review fixes (docs/reviews/prompt-11b-review.md)
+
+Blocking:
+1. Android compile: a runner shutdown in CI; needs a re-run (coordinator).
+2. **A retry can never become a second transfer:** after a lost answer the
+   send is locked (receiver, amount and note can't be edited; Back leaves
+   to the wallet; only the same request ID is sent again, after a fresh
+   Face ID). Add money / Withdraw lock the amount the same way. A new ID
+   is made only before any send or after a definite refusal (which
+   created nothing). Widget tests: lost answer then Back; refusal then a
+   new amount; withdraw retry with the same ID.
+3. **Strict amount parsing:** one decimal mark (".", the Arabic mark, or a
+   single comma followed by 1 or 2 digits: "12,50" = 12.50), thousands
+   separators only in groups of three ("1,250", "1,250.50"), at most two
+   decimals, Arabic-Indic digits; anything else is refused with "Type an
+   amount like 150 or 150.50". Tests incl. "12,50", "1,250", "1,250.50",
+   Arabic digits, "1,2,3".
+
+Non-blocking done:
+- The same request ID with another receiver, carpool, note, amount or
+  kind is refused (`request-reused`), never answered with the earlier one.
+- Never "failed" while the partner may still run it: before recording a
+  failure (wallet frozen meanwhile, or unknown after 24 h) the request is
+  cancelled at the partner (`WalletProvider.cancelOperation`, which answers
+  the final state); if the partner can't confirm or cancel, it stays
+  pending and admins get a "stuck" alert.
+- One reconcile at a time per transfer (a lease on `walletPending`).
+- Freeze re-checked inside the start transaction (both wallets read there).
+- A freeze the partner missed is retried by `walletReconcile`
+  (`wallets.partnerSynced`); "Not me" now writes an audit entry and a
+  "Wallet paused" alert.
+- Parent ID lookup: suspended or banned parents are "not found" (no name).
+- `transfers/{id}` holds `initialStatus` instead of a `status` that would
+  stay "pending"; the outcome is `transferResults/{id}`.
+- "Pay contribution" hidden for the organizer and for members without
+  children in the carpool.
+- WhatsApp for wallet messages off by default (above).
+- Admin freeze, unfreeze and alert resolve write the audit entry first.
+- A failed transfer is shown to the sender only.
+
+Functions tests after the fixes: **run here, 487 pass** (46 wallet).
 
 ## Not done
 

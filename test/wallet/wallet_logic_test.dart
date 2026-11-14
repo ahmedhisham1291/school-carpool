@@ -15,13 +15,24 @@ void main() {
       expect(Money.parse('150.50'), 15050);
       expect(Money.parse('0.05'), 5);
       expect(Money.parse(' 1,250.75 '), 125075);
+      // A decimal comma (some keypads) is a decimal, never a thousands mark.
+      expect(Money.parse('12,50'), 1250);
+      expect(Money.parse('12,5'), 1250);
+      expect(Money.parse('1,250'), 125000);
+      expect(Money.parse('1,250.50'), 125050);
+      expect(Money.parse('1,234,567'), 123456700);
+      // Arabic thousands separator in a real group.
+      expect(Money.parse('\u0661\u066C\u0662\u0665\u0660'), 125000);
       // Arabic-Indic digits and the Arabic decimal mark.
       expect(Money.parse('١٢٫٥'), 1250);
       expect(Money.parse('۱۰'), 1000);
     });
 
     test('refuses odd input instead of rounding', () {
-      for (final String bad in <String>['', '.', 'abc', '1.234', '-5', '1e3', '12.3.4', '999999999']) {
+      for (final String bad in <String>[
+        '', '.', 'abc', '1.234', '-5', '1e3', '12.3.4', '999999999', //
+        '1,2,3', '12,5000', '1,25,0', ',50', '1,250,5', '1,2.50', '12,50.5', '1.', '12,',
+      ]) {
         expect(Money.parse(bad), isNull, reason: bad);
       }
     });
@@ -48,7 +59,7 @@ void main() {
 
     test('contribution: pounds per child times my children, in piastres', () {
       expect(Money.contribution(poundsPerChild: 150, children: 2), 30000);
-      expect(Money.contribution(poundsPerChild: 99, children: 0), 9900, reason: 'at least one child');
+      expect(Money.contribution(poundsPerChild: 99, children: 0), 0, reason: 'no children, nothing to pay');
     });
   });
 

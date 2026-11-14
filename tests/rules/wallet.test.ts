@@ -68,7 +68,7 @@ beforeEach(async () => {
       note: "",
       carpoolId: null,
       day: "2026-11-16",
-      status: "pending",
+      initialStatus: "pending",
       createdAt: at(T),
     });
     await db.doc(`transferResults/${TID}`).set({ status: "done", reason: null, partnerRef: "fp_1", settledAt: at(T) });

@@ -1439,5 +1439,7 @@
   "adminWalletNone": "No wallet",
   "adminWalletNoneBody": "This parent hasn't opened a wallet.",
   "adminWalletPartner": "Partner's records",
-  "adminWalletPartnerNone": "No partner records, or the partner didn't answer."
+  "adminWalletPartnerNone": "No partner records, or the partner didn't answer.",
+  "walletSendLocked": "To change it, go back to your wallet and check the history first.",
+  "walletMoneyLocked": "We couldn't confirm it. Try again with the same amount, or check your history first."
 }

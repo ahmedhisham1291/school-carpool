@@ -68,13 +68,13 @@ enum WhatsAppGroup {
   verification,
   newParents,
 
-  /// Prompt 11B: money moving is a security signal, so it is on by default.
-  wallet(defaultOn: true);
+  /// Prompt 11B: push only by default (COST MODE); the parent can switch
+  /// WhatsApp on.
+  wallet;
 
   const WhatsAppGroup({this.defaultOn = false});
 
-  /// COST MODE: only the critical alerts (and the wallet, Prompt 11B) go to
-  /// WhatsApp unless switched on.
+  /// COST MODE: only the critical alerts go to WhatsApp unless switched on.
   final bool defaultOn;
 }
 

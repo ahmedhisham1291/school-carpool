@@ -156,15 +156,24 @@ export async function adminSetWalletFrozen(
   const w = await deps.store.wallet(uid);
   if (!w) throw new WalletError("no-wallet");
   const nowMs = deps.now();
+  const audit = (): Promise<void> =>
+    deps.audit({ actorUid: caller.uid, action: frozen ? "wallet.freeze" : "wallet.unfreeze", target: `users/${uid}`, reasonCode: raw.reasonCode as string, ip });
   if (frozen) {
-    // Our side first: from now on no money leaves or arrives through us,
-    // whatever the partner answers.
-    await deps.store.updateWallet(uid, { status: "frozen", frozenReason: raw.reasonCode, frozenAtMs: nowMs, frozenBy: caller.uid, updatedAtMs: nowMs }, note);
+    // Logged first; then our side: from now on no money leaves or arrives
+    // through us, whatever the partner answers. walletReconcile retries the
+    // partner until it has the freeze too.
+    await audit();
+    await deps.store.updateWallet(
+      uid,
+      { status: "frozen", frozenReason: raw.reasonCode, frozenAtMs: nowMs, frozenBy: caller.uid, partnerSynced: false, updatedAtMs: nowMs },
+      note,
+    );
     if (deps.provider) {
       try {
         await withTimeout(deps.provider.freeze(w.walletRef, true), PARTNER_TIMEOUT_MS);
+        await deps.store.updateWallet(uid, { partnerSynced: true });
       } catch {
-        // Frozen on our side; the partner is asked again on the next freeze.
+        // Retried by walletReconcile (syncPartnerFreezes).
       }
     }
   } else {
@@ -175,15 +184,13 @@ export async function adminSetWalletFrozen(
     } catch {
       throw new WalletError("wallet-unavailable");
     }
-    await deps.store.updateWallet(uid, { status: "active", frozenReason: null, frozenAtMs: null, frozenBy: null, updatedAtMs: nowMs }, note);
+    await audit();
+    await deps.store.updateWallet(
+      uid,
+      { status: "active", frozenReason: null, frozenAtMs: null, frozenBy: null, partnerSynced: true, updatedAtMs: nowMs },
+      note,
+    );
   }
-  await deps.audit({
-    actorUid: caller.uid,
-    action: frozen ? "wallet.freeze" : "wallet.unfreeze",
-    target: `users/${uid}`,
-    reasonCode: raw.reasonCode,
-    ip,
-  });
   await deps.store.addEvents([newEvent(`wallet_${frozen ? "frozen" : "unfrozen"}_${uid}_${nowMs}`, frozen ? "wallet-frozen" : "wallet-updated", [uid], nowMs)]);
   return { status: frozen ? "frozen" : "active" };
 }
@@ -206,7 +213,8 @@ export async function adminResolveWalletAlert(deps: WalletAdminDeps, caller: Adm
   const a = await deps.store.alert(id);
   if (!a) throw new WalletError("not-found");
   const closed: AlertRecord = { ...a, status: "handled", outcome: raw.outcome as string, handledBy: caller.uid, handledAtMs: deps.now() };
-  await deps.store.putAlert(closed);
+  // Logged first: a change is never unlogged.
   await deps.audit({ actorUid: caller.uid, action: "wallet.alert.resolve", target: `walletAlerts/${id}`, reasonCode: raw.outcome as string, ip, details: { kind: a.kind } });
+  await deps.store.putAlert(closed);
   return closed;
 }

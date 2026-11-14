@@ -908,9 +908,9 @@ the others have no parameter. No names, no addresses, no message text.
 The Arabic bodies are in `functions/src/notifications/texts.ts`. Add
 "Open the app for details." as the footer. Only `cp_no_driver` and
 `cp_child_not_confirmed` (and `cp_time_changed` when a run moved with no
-time left to confirm: it follows the "No driver" switch) and the five
-`cp_wallet_*` templates (Prompt 11B: money moving is a security signal;
-no amount, name or note) are sent by default (COST MODE); the others only
+time left to confirm: it follows the "No driver" switch) are sent by
+default (COST MODE); the others, including the five `cp_wallet_*`
+templates (Prompt 11B; no amount, name or note), only
 for parents who switch that group on, and only to parents who agreed to
 WhatsApp at sign-up.
 
@@ -1122,7 +1122,10 @@ Change them to the partner's limits when the contract is signed.
 - `firebase deploy --only firestore:indexes,firestore:rules` (new indexes on
   `transfers`, `walletAlerts`, `fakeWalletOps`).
 - `walletReconcile` runs every 5 minutes: transfers whose answer was lost
-  are settled by asking the partner (never by guessing). One more Cloud
+  are settled by asking the partner (never by guessing; a request is
+  cancelled at the partner before it is recorded as failed, and one the
+  partner can neither confirm nor cancel stays pending with a "stuck" admin
+  alert), and freezes the partner missed are applied again. One more Cloud
   Scheduler job (docs/COSTS.md).
 - Every wallet collection is closed to the app (`tests/rules/wallet.test.ts`).
 
@@ -1142,8 +1145,9 @@ Change them to the partner's limits when the contract is signed.
 ### 20.5 Before the pilot (the partner)
 
 - Implement `PartnerWalletProvider` against the partner's API (idempotency
-  key = our transfer ID; a lookup by that key for reconciliation; webhooks
-  if the partner needs them), keep its secrets in Secret Manager and bind
+  key = our transfer ID; a lookup by that key for reconciliation; a cancel
+  or void by that key that guarantees the request never runs afterwards,
+  answering its final state; webhooks if the partner needs them), keep its secrets in Secret Manager and bind
   them only to the wallet functions.
 - Confirm with the partner: limits, identity checks it needs from parents,
   how add money (payment page) and withdraw (to which account) work, the

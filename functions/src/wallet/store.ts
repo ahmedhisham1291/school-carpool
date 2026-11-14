@@ -49,17 +49,24 @@ export interface WalletStore {
   /** Creates wallets/{uid} and the consent record together; false when the wallet already exists. */
   createWallet(w: WalletRecord, consent: ConsentRecord): Promise<boolean>;
   /** Balance copy, freeze state (never a transfer). */
-  updateWallet(uid: string, change: Partial<Pick<WalletRecord, "balanceCopy" | "balanceAtMs" | "status" | "frozenReason" | "frozenAtMs" | "frozenBy" | "updatedAtMs">>, note?: string): Promise<void>;
+  updateWallet(
+    uid: string,
+    change: Partial<Pick<WalletRecord, "balanceCopy" | "balanceAtMs" | "status" | "frozenReason" | "frozenAtMs" | "frozenBy" | "partnerSynced" | "updatedAtMs">>,
+    note?: string,
+  ): Promise<void>;
+  /** Wallets whose status has not reached the partner yet (partnerSynced false). */
+  walletsToSync(limit: number): Promise<WalletRecord[]>;
 
   limits(): Promise<WalletLimits>;
 
   /**
    * In one transaction: when transfers/{t.id} exists, returns it unchanged
-   * (a retry). Otherwise reads the day's counter, lets [check] refuse
-   * (it throws), then creates the transfer, its pending entry and the new
-   * counter.
+   * (a retry). Otherwise reads the day's counter and the wallets of
+   * t.parties, lets [check] refuse (it throws; a wallet frozen a moment ago
+   * is seen here), then creates the transfer, its pending entry and the
+   * new counter.
    */
-  startTransfer(t: TransferRecord, check: (daily: DailyCounter) => DailyCounter): Promise<StartResult>;
+  startTransfer(t: TransferRecord, check: (daily: DailyCounter, wallets: Map<string, WalletRecord | null>) => DailyCounter): Promise<StartResult>;
   transfer(id: string): Promise<TransferRecord | null>;
   result(id: string): Promise<TransferResult | null>;
   results(ids: string[]): Promise<Map<string, TransferResult>>;
@@ -78,6 +85,12 @@ export interface WalletStore {
   /** Pending entries of one parent. */
   pendingOf(uid: string, limit: number): Promise<PendingRecord[]>;
   touchPending(id: string, resends: number, checkedAtMs: number): Promise<void>;
+  /**
+   * In one transaction: the pending entry, leased until nowMs + leaseMs, or
+   * null when it is gone or another reconcile holds the lease (so two
+   * reconciles never send the same transfer at the same time).
+   */
+  leasePending(id: string, nowMs: number, leaseMs: number): Promise<PendingRecord | null>;
 
   /** The parent's transfers, newest first (parties contains uid). */
   history(uid: string, limit: number, afterId: string | null): Promise<TransferRecord[]>;

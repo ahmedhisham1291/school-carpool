@@ -71,9 +71,9 @@ describe("catalog", () => {
     assert.deepEqual(critical, ["no-driver", "child-not-confirmed"]);
   });
 
-  it("COST MODE: WhatsApp is on by default only for the critical alerts and the wallet; chat is never WhatsApp", () => {
+  it("COST MODE: WhatsApp is on by default only for the critical alerts; chat is never WhatsApp", () => {
     const on = WHATSAPP_GROUPS.filter((g) => WHATSAPP_DEFAULTS[g]);
-    assert.deepEqual(on, ["noDriver", "childNotConfirmed", "wallet"]);
+    assert.deepEqual(on, ["noDriver", "childNotConfirmed"]);
     assert.equal(TYPES["chat-message"].template, null);
   });
 
@@ -82,6 +82,7 @@ describe("catalog", () => {
     assert.equal(routeFor({ type: "join-requested", carpoolId: "k1" }), "/carpools/k1");
     assert.equal(routeFor({ type: "verification-rejected", carpoolId: null }), "/profile");
     assert.equal(routeFor({ type: "new-parent", carpoolId: null }), "/home/nearby");
+    assert.equal(routeFor({ type: "wallet-received", carpoolId: null }), "/profile/wallet");
     assert.equal(routeFor({ type: "swap-requested", carpoolId: "../x?y=1" }), "/notifications");
   });
 

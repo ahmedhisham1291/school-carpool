@@ -22,7 +22,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Stream Chat | Build (free), later Maker | Free plan limits on monthly active users and concurrent connections (see Stream's pricing page); Maker is free for small companies that qualify | Stream Dashboard > Usage (monthly active users, connections) | 80 percent of the free plan's monthly active users or connections; see "Chat (Prompt 9)" |
 | Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
-| WhatsApp Business | Pay per template message | Codes, critical alerts and wallet messages (Prompt 11B) by default; other notifications are push unless the parent switches WhatsApp on | Meta WhatsApp Manager > Insights | Budget set by the owner |
+| WhatsApp Business | Pay per template message | Codes and critical alerts only by default (wallet messages too only if the parent switches them on); other notifications are push unless the parent switches WhatsApp on | Meta WhatsApp Manager > Insights | Budget set by the owner |
 | Valify, wallet partner | Fake providers | Nothing is called until the pilot | n/a | Contract signed |
 | flutter_background_geolocation | No license | Debug builds and iOS need none | n/a | Before the first Android release build |
 
@@ -263,13 +263,10 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
   contract; the partner's fees and limits are open questions. The app takes
   no fee and no commission; ask the partner for no fee on transfers between
   parents.
-- **WhatsApp:** the five `cp_wallet_*` templates are on by default (a
-  transfer, a failed transfer after a lost answer, a freeze). Money moving
-  is a security signal (a stolen phone), and there are few per parent: at
-  most two per transfer (sender and receiver). A parent can switch the
-  "Wallet" group off in Settings > Alerts. Watch Meta WhatsApp Manager >
-  Insights; turn the default off if wallet messages pass 20 percent of the
-  WhatsApp bill.
+- **WhatsApp:** the five `cp_wallet_*` templates are **off by default**
+  (COST MODE, owner decision pending): wallet messages are push and in-app
+  only unless the parent switches the "Wallet" group on in Settings >
+  Alerts. At most two per transfer (sender and receiver) when on.
 - **Cloud Functions:** one call per wallet open (with one partner balance
   read), one per transfer (two Firestore transactions, the partner call,
   outbox events), one per history page. `minInstances` stays 0

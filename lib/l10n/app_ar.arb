@@ -6375,5 +6375,13 @@
   "adminWalletPartnerNone": "لا توجد عمليات لدى الشريك، أو لم يرد.",
   "@adminWalletPartnerNone": {
     "description": "Empty partner list"
+  },
+  "walletSendLocked": "لتغيير المستلم أو المبلغ ارجع للمحفظة وتحقق من السجل أولًا.",
+  "@walletSendLocked": {
+    "description": "Shown after a lost answer: the transfer is locked"
+  },
+  "walletMoneyLocked": "لم نتأكد من النتيجة. حاول مرة أخرى بنفس المبلغ، أو راجع السجل أولًا.",
+  "@walletMoneyLocked": {
+    "description": "Shown after a lost answer on add money or withdraw"
   }
 }

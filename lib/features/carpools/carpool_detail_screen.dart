@@ -453,8 +453,13 @@ class _ScheduleLinks extends ConsumerWidget {
     final String? uid = session is SessionSignedIn ? session.uid : null;
     int? payAmount;
     if (agreed != null && members != null) {
-      final int children = members.where((CarpoolMember m) => m.uid == uid).fold<int>(0, (int n, CarpoolMember m) => n + m.children.length);
-      payAmount = Money.contribution(poundsPerChild: agreed.amount, children: children);
+      // Not for the organizer (who gets it) and not for a member with no
+      // children in the carpool (nothing to pay).
+      final List<CarpoolMember> mine = members.where((CarpoolMember m) => m.uid == uid).toList();
+      final int children = mine.fold<int>(0, (int n, CarpoolMember m) => n + m.children.length);
+      if (mine.isNotEmpty && !mine.first.isAdmin && children > 0) {
+        payAmount = Money.contribution(poundsPerChild: agreed.amount, children: children);
+      }
     }
     final int? amount = payAmount;
     return Column(
