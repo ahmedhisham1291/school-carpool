@@ -65,7 +65,12 @@ export interface SettleStore {
   account(uid: string): Promise<SettleAccount | null>;
   /** Both are approved members of this carpool now. */
   approvedMember(carpoolId: string, uid: string): Promise<boolean>;
-  /** Either parent blocked the other (chat blocks). */
+  /**
+   * Either parent blocked the other (chat blocks). The Firestore store
+   * reads the chat feature's `chatBlocks` collection (store.ts,
+   * chatBlockDocId): this method is the one seam, so a change of where
+   * blocks live is a change in one place.
+   */
   blockedEitherWay(a: string, b: string): Promise<boolean>;
   address(uid: string): Promise<string | null>;
   saveAddress(uid: string, address: string, nowMs: number): Promise<void>;
@@ -74,18 +79,24 @@ export interface SettleStore {
   settings(): Promise<Record<string, unknown> | null>;
   takeLimit(uid: string, kind: SettleLimitKind, nowMs: number, rule: { windowMs: number; max: number }): Promise<{ allowed: boolean; retryAfterMs: number }>;
   get(id: string): Promise<SettleRecord | null>;
-  /** Creates [r] unless a record with its ID exists (then that one is returned, created: false). The event is written with it. */
-  create(r: SettleRecord, event: OutboxEvent): Promise<{ record: SettleRecord; created: boolean }>;
-  /** In one transaction: reads the record, applies [change] and writes the result and its event. null: not found. */
-  update(id: string, change: (r: SettleRecord) => { record: SettleRecord; event: OutboxEvent | null }): Promise<SettleRecord | null>;
-  /** Unfinished records between the two parents (either direction). */
-  unfinishedBetween(a: string, b: string): Promise<number>;
+  /**
+   * In ONE transaction: returns the record with this ID when it exists
+   * (created: false); refuses with full: true when the two parents already
+   * have [maxUnfinished] unfinished records (counted in the same
+   * transaction, so two requests at once cannot both pass); otherwise
+   * creates [r] and writes its event.
+   */
+  create(r: SettleRecord, event: OutboxEvent, maxUnfinished: number): Promise<{ record: SettleRecord; created: boolean; full: boolean }>;
+  /**
+   * In one transaction: reads the record, applies [change] and writes the
+   * result, its event and, when given, a report for the admins' queue (so
+   * a record is never marked "reported" without its report). null: not found.
+   */
+  update(id: string, change: (r: SettleRecord) => { record: SettleRecord; event: OutboxEvent | null; report?: SettleReport | null }): Promise<SettleRecord | null>;
   /** The parent's records, newest first. */
   listFor(uid: string, limit: number): Promise<SettleRecord[]>;
   /** Parents of the caller's active carpools (approved members). */
   contacts(uid: string): Promise<SettleContact[]>;
-  /** The admin panel's reports queue. */
-  addReport(report: SettleReport, nowMs: number): Promise<void>;
   audit(entry: AuditEntry): Promise<void>;
 }
 
@@ -172,11 +183,14 @@ export async function saveAddress(deps: SettleDeps, caller: Caller, data: unknow
   return { address };
 }
 
-/** {} -> { removed }: the owner removes it at any time (open requests then show "no address"). */
+/**
+ * {} -> { removed }: the owner removes it at any time (open requests then
+ * show "no address"). Never rate limited: taking your own address away
+ * must always work.
+ */
 export async function removeAddress(deps: SettleDeps, caller: Caller): Promise<{ removed: true }> {
   await requireOn(deps);
   await requireAccount(deps, caller);
-  await take(deps, caller.uid, "addressChanges");
   await deps.store.removeAddress(caller.uid);
   return { removed: true };
 }
@@ -238,13 +252,13 @@ export async function createSettleUp(deps: SettleDeps, caller: Caller, data: unk
   const [mine, theirs] = await Promise.all([deps.store.approvedMember(input.carpoolId, caller.uid), deps.store.approvedMember(input.carpoolId, other.uid)]);
   if (!mine || !theirs) throw new SettleError("not-allowed");
   if (input.kind === "request" && !(await deps.store.address(caller.uid))) throw new SettleError("no-address");
-  if ((await deps.store.unfinishedBetween(caller.uid, other.uid)) >= MAX_OPEN_PER_PAIR) throw new SettleError("too-many-open");
   await take(deps, caller.uid, "requests");
   const fresh = newRecord(input, { uid: me.uid, firstName: me.firstName }, { uid: other.uid, firstName: other.firstName }, nowMs);
   const event = notice(fresh, input.kind === "request" ? "requested" : "recorded", caller.uid, other.uid, nowMs);
-  const result = await deps.store.create(fresh, event);
+  const result = await deps.store.create(fresh, event, MAX_OPEN_PER_PAIR);
+  if (result.full) throw new SettleError("too-many-open");
   if (!result.created && !sameRequest(result.record, fresh)) throw new SettleError("request-reused");
-  return result;
+  return { record: result.record, created: result.created };
 }
 
 /**
@@ -274,19 +288,33 @@ export async function settleUpAction(deps: SettleDeps, caller: Caller, data: unk
 }
 
 /**
- * { id } -> { address }: the payee's InstaPay address, ONLY for the payer
- * of this record while it is open. null when the payee removed it. Rate
- * limited; never logged.
+ * { id } -> { address }: the payee's InstaPay address, shown ONLY when all
+ * of these hold (anything else is refused, and every refusal is tested):
+ * - the caller is the record's payer, verified now, not suspended or banned;
+ * - the PAYEE created the record (a real request from the address owner).
+ *   A record the payer made themselves ("I already paid") never opens the
+ *   address, also not after the payee answers "Not received" and it reads
+ *   as open again: otherwise any carpool member could fetch an address
+ *   nobody offered them;
+ * - the record is open (not paid, closed, cancelled or declined) and
+ *   nobody reported it;
+ * - the payee still has an account, is verified and not suspended or
+ *   banned, and neither parent blocked the other.
+ * null when the payee removed the address. Rate limited; never logged.
  */
 export async function getAddressFor(deps: SettleDeps, caller: Caller, data: unknown): Promise<{ address: string | null }> {
   await requireOn(deps);
   const id = docId(record(data).id);
-  await requireAccount(deps, caller);
+  await requireEligible(deps, caller);
   const r = await deps.store.get(id);
   if (!r || !roleOf(r, caller.uid)) throw new SettleError("not-found");
   if (roleOf(r, caller.uid) !== "payer") throw new SettleError("not-allowed");
+  if (r.createdBy !== "payee") throw new SettleError("not-allowed");
   if (r.status !== "open") throw new SettleError("invalid-state", { status: r.status });
-  if (!r.parties.includes(r.payeeUid)) return { address: null };
+  if (r.reportedBy.length > 0) throw new SettleError("not-allowed");
+  if (!r.parties.includes(r.payeeUid)) throw new SettleError("not-allowed");
+  if (!eligible(await deps.store.account(r.payeeUid))) throw new SettleError("not-allowed");
+  if (await deps.store.blockedEitherWay(caller.uid, r.payeeUid)) throw new SettleError("not-allowed");
   await take(deps, caller.uid, "addressViews");
   return { address: await deps.store.address(r.payeeUid) };
 }
@@ -305,18 +333,18 @@ export async function reportSettleUp(deps: SettleDeps, caller: Caller, data: unk
   await requireAccount(deps, caller);
   await take(deps, caller.uid, "changes");
   const nowMs = deps.now();
-  let role: SettleRole | null = null;
-  let targetUid = "";
+  // The mark and the report are written together (one transaction): a
+  // failed write leaves neither, so a retry reports again instead of
+  // answering "already reported" with no report in the queue.
   const updated = await deps.store.update(id, (r) => {
-    role = roleOf(r, caller.uid);
+    const role: SettleRole | null = roleOf(r, caller.uid);
     if (!role) throw new SettleError("not-found");
     const can = canReport(r, role, limitsOf(deps).reportAfter);
     if (can !== "ok") throw new SettleError(can);
-    targetUid = role === "payee" ? r.payerUid : r.payeeUid;
-    return { record: markReported(r, role, nowMs), event: null };
+    const targetUid = role === "payee" ? r.payerUid : r.payeeUid;
+    return { record: markReported(r, role, nowMs), event: null, report: { reporterUid: caller.uid, targetUid, settleUpId: id, note } };
   });
-  if (!updated || !role) throw new SettleError("not-found");
-  await deps.store.addReport({ reporterUid: caller.uid, targetUid, settleUpId: id, note }, nowMs);
+  if (!updated) throw new SettleError("not-found");
   return { reported: true };
 }
 

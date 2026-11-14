@@ -73,26 +73,38 @@ export class MemorySettleStore implements SettleStore {
     return clone(this.records.get(id) ?? null);
   }
 
-  async create(r: SettleRecord, event: OutboxEvent): Promise<{ record: SettleRecord; created: boolean }> {
+  /** The next write (create or update) fails once with this (a lost transaction). */
+  failNextWrite: Error | null = null;
+
+  private maybeFailWrite(): void {
+    const e = this.failNextWrite;
+    if (e) {
+      this.failNextWrite = null;
+      throw e;
+    }
+  }
+
+  async create(r: SettleRecord, event: OutboxEvent, maxUnfinished: number): Promise<{ record: SettleRecord; created: boolean; full: boolean }> {
     const existing = this.records.get(r.id);
-    if (existing) return { record: clone(existing), created: false };
+    if (existing) return { record: clone(existing), created: false, full: false };
+    const unfinished = [...this.records.values()].filter((x) => !isFinal(x.status) && x.parties.includes(r.payeeUid) && x.parties.includes(r.payerUid)).length;
+    if (unfinished >= maxUnfinished) return { record: clone(r), created: false, full: true };
+    this.maybeFailWrite();
     this.records.set(r.id, clone(r));
     this.events.push(clone(event));
-    return { record: clone(r), created: true };
+    return { record: clone(r), created: true, full: false };
   }
 
-  async update(id: string, change: (r: SettleRecord) => { record: SettleRecord; event: OutboxEvent | null }): Promise<SettleRecord | null> {
+  async update(id: string, change: (r: SettleRecord) => { record: SettleRecord; event: OutboxEvent | null; report?: SettleReport | null }): Promise<SettleRecord | null> {
     const existing = this.records.get(id);
     if (!existing) return null;
-    // Like a transaction: nothing is written when [change] throws.
-    const { record, event } = change(clone(existing));
+    // Like a transaction: nothing is written when [change] throws or the write fails.
+    const { record, event, report } = change(clone(existing));
+    this.maybeFailWrite();
     this.records.set(id, clone(record));
     if (event && !this.events.some((e) => e.id === event.id)) this.events.push(clone(event));
+    if (report) this.reports.push({ ...report, atMs: record.updatedAtMs });
     return clone(record);
-  }
-
-  async unfinishedBetween(a: string, b: string): Promise<number> {
-    return [...this.records.values()].filter((r) => !isFinal(r.status) && r.parties.includes(a) && r.parties.includes(b)).length;
   }
 
   async listFor(uid: string, limit: number): Promise<SettleRecord[]> {
@@ -116,10 +128,6 @@ export class MemorySettleStore implements SettleStore {
       }
     }
     return out;
-  }
-
-  async addReport(report: SettleReport, nowMs: number): Promise<void> {
-    this.reports.push({ ...report, atMs: nowMs });
   }
 
   async audit(entry: AuditEntry): Promise<void> {

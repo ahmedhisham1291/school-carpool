@@ -25,8 +25,10 @@ SettleUp settleRecord(
   int notReceived = 0,
   List<SettleRole> reportedBy = const <SettleRole>[],
   List<SettleEvent>? events,
+  SettleRole createdBy = SettleRole.payee,
 }) => SettleUp(
   id: id,
+  createdBy: createdBy,
   payeeUid: iPay ? otherUid : settleMe,
   payerUid: iPay ? settleMe : otherUid,
   payeeFirstName: iPay ? other : 'Mona',
@@ -231,6 +233,10 @@ class FakeSettleUpRepository implements SettleUpRepository {
     await _maybeFail('addressFor:$id');
     final SettleUp r = records.firstWhere((SettleUp x) => x.id == id, orElse: () => throw const SettleFailure(SettleFailureKind.notFound));
     if (r.roleOf(settleMe) != SettleRole.payer) {
+      throw const SettleFailure(SettleFailureKind.notAllowed);
+    }
+    // Like the server: only on a request the payee made, and not once reported.
+    if (r.createdBy != SettleRole.payee || r.reportedBy.isNotEmpty) {
       throw const SettleFailure(SettleFailureKind.notAllowed);
     }
     if (r.status != SettleStatus.open) {

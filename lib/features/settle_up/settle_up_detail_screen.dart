@@ -23,7 +23,10 @@ final _payeeAddressProvider = FutureProvider.autoDispose.family<String?, String>
 /// whom, the state and what happens next; the reason and the note; for the
 /// payer of an open record the payee's InstaPay address with a Copy button
 /// and the three steps (copy, pay in InstaPay, come back and tap "I
-/// paid"), then the line "The app does not move money"; the actions for my
+/// paid"), then the line "The app does not move money" (on a payment I
+/// recorded myself, or a reported record, a note to ask the parent for the
+/// address instead: the app shows an address only on a request its owner
+/// made); the actions for my
 /// side and the record's state (one primary); Report once it bounced
 /// enough times; and the history.
 ///
@@ -175,6 +178,10 @@ class _SettleUpDetailScreenState extends ConsumerState<SettleUpDetailScreen> {
     final String? error = _error;
     const EdgeInsetsDirectional gutter = EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter);
     final bool payNow = r.status == SettleStatus.open && mine == SettleRole.payer;
+    // The address is shown only on a request the PAYEE made, and not once
+    // it was reported (the server refuses anything else: a payment I
+    // recorded myself never opens the other parent's address).
+    final bool showAddress = payNow && r.createdBy == SettleRole.payee && r.reportedBy.isEmpty;
 
     return ListView(
       key: const Key('settleDetail.list'),
@@ -211,7 +218,18 @@ class _SettleUpDetailScreenState extends ConsumerState<SettleUpDetailScreen> {
             ),
           ),
         ),
-        if (payNow) ...<Widget>[
+        if (payNow && !showAddress) ...<Widget>[
+          Padding(
+            padding: gutter,
+            child: AppInlineMessage(
+              key: const Key('settleDetail.askAddress'),
+              message: l10n.settleAskAddress(name),
+              icon: Icons.alternate_email_rounded,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s16),
+        ],
+        if (showAddress) ...<Widget>[
           Padding(padding: gutter, child: _PayeeAddress(id: r.id, name: name)),
           const SizedBox(height: AppSpacing.s16),
           Padding(

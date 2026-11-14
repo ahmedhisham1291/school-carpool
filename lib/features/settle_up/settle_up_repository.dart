@@ -30,8 +30,9 @@ abstract interface class SettleUpRepository {
 
   Future<SettleUp> act(String id, SettleAction action);
 
-  /// The payee's InstaPay address, for the payer of an open record only.
-  /// Null when the payee has not saved one.
+  /// The payee's InstaPay address, for the payer of an open record that the
+  /// PAYEE created (a request from the address owner) only. Null when the
+  /// payee has not saved one.
   Future<String?> addressFor(String id);
 
   /// Sends the record to the admins after it bounced enough times.

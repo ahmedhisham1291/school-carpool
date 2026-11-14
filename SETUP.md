@@ -1392,7 +1392,7 @@ EGP). Missing or odd values use the default: `500000` (EGP 5,000).
 
 `firebase deploy --only firestore:rules,firestore:indexes` (the setup
 script does it): two indexes on `settleUps` (`parties` with `updatedAt`,
-and `parties` with `finished`). Rules: a record is read only by its two
+and `pair` with `finished`). Rules: a record is read only by its two
 parties; nobody reads an InstaPay address directly; the app writes nothing.
 
 ### 21b.5 Trying it

@@ -32,8 +32,25 @@ export const SETTLE_UPS = "settleUps";
 export const SETTLE_ADDRESSES = "settleUpAddresses";
 export const SETTLE_LIMITS = "settleUpLimits";
 export const SETTLE_CONFIG = "config/settleUp";
-/** Chat blocks (Prompt 9): chatBlocks/{blocker}_{blocked}. Read only here. */
-const CHAT_BLOCKS = "chatBlocks";
+/**
+ * Chat blocks (Prompt 9): chatBlocks/{blocker}_{blocked}, written by the
+ * chat functions and only READ here. DEPENDENCY: if the chat feature moves
+ * or renames this collection or its IDs, blockedEitherWay below must
+ * follow, or blocked parents could create requests. The unit test
+ * "chat blocks: the same document ID as the chat feature" fails when the
+ * chat model's ID format changes.
+ */
+export const CHAT_BLOCKS = "chatBlocks";
+
+/** The chat feature's block document ID (chat/model.ts blockId). */
+export function chatBlockDocId(blockerUid: string, blockedUid: string): string {
+  return `${blockerUid}_${blockedUid}`;
+}
+
+/** "a|b" with the two uids in order: one value per pair, whoever pays. */
+export function pairKey(a: string, b: string): string {
+  return [a, b].sort().join("|");
+}
 
 const ts = (ms: number): Timestamp => Timestamp.fromMillis(ms);
 
@@ -64,7 +81,9 @@ export function settleToDoc(r: SettleRecord): DocumentData {
     reason: r.reason,
     note: r.note,
     status: r.status,
-    // "Not finished" as one field, for the pair query.
+    // The pair and "not finished" as fields, for the per-pair count in the
+    // create transaction. A deleted parent reads as "deleted" here too.
+    pair: pairKey(r.payeeUid, r.payerUid),
     finished: r.status === "closed" || r.status === "cancelled" || r.status === "declined",
     notReceived: r.notReceived,
     reportedBy: r.reportedBy,
@@ -107,6 +126,35 @@ export function settleFromDoc(id: string, d: DocumentData): SettleRecord {
   };
 }
 
+/**
+ * A report for the admin panel's reports queue, in the shape its report
+ * screen reads (Prompt 9's reports: reason "other", a user target, no chat
+ * context), so an admin can open and close it like any other report. The
+ * record ID travels in the note; never an amount or an InstaPay address.
+ */
+export function reportDoc(report: SettleReport, nowMs: number): DocumentData {
+  return {
+    reporterId: report.reporterUid,
+    targetType: "user",
+    targetId: report.targetUid,
+    subjectUid: report.targetUid,
+    reason: "other",
+    source: "settleUp",
+    settleUpId: report.settleUpId,
+    cid: "",
+    kind: "private",
+    note: `[settle-up ${report.settleUpId}] ${report.note}`.trim(),
+    urgent: false,
+    context: [],
+    pausedDriving: false,
+    outcome: null,
+    handledBy: null,
+    handledAt: null,
+    status: "open",
+    createdAt: ts(nowMs),
+  };
+}
+
 export class FirestoreSettleStore implements SettleStore {
   constructor(
     private readonly db: Firestore,
@@ -127,7 +175,7 @@ export class FirestoreSettleStore implements SettleStore {
   }
 
   async blockedEitherWay(a: string, b: string): Promise<boolean> {
-    const [ab, ba] = await this.db.getAll(this.db.collection(CHAT_BLOCKS).doc(`${a}_${b}`), this.db.collection(CHAT_BLOCKS).doc(`${b}_${a}`));
+    const [ab, ba] = await this.db.getAll(this.db.collection(CHAT_BLOCKS).doc(chatBlockDocId(a, b)), this.db.collection(CHAT_BLOCKS).doc(chatBlockDocId(b, a)));
     return ab.exists || ba.exists;
   }
 
@@ -166,32 +214,37 @@ export class FirestoreSettleStore implements SettleStore {
     return snap.exists ? settleFromDoc(id, snap.data() ?? {}) : null;
   }
 
-  create(r: SettleRecord, event: OutboxEvent): Promise<{ record: SettleRecord; created: boolean }> {
+  create(r: SettleRecord, event: OutboxEvent, maxUnfinished: number): Promise<{ record: SettleRecord; created: boolean; full: boolean }> {
     const ref = this.db.collection(SETTLE_UPS).doc(r.id);
+    const unfinished = this.db
+      .collection(SETTLE_UPS)
+      .where("pair", "==", pairKey(r.payeeUid, r.payerUid))
+      .where("finished", "==", false)
+      .limit(maxUnfinished);
     return this.db.runTransaction(async (tx: Transaction) => {
       const snap = await tx.get(ref);
-      if (snap.exists) return { record: settleFromDoc(r.id, snap.data() ?? {}), created: false };
+      if (snap.exists) return { record: settleFromDoc(r.id, snap.data() ?? {}), created: false, full: false };
+      // Counted inside the transaction: a second request of the same pair
+      // at the same moment conflicts and is tried again after this one.
+      const open = await tx.get(unfinished);
+      if (open.size >= maxUnfinished) return { record: r, created: false, full: true };
       tx.create(ref, settleToDoc(r));
       tx.set(this.db.collection(NOTIFICATION_EVENTS).doc(event.id), outboxDoc(event));
-      return { record: r, created: true };
+      return { record: r, created: true, full: false };
     });
   }
 
-  update(id: string, change: (r: SettleRecord) => { record: SettleRecord; event: OutboxEvent | null }): Promise<SettleRecord | null> {
+  update(id: string, change: (r: SettleRecord) => { record: SettleRecord; event: OutboxEvent | null; report?: SettleReport | null }): Promise<SettleRecord | null> {
     const ref = this.db.collection(SETTLE_UPS).doc(id);
     return this.db.runTransaction(async (tx: Transaction) => {
       const snap = await tx.get(ref);
       if (!snap.exists) return null;
-      const { record, event } = change(settleFromDoc(id, snap.data() ?? {}));
+      const { record, event, report } = change(settleFromDoc(id, snap.data() ?? {}));
       tx.set(ref, settleToDoc(record));
       if (event) tx.set(this.db.collection(NOTIFICATION_EVENTS).doc(event.id), outboxDoc(event));
+      if (report) tx.create(this.db.collection(REPORTS).doc(), reportDoc(report, record.updatedAtMs));
       return record;
     });
-  }
-
-  async unfinishedBetween(a: string, b: string): Promise<number> {
-    const snap = await this.db.collection(SETTLE_UPS).where("parties", "array-contains", a).where("finished", "==", false).limit(200).get();
-    return snap.docs.filter((d) => (d.get("parties") as unknown[]).includes(b)).length;
   }
 
   async listFor(uid: string, limit: number): Promise<SettleRecord[]> {
@@ -227,33 +280,6 @@ export class FirestoreSettleStore implements SettleStore {
       });
     }
     return out;
-  }
-
-  async addReport(report: SettleReport, nowMs: number): Promise<void> {
-    // The admin panel's reports queue, in the shape its report screen reads
-    // (Prompt 9's reports: reason "other", a user target, no chat context),
-    // so an admin can open and close it like any other report. The record
-    // ID travels in the note; never an amount or an InstaPay address.
-    await this.db.collection(REPORTS).doc().create({
-      reporterId: report.reporterUid,
-      targetType: "user",
-      targetId: report.targetUid,
-      subjectUid: report.targetUid,
-      reason: "other",
-      source: "settleUp",
-      settleUpId: report.settleUpId,
-      cid: "",
-      kind: "private",
-      note: `[settle-up ${report.settleUpId}] ${report.note}`.trim(),
-      urgent: false,
-      context: [],
-      pausedDriving: false,
-      outcome: null,
-      handledBy: null,
-      handledAt: null,
-      status: "open",
-      createdAt: ts(nowMs),
-    });
   }
 
   async audit(entry: AuditEntry): Promise<void> {

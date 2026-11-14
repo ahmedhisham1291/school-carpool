@@ -9745,5 +9745,14 @@
         "type": "int"
       }
     }
+  },
+  "settleAskAddress": "اطلب من {name} عنوان إنستاباي في المحادثة، أو اطلب منه أن يرسل لك طلب دفع من «التسوية». يظهر العنوان هنا فقط في الطلبات التي يرسلها صاحبه.",
+  "@settleAskAddress": {
+    "description": "Shown instead of the payee's address on a record the payer created, or a reported one",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

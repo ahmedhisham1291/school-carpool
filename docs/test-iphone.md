@@ -156,6 +156,7 @@ send EGP 1 between your own two InstaPay accounts.
 | 9.9 | F45 | B: I paid again; A: Not received again | "Report to admins" appears for both; A taps it > the report is in the admin panel > Reports |
 | 9.10 | F45 | B: I paid; A: Received > confirm | State "Received"; the record moves to "Finished"; no more buttons |
 | 9.11 | F45 | B: New request > I already paid > A > 50 > Record payment | A sees it waiting for confirmation; A: Received |
+| 9.11b | F45 (privacy) | B: I already paid > A > 20 > Record payment; A: Not received | On B's phone the record is "Not paid" but shows NO address, only "Ask A for their InstaPay address": an address appears only on a request its owner sent |
 | 9.12 | F45 | A: a new request to B, then Cancel request; another one, B: Decline request | Each closes after a confirmation; the other parent gets a push |
 | 9.13 | F45 | A: New request with 5001 | "The most for one request is EGP 5,000"; Next stays off |
 | 9.14 | F45, F25 | A: the carpool page | Row "Settle up"; no "Pay contribution" row; the contribution line says "in cash or by Settle up" |

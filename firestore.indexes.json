@@ -527,8 +527,8 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "parties",
-          "arrayConfig": "CONTAINS"
+          "fieldPath": "pair",
+          "order": "ASCENDING"
         },
         {
           "fieldPath": "finished",

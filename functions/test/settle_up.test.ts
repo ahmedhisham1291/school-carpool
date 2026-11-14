@@ -1,6 +1,7 @@
 // Settle up by InstaPay (F45). Fake parents, fake addresses and fake amounts only. Run: npm test.
 import { strict as assert } from "node:assert";
 import { beforeEach, describe, it } from "node:test";
+import { blockId } from "../src/chat/model";
 import { ALL_ON, FeatureOffError } from "../src/features/model";
 import { routeFor, TYPES, WHATSAPP_GROUPS } from "../src/notifications/catalog";
 import { TEXTS } from "../src/notifications/texts";
@@ -49,7 +50,7 @@ import {
   type SettleRole,
   type SettleStatus,
 } from "../src/settle_up/model";
-import { settleFromDoc, settleToDoc } from "../src/settle_up/store";
+import { CHAT_BLOCKS, chatBlockDocId, pairKey, reportDoc, settleFromDoc, settleToDoc } from "../src/settle_up/store";
 import { MemorySettleStore } from "./helpers/memory_settle_up";
 
 // Saturday 14 Nov 2026, 10:00 in Cairo.
@@ -168,6 +169,19 @@ describe("settle up: InstaPay address (name@instapay)", () => {
     assert.equal((await getProfile(deps, as("bob"))).address, null);
   });
 
+  it("removing my own address always works, also after the daily limit of changes is used up", async () => {
+    for (let i = 0; i < DEFAULT_SETTLE_LIMITS.addressChangesPerDay; i++) await saveAddress(deps, as("cara"), { address: `cara${i}.test@instapay` });
+    await rejects(saveAddress(deps, as("cara"), { address: "cara9.test@instapay" }), "rate-limited");
+    assert.deepEqual(await removeAddress(deps, as("cara")), { removed: true });
+    assert.equal(store.addresses.has("cara"), false);
+    // Many removals in a row are never refused either, and a suspended parent can remove theirs.
+    for (let i = 0; i < 20; i++) await removeAddress(deps, as("cara"));
+    store.addresses.set("sam", "sam.test@instapay");
+    store.addParent("sam", "Sam", { status: "suspended" });
+    await removeAddress(deps, as("sam", false));
+    assert.equal(store.addresses.has("sam"), false);
+  });
+
   it("refuses a bad address, an unverified, suspended or banned parent, and too many changes in a day", async () => {
     await rejects(saveAddress(deps, as("bob"), { address: "bob@gmail.com" }), "invalid-address");
     await rejects(saveAddress(deps, as("bob"), {}), "invalid-address");
@@ -206,6 +220,8 @@ describe("settle up: who sees the address", () => {
     await rejects(getAddressFor(deps, as("dina"), { id: r.id }), "not-found");
     await rejects(getAddressFor(deps, as("bob"), { id: "s_unknown" }), "not-found");
     await rejects(getAddressFor(deps, as("ghost"), { id: r.id }), "no-account");
+    // Refused before the address is ever read.
+    assert.deepEqual(store.addressReads.filter((u) => u === "alice"), ["alice", "alice"], "her own check at create, and Bob's allowed read");
   });
 
   it("not once it is paid, received, cancelled or declined; again after Not received", async () => {
@@ -222,11 +238,107 @@ describe("settle up: who sees the address", () => {
     await rejects(getAddressFor(deps, as("bob"), { id: second.id }), "invalid-state");
   });
 
-  it("a payer cannot use a record they made themselves to read an address", async () => {
-    // Bob records "I paid Alice": the record starts as paid, never open for Bob.
+  it("a payer cannot use a record they made themselves to read an address, in any state of it", async () => {
+    // Bob records "I paid Alice": Alice never asked Bob for anything.
     const { record } = await createSettleUp(deps, as("bob"), { requestId: rid(), kind: "paid", otherUid: "alice", carpoolId: "k1", amount: 50 * EGP, reason: "fuel" });
     assert.equal(record.status, "paid");
-    await rejects(getAddressFor(deps, as("bob"), { id: record.id }), "invalid-state");
+    assert.equal(record.createdBy, "payer");
+    await rejects(getAddressFor(deps, as("bob"), { id: record.id }), "not-allowed");
+    // Alice gives the honest answer; the record reads as open again with Bob as its payer.
+    const reopened = (await act("alice", record.id, "notReceived")).record;
+    assert.equal(reopened.status, "open");
+    assert.equal(reopened.payerUid, "bob");
+    await rejects(getAddressFor(deps, as("bob"), { id: record.id }), "not-allowed");
+    // Again and again: still refused.
+    await act("bob", record.id, "paid");
+    await rejects(getAddressFor(deps, as("bob"), { id: record.id }), "not-allowed");
+    await act("alice", record.id, "notReceived");
+    await rejects(getAddressFor(deps, as("bob"), { id: record.id }), "not-allowed");
+    // Reported, then declined: refused.
+    await reportSettleUp(deps, as("bob"), { id: record.id });
+    await rejects(getAddressFor(deps, as("bob"), { id: record.id }), "not-allowed");
+    await act("bob", record.id, "decline");
+    await rejects(getAddressFor(deps, as("bob"), { id: record.id }), "not-allowed");
+    // Alice's address was never read for Bob on this record.
+    assert.equal(store.addressReads.includes("alice"), false);
+  });
+
+  it("every other parent of the carpool can try the same trick: nobody gets an address they were not offered", async () => {
+    for (const uid of ["bob", "cara"]) {
+      const { record } = await createSettleUp(deps, as(uid), { requestId: rid(), kind: "paid", otherUid: "alice", carpoolId: "k1", amount: 10 * EGP, reason: "other" });
+      await act("alice", record.id, "notReceived");
+      await rejects(getAddressFor(deps, as(uid), { id: record.id }), "not-allowed");
+    }
+    assert.equal(store.addressReads.includes("alice"), false);
+  });
+
+  it("the full table: only a payee-made, open, unreported request between two parents in good standing", async () => {
+    // Allowed: Alice asked Bob; open.
+    const r = await request();
+    assert.equal((await getAddressFor(deps, as("bob"), { id: r.id })).address, ALICE_IPA);
+    // Re-opened after a real payment attempt on Alice's own request: still her request, still allowed.
+    await act("bob", r.id, "paid");
+    await rejects(getAddressFor(deps, as("bob"), { id: r.id }), "invalid-state");
+    await act("alice", r.id, "notReceived");
+    assert.equal((await getAddressFor(deps, as("bob"), { id: r.id })).address, ALICE_IPA);
+    // Reported by either side: closed to address reads.
+    await act("bob", r.id, "paid");
+    await act("alice", r.id, "notReceived");
+    await reportSettleUp(deps, as("alice"), { id: r.id });
+    await rejects(getAddressFor(deps, as("bob"), { id: r.id }), "not-allowed");
+
+    // Cancelled, declined, closed.
+    const cancelled = await request();
+    await act("alice", cancelled.id, "cancel");
+    await rejects(getAddressFor(deps, as("bob"), { id: cancelled.id }), "invalid-state");
+    const declined = await request();
+    await act("bob", declined.id, "decline");
+    await rejects(getAddressFor(deps, as("bob"), { id: declined.id }), "invalid-state");
+    const closed = await request();
+    await act("bob", closed.id, "paid");
+    await act("alice", closed.id, "received");
+    await rejects(getAddressFor(deps, as("bob"), { id: closed.id }), "invalid-state");
+  });
+
+  it("a payer who was suspended, banned, unverified or blocked after the request cannot read the address", async () => {
+    const r = await request();
+    await rejects(getAddressFor(deps, as("bob", false), { id: r.id }), "not-verified");
+    store.addParent("bob", "Bob", { status: "suspended" });
+    await rejects(getAddressFor(deps, as("bob"), { id: r.id }), "suspended");
+    store.addParent("bob", "Bob", { banned: true });
+    await rejects(getAddressFor(deps, as("bob"), { id: r.id }), "suspended");
+    store.addParent("bob", "Bob", { status: "pending" });
+    await rejects(getAddressFor(deps, as("bob"), { id: r.id }), "not-verified");
+    store.addParent("bob", "Bob");
+    for (const block of ["alice_bob", "bob_alice"]) {
+      store.blocks.clear();
+      store.blocks.add(block);
+      await rejects(getAddressFor(deps, as("bob"), { id: r.id }), "not-allowed");
+    }
+    store.blocks.clear();
+    assert.equal((await getAddressFor(deps, as("bob"), { id: r.id })).address, ALICE_IPA, "in good standing again");
+  });
+
+  it("a payee who was suspended or banned, or whose account is gone: no address", async () => {
+    const r = await request();
+    store.addParent("alice", "Alice", { status: "suspended" });
+    await rejects(getAddressFor(deps, as("bob"), { id: r.id }), "not-allowed");
+    store.addParent("alice", "Alice", { banned: true });
+    await rejects(getAddressFor(deps, as("bob"), { id: r.id }), "not-allowed");
+    store.accounts.delete("alice");
+    await rejects(getAddressFor(deps, as("bob"), { id: r.id }), "not-allowed");
+    // Deleted properly: the record is anonymised and ended; the address document is gone.
+    store.addParent("alice", "Alice");
+    const second = await request();
+    const saved = store.records.get(second.id);
+    assert.ok(saved);
+    const gone = anonymiseSettleUp(saved, "alice", NOW);
+    assert.ok(gone);
+    store.records.set(second.id, gone);
+    store.addresses.delete("alice");
+    await rejects(getAddressFor(deps, as("bob"), { id: second.id }), "invalid-state");
+    // None of the refusals above read the address.
+    assert.equal(store.addressReads.filter((u) => u === "alice").length, 2, "only Alice's own checks when she created her two requests");
   });
 
   it("null when the payee removed it; address views are rate limited", async () => {
@@ -428,6 +540,34 @@ describe("settle up: creating a record", () => {
     assert.ok(first);
     await act("alice", first.id, "cancel");
     await request();
+  });
+
+  it("the pair cap is checked where the record is written: requests sent at the same moment cannot pass it together", async () => {
+    for (let i = 1; i < MAX_OPEN_PER_PAIR; i++) await request();
+    // Three at once for the last free place (either direction counts).
+    const results = await Promise.allSettled([
+      request(),
+      request(),
+      createSettleUp(deps, as("bob"), { requestId: rid(), kind: "paid", otherUid: "alice", carpoolId: "k1", amount: 10 * EGP, reason: "other" }),
+    ]);
+    assert.equal(results.filter((x) => x.status === "fulfilled").length, 1);
+    for (const x of results) {
+      if (x.status === "rejected") assert.ok(x.reason instanceof SettleError && x.reason.reason === "too-many-open");
+    }
+    const unfinished = [...store.records.values()].filter((x) => !isFinal(x.status) && x.parties.includes("alice") && x.parties.includes("bob"));
+    assert.equal(unfinished.length, MAX_OPEN_PER_PAIR);
+    // One value per pair whoever pays; a deleted parent's uid is not kept in it.
+    assert.equal(pairKey("bob", "alice"), pairKey("alice", "bob"));
+    assert.equal(settleToDoc(unfinished[0]).pair, "alice|bob");
+    const gone = anonymiseSettleUp(unfinished[0], "bob", NOW);
+    assert.ok(gone);
+    assert.equal(settleToDoc(gone).pair, "alice|deleted");
+  });
+
+  it("chat blocks: the same document ID as the chat feature (settle up only reads that collection)", () => {
+    assert.equal(CHAT_BLOCKS, "chatBlocks");
+    assert.equal(chatBlockDocId("alice", "bob"), blockId("alice", "bob"));
+    assert.notEqual(chatBlockDocId("alice", "bob"), chatBlockDocId("bob", "alice"));
   });
 
   it("contacts: the other parents of my carpools, by first name, never an address", async () => {
@@ -658,6 +798,31 @@ describe("settle up: reporting a record that keeps bouncing", () => {
     assert.deepEqual(saved?.reportedBy, ["payer", "payee"]);
     assert.equal(saved?.status, "open", "a report does not change the state");
     assert.deepEqual(saved?.events.slice(-2).map((e) => e.type), ["reported", "reported"]);
+  });
+
+  it("the mark and the report are written together: a failed write loses nothing and a retry reports", async () => {
+    const r = await bounced(2);
+    store.failNextWrite = new Error("transaction aborted");
+    await assert.rejects(reportSettleUp(deps, as("bob"), { id: r.id, note: "x" }), /transaction aborted/);
+    assert.deepEqual(store.reports, [], "no report");
+    assert.deepEqual(store.records.get(r.id)?.reportedBy, [], "and no mark: the retry is not answered already-reported");
+    assert.deepEqual(await reportSettleUp(deps, as("bob"), { id: r.id, note: "x" }), { reported: true });
+    assert.equal(store.reports.length, 1);
+    assert.deepEqual(store.records.get(r.id)?.reportedBy, ["payer"]);
+    await rejects(reportSettleUp(deps, as("bob"), { id: r.id }), "already-reported");
+    assert.equal(store.reports.length, 1, "one report per side, never two");
+  });
+
+  it("the report document has the shape the admin queue reads, with no amount and no address", () => {
+    const doc = reportDoc({ reporterUid: "bob", targetUid: "alice", settleUpId: "s_1", note: "paid twice" }, NOW);
+    assert.equal(doc.reporterId, "bob");
+    assert.equal(doc.targetType, "user");
+    assert.equal(doc.targetId, "alice");
+    assert.equal(doc.reason, "other");
+    assert.equal(doc.source, "settleUp");
+    assert.equal(doc.status, "open");
+    assert.equal(doc.note, "[settle-up s_1] paid twice");
+    assert.doesNotMatch(JSON.stringify(doc), /instapay|amount/i);
   });
 
   it("the threshold is a setting; outsiders cannot report", async () => {

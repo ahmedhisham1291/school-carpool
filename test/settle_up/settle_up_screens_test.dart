@@ -403,6 +403,32 @@ void main() {
       expect(find.text('Address copied.'), findsOneWidget);
     });
 
+    testWidgets('a payment I recorded myself that came back as "Not received": no address is asked for or shown, only a note to ask', (WidgetTester tester) async {
+      final FakeSettleUpRepository repo = FakeSettleUpRepository(
+        records: <SettleUp>[settleRecord('s_mine', iPay: true, createdBy: SettleRole.payer, notReceived: 1)],
+      );
+      await _pump(tester, SettleUpRoutes.record('s_mine'), repo: repo);
+      expect(_key('settleDetail.askAddress'), findsOneWidget);
+      expect(find.textContaining('Ask Hoda for their InstaPay address'), findsOneWidget);
+      expect(_key('settleDetail.address'), findsNothing);
+      expect(_key('settleDetail.copy'), findsNothing);
+      expect(find.text(hodaAddress), findsNothing);
+      expect(repo.calls.where((String c) => c.startsWith('addressFor')), isEmpty, reason: 'the server is not even asked');
+      // The record itself still works.
+      expect(_key('settleDetail.paid'), findsOneWidget);
+      expect(_key('settleDetail.decline'), findsOneWidget);
+    });
+
+    testWidgets('a reported request no longer shows the address', (WidgetTester tester) async {
+      final FakeSettleUpRepository repo = FakeSettleUpRepository(
+        records: <SettleUp>[settleRecord('s_rep', iPay: true, notReceived: 2, reportedBy: const <SettleRole>[SettleRole.payee])],
+      );
+      await _pump(tester, SettleUpRoutes.record('s_rep'), repo: repo);
+      expect(_key('settleDetail.askAddress'), findsOneWidget);
+      expect(_key('settleDetail.address'), findsNothing);
+      expect(repo.calls.where((String c) => c.startsWith('addressFor')), isEmpty);
+    });
+
     testWidgets('I paid: one tap, the record waits for the other parent, the address is gone', (WidgetTester tester) async {
       final FakeSettleUpRepository repo = FakeSettleUpRepository();
       await _pump(tester, SettleUpRoutes.record('s_owe'), repo: repo);

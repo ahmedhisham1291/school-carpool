@@ -2180,5 +2180,6 @@
   "adminSettleNone": "No settle-up records.",
   "adminSettleFrom": "From {name}: {amount}",
   "adminSettleTo": "To {name}: {amount}",
-  "adminSettleBounced": "Not received: {count}"
+  "adminSettleBounced": "Not received: {count}",
+  "settleAskAddress": "Ask {name} for their InstaPay address in the chat, or ask them to send you a request from Settle up. The app shows an address only on a request its owner sent."
 }
