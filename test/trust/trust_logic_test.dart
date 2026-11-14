@@ -162,7 +162,7 @@ void main() {
       final TrustFailure code = _failure('wrong-code', code: 'invalid-argument', extra: <String, Object?>{'attemptsLeft': 2});
       expect(code.kind, TrustFailureKind.code);
       expect(code.auth?.kind, AuthFailureKind.wrongCode);
-      expect(code.message(en), AuthFailure.from(FirebaseFunctionsException(message: 'x', code: 'invalid-argument', details: <String, Object?>{'reason': 'wrong-code', 'attemptsLeft': 2})).message(en));
+      expect(code.message(en), AuthFailure.from(FirebaseFunctionsException(message: 'x', code: 'invalid-argument', details: const <String, Object?>{'reason': 'wrong-code', 'attemptsLeft': 2})).message(en));
       expect(TrustFailure.from(FirebaseFunctionsException(message: 'x', code: 'unavailable')).isOffline, isTrue);
       expect(TrustFailure.from(StateError('x')).kind, TrustFailureKind.unknown);
       for (final TrustFailureKind k in TrustFailureKind.values) {
