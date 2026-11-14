@@ -19,6 +19,9 @@ enum AdminFailureKind {
   targetIsAdmin,
   alreadyDecided,
   nameCheckMissing,
+
+  /// The feature is switched off (Settings): its functions refuse.
+  featureOff,
   offline,
   unknown,
 }
@@ -58,6 +61,7 @@ class AdminFailure implements Exception {
         'target-is-admin' => AdminFailureKind.targetIsAdmin,
         'already-decided' => AdminFailureKind.alreadyDecided,
         'name-check-missing' => AdminFailureKind.nameCheckMissing,
+        'feature-off' => AdminFailureKind.featureOff,
         _ => switch (error.code) {
           'unavailable' || 'deadline-exceeded' => AdminFailureKind.offline,
           'unauthenticated' => AdminFailureKind.sessionExpired,
@@ -107,6 +111,7 @@ class AdminFailure implements Exception {
     AdminFailureKind.targetIsAdmin => l10n.adminErrTargetAdmin,
     AdminFailureKind.alreadyDecided => l10n.adminErrDecided,
     AdminFailureKind.nameCheckMissing => l10n.adminErrNameCheck,
+    AdminFailureKind.featureOff => l10n.adminErrFeatureOff,
     AdminFailureKind.offline => l10n.adminErrOffline,
     AdminFailureKind.unknown => l10n.errorGeneric,
   };

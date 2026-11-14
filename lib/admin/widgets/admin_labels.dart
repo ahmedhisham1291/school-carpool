@@ -128,6 +128,10 @@ String auditActionLabel(AppLocalizations l10n, String action) => switch (action)
   'wallet.freeze' => l10n.adminWalletFreeze,
   'wallet.unfreeze' => l10n.adminWalletUnfreeze,
   'wallet.alert.resolve' => l10n.adminWalletResolve,
+  // Pilot feature switches and Settle up (F45).
+  'feature.on' => l10n.adminAuditFeatureOn,
+  'feature.off' => l10n.adminAuditFeatureOff,
+  'settle-up.view' => l10n.adminAuditSettleView,
   // Prompt 13.
   'device.check.approved' => l10n.adminAuditDeviceApproved,
   'device.check.confirmedOtherWay' => l10n.adminAuditDeviceOther,

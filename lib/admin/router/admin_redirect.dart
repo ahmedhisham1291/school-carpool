@@ -21,6 +21,9 @@ abstract final class AdminRoutes {
   /// Prompt 11: guardian links to review and rating flags.
   static const String trust = '/trust';
 
+  /// Pilot feature switches (wallet, ratings, yearly checks, Settle up).
+  static const String settings = '/settings';
+
   /// Dev flavor only: the admin components gallery.
   static const String gallery = '/dev/admin-gallery';
 
