@@ -15,7 +15,11 @@ name: checks
 # - screenshots and the web/admin/Android builds run on main, on tags,
 #   or when started by hand (Actions > checks > Run workflow, full=true).
 on:
+  # Owner (14 Nov 2026): no paid Actions minutes. Pushes run checks only on
+  # main; feature branches run only when started by hand
+  # (gh workflow run checks.yml --ref <branch> -f full=false).
   push:
+    branches: [main]
     paths-ignore:
       - "docs/**"
       - "**/*.md"
@@ -24,7 +28,7 @@ on:
       full:
         description: "Also run screenshots and the web/admin/Android builds"
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: read
