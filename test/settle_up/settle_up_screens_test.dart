@@ -21,6 +21,7 @@ import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
+import '../helpers/fonts.dart';
 import '../helpers/one_line.dart';
 import '../helpers/settle_fakes.dart';
 import '../helpers/test_app.dart';
@@ -40,11 +41,12 @@ Future<GoRouter> _pump(
   Locale locale = AppLocales.english,
   double width = 400,
   double textScale = 1,
+  double height = 3200,
 }) async {
-  // Tall: every list is built without scrolling.
+  // Tall: every list is built without scrolling (lists build lazily).
   tester.view
     ..devicePixelRatio = 2
-    ..physicalSize = Size(width * 2, 3200 * 2);
+    ..physicalSize = Size(width * 2, height * 2);
   addTearDown(tester.view.reset);
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -120,6 +122,10 @@ Future<void> _toReview(WidgetTester tester, {String amount = '150', bool paid = 
 }
 
 void main() {
+  // Real fonts: text has its real width (the default test font draws every
+  // letter as a square, so labels look far wider than on a phone).
+  setUpAll(loadAppFonts);
+
   group('Settle up home', () {
     testWidgets('says the app moves no money, shows my address, the summary per person, open and finished records', (WidgetTester tester) async {
       final FakeSettleUpRepository repo = FakeSettleUpRepository();
@@ -537,7 +543,7 @@ void main() {
       for (final double scale in <double>[1, 2]) {
         testWidgets('[${locale.languageCode} x$scale] titles, buttons and badges', (WidgetTester tester) async {
           final String where = '(${locale.languageCode}, x$scale)';
-          await _pump(tester, SettleUpRoutes.home, repo: FakeSettleUpRepository(), locale: locale, width: 320, textScale: scale);
+          await _pump(tester, SettleUpRoutes.home, repo: FakeSettleUpRepository(), locale: locale, width: 320, textScale: scale, height: 8000);
           expectOneLine(find.byType(AppBar), 'home app bar $where', requireText: true);
           expectOneLine(_key('settle.new'), 'new request $where', requireText: true);
           expectOneLine(find.byType(AppSectionHeader), 'section headers $where', allowEllipsis: scale > 1, requireText: true);
@@ -546,12 +552,12 @@ void main() {
           }
           expectOneLine(find.descendant(of: _key('settle.address'), matching: find.byType(OneLineText)).first, 'address row $where', allowEllipsis: scale > 1, requireText: true);
 
-          await _pump(tester, SettleUpRoutes.address, repo: FakeSettleUpRepository(), locale: locale, width: 320, textScale: scale);
+          await _pump(tester, SettleUpRoutes.address, repo: FakeSettleUpRepository(), locale: locale, width: 320, textScale: scale, height: 8000);
           expectOneLine(find.byType(AppBar), 'address app bar $where', requireText: true);
           expectOneLine(_key('ipa.save'), 'save $where', requireText: true);
           expectOneLine(_key('ipa.remove'), 'remove $where', requireText: true);
 
-          await _pump(tester, SettleUpRoutes.create(), repo: FakeSettleUpRepository(), locale: locale, width: 320, textScale: scale);
+          await _pump(tester, SettleUpRoutes.create(), repo: FakeSettleUpRepository(), locale: locale, width: 320, textScale: scale, height: 8000);
           expectOneLine(find.byType(AppBar), 'new app bar $where', requireText: true);
           for (final String k in <String>['settleNew.kindRequest', 'settleNew.kindPaid']) {
             expectOneLine(_key(k), '$k $where', allowEllipsis: scale > 1, requireText: true);
@@ -565,7 +571,7 @@ void main() {
           await _tap(tester, _key('settleNew.amountNext'));
           expectOneLine(_key('settleNew.send'), 'send $where', requireText: true);
 
-          await _pump(tester, SettleUpRoutes.record('s_owe'), repo: FakeSettleUpRepository(), locale: locale, width: 320, textScale: scale);
+          await _pump(tester, SettleUpRoutes.record('s_owe'), repo: FakeSettleUpRepository(), locale: locale, width: 320, textScale: scale, height: 8000);
           expectOneLine(find.byType(AppBar), 'detail app bar $where', requireText: true);
           for (final String k in <String>['settleDetail.copy', 'settleDetail.paid', 'settleDetail.decline', 'settleDetail.status']) {
             expectOneLine(_key(k), '$k $where', requireText: true);
@@ -573,7 +579,7 @@ void main() {
           final FakeSettleUpRepository confirm = FakeSettleUpRepository(
             records: <SettleUp>[settleRecord('s_c', iPay: false, other: 'Badr', otherUid: 'uid-badr', status: SettleStatus.paid, notReceived: 2)],
           );
-          await _pump(tester, SettleUpRoutes.record('s_c'), repo: confirm, locale: locale, width: 320, textScale: scale);
+          await _pump(tester, SettleUpRoutes.record('s_c'), repo: confirm, locale: locale, width: 320, textScale: scale, height: 8000);
           for (final String k in <String>['settleDetail.received', 'settleDetail.notReceived', 'settleDetail.report', 'settleDetail.status']) {
             expectOneLine(_key(k), '$k $where', requireText: true);
           }

@@ -24,6 +24,7 @@ import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
+import '../helpers/fonts.dart';
 import '../helpers/one_line.dart';
 import '../helpers/settle_fakes.dart';
 import '../helpers/test_app.dart';
@@ -90,6 +91,9 @@ String _path(GoRouter router) => router.routerDelegate.currentConfiguration.uri.
 Finder _key(String k) => find.byKey(Key(k));
 
 void main() {
+  // Real fonts, so the one-line checks measure real widths.
+  setUpAll(loadAppFonts);
+
   group('the switches', () {
     test('pilot defaults: wallet, ratings and vouching and yearly checks off; Settle up on', () {
       expect(FeatureSwitches.pilot.wallet, isFalse);

@@ -14,6 +14,7 @@ import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 import '../helpers/admin_fakes.dart';
+import '../helpers/fonts.dart';
 import '../helpers/one_line.dart';
 
 Future<void> _settle(WidgetTester tester) async {
@@ -25,6 +26,8 @@ Future<void> _settle(WidgetTester tester) async {
 AppSwitchRow _row(WidgetTester tester, AppFeature f) => tester.widget<AppSwitchRow>(find.byKey(Key('adminSettings.${f.name}')));
 
 void main() {
+  setUpAll(loadAppFonts);
+
   const AdminSessionState superAdmin = AdminSignedIn(testSuperAdmin);
   const AdminSessionState reviewer = AdminSignedIn(testReviewer);
 

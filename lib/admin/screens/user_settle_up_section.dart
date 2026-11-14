@@ -53,7 +53,10 @@ class _UserSettleUpSectionState extends ConsumerState<UserSettleUpSection> {
   /// One logged access, with the reason the admin picked.
   void _open(AccessReasonCode reason) {
     final Future<List<AdminSettleRecord>> records = ref.read(adminFeaturesApiProvider).settleUps(uid: widget.uid, reason: reason);
-    setState(() => _records = records);
+    // A block body: setState must not return the Future.
+    setState(() {
+      _records = records;
+    });
   }
 
   @override
