@@ -40,6 +40,9 @@ listener on the go_router delegate (`routerProvider`), once per change.
 | `app_lock_changed` | App lock switched | `enabled` (0/1) |
 | `device_signed_out` | A phone signed out from the list | `all` (0/1) |
 | `always_location` | A driver answers the optional "Always" step (Prompt 13) | `granted` (0/1); never a location |
+| `settle_up_created` | A settle-up record is created (F45) | `kind` (request, paid), `purpose` (contribution, fuel, other); never the amount, a name, the note or an InstaPay address |
+| `settle_up_action` | A step on a settle-up record | `step` (paid, received, not-received, cancel, decline, report); never the amount |
+| `settle_up_address` | The parent saves or removes their own InstaPay address | `step` (saved, removed); never the address |
 
 Prompt 12 sends `privacy_export`, `consent_changed`, `account_deleted`,
 `app_lock_changed` and `device_signed_out`; the other events are in the

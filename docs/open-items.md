@@ -35,6 +35,10 @@ to 13, docs/DECISIONS.md.
 | B4 | External penetration test (MASVS L2): choose and pay a tester | Not done (SECURITY.md) |
 | B5 | Data protection officer and PDPC licence (Law 151 regulations) | Owner with the lawyer |
 | B6 | Revenue number of families (spec section 13) | Not set |
+| B7 | **Settle up records: how long to keep them.** Now: while either parent's account is active, plus 1 year after the last of the two closes (the same rule as trips; a deleted parent shows as an initial). Owner and lawyer to confirm the period and add it to the published privacy policy text (A13). The lawyer already confirmed that recording payments between parents needs no Central Bank licence (DECISIONS.md, 14 Nov 2026) | 1 year after closure (`SETTLE_KEEP_AFTER_CLOSE_MS`, `AFTER_CLOSURE_DAYS`) |
+| B8 | **Settle up limits:** EGP 5,000 per request (`config/settleUp.maxAmount`), 20 new requests a day, 10 unfinished between two parents, report after 2 "Not received" | As listed (SETUP.md 21b) |
+| B9 | **InstaPay link:** InstaPay publishes no link or URL scheme an app may build with a payee and an amount (the `ipn.eg/S/...` links are made inside the InstaPay app, one per user). The payer copies the address. Option for later: let a payee paste their own InstaPay share link | Copy only |
+| B10 | **Feature switches after the pilot:** when to turn on ratings and vouching, and the yearly check (first checked school year is 2027-28) | Both off |
 
 ## C. Accepted limitations (decided, not bugs)
 
@@ -69,4 +73,8 @@ to 13, docs/DECISIONS.md.
 | D15 | FCM registration by Firebase Installation ID (firebase_messaging 17 deprecates tokens) | Future SDK change | Planned change with the server |
 | D16 | Lockfiles (`pubspec.lock`, `package-lock.json`) not committed (no registry here) | Reproducible builds | Commit from CI |
 | D17 | Website (Stage 2) and Android (Stage 3) platform work | — | Later stages |
+| D19 | **Workstream A (feature switches, Settle up): Flutter and rules tests written, not run here**; goldens of the new screens not produced here | CI may show small analyzer or test fixes | One CI run on the branch (coordinator); docs/progress/improve-a.md |
+| D20 | `CLAUDE.md` still says "Feature IDs (F1 to F44)" and names the wallet as the payment feature; F45 (Settle up) and the feature switches are in docs/spec.md and DECISIONS.md | Wording only | Owner updates CLAUDE.md (the builder does not edit the rules file) |
+| D21 | Admin panel: the Wallet menu entry and the wallet row on the user page still show while the wallet is switched off; the pages then say "This feature is switched off" | Admins only | Hide them from the switch later |
+| D22 | Settle up shows the newest 100 records on the phone; older finished ones stay on the server (and in the data export) | Very active parents only | Paging later |
 | D18 | Lawyer's answers: all confirmed (DECISIONS.md "Legal" and "Owner updates 12:30"); the retention periods need the privacy policy text updated by the lawyer for the published page (A13) | — | Owner |
