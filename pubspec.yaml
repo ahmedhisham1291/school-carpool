@@ -89,6 +89,14 @@ dependencies:
   # Official flutter.dev plugin: take or choose a photo for a private or
   # carpool chat (EXIF removed by flutter_image_compress before upload).
   image_picker: ^1.2.2
+  # Live location during runs (Prompt 10, F15; in the STACK list:
+  # "flutter_background_geolocation (paid license)"). Transistor Software.
+  # Keeps sending with the phone locked, uploads points itself (HTTP to the
+  # tripLocation function) and runs only while a run is on. Version 5
+  # (compound config). Debug builds need no licence; release builds need
+  # the v5 JWT licence on iPhone AND Android (BG_GEO_LICENSE, SETUP.md
+  # section 20.5; never committed).
+  flutter_background_geolocation: ^5.9.2
 
   # Persists the language, theme mode and dev design direction on the phone.
   # Official Flutter plugin; flagged to the owner in docs/progress/prompt-01.md.

@@ -95,6 +95,18 @@ const paths = [
   "chatLimits/alice",
   "users/alice/chatPushes/chat_m1",
   "reports/r1",
+  // Prompt 10 (trips.test.ts): the run's driver and parents read trips,
+  // points and arrival times; the owner reads handover lists and the
+  // emergency contact; members read emergencies. Everyone else: nothing.
+  "trips/k1_2026-11-16_am",
+  "trips/k1_2026-11-16_am/points/p1",
+  "trips/k1_2026-11-16_am/eta/bob",
+  "tripStops/k1_2026-11-16_am",
+  "tripChecks/k1_2026-11-16_am",
+  "tripLimits/alice",
+  "handoverAdults/c1",
+  "emergencyContacts/bob",
+  "carpools/k1/emergencies/e1",
   "scheduleEntries/e1",
   "wallets/alice",
   "transfers/t1",
@@ -140,6 +152,10 @@ describe("storage.rules deny everything", () => {
       await assertFails(storage.ref("verification/alice/id-front.jpg").getMetadata());
       await assertFails(storage.ref("verification/alice/selfie.jpg").putString("x").then(() => undefined));
       await assertFails(storage.ref("public/anything.txt").putString("x").then(() => undefined));
+      // Prompt 10: the kept driver photo and live selfies are never read by the app.
+      await assertFails(storage.ref("driverPhotos/alice/photo.jpg").getDownloadURL());
+      await assertFails(storage.ref("driverPhotos/alice/photo.jpg").putString("x").then(() => undefined));
+      await assertFails(storage.ref("selfieChecks/alice/k1_2026-11-16_am.jpg").getDownloadURL());
       await assertFails(storage.ref("verification/alice/id-front.jpg").delete());
     });
   }

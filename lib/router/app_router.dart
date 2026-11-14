@@ -37,6 +37,10 @@ import 'package:school_carpool/features/schedule/balance_screen.dart';
 import 'package:school_carpool/features/schedule/exceptions_screen.dart';
 import 'package:school_carpool/features/schedule/schedule_screen.dart';
 import 'package:school_carpool/features/shell/home_shell.dart';
+import 'package:school_carpool/features/trips/driver_trip_screen.dart';
+import 'package:school_carpool/features/trips/emergency_screens.dart';
+import 'package:school_carpool/features/trips/handover_screen.dart';
+import 'package:school_carpool/features/trips/trip_screen.dart';
 import 'package:school_carpool/features/verification/children_screen.dart';
 import 'package:school_carpool/features/verification/driving_screen.dart';
 import 'package:school_carpool/features/verification/verification_flow_screen.dart';
@@ -71,6 +75,12 @@ abstract final class ProfileRoutes {
 
   /// Prompt 8: alert settings (WhatsApp per group, quiet hours).
   static const String notifications = '/profile/$notificationsSegment';
+
+  /// Prompt 10: who may receive each child (F29) and the emergency contact (F20).
+  static const String handoverSegment = 'handover';
+  static const String emergencyContactSegment = 'emergency-contact';
+  static const String handover = '/profile/$handoverSegment';
+  static const String emergencyContact = '/profile/$emergencyContactSegment';
 }
 
 /// Screens under the Home tab (Prompt 5). Verified parents only (the
@@ -106,6 +116,14 @@ abstract final class CarpoolRoutes {
   static String schedule(String carpoolId) => '/carpools/$carpoolId/$scheduleSegment';
   static String exceptions(String carpoolId) => '/carpools/$carpoolId/$exceptionsSegment';
   static String balance(String carpoolId) => '/carpools/$carpoolId/$balanceSegment';
+
+  /// Prompt 10: the live run for parents, the driver's run, emergencies.
+  static const String tripSegment = 'trip/:runId';
+  static const String driveSegment = 'drive';
+  static const String emergencySegment = 'emergency';
+  static String trip(String carpoolId, String runId) => '/carpools/$carpoolId/trip/$runId';
+  static String drive(String carpoolId, String runId) => '/carpools/$carpoolId/trip/$runId/$driveSegment';
+  static String emergency(String carpoolId) => '/carpools/$carpoolId/$emergencySegment';
 
   /// The shared link path.
   static String link(String code) => '/c/$code';
@@ -305,6 +323,27 @@ GoRouter buildAppRouter({
                             builder: (BuildContext context, GoRouterState state) =>
                                 BalanceScreen(carpoolId: state.pathParameters['carpoolId'] ?? ''),
                           ),
+                          GoRoute(
+                            path: CarpoolRoutes.tripSegment,
+                            builder: (BuildContext context, GoRouterState state) => TripScreen(
+                              carpoolId: state.pathParameters['carpoolId'] ?? '',
+                              runId: state.pathParameters['runId'] ?? '',
+                            ),
+                            routes: <RouteBase>[
+                              GoRoute(
+                                path: CarpoolRoutes.driveSegment,
+                                builder: (BuildContext context, GoRouterState state) => DriverTripScreen(
+                                  carpoolId: state.pathParameters['carpoolId'] ?? '',
+                                  runId: state.pathParameters['runId'] ?? '',
+                                ),
+                              ),
+                            ],
+                          ),
+                          GoRoute(
+                            path: CarpoolRoutes.emergencySegment,
+                            builder: (BuildContext context, GoRouterState state) =>
+                                EmergencyScreen(carpoolId: state.pathParameters['carpoolId'] ?? ''),
+                          ),
                         ],
                       ),
                     ],
@@ -332,6 +371,21 @@ GoRouter buildAppRouter({
                       GoRoute(
                         path: ProfileRoutes.notificationsSegment,
                         builder: (BuildContext context, GoRouterState state) => const NotificationSettingsScreen(),
+                      ),
+                      GoRoute(
+                        path: ProfileRoutes.handoverSegment,
+                        builder: (BuildContext context, GoRouterState state) => const HandoverChildrenScreen(),
+                        routes: <RouteBase>[
+                          GoRoute(
+                            path: ':childId',
+                            builder: (BuildContext context, GoRouterState state) =>
+                                HandoverEditScreen(childId: state.pathParameters['childId'] ?? ''),
+                          ),
+                        ],
+                      ),
+                      GoRoute(
+                        path: ProfileRoutes.emergencyContactSegment,
+                        builder: (BuildContext context, GoRouterState state) => const EmergencyContactScreen(),
                       ),
                     ],
                   ],

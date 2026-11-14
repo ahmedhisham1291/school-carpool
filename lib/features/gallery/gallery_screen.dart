@@ -10,7 +10,11 @@ import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_view.dart';
+import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/shell/home_shell.dart';
+import 'package:school_carpool/features/trips/trip_logic.dart';
+import 'package:school_carpool/features/trips/trip_models.dart';
+import 'package:school_carpool/features/trips/trip_widgets.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/settings/app_settings.dart';
 
@@ -136,6 +140,37 @@ class GalleryScreen extends ConsumerWidget {
           ),
           AppSectionHeader(l10n.gallerySectionChat),
           const _ChatSamples(),
+          // Prompt 10: trip pieces (driver rule: large buttons, few words).
+          AppSectionHeader(l10n.gallerySectionTrips),
+          _Padded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const Wrap(
+                  spacing: AppSpacing.s8,
+                  runSpacing: AppSpacing.s8,
+                  children: <Widget>[
+                    TripLocationBadge(health: LocationHealth.live),
+                    TripLocationBadge(health: LocationHealth.waiting),
+                    TripLocationBadge(health: LocationHealth.stale),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.s16),
+                DriverCardView(
+                  firstName: l10n.sampleDriverName,
+                  car: TripCar(model: l10n.sampleCarModel, color: l10n.sampleCarColor, plate: 'ABC 123'),
+                  subtitle: l10n.scheduleToSchool('07:30'),
+                ),
+                const SizedBox(height: AppSpacing.s16),
+                DriverStopCard(
+                  stop: TripStop(childId: 'g1', firstName: l10n.sampleChildName, parentUid: 'p1', state: StopState.waiting),
+                  direction: RunDirection.toSchool,
+                  current: true,
+                  onAction: (StopAction _) => _done(context),
+                ),
+              ],
+            ),
+          ),
           AppSectionHeader(l10n.gallerySectionSheets),
           const _Padded(child: _SheetSamples()),
           AppSectionHeader(l10n.gallerySectionSkeleton),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/app.dart';
@@ -5,6 +6,8 @@ import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/notifications/push_messaging.dart';
+import 'package:school_carpool/features/trips/background_location_tracker.dart';
+import 'package:school_carpool/features/trips/location_tracker.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/observability/sentry_setup.dart';
@@ -41,6 +44,10 @@ Future<void> bootstrap(Flavor flavor) async {
           overrides: [
             flavorConfigProvider.overrideWithValue(config),
             settingsStoreProvider.overrideWithValue(store),
+            // Prompt 10: live location on the phone only (drivers never run
+            // a trip from the website); tests and the web keep the fake.
+            if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android))
+              locationTrackerProvider.overrideWithValue(BackgroundLocationTracker()),
           ],
           child: const CarpoolApp(),
         ),

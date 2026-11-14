@@ -5519,5 +5519,883 @@
   "notifConsentConfirm": "موافق",
   "@notifConsentConfirm": {
     "description": "Confirmation button"
+  },
+  "captureDriverPhotoTitle": "صورة السائق",
+  "@captureDriverPhotoTitle": {
+    "description": "Camera app bar title"
+  },
+  "driverPhotoTitle": "صورة السائق",
+  "@driverPhotoTitle": {
+    "description": "Capture tile title"
+  },
+  "driverPhotoHelper": "يراها أولياء الأمور يوم قيادتك، وتُستخدم في فحص السيلفي السريع.",
+  "@driverPhotoHelper": {
+    "description": "Capture tile helper"
+  },
+  "driverPhotoOptional": "اختياري",
+  "@driverPhotoOptional": {
+    "description": "Capture tile status when no photo"
+  },
+  "adminDocDriverPhoto": "صورة السائق",
+  "@adminDocDriverPhoto": {
+    "description": "Admin case image label"
+  },
+  "tripErrorTooMany": "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.",
+  "@tripErrorTooMany": {
+    "description": "Trip error"
+  },
+  "tripErrorNotDriver": "سائق اليوم فقط يمكنه ذلك.",
+  "@tripErrorNotDriver": {
+    "description": "Trip error"
+  },
+  "tripErrorNotYours": "هذا المشوار ليس لأطفالك.",
+  "@tripErrorNotYours": {
+    "description": "Trip error"
+  },
+  "tripErrorNotConfirmed": "أكّد القيادة في خطة الأسبوع أولًا.",
+  "@tripErrorNotConfirmed": {
+    "description": "Trip error"
+  },
+  "tripErrorTooEarly": "يمكنك البدء قبل المشوار بساعة على الأكثر.",
+  "@tripErrorTooEarly": {
+    "description": "Trip error"
+  },
+  "tripErrorTooLate": "انتهى هذا المشوار.",
+  "@tripErrorTooLate": {
+    "description": "Trip error"
+  },
+  "tripErrorPaused": "القيادة متوقفة مؤقتًا. سيتواصل معك أحد المشرفين.",
+  "@tripErrorPaused": {
+    "description": "Trip error"
+  },
+  "tripErrorSelfie": "التقط صورة السيلفي السريعة أولًا.",
+  "@tripErrorSelfie": {
+    "description": "Trip error"
+  },
+  "tripErrorNoPhoto": "أضف صورة السائق من الملف الشخصي، القيادة.",
+  "@tripErrorNoPhoto": {
+    "description": "Trip error"
+  },
+  "tripErrorEnded": "انتهى المشوار.",
+  "@tripErrorEnded": {
+    "description": "Trip error"
+  },
+  "tripErrorWrongStep": "قم بالخطوة السابقة أولًا.",
+  "@tripErrorWrongStep": {
+    "description": "Trip error"
+  },
+  "tripErrorLocationOff": "شغّل الموقع لتبدأ.",
+  "@tripErrorLocationOff": {
+    "description": "Trip error"
+  },
+  "notifTripStartedTitle": "بدأ المشوار",
+  "@notifTripStartedTitle": {
+    "description": "Notification title"
+  },
+  "notifTripStartedBody": "السيارة في الطريق: {run}.",
+  "@notifTripStartedBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDriverArrivedTitle": "السيارة بالخارج",
+  "@notifDriverArrivedTitle": {
+    "description": "Notification title"
+  },
+  "notifDriverArrivedBody": "السيارة بالخارج لمشوار {run}. أرسل طفلك الآن.",
+  "@notifDriverArrivedBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifPickedUpTitle": "ركب الطفل",
+  "@notifPickedUpTitle": {
+    "description": "Notification title"
+  },
+  "notifPickedUpBody": "ركب طفلك: {run}.",
+  "@notifPickedUpBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDroppedTitle": "نزل الطفل",
+  "@notifDroppedTitle": {
+    "description": "Notification title"
+  },
+  "notifDroppedBody": "نزل طفلك: {run}.",
+  "@notifDroppedBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifReceivedTitle": "تم الاستلام",
+  "@notifReceivedTitle": {
+    "description": "Notification title"
+  },
+  "notifReceivedBody": "أكّد ولي الأمر الاستلام: {run}.",
+  "@notifReceivedBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifLocationStoppedTitle": "توقف الموقع",
+  "@notifLocationStoppedTitle": {
+    "description": "Notification title"
+  },
+  "notifLocationStoppedBody": "توقف موقع السيارة: {run}.",
+  "@notifLocationStoppedBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDriverLateBody": "السائق متأخر قليلًا: {run}.",
+  "@notifDriverLateBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifAtGateBody": "السائق عند بوابة المدرسة: {run}.",
+  "@notifAtGateBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifAllInBody": "كل الأطفال في السيارة: {run}.",
+  "@notifAllInBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifEmergencyTitle": "طوارئ",
+  "@notifEmergencyTitle": {
+    "description": "Notification title"
+  },
+  "notifEmergencyBody": "ضغط السائق زر الطوارئ: {run}. افتح التطبيق.",
+  "@notifEmergencyBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifGroupEmergency": "الطوارئ",
+  "@notifGroupEmergency": {
+    "description": "Settings row title (WhatsApp group)"
+  },
+  "notifGroupTripAlerts": "وصول السيارة والموقع",
+  "@notifGroupTripAlerts": {
+    "description": "Settings row title (WhatsApp group)"
+  },
+  "notifGroupTrips": "تحديثات المشوار",
+  "@notifGroupTrips": {
+    "description": "Settings row title (WhatsApp group)"
+  },
+  "emergencyContactTitle": "جهة اتصال للطوارئ",
+  "@emergencyContactTitle": {
+    "description": "App bar and Profile row title"
+  },
+  "emergencyContactIntro": "إذا ضغطت زر الطوارئ أثناء المشوار، يصل لهذا الشخص رسالة واتساب بموقع السيارة.",
+  "@emergencyContactIntro": {
+    "description": "Intro text"
+  },
+  "emergencyContactPhoneLabel": "رقم الموبايل",
+  "@emergencyContactPhoneLabel": {
+    "description": "Field label"
+  },
+  "emergencyContactPhoneHelper": "رقم موبايل مصري عليه واتساب.",
+  "@emergencyContactPhoneHelper": {
+    "description": "Field helper"
+  },
+  "emergencyContactSaved": "تم حفظ جهة الاتصال",
+  "@emergencyContactSaved": {
+    "description": "Snackbar"
+  },
+  "emergencyContactRemove": "حذف جهة الاتصال",
+  "@emergencyContactRemove": {
+    "description": "Button"
+  },
+  "emergencyContactRemoveTitle": "حذف جهة الاتصال؟",
+  "@emergencyContactRemoveTitle": {
+    "description": "Dialog title"
+  },
+  "emergencyContactRemoveBody": "لن يصل تنبيه الطوارئ لأحد خارج المشوار.",
+  "@emergencyContactRemoveBody": {
+    "description": "Dialog body"
+  },
+  "emergencyContactRemoved": "تم حذف جهة الاتصال",
+  "@emergencyContactRemoved": {
+    "description": "Snackbar"
+  },
+  "emergencyTitle": "الطوارئ",
+  "@emergencyTitle": {
+    "description": "App bar title and detail row"
+  },
+  "emergencyRowHelper": "تنبيهات السائق مع موقع السيارة",
+  "@emergencyRowHelper": {
+    "description": "Carpool detail row subtitle"
+  },
+  "emergencyFrom": "{name} ضغط زر الطوارئ",
+  "@emergencyFrom": {
+    "description": "Card title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "emergencyMapLabel": "موقع السيارة",
+  "@emergencyMapLabel": {
+    "description": "Map screen-reader label"
+  },
+  "emergencyNoPoint": "موقع السيارة لم يكن معروفًا.",
+  "@emergencyNoPoint": {
+    "description": "Card text"
+  },
+  "emergencyNoneTitle": "لا توجد طوارئ",
+  "@emergencyNoneTitle": {
+    "description": "Empty state title"
+  },
+  "emergencyNoneBody": "تظهر هنا تنبيهات آخر 24 ساعة.",
+  "@emergencyNoneBody": {
+    "description": "Empty state body"
+  },
+  "emergencyOpenMap": "فتح في الخرائط",
+  "@emergencyOpenMap": {
+    "description": "Button"
+  },
+  "emergencyCallAmbulance": "اتصل بالإسعاف 123",
+  "@emergencyCallAmbulance": {
+    "description": "Button"
+  },
+  "handoverTitle": "من يستلم الطفل",
+  "@handoverTitle": {
+    "description": "App bar and Profile row title"
+  },
+  "handoverIntro": "أضف البالغين المسموح لهم باستلام كل طفل. يرى السائق أسماءهم أثناء المشوار.",
+  "@handoverIntro": {
+    "description": "Intro text"
+  },
+  "handoverChildHelper": "البالغون المسموح لهم بالاستلام",
+  "@handoverChildHelper": {
+    "description": "Child row subtitle"
+  },
+  "handoverNoChildrenTitle": "لا يوجد أطفال بعد",
+  "@handoverNoChildrenTitle": {
+    "description": "Empty state title"
+  },
+  "handoverNoChildrenBody": "أضف أطفالك من الملف الشخصي أولًا.",
+  "@handoverNoChildrenBody": {
+    "description": "Empty state body"
+  },
+  "handoverEditTitle": "البالغون المسموح لهم",
+  "@handoverEditTitle": {
+    "description": "App bar title"
+  },
+  "handoverEmptyTitle": "أنت فقط",
+  "@handoverEmptyTitle": {
+    "description": "Empty state title"
+  },
+  "handoverEmptyBody": "يسلّم السائق الطفل لك أو لولي أمر آخر للطفل فقط.",
+  "@handoverEmptyBody": {
+    "description": "Empty state body"
+  },
+  "handoverAdd": "إضافة شخص",
+  "@handoverAdd": {
+    "description": "Button and sheet title"
+  },
+  "handoverRemove": "حذف",
+  "@handoverRemove": {
+    "description": "Button and tooltip"
+  },
+  "handoverRemoveTitle": "حذف {name}؟",
+  "@handoverRemoveTitle": {
+    "description": "Dialog title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "handoverRemoveBody": "لن يسلّم السائقون الطفل لهذا الشخص بعد الآن.",
+  "@handoverRemoveBody": {
+    "description": "Dialog body"
+  },
+  "handoverRemoved": "تم الحذف",
+  "@handoverRemoved": {
+    "description": "Snackbar"
+  },
+  "handoverSaved": "تم الحفظ",
+  "@handoverSaved": {
+    "description": "Snackbar"
+  },
+  "handoverNameLabel": "الاسم",
+  "@handoverNameLabel": {
+    "description": "Field label"
+  },
+  "handoverNameHelper": "كما سيراه السائق.",
+  "@handoverNameHelper": {
+    "description": "Field helper"
+  },
+  "handoverNameError": "استخدم الحروف فقط، من 2 إلى 40.",
+  "@handoverNameError": {
+    "description": "Field error"
+  },
+  "handoverRelationLabel": "صلة القرابة",
+  "@handoverRelationLabel": {
+    "description": "Section label"
+  },
+  "handoverPhoneLabel": "الهاتف (اختياري)",
+  "@handoverPhoneLabel": {
+    "description": "Field label"
+  },
+  "handoverPhoneHelper": "لك فقط. لا يراه السائق.",
+  "@handoverPhoneHelper": {
+    "description": "Field helper"
+  },
+  "handoverPhoneError": "أدخل رقم موبايل مصري، مثل 010 1234 5678.",
+  "@handoverPhoneError": {
+    "description": "Field error"
+  },
+  "profileHandoverHelper": "البالغون المسموح لهم باستلام أطفالك",
+  "@profileHandoverHelper": {
+    "description": "Profile row subtitle"
+  },
+  "profileEmergencyHelper": "يصله موقع السيارة عند ضغط زر الطوارئ",
+  "@profileEmergencyHelper": {
+    "description": "Profile row subtitle"
+  },
+  "relationMother": "الأم",
+  "@relationMother": {
+    "description": "Relation chip"
+  },
+  "relationFather": "الأب",
+  "@relationFather": {
+    "description": "Relation chip"
+  },
+  "relationGrandparent": "الجد أو الجدة",
+  "@relationGrandparent": {
+    "description": "Relation chip"
+  },
+  "relationSibling": "أخ أو أخت",
+  "@relationSibling": {
+    "description": "Relation chip"
+  },
+  "relationRelative": "قريب",
+  "@relationRelative": {
+    "description": "Relation chip"
+  },
+  "relationNanny": "مربية",
+  "@relationNanny": {
+    "description": "Relation chip"
+  },
+  "relationOther": "أخرى",
+  "@relationOther": {
+    "description": "Relation chip"
+  },
+  "tripDriveTitle": "القيادة",
+  "@tripDriveTitle": {
+    "description": "Driver screen app bar title"
+  },
+  "tripLocationHeading": "شارك موقعك",
+  "@tripLocationHeading": {
+    "description": "Step heading"
+  },
+  "tripLocationBody": "يراه أولياء أمور الأطفال في سيارتك على الخريطة أثناء المشوار فقط. يعمل والهاتف مقفل ويتوقف عند آخر توصيل. اختر دائمًا.",
+  "@tripLocationBody": {
+    "description": "Step body"
+  },
+  "tripLocationChooseAlways": "المشوار يحتاج الموقع على دائمًا. افتح الإعدادات، ثم الموقع، واختر دائمًا.",
+  "@tripLocationChooseAlways": {
+    "description": "Step body after refusal"
+  },
+  "tripLocationServiceOff": "خدمات الموقع متوقفة. شغّلها من الإعدادات.",
+  "@tripLocationServiceOff": {
+    "description": "Step body"
+  },
+  "tripLocationTurnOn": "تشغيل الموقع",
+  "@tripLocationTurnOn": {
+    "description": "Button"
+  },
+  "tripSelfieHeading": "سيلفي سريع",
+  "@tripSelfieHeading": {
+    "description": "Step heading"
+  },
+  "tripSelfieBody": "بعض المشاوير تبدأ بصورة سيلفي للتأكد أنك السائق. تُفحص وتُحذف فورًا.",
+  "@tripSelfieBody": {
+    "description": "Step body"
+  },
+  "tripSelfieTake": "التقاط سيلفي",
+  "@tripSelfieTake": {
+    "description": "Button"
+  },
+  "tripSelfieDone": "تم فحص السيلفي",
+  "@tripSelfieDone": {
+    "description": "Snackbar"
+  },
+  "tripReadyHeading": "جاهز للانطلاق",
+  "@tripReadyHeading": {
+    "description": "Step heading"
+  },
+  "tripReadyBody": "ابدأ عند التحرك.",
+  "@tripReadyBody": {
+    "description": "Step body"
+  },
+  "tripReadyChildren": "{count, plural, =0{لا يوجد أطفال في هذا المشوار.} =1{طفل واحد في هذا المشوار.} =2{طفلان في هذا المشوار.} few{{count} أطفال في هذا المشوار.} many{{count} طفلًا في هذا المشوار.} other{{count} طفل في هذا المشوار.}}",
+  "@tripReadyChildren": {
+    "description": "Step body",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tripStart": "ابدأ المشوار",
+  "@tripStart": {
+    "description": "Primary button"
+  },
+  "tripStarted": "بدأ المشوار",
+  "@tripStarted": {
+    "description": "Snackbar"
+  },
+  "tripPausedTitle": "القيادة متوقفة",
+  "@tripPausedTitle": {
+    "description": "Empty state title"
+  },
+  "tripProgress": "{done} من {total} تم",
+  "@tripProgress": {
+    "description": "Driver progress line",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "tripQueued": "يُرسل عند الاتصال",
+  "@tripQueued": {
+    "description": "Snackbar"
+  },
+  "tripQueuedCount": "{count, plural, =1{ضغطة واحدة تنتظر الاتصال.} =2{ضغطتان تنتظران الاتصال.} few{{count} ضغطات تنتظر الاتصال.} many{{count} ضغطة تنتظر الاتصال.} other{{count} ضغطة تنتظر الاتصال.}}",
+  "@tripQueuedCount": {
+    "description": "Inline message",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tripActionArrived": "وصلت",
+  "@tripActionArrived": {
+    "description": "Driver button"
+  },
+  "tripActionArrivedAgain": "تذكير مرة أخرى",
+  "@tripActionArrivedAgain": {
+    "description": "Driver button (second Arrived tap)"
+  },
+  "tripActionPickedUp": "ركب",
+  "@tripActionPickedUp": {
+    "description": "Driver button"
+  },
+  "tripActionAtSchool": "وصل المدرسة",
+  "@tripActionAtSchool": {
+    "description": "Driver button (morning drop-off)"
+  },
+  "tripActionDropped": "تم التسليم",
+  "@tripActionDropped": {
+    "description": "Driver button (afternoon drop-off)"
+  },
+  "tripArrivedSent": "تم إبلاغ الأهل",
+  "@tripArrivedSent": {
+    "description": "Snackbar"
+  },
+  "tripPickedUpSent": "تم إرسال الركوب",
+  "@tripPickedUpSent": {
+    "description": "Snackbar"
+  },
+  "tripDroppedSent": "تم إرسال التوصيل",
+  "@tripDroppedSent": {
+    "description": "Snackbar"
+  },
+  "tripQuickSection": "رسائل سريعة",
+  "@tripQuickSection": {
+    "description": "Section title"
+  },
+  "tripQuickLate": "متأخر قليلًا",
+  "@tripQuickLate": {
+    "description": "Quick button and notification title"
+  },
+  "tripQuickGate": "عند البوابة",
+  "@tripQuickGate": {
+    "description": "Quick button and notification title"
+  },
+  "tripQuickAllIn": "الكل في السيارة",
+  "@tripQuickAllIn": {
+    "description": "Quick button and notification title"
+  },
+  "tripQuickSent": "تم الإرسال",
+  "@tripQuickSent": {
+    "description": "Snackbar"
+  },
+  "tripEmergency": "طوارئ",
+  "@tripEmergency": {
+    "description": "Danger button"
+  },
+  "tripEmergencyTitle": "إرسال تنبيه طوارئ؟",
+  "@tripEmergencyTitle": {
+    "description": "Dialog title"
+  },
+  "tripEmergencyBody": "يصل لكل أولياء أمور المشوار ولجهة اتصال الطوارئ تنبيه بموقع السيارة.",
+  "@tripEmergencyBody": {
+    "description": "Dialog body"
+  },
+  "tripEmergencySend": "إرسال التنبيه",
+  "@tripEmergencySend": {
+    "description": "Dialog button"
+  },
+  "tripEmergencySentAll": "تم إرسال التنبيه للجميع",
+  "@tripEmergencySentAll": {
+    "description": "Snackbar"
+  },
+  "tripEmergencySentGroup": "تم إرسال التنبيه للمجموعة",
+  "@tripEmergencySentGroup": {
+    "description": "Snackbar"
+  },
+  "tripDoneTitle": "انتهى المشوار",
+  "@tripDoneTitle": {
+    "description": "Empty state title"
+  },
+  "tripDoneBody": "تم إيقاف مشاركة الموقع.",
+  "@tripDoneBody": {
+    "description": "Empty state body"
+  },
+  "tripDoneAction": "تم",
+  "@tripDoneAction": {
+    "description": "Button"
+  },
+  "tripStopWaiting": "بانتظار",
+  "@tripStopWaiting": {
+    "description": "Stop badge"
+  },
+  "tripStopArrived": "السيارة بالخارج",
+  "@tripStopArrived": {
+    "description": "Stop badge"
+  },
+  "tripStopOnBoard": "في السيارة",
+  "@tripStopOnBoard": {
+    "description": "Stop badge"
+  },
+  "tripStopAtSchool": "في المدرسة",
+  "@tripStopAtSchool": {
+    "description": "Stop badge"
+  },
+  "tripStopDropped": "تم التسليم",
+  "@tripStopDropped": {
+    "description": "Stop badge"
+  },
+  "tripStopReceived": "في البيت",
+  "@tripStopReceived": {
+    "description": "Stop badge"
+  },
+  "tripStopAbsent": "غائب",
+  "@tripStopAbsent": {
+    "description": "Stop badge"
+  },
+  "tripHandoverParentsOnly": "سلّم الطفل لولي أمره فقط.",
+  "@tripHandoverParentsOnly": {
+    "description": "Driver card line"
+  },
+  "tripHandoverList": "وأيضًا: {names}",
+  "@tripHandoverList": {
+    "description": "Driver card line with the allowed adults",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "tripListSeparator": "، ",
+  "@tripListSeparator": {
+    "description": "Separator between names"
+  },
+  "tripLocationWaiting": "بانتظار",
+  "@tripLocationWaiting": {
+    "description": "Location badge"
+  },
+  "tripLocationLive": "مباشر",
+  "@tripLocationLive": {
+    "description": "Location badge"
+  },
+  "tripLocationStale": "متوقف",
+  "@tripLocationStale": {
+    "description": "Location badge"
+  },
+  "tripLocationOff": "متوقف تمامًا",
+  "@tripLocationOff": {
+    "description": "Location badge"
+  },
+  "tripCarLine": "{model}، {color}",
+  "@tripCarLine": {
+    "description": "Driver card car line",
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "color": {
+        "type": "String"
+      }
+    }
+  },
+  "tripNoCarDetails": "تفاصيل السيارة غير متاحة",
+  "@tripNoCarDetails": {
+    "description": "Driver card fallback"
+  },
+  "tripDriverCardLabel": "سائق اليوم: {name}",
+  "@tripDriverCardLabel": {
+    "description": "Screen-reader label",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tripDriverPhotoLabel": "صورة السائق",
+  "@tripDriverPhotoLabel": {
+    "description": "Screen-reader label"
+  },
+  "tripTitle": "المشوار المباشر",
+  "@tripTitle": {
+    "description": "App bar title"
+  },
+  "tripMapLabel": "خريطة بموقع السيارة",
+  "@tripMapLabel": {
+    "description": "Map screen-reader label"
+  },
+  "tripCarPinLabel": "سيارة {name}",
+  "@tripCarPinLabel": {
+    "description": "Map pin label",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tripNotStartedTitle": "لم يبدأ بعد",
+  "@tripNotStartedTitle": {
+    "description": "Empty state title"
+  },
+  "tripNotStartedBody": "تظهر السيارة هنا عندما يبدأ السائق المشوار.",
+  "@tripNotStartedBody": {
+    "description": "Empty state body"
+  },
+  "tripStaleNote": "توقف موقع السيارة. أبلغنا السائق.",
+  "@tripStaleNote": {
+    "description": "Inline warning"
+  },
+  "tripFinishedNote": "انتهت مشاركة الموقع مع آخر توصيل.",
+  "@tripFinishedNote": {
+    "description": "Inline note"
+  },
+  "tripEtaPickup": "{minutes, plural, =1{السيارة بعد دقيقة تقريبًا} =2{السيارة بعد دقيقتين تقريبًا} few{السيارة بعد {minutes} دقائق تقريبًا} many{السيارة بعد {minutes} دقيقة تقريبًا} other{السيارة بعد {minutes} دقيقة تقريبًا}}",
+  "@tripEtaPickup": {
+    "description": "Arrival time line",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "tripEtaArrive": "{minutes, plural, =1{يصل بعد دقيقة تقريبًا} =2{يصل بعد دقيقتين تقريبًا} few{يصل بعد {minutes} دقائق تقريبًا} many{يصل بعد {minutes} دقيقة تقريبًا} other{يصل بعد {minutes} دقيقة تقريبًا}}",
+  "@tripEtaArrive": {
+    "description": "Arrival time line",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "tripEtaNow": "يصل الآن",
+  "@tripEtaNow": {
+    "description": "Arrival time line"
+  },
+  "tripEtaOutside": "السيارة بالخارج. أرسل طفلك الآن.",
+  "@tripEtaOutside": {
+    "description": "Arrival time line"
+  },
+  "tripOpenDriver": "فتح شاشة السائق",
+  "@tripOpenDriver": {
+    "description": "Button"
+  },
+  "tripConfirmHome": "وصل الطفل البيت",
+  "@tripConfirmHome": {
+    "description": "Primary button (handover)"
+  },
+  "tripConfirmHomeTitle": "هل وصل {name} البيت؟",
+  "@tripConfirmHomeTitle": {
+    "description": "Dialog title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tripConfirmHomeBody": "سيعلم السائق أن التسليم تم.",
+  "@tripConfirmHomeBody": {
+    "description": "Dialog body"
+  },
+  "tripConfirmedHome": "تم تأكيد الاستلام",
+  "@tripConfirmedHome": {
+    "description": "Snackbar"
+  },
+  "tripChildrenSection": "الأطفال",
+  "@tripChildrenSection": {
+    "description": "Section header"
+  },
+  "tripMessagesSection": "من السائق",
+  "@tripMessagesSection": {
+    "description": "Section header"
+  },
+  "tripNoMessages": "لا توجد رسائل من السائق بعد.",
+  "@tripNoMessages": {
+    "description": "Quiet text"
+  },
+  "tripStartOpen": "ابدأ المشوار",
+  "@tripStartOpen": {
+    "description": "Run sheet button"
+  },
+  "tripFollow": "تابع المشوار",
+  "@tripFollow": {
+    "description": "Run sheet button"
+  },
+  "tripTodaySection": "اليوم",
+  "@tripTodaySection": {
+    "description": "Carpool detail section header"
+  },
+  "tripTodayNone": "لا أحد يقود اليوم.",
+  "@tripTodayNone": {
+    "description": "Carpool detail quiet text"
+  },
+  "gallerySectionTrips": "المشاوير",
+  "@gallerySectionTrips": {
+    "description": "Gallery section header"
+  },
+  "sampleDriverName": "هدى",
+  "@sampleDriverName": {
+    "description": "Gallery sample first name"
+  },
+  "sampleCarModel": "كورولا",
+  "@sampleCarModel": {
+    "description": "Gallery sample car model"
+  },
+  "sampleCarColor": "أبيض",
+  "@sampleCarColor": {
+    "description": "Gallery sample car color"
+  },
+  "sampleChildName": "آدم",
+  "@sampleChildName": {
+    "description": "Gallery sample child first name"
+  },
+  "tripErrorNoChildren": "كل الأطفال غائبون. لا يوجد مشوار.",
+  "@tripErrorNoChildren": {
+    "description": "Trip error"
+  },
+  "tripErrorOnBoard": "ما زال طفل في السيارة. أوصله أولًا.",
+  "@tripErrorOnBoard": {
+    "description": "Trip error"
+  },
+  "tripActionNotComing": "لن يأتي",
+  "@tripActionNotComing": {
+    "description": "Driver button: the child did not come"
+  },
+  "tripActionArrivedSent": "تم الإرسال",
+  "@tripActionArrivedSent": {
+    "description": "Driver button after Arrived (wait before repeating)"
+  },
+  "tripNotComingTitle": "{name} لن يأتي؟",
+  "@tripNotComingTitle": {
+    "description": "Dialog title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tripNotComingBody": "سيُبلَّغ ولي الأمر وتُغلق هذه المحطة.",
+  "@tripNotComingBody": {
+    "description": "Dialog body"
+  },
+  "tripNotComingSent": "تم إبلاغ ولي الأمر",
+  "@tripNotComingSent": {
+    "description": "Snackbar"
+  },
+  "tripEnd": "إنهاء المشوار",
+  "@tripEnd": {
+    "description": "Driver button"
+  },
+  "tripEndTitle": "إنهاء المشوار؟",
+  "@tripEndTitle": {
+    "description": "Dialog title"
+  },
+  "tripEndBody": "تتوقف مشاركة الموقع. الأطفال الذين لم يركبوا يُسجَّلون غير قادمين ويُبلَّغ أهلهم.",
+  "@tripEndBody": {
+    "description": "Dialog body"
+  },
+  "tripEnded": "انتهى المشوار",
+  "@tripEnded": {
+    "description": "Snackbar"
+  },
+  "tripNoPhotoTitle": "أضف صورتك",
+  "@tripNoPhotoTitle": {
+    "description": "Empty state title"
+  },
+  "tripAddPhoto": "إضافة صورة",
+  "@tripAddPhoto": {
+    "description": "Button"
+  },
+  "tripSignOutBody": "أنت تقود مشوارًا الآن. تسجيل الخروج يوقف مشاركة موقعك ويُبلَّغ أولياء الأمور.",
+  "@tripSignOutBody": {
+    "description": "Sign-out dialog body during a run"
+  },
+  "notifNotComingTitle": "لم يركب الطفل",
+  "@notifNotComingTitle": {
+    "description": "Notification title"
+  },
+  "notifNotComingBody": "سُجّل طفلك غير قادم: {run}.",
+  "@notifNotComingBody": {
+    "description": "Notification sentence",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
   }
 }

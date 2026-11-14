@@ -28,6 +28,11 @@
  *   ... -- remind --as any                       (reminders and critical alarms now: the notification tick)
  *   One test notification: npm --prefix functions run notify:emulator -- <uid> <type> [carpoolId] [date]
  *
+ * Trips (Prompt 10; the second parent on the run):
+ *   ... -- trip <carpoolId> <runId> --as any                    (status, last point age, stops)
+ *   ... -- home <carpoolId> <runId> <childId> --as seed-map-parent-1  (confirm the handover, F34)
+ *   ... -- triptick --as any         ("location stopped", "child not confirmed", cleanup: the trip tick)
+ *
  * Emulators and demo- projects only (fake data only).
  */
 import { initializeApp } from "firebase-admin/app";
@@ -49,6 +54,29 @@ import { addDays, weekStartOf } from "../src/schedule/cairo";
 import { FirestoreNotifyStore } from "../src/notifications/store";
 import { runNotificationTick } from "../src/notifications/tick";
 import { confirmRun, planWeek, requestSwap, runScheduleTick, setChildAbsent, setDrivingDays, takeRun } from "../src/schedule/flow";
+import { confirmHandover, runTripTick, type TripDeps } from "../src/trips/flow";
+import { TripError } from "../src/trips/model";
+import { FakeRoutesProvider } from "../src/trips/routes";
+import { FirestoreTripStore } from "../src/trips/store";
+
+/** Trip flows on the emulators: no Storage, no face match, WhatsApp only logged. */
+function tripDeps(): TripDeps {
+  const none = (): never => {
+    throw new Error("not available in this script");
+  };
+  return {
+    store: new FirestoreTripStore(db),
+    files: { list: async () => [], exists: async () => false, read: async () => none(), delete: async () => undefined, signedReadUrl: async () => none() },
+    faces: { matchFace: async () => "error" },
+    routes: new FakeRoutesProvider(),
+    whatsapp: { sendTemplate: async (_to, template) => console.log(`[fake WhatsApp] ${template}`) },
+    releaseRuns: async () => 0,
+    now: () => Date.now(),
+    newToken: () => none(),
+    roll: () => 99,
+    log: (message, data) => console.log(message, data ?? ""),
+  };
+}
 
 function refuse(reason: string): never {
   console.error(`carpool: refusing to run: ${reason}`);
@@ -80,7 +108,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
   const uid = option(args, "--as");
-  if (!command || !uid) refuse("usage: <search|request|approve|consent|invite|mine|days|plan|runs|confirm|swap|take|absent|tick|remind> ... --as <uid> (see the header)");
+  if (!command || !uid) refuse("usage: <search|request|approve|consent|invite|mine|days|plan|runs|confirm|swap|take|absent|tick|remind|trip|home|triptick> ... --as <uid> (see the header)");
   const caller = { uid, verifiedClaim: true };
   switch (command) {
     case "search": {
@@ -145,6 +173,20 @@ async function main(): Promise<void> {
     case "remind":
       console.log(await runNotificationTick({ store: new FirestoreNotifyStore(db), now: () => Date.now(), eveningAt: process.env.REMINDER_EVENING_AT ?? "19:00" }));
       return;
+    case "trip": {
+      const trip = await new FirestoreTripStore(db).trip(`${args[1]}_${args[2]}`);
+      if (!trip) refuse("no trip yet (the driver has not started this run)");
+      const age = trip.lastPointAtMs === null ? "no point yet" : `last point ${Math.round((Date.now() - trip.lastPointAtMs) / 1000)} s ago`;
+      console.log(`${trip.id}  ${trip.status}  ${age}  viewers ${trip.viewerUids.join(",")}`);
+      for (const st of trip.stops) console.log(`  ${st.childId}  ${st.state}  arrived x${st.arrivedCount}`);
+      return;
+    }
+    case "home":
+      console.log(await confirmHandover(tripDeps(), caller, { carpoolId: args[1], runId: args[2], childId: args[3] }));
+      return;
+    case "triptick":
+      console.log(await runTripTick(tripDeps()));
+      return;
     case "mine":
       for (const m of await store.membershipsOf(uid)) console.log(`${m.carpoolId}  ${m.status}  ${m.role}`);
       return;
@@ -154,6 +196,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error("carpool failed:", error instanceof CarpoolError ? error.reason : error instanceof Error ? error.message : error);
+  console.error("carpool failed:", error instanceof CarpoolError || error instanceof TripError ? error.reason : error instanceof Error ? error.message : error);
   process.exit(1);
 });

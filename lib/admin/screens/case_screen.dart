@@ -341,6 +341,8 @@ class _Documents extends StatelessWidget {
       if (detail.driver != null) ...<(String, String?)>[
         (l10n.adminDocLicense, detail.images['license.jpg']),
         (l10n.adminDocCarLicense, detail.images['car_license.jpg']),
+        // Prompt 10: optional; kept for the driver card when approved.
+        if (detail.images.containsKey('driver_photo.jpg')) (l10n.adminDocDriverPhoto, detail.images['driver_photo.jpg']),
       ],
     ];
     return ListView(

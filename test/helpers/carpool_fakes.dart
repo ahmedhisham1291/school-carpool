@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
+import 'package:school_carpool/features/trips/location_tracker.dart';
+import 'package:school_carpool/features/trips/trip_repository.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 
 import 'schedule_fakes.dart';
+import 'trip_fakes.dart';
 
 /// Fake carpools for widget tests (fake data only). Calls are recorded in
 /// [calls]; [failure] makes every call fail; streams follow [emit].
@@ -226,9 +229,18 @@ class FakeLinkSharer implements LinkSharer {
 /// Keeps Firebase and WhatsApp out of widget tests. The schedule fake and
 /// a fixed clock ([testNow]) are always part of it (Prompt 7), so the
 /// number of overrides never changes between pumps.
-List<Override> carpoolOverrides({CarpoolRepository? carpools, LinkSharer? sharer, ScheduleRepository? schedule}) => <Override>[
+List<Override> carpoolOverrides({
+  CarpoolRepository? carpools,
+  LinkSharer? sharer,
+  ScheduleRepository? schedule,
+  TripRepository? trips,
+  LocationTracker? tracker,
+}) => <Override>[
   carpoolRepositoryProvider.overrideWithValue(carpools ?? FakeCarpoolRepository()),
   linkSharerProvider.overrideWithValue(sharer ?? FakeLinkSharer()),
   scheduleRepositoryProvider.overrideWithValue(schedule ?? FakeScheduleRepository()),
   scheduleClockProvider.overrideWithValue(() => testNow),
+  // Prompt 10: the carpool screen shows today's driver card; run sheets
+  // open trips. Always the same overrides.
+  ...tripOverrides(trips: trips, tracker: tracker),
 ];

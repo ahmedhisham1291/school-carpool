@@ -50,6 +50,13 @@ export interface ChatServer {
   deleteMessage(messageId: string): Promise<void>;
   /** Hard-deletes every message older than [beforeMs] (retention). */
   truncateBefore(type: string, id: string, beforeMs: number): Promise<void>;
+  /**
+   * Prompt 10 (F35): a message from the system user into a group channel
+   * (the driver's quick messages in the carpool chat). [messageId] is
+   * fixed by the caller, so a retry never posts twice. No push from Stream
+   * (our notification sender already told the parents).
+   */
+  postSystemMessage(type: string, id: string, messageId: string, text: string, extra: Record<string, string>): Promise<void>;
 }
 
 // --------------------------------------------------------------------------
@@ -285,6 +292,19 @@ export class StreamChatServer implements ChatServer {
       throw error;
     }
   }
+
+  async postSystemMessage(type: string, id: string, messageId: string, text: string, extra: Record<string, string>): Promise<void> {
+    try {
+      await this.call("POST", `${StreamChatServer.path(type, id)}/message`, {
+        message: { ...extra, id: messageId, text, user_id: SYSTEM_USER_ID },
+        skip_push: true,
+      });
+    } catch (error) {
+      // 409 / code 4 with "already exists": the same message was posted before.
+      if (error instanceof ChatServiceError && error.status === 409) return;
+      throw error;
+    }
+  }
 }
 
 // --------------------------------------------------------------------------
@@ -404,6 +424,15 @@ export class FakeChatServer implements ChatServer {
   async truncateBefore(type: string, id: string, beforeMs: number): Promise<void> {
     this.note(`truncate ${type}:${id}`);
     this.truncated.push({ cid: `${type}:${id}`, beforeMs });
+  }
+
+  /** Prompt 10: system messages posted (cid, id, text, extra); one per ID. */
+  systemMessages: Array<{ cid: string; id: string; text: string; extra: Record<string, string> }> = [];
+
+  async postSystemMessage(type: string, id: string, messageId: string, text: string, extra: Record<string, string>): Promise<void> {
+    this.note(`systemMessage ${type}:${id}`);
+    if (this.systemMessages.some((m) => m.id === messageId)) return;
+    this.systemMessages.push({ cid: `${type}:${id}`, id: messageId, text, extra: { ...extra } });
   }
 }
 

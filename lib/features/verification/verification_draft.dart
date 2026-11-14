@@ -70,6 +70,7 @@ class DriverDraft {
     this.carLicenseExpiry,
     this.licensePhoto,
     this.carLicensePhoto,
+    this.driverPhoto,
   });
 
   final String plate;
@@ -82,6 +83,9 @@ class DriverDraft {
   final DateTime? carLicenseExpiry;
   final Uint8List? licensePhoto;
   final Uint8List? carLicensePhoto;
+
+  /// Optional (Prompt 10): the face photo on today's driver card.
+  final Uint8List? driverPhoto;
 
   bool isComplete(DateTime today) =>
       isValidFreeText(plate, min: 2, max: 20) &&
@@ -102,6 +106,7 @@ class DriverDraft {
     DateTime? carLicenseExpiry,
     Uint8List? licensePhoto,
     Uint8List? carLicensePhoto,
+    Uint8List? driverPhoto,
   }) => DriverDraft(
     plate: plate ?? this.plate,
     model: model ?? this.model,
@@ -111,6 +116,7 @@ class DriverDraft {
     carLicenseExpiry: carLicenseExpiry ?? this.carLicenseExpiry,
     licensePhoto: licensePhoto ?? this.licensePhoto,
     carLicensePhoto: carLicensePhoto ?? this.carLicensePhoto,
+    driverPhoto: driverPhoto ?? this.driverPhoto,
   );
 
   Map<String, Object?> toPayload() => <String, Object?>{
@@ -196,6 +202,7 @@ class VerificationDraft {
     for (final ChildDraft child in children) schoolIdFileName(child.ref): ?child.schoolIdPhoto,
     if (drives) VerificationDocument.license.fileName: ?driver.licensePhoto,
     if (drives) VerificationDocument.carLicense.fileName: ?driver.carLicensePhoto,
+    if (drives) VerificationDocument.driverPhoto.fileName: ?driver.driverPhoto,
   };
 
   /// Body of the submitVerification call.
@@ -296,6 +303,10 @@ class VerificationDraftController extends Notifier<VerificationDraft> {
       ),
       VerificationDocument.carLicense => state.copyWith(
         driver: state.driver.copyWith(carLicensePhoto: bytes),
+        uploaded: uploaded,
+      ),
+      VerificationDocument.driverPhoto => state.copyWith(
+        driver: state.driver.copyWith(driverPhoto: bytes),
         uploaded: uploaded,
       ),
     };

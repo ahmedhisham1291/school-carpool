@@ -407,8 +407,11 @@ class FirestoreCarpoolTx implements CarpoolTx {
     const snap = await this.tx.get(this.db.collection(USERS).doc(uid));
     if (!snap.exists) return null;
     const d = snap.data() ?? {};
-    // Prompt 9: an urgent report pauses driving (status "paused": no car, so no run).
-    const status = d.banned === true ? "suspended" : d.drivingPaused === true ? "paused" : text(d.status);
+    // Prompt 9: an urgent report pauses driving (`drivingPaused: true`);
+    // Prompt 10 (F38): so does a failed selfie check. Status "paused": no
+    // car, so no plan, confirm or take.
+    const paused = d.drivingPaused != null && d.drivingPaused !== false;
+    const status = d.banned === true ? "suspended" : paused ? "paused" : text(d.status);
     return { status, firstName: text(d.firstName) };
   }
 

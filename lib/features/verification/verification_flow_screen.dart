@@ -101,7 +101,7 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
         if (turn != null) {
           _draft.setPhoto(VerificationDocument.selfieTurn, turn);
         }
-      case CaptureKind.schoolId || CaptureKind.license || CaptureKind.carLicense:
+      case CaptureKind.schoolId || CaptureKind.license || CaptureKind.carLicense || CaptureKind.driverPhoto:
         break;
     }
   }
