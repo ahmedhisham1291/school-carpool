@@ -19,7 +19,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Sentry | Developer (free) | 5,000 errors a month, 1 user; no tracing, no replay | Sentry > Stats; spike protection on | Errors are dropped for quota two months in a row, or a second person needs access |
 | Codemagic | Free personal, iOS builds only | 500 macOS M2 minutes a month (Linux has no free minutes, so no Linux jobs run there) | Codemagic > Billing | macOS minutes run out before the 25th of a month |
 | GitHub Actions | Free | Public repositories: free. Private: a monthly allowance of free Linux minutes (2,000 on the free plan in Nov 2026; check GitHub's billing page) | GitHub > Settings > Billing > Usage | A private repository uses 80 percent of the allowance |
-| Stream Chat | Build (free), later Maker | See Stream's pricing page; Maker is free for small companies that qualify | Stream dashboard | Prompt 9 onward, when the free plan's user or message limit is reached |
+| Stream Chat | Build (free), later Maker | Free plan limits on monthly active users and concurrent connections (see Stream's pricing page); Maker is free for small companies that qualify | Stream Dashboard > Usage (monthly active users, connections) | 80 percent of the free plan's monthly active users or connections; see "Chat (Prompt 9)" |
 | Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
 | WhatsApp Business | Pay per template message | Codes and critical alerts only by default; other notifications are push unless the parent switches WhatsApp on | Meta WhatsApp Manager > Insights | Budget set by the owner |
@@ -229,6 +229,33 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
   signing out is never limited.
 - **Upgrade when:** WhatsApp spend passes the owner's monthly budget: then
   keep critical only and ask parents to rely on push.
+
+## Chat (Prompt 9)
+
+- **Stream Chat:** Build (free) plan for the dev app and the prod app. The
+  plan counts monthly active users (parents who connect) and concurrent
+  connections. The app connects only while a chat screen is open or the
+  app is in the foreground (the SDK disconnects in the background), and
+  Stream's own push is off, so nothing else is billed by Stream. Move the
+  prod app to **Maker** (free for small qualifying organizations; apply
+  early) or the first paid plan when the dashboard shows 80 percent of a
+  free limit. AI moderation for text and images may need Stream's
+  moderation add-on: check its price before turning it on in prod (SETUP
+  19.4); the blocked-terms lists cost nothing.
+- **Cloud Functions:** `getChatToken` about once an hour per active parent;
+  `chatWebhook` once per message (one Firestore read of the channel, two
+  small queries, one outbox write); `sendNotification` then sends the push
+  (FCM is free). Triggers on users, parentLocations and carpool members
+  run only when those change. All far inside the free 2 million
+  invocations.
+- **Cloud Scheduler:** `chatRetentionDaily` is one more job (USD 0.10 a
+  month per project once the 3 free jobs are used).
+- **Firestore:** a channel registry document per chat, one small document
+  per request, block, mute and setting; chat push records expire after 2
+  days (TTL), requests 30 days after the last change.
+- **Limits per parent** (server side): 10 new chat requests a day, 30
+  tokens an hour, 20 reports a day, 100 blocks, mutes and settings changes
+  a day, 10 "sync my chats" an hour.
 
 ## Open cost questions
 

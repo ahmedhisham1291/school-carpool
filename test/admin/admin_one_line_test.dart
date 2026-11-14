@@ -57,6 +57,7 @@ void main() {
     'new school': (AdminRoutes.newSchool, reviewer),
     'other school': ('/other-schools/p1', reviewer),
     'reports': (AdminRoutes.reports, reviewer),
+    'report': ('/reports/r1', reviewer),
     'audit': (AdminRoutes.audit, superAdmin),
     'admins': (AdminRoutes.admins, superAdmin),
   };

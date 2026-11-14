@@ -7,6 +7,7 @@ import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/chat/chat_sheets.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/home_location_screen.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
@@ -157,7 +158,13 @@ class _NearbyParentsScreenState extends ConsumerState<NearbyParentsScreen> {
             icon: Icons.chat_bubble_outline_rounded,
             variant: AppButtonVariant.secondary,
             expand: true,
-            onPressed: () => showAppSnackBar(context, l10n.parentMessageSoon),
+            // Prompt 9: a private chat request (the other parent accepts).
+            onPressed: () {
+              final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+              final GoRouter? router = GoRouter.maybeOf(context);
+              Navigator.of(context).pop();
+              unawaited(startPrivateChat(ref, messenger, l10n, uid: parent.id, firstName: parent.firstName, open: (String route) => router?.go(route)));
+            },
           ),
         ],
       ),

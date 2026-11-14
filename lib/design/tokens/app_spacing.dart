@@ -42,6 +42,9 @@ abstract final class AppSpacing {
   /// Maximum width of a short centred sentence (empty and error states).
   static const double maxSentenceWidth = 320;
 
+  /// Side of a photo in a chat message (Prompt 9).
+  static const double chatPhoto = 224;
+
   static const EdgeInsetsDirectional screenPadding =
       EdgeInsetsDirectional.symmetric(horizontal: screenGutter, vertical: s16);
 

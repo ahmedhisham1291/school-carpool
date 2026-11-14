@@ -167,6 +167,10 @@ export interface ReportItem {
   reason: string;
   status: string;
   createdAtMs: number;
+  /** Prompt 9: child safety or dangerous driving (reviewed the same day). */
+  urgent: boolean;
+  /** Prompt 9: the kind of chat ("private", "school", "area", "carpool") or "". */
+  kind: string;
 }
 
 export interface AuditItem {

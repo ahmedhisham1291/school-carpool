@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/data/admin_api.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
+import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/admin/widgets/admin_labels.dart';
 import 'package:school_carpool/admin/widgets/admin_widgets.dart';
 import 'package:school_carpool/design/components/components.dart';
@@ -11,9 +13,10 @@ final FutureProvider<List<ReportItem>> adminReportsProvider = FutureProvider<Lis
   (Ref ref) => ref.watch(adminApiProvider).reports(),
 );
 
-/// Reports queue (F13, F14): open reports, newest first. The list only;
-/// handling a report comes with chat (Prompt 9). Target response time is
-/// 24 hours (spec section 6), so the age of each report is shown.
+/// Reports queue (F13, F14): open reports, urgent ones (child safety,
+/// dangerous driving: review the same day) first, then newest first. A
+/// row opens the report (Prompt 9). Target response time is 24 hours
+/// (spec section 6), so the age of each report is shown.
 ///
 /// States: loading (skeleton), empty (no open reports), error and offline
 /// (retry).
@@ -36,21 +39,37 @@ class ReportsScreen extends ConsumerWidget {
           title: l10n.adminReportsEmptyTitle,
           body: l10n.adminReportsEmptyBody,
         ),
-        builder: (List<ReportItem> reports) => ListView.builder(
-          itemCount: reports.length,
-          itemBuilder: (BuildContext context, int i) {
-            final ReportItem r = reports[i];
-            final DateTime? at = r.createdAt;
-            final bool overdue = at != null && DateTime.now().difference(at) > const Duration(hours: 24);
-            return AppListRow(
-              key: Key('reports.${r.id}'),
-              title: reportReasonLabel(l10n, r.reason),
-              subtitle: '${reportTargetLabel(l10n, r.targetType)} · ${adminDateTime(context, at)}',
-              leadingIcon: Icons.flag_outlined,
-              trailing: overdue ? AppStatusBadge(label: l10n.adminOverdue, tone: AppBadgeTone.warning) : null,
-            );
-          },
-        ),
+        builder: (List<ReportItem> all) {
+          final List<ReportItem> reports = <ReportItem>[
+            ...all.where((ReportItem r) => r.urgent),
+            ...all.where((ReportItem r) => !r.urgent),
+          ];
+          return ListView.builder(
+            itemCount: reports.length,
+            itemBuilder: (BuildContext context, int i) {
+              final ReportItem r = reports[i];
+              final DateTime? at = r.createdAt;
+              final bool overdue = at != null && DateTime.now().difference(at) > const Duration(hours: 24);
+              final String kind = reportKindLabel(l10n, r.kind);
+              return AppListRow(
+                key: Key('reports.${r.id}'),
+                title: reportReasonLabel(l10n, r.reason),
+                subtitle: <String>[
+                  reportTargetLabel(l10n, r.targetType),
+                  if (kind.isNotEmpty) kind,
+                  adminDateTime(context, at),
+                ].join(' · '),
+                leadingIcon: Icons.flag_outlined,
+                trailing: r.urgent
+                    ? AppStatusBadge(label: l10n.adminReportUrgent, tone: AppBadgeTone.error)
+                    : overdue
+                    ? AppStatusBadge(label: l10n.adminOverdue, tone: AppBadgeTone.warning)
+                    : null,
+                onTap: () => context.go('${AdminRoutes.reports}/${r.id}'),
+              );
+            },
+          );
+        },
       ),
     );
   }

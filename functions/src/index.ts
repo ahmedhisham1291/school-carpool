@@ -43,8 +43,10 @@ export {
 export {
   adminApproveSchool,
   adminCreateAdmin,
+  adminGetReport,
   adminGetSchool,
   adminGetUser,
+  adminLiftDrivingPause,
   adminListAdmins,
   adminListAuditLog,
   adminListReports,
@@ -52,6 +54,9 @@ export {
   adminMergeSchool,
   adminModerateUser,
   adminPing,
+  adminRemoveChatMember,
+  adminRemoveChatMessage,
+  adminResolveReport,
   adminSaveArea,
   adminSaveSchool,
   adminSearchUsers,
@@ -125,3 +130,25 @@ export {
   unregisterPushDevice,
   updateNotificationSettings,
 } from "./notifications/callables";
+
+// Chat (Prompt 9: F8, F9, F10, F13) on Stream Chat: tokens for verified,
+// non-suspended parents only; every channel and member decided here;
+// requests, blocks, mutes and reports; the Stream webhook feeds chat push
+// into the one notification sender; daily retention.
+export {
+  answerChatRequest,
+  blockChatUser,
+  cancelChatRequest,
+  chatRetentionDaily,
+  chatWebhook,
+  getChatToken,
+  reportChat,
+  sendChatRequest,
+  setChatMute,
+  syncChatOnCarpoolMemberWrite,
+  syncChatOnLocationWrite,
+  syncChatOnUserWrite,
+  syncMyChats,
+  unblockChatUser,
+  updateChatSettings,
+} from "./chat/callables";
