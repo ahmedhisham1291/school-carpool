@@ -254,6 +254,12 @@ class _FirestoreConversation implements ChatConversation {
 
   // Marking read.
   bool _marking = false;
+
+  /// What the last mark was made for, so the same state is never marked
+  /// twice (each mark is a paid write): the row snapshot in small chats,
+  /// the head's counter in groups.
+  ChatDoc? _markedRow;
+  int? _markedSeq;
   DateTime? _lastMark;
   Timer? _markTimer;
 
@@ -663,6 +669,11 @@ class _FirestoreConversation implements ChatConversation {
     if (!unread) {
       return;
     }
+    // Already marked for exactly this state (the row we hold can still be
+    // the one from before our own write reached the listener).
+    if (_small ? identical(row, _markedRow) : seq == _markedSeq) {
+      return;
+    }
     final DateTime now = _clock();
     final DateTime? last = _lastMark;
     if (!_small && last != null && now.difference(last) < _groupMarkEvery) {
@@ -673,12 +684,26 @@ class _FirestoreConversation implements ChatConversation {
       return;
     }
     _marking = true;
+    _markedRow = row;
+    _markedSeq = seq;
     _lastMark = now;
+    bool failed = false;
     unawaited(
-      _backend.markRead(_me, _cid, readSeq: seq, small: _small).then((_) {}, onError: (Object _) {}).whenComplete(() {
-        _marking = false;
-        _maybeMarkRead();
-      }),
+      _backend
+          .markRead(_me, _cid, readSeq: seq, small: _small)
+          .then((_) {}, onError: (Object _) {
+            // Tried again when the next row or head comes, not in a loop.
+            failed = true;
+            _markedRow = null;
+            _markedSeq = null;
+          })
+          .whenComplete(() {
+            _marking = false;
+            if (!failed) {
+              // Something newer may have come while the write was on its way.
+              _maybeMarkRead();
+            }
+          }),
     );
   }
 

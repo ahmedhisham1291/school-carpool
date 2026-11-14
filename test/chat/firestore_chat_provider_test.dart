@@ -432,6 +432,7 @@ void main() {
       expect(backend.listening('latest:$_carpool'), 1);
 
       expect(await c.loadOlder(), isFalse, reason: '15 left: fewer than a page, so nothing more after it');
+      await _settle();
       expect(seen.last, hasLength(45));
       expect(seen.last.first.id, 'm01');
       expect(backend.calls.where((String x) => x == 'older:$_carpool'), hasLength(1));

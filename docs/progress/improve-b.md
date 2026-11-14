@@ -77,6 +77,28 @@ fixed the member uploads. The Flutter test step was cancelled again
 
 Not run here: the rules tests (no emulators).
 
+## After the third CI run (43632981739)
+
+Analyze clean, functions 641 pass, rules 541 pass / 1 fail, Flutter tests:
+2 failures seen before the job was cancelled (more may be behind them).
+
+- **Rules, "not twice":** the first upload was refused because an object of
+  that name was still in the Storage emulator from an earlier subtest
+  (`clearStorage` did not remove it), which the new `resource == null`
+  rule correctly treats as a second upload. The rule stays; every upload
+  that must succeed now uses a name that is new per run and per test.
+- **Flutter, older page (45 expected, 30 seen): the test, not the
+  provider.** The merged list is emitted on the stream a moment after
+  `loadOlder()` returns; the test now waits for it.
+- **Flutter, mark read called three times: a real provider bug.** After a
+  mark finished, the provider looked again while still holding the row
+  from before its own write and marked the same state again (each mark is
+  a paid write). It now remembers what it marked (the row snapshot in
+  small chats, the head's counter in groups) and never marks the same
+  state twice; a failed mark is retried on the next change, not in a loop.
+
+Not run here: rules tests and Flutter tests.
+
 ## Plan that was followed
 
 1. **Server** (`functions/src/chat/`): a `firestore` provider behind the
