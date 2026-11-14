@@ -68,6 +68,6 @@ to 13, docs/DECISIONS.md.
 | D13 | Admin panel screens for security alerts and privacy requests (callables exist) | Admins use the console | Later admin prompt |
 | D14 | Analytics events other than the privacy ones are in the catalog but not yet sent by their screens | Less usage data | One line each when the screens are next touched |
 | D15 | FCM registration by Firebase Installation ID (firebase_messaging 17 deprecates tokens) | Future SDK change | Planned change with the server |
-| D16 | Lockfiles (`pubspec.lock`, `package-lock.json`): the manual CI job that writes and commits them exists (workstream E); builds use them as soon as the first lock commit is on `main` | Reproducible builds | Coordinator: `gh workflow run checks.yml --ref <branch> -f update_locks=true`, review, one CI run, merge (docs/WORKFLOW.md "Package versions") |
+| D16 | Lockfiles (`pubspec.lock`, `package-lock.json`): written by the manual CI job and committed on branch `improve-e-docs` (workstream E), all four files; builds on `main` use them once that branch is merged | Reproducible builds | Coordinator: merge `improve-e-docs`. Later updates: docs/WORKFLOW.md "Package versions" |
 | D17 | Website (Stage 2) and Android (Stage 3) platform work | — | Later stages |
 | D18 | Lawyer's answers: all confirmed (DECISIONS.md "Legal" and "Owner updates 12:30"); the retention periods need the privacy policy text updated by the lawyer for the published page (A13) | — | Owner |
