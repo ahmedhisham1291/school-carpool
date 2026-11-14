@@ -1,0 +1,291 @@
+import { purgeAfterClosure } from "./retention";
+
+/**
+ * Account deletion (spec section 7, Prompt 12; owner decision 14 Nov 2026).
+ *
+ * At once: the parent leaves every carpool (an admin hands the carpool to
+ * the next member), live runs stop, the Stream user is cut off, and every
+ * record about the parent is deleted (targets below), then the user record
+ * and the Firebase Auth user.
+ *
+ * Kept for 1 year after closure, admin-only with a logged reason, then
+ * purged by retentionDaily: the photos (ID, selfies, school IDs, licences,
+ * driver photo; private bucket, KMS key), the verification case records,
+ * the run summaries the parent drove and their archived routes, the
+ * consent records, and the parent's chat messages on Stream.
+ *
+ * Kept after that: the keyed national-ID hash on the ban list (banned
+ * parents only), open reports, the transfer records (as long as the law
+ * requires; lawyer), the admin audit log and the reserved parent ID.
+ *
+ * The wallet must be empty and settled first. Every step runs on its own;
+ * a failed step is recorded in closedAccounts/{uid} and retried by
+ * retentionDaily, which reports what still fails (Sentry and the admins'
+ * security alerts). Pure planning here; firestore_store.ts runs it.
+ */
+
+/** A Firestore delete of the parent's records. "{uid}" in a path is the parent. */
+export type Target =
+  | { kind: "doc"; path: string }
+  | { kind: "where"; collection: string; field: string; op?: "==" | "array-contains" }
+  | { kind: "subcollection"; path: string }
+  | { kind: "storage"; prefix: string };
+
+/**
+ * Deleted AT ONCE, in this order, after the carpool, trip, chat and trust
+ * steps (which go through the flows that keep groups consistent). Each
+ * entry names the collection in firestore.rules it covers (the cascade
+ * test checks that every collection is classified).
+ */
+export const IMMEDIATE_TARGETS: ReadonlyArray<{ collection: string; target: Target }> = [
+  // Maps (Prompt 5)
+  { collection: "homes", target: { kind: "doc", path: "homes/{uid}" } },
+  { collection: "parentLocations", target: { kind: "doc", path: "parentLocations/{uid}" } },
+  { collection: "mapLimits", target: { kind: "doc", path: "mapLimits/{uid}" } },
+  { collection: "newParentEvents", target: { kind: "where", collection: "newParentEvents", field: "uid" } },
+  { collection: "searchKeyLimits", target: { kind: "doc", path: "searchKeyLimits/{uid}" } },
+  // Carpools (Prompt 6): memberships and members go through removeFromCarpool first.
+  { collection: "memberships", target: { kind: "where", collection: "memberships", field: "uid" } },
+  { collection: "carpoolWanted", target: { kind: "doc", path: "carpoolWanted/{uid}" } },
+  { collection: "carpoolLimits", target: { kind: "doc", path: "carpoolLimits/{uid}" } },
+  // Notifications (Prompt 8)
+  { collection: "notificationSettings", target: { kind: "doc", path: "notificationSettings/{uid}" } },
+  { collection: "pushTokens", target: { kind: "where", collection: "pushTokens", field: "uid" } },
+  { collection: "notificationLimits", target: { kind: "doc", path: "notificationLimits/{uid}" } },
+  { collection: "users/notifications", target: { kind: "subcollection", path: "users/{uid}/notifications" } },
+  { collection: "users/chatPushes", target: { kind: "subcollection", path: "users/{uid}/chatPushes" } },
+  // Chat (Prompt 9): the Stream user is cut off by the chat step.
+  { collection: "chatRequests", target: { kind: "where", collection: "chatRequests", field: "fromUid" } },
+  { collection: "chatRequests", target: { kind: "where", collection: "chatRequests", field: "toUid" } },
+  { collection: "chatBlocks", target: { kind: "where", collection: "chatBlocks", field: "blockerUid" } },
+  { collection: "chatBlocks", target: { kind: "where", collection: "chatBlocks", field: "blockedUid" } },
+  { collection: "chatMutes", target: { kind: "where", collection: "chatMutes", field: "uid" } },
+  { collection: "chatSettings", target: { kind: "doc", path: "chatSettings/{uid}" } },
+  { collection: "chatMemberships", target: { kind: "doc", path: "chatMemberships/{uid}" } },
+  { collection: "chatLimits", target: { kind: "doc", path: "chatLimits/{uid}" } },
+  // Trips (Prompt 10): handover lists of the parent's children go with the children step.
+  { collection: "emergencyContacts", target: { kind: "doc", path: "emergencyContacts/{uid}" } },
+  { collection: "tripLimits", target: { kind: "doc", path: "tripLimits/{uid}" } },
+  { collection: "handoverAdults", target: { kind: "where", collection: "handoverAdults", field: "ownerUid" } },
+  // Trust (Prompt 11): ratings by and about the parent, summaries, links, requests.
+  { collection: "ratings", target: { kind: "where", collection: "ratings", field: "raterUid" } },
+  { collection: "ratings", target: { kind: "where", collection: "ratings", field: "rateeUid" } },
+  { collection: "trustSummaries", target: { kind: "doc", path: "trustSummaries/{uid}" } },
+  { collection: "trustLimits", target: { kind: "doc", path: "trustLimits/{uid}" } },
+  { collection: "guardianRequests", target: { kind: "where", collection: "guardianRequests", field: "ownerUid" } },
+  { collection: "guardianRequests", target: { kind: "where", collection: "guardianRequests", field: "guardianUid" } },
+  { collection: "guardianLinks", target: { kind: "where", collection: "guardianLinks", field: "ownerUid" } },
+  { collection: "guardianLinks", target: { kind: "where", collection: "guardianLinks", field: "guardianUid" } },
+  // Children and car (Prompt 3)
+  { collection: "children", target: { kind: "where", collection: "children", field: "ownerUid" } },
+  { collection: "vehicles", target: { kind: "doc", path: "vehicles/{uid}" } },
+  // Wallet (Prompt 11B): counters only; transfers stay (lawyer), wallets/{uid} is closed, not deleted.
+  { collection: "walletLimits", target: { kind: "doc", path: "walletLimits/{uid}" } },
+  // Devices and privacy (Prompt 12)
+  { collection: "users/devices", target: { kind: "subcollection", path: "users/{uid}/devices" } },
+  { collection: "users/logins", target: { kind: "subcollection", path: "users/{uid}/logins" } },
+  { collection: "abuseCounters", target: { kind: "where", collection: "abuseCounters", field: "uid" } },
+  // Live uploads that may still be there.
+  { collection: "storage:pending", target: { kind: "storage", prefix: "verification/{uid}/pending/" } },
+  { collection: "storage:phoneChecks", target: { kind: "storage", prefix: "phoneChecks/{uid}/" } },
+  { collection: "storage:deviceChecks", target: { kind: "storage", prefix: "deviceChecks/{uid}/" } },
+  { collection: "storage:selfieChecks", target: { kind: "storage", prefix: "selfieChecks/{uid}/" } },
+  { collection: "storage:exports", target: { kind: "storage", prefix: "exports/{uid}/" } },
+  // Last: the user record (its consents subcollection stays until the purge).
+  { collection: "users", target: { kind: "doc", path: "users/{uid}" } },
+];
+
+/** Deleted 1 YEAR after closure (owner decision), by retentionDaily. */
+export const PURGE_TARGETS: ReadonlyArray<{ collection: string; target: Target }> = [
+  { collection: "storage:verification", target: { kind: "storage", prefix: "verification/{uid}/" } },
+  { collection: "storage:faceRefs", target: { kind: "storage", prefix: "faceRefs/{uid}/" } },
+  { collection: "storage:driverPhotos", target: { kind: "storage", prefix: "driverPhotos/{uid}/" } },
+  { collection: "storage:selfieArchive", target: { kind: "storage", prefix: "selfieArchive/{uid}/" } },
+  { collection: "storage:thumbs", target: { kind: "storage", prefix: "thumbs/{uid}/" } },
+  { collection: "verifications", target: { kind: "where", collection: "verifications", field: "uid" } },
+  { collection: "trips", target: { kind: "where", collection: "trips", field: "driverUid" } },
+  { collection: "routeArchives", target: { kind: "where", collection: "routeArchives", field: "driverUid" } },
+  { collection: "users/consents", target: { kind: "subcollection", path: "users/{uid}/consents" } },
+];
+
+/**
+ * Collections in firestore.rules that are NOT deleted with an account,
+ * and why. With the two lists above this covers every collection (test).
+ */
+export const NOT_DELETED: Readonly<Record<string, string>> = {
+  bannedIds: "ban list: keyed national-ID hash (kept, spec section 7)",
+  nationalIds: "released by the identity step (the claim on the ID number is deleted)",
+  reports: "open reports are kept; handled ones lose their message copy after 1 year",
+  moderations: "admin decisions (part of the audit trail)",
+  auditLog: "admin actions, 2 years",
+  transfers: "transfer records, as long as the law requires (lawyer)",
+  transferResults: "transfer outcomes, with the transfers",
+  walletPending: "empty: the wallet must be settled before deletion",
+  walletDaily: "per-day amounts for the limits; expire by TTL",
+  walletAlerts: "admin alerts about transfers (with the transfer records)",
+  wallets: "closed, not deleted: the partner reference the transfer records need",
+  fakeWalletAccounts: "fake partner (dev/staging test money)",
+  fakeWalletOps: "fake partner (dev/staging test money)",
+  parentIds: "the parent ID is reserved forever so it is never reused (holds only the uid)",
+  admins: "not a parent record",
+  adminLimits: "not a parent record",
+  config: "settings",
+  schools: "not personal",
+  areas: "not personal",
+  placeCache: "not personal (place details)",
+  carpools: "the group stays for the other members; counts updated by removeFromCarpool",
+  carpoolInvites: "carpool links (no personal data)",
+  schedule: "runs stay for the group; the parent's future runs are released",
+  scheduleEvents: "events, 30-day TTL",
+  notificationEvents: "outbox, 30-day TTL",
+  chatChannels: "the chat's record; a private chat ends and is deleted 1 year later",
+  verifications: "purged 1 year after closure",
+  trips: "run summaries the parent drove are purged 1 year after closure",
+  tripStops: "exact stops of one run, deleted 1 day after the run",
+  tripChecks: "selfie-check state of one run (no image)",
+  ratingFlags: "open flags are like reports (kept until handled)",
+  otpCodes: "keyed hashes only, TTL",
+  otpLimits: "keyed hashes only, TTL",
+  closedAccounts: "the deletion report and purge date (no name, phone or ID)",
+  privacyRequests: "proof that each request was answered, 3 years",
+  securityAlerts: "admin alerts, 1 year after handled",
+  routeArchives: "purged 1 year after the run",
+  retentionRuns: "job reports (counts only)",
+  mail: "mail outbox; the extension deletes sent mail",
+};
+
+/** Steps that run through the app's flows (not plain deletes), in order. */
+export const FLOW_STEPS = ["trips", "carpools", "chat", "trust", "identity", "wallet", "records", "auth"] as const;
+export type FlowStep = (typeof FLOW_STEPS)[number];
+export const PURGE_STEPS = ["records", "stream"] as const;
+export type PurgeStep = (typeof PURGE_STEPS)[number];
+
+export interface DeletionFacts {
+  exists: boolean;
+  /** Wallet: none, or its balance at the partner (piastres) and pending transfers. */
+  wallet: { balance: number; pending: number } | null;
+  /** The parent is driving a run right now. */
+  drivingNow: boolean;
+}
+
+export type DeletionRefusal = "wallet-not-empty" | "wallet-pending" | "driving-now" | "no-account";
+
+/** Why the account cannot be deleted yet, or null. */
+export function deletionRefusal(f: DeletionFacts): DeletionRefusal | null {
+  if (!f.exists) return "no-account";
+  if (f.wallet && f.wallet.pending > 0) return "wallet-pending";
+  if (f.wallet && f.wallet.balance !== 0) return "wallet-not-empty";
+  if (f.drivingNow) return "driving-now";
+  return null;
+}
+
+export function pathFor(template: string, uid: string): string {
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(uid)) throw new Error("bad uid");
+  return template.split("{uid}").join(uid);
+}
+
+export interface ClosedAccount {
+  uid: string;
+  parentId: string;
+  closedAtMs: number;
+  purgeAtMs: number;
+  banned: boolean;
+  /** Steps still to do (retried by retentionDaily). */
+  failed: string[];
+  purgedAtMs: number | null;
+}
+
+export function newClosedAccount(uid: string, parentId: string, banned: boolean, nowMs: number): ClosedAccount {
+  return { uid, parentId, closedAtMs: nowMs, purgeAtMs: purgeAfterClosure(nowMs), banned, failed: [], purgedAtMs: null };
+}
+
+export interface DeletionRunner {
+  facts(uid: string): Promise<DeletionFacts & { parentId: string; banned: boolean }>;
+  saveClosed(c: ClosedAccount): Promise<void>;
+  closed(uid: string): Promise<ClosedAccount | null>;
+  /** One flow step (carpools, chat ...). Throws on failure. */
+  runFlowStep(uid: string, step: FlowStep, nowMs: number): Promise<void>;
+  runTarget(uid: string, target: Target): Promise<number>;
+  runPurgeStep(uid: string, step: PurgeStep): Promise<void>;
+}
+
+/** Every step of the immediate deletion, as names (stored when one fails). */
+export function immediateSteps(): string[] {
+  const out: string[] = [];
+  for (const s of FLOW_STEPS) {
+    if (s === "records") IMMEDIATE_TARGETS.forEach((_, i) => out.push(`target:${i}`));
+    else out.push(`flow:${s}`);
+  }
+  return out;
+}
+
+async function runStep(runner: DeletionRunner, uid: string, name: string, nowMs: number): Promise<void> {
+  const [kind, id] = name.split(":");
+  if (kind === "flow") await runner.runFlowStep(uid, id as FlowStep, nowMs);
+  else if (kind === "target") await runner.runTarget(uid, IMMEDIATE_TARGETS[Number(id)].target);
+  else if (kind === "purge") await runner.runPurgeStep(uid, id as PurgeStep);
+  else if (kind === "ptarget") await runner.runTarget(uid, PURGE_TARGETS[Number(id)].target);
+}
+
+/**
+ * Runs [steps] one by one; every failure is caught and returned (the
+ * account is never left half-deleted silently).
+ */
+export async function runSteps(runner: DeletionRunner, uid: string, steps: string[], nowMs: number, onError: (step: string, error: unknown) => void): Promise<string[]> {
+  const failed: string[] = [];
+  for (const step of steps) {
+    try {
+      await runStep(runner, uid, step, nowMs);
+    } catch (error) {
+      failed.push(step);
+      onError(step, error);
+    }
+  }
+  return failed;
+}
+
+/** The parent deletes the account (the app asked for confirmation and a fresh Face ID check). */
+export async function deleteAccount(
+  runner: DeletionRunner,
+  uid: string,
+  nowMs: number,
+  onError: (step: string, error: unknown) => void,
+): Promise<{ closed: true; failed: number; purgeAtMs: number }> {
+  const facts = await runner.facts(uid);
+  const refusal = deletionRefusal(facts);
+  if (refusal) throw new DeletionError(refusal);
+  // Recorded FIRST: if anything below fails, the daily job finishes it.
+  const closed = newClosedAccount(uid, facts.parentId, facts.banned, nowMs);
+  const steps = immediateSteps();
+  await runner.saveClosed({ ...closed, failed: steps });
+  const failed = await runSteps(runner, uid, steps, nowMs, onError);
+  await runner.saveClosed({ ...closed, failed });
+  return { closed: true, failed: failed.length, purgeAtMs: closed.purgeAtMs };
+}
+
+/** Every purge step (1 year after closure). */
+export function purgeSteps(): string[] {
+  return [...PURGE_TARGETS.map((_, i) => `ptarget:${i}`), ...PURGE_STEPS.map((s) => `purge:${s}`)];
+}
+
+/**
+ * retentionDaily: retries failed immediate steps, and purges accounts
+ * whose year is over. Returns what still fails (reported).
+ */
+export async function continueDeletion(runner: DeletionRunner, c: ClosedAccount, nowMs: number, onError: (step: string, error: unknown) => void): Promise<{ failed: string[]; purged: boolean }> {
+  let failed = c.failed.length > 0 ? await runSteps(runner, c.uid, c.failed, nowMs, onError) : [];
+  let purgedAtMs = c.purgedAtMs;
+  if (purgedAtMs === null && c.purgeAtMs <= nowMs && failed.length === 0) {
+    failed = await runSteps(runner, c.uid, purgeSteps(), nowMs, onError);
+    if (failed.length === 0) purgedAtMs = nowMs;
+  }
+  await runner.saveClosed({ ...c, failed, purgedAtMs });
+  return { failed, purged: purgedAtMs !== null && c.purgedAtMs === null };
+}
+
+export class DeletionError extends Error {
+  constructor(readonly reason: DeletionRefusal) {
+    super(reason);
+    this.name = "DeletionError";
+  }
+}

@@ -11,7 +11,9 @@ import { USERS } from "./accounts";
  */
 export const CONSENT_VERSIONS = {
   terms: "2026-11-13",
-  privacy: "2026-11-13",
+  // Prompt 12: new retention (photos kept while active + 1 year, route
+  // archive, analytics, chat history) needs the new privacy policy.
+  privacy: "2026-11-14",
   conduct: "2026-11-13",
   whatsapp: "2026-11-13",
 } as const;

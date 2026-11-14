@@ -67,6 +67,7 @@ String notificationTitle(AppLocalizations l10n, NotificationKind k) => switch (k
   NotificationKind.guardianLinked => l10n.notifGuardianLinkedTitle,
   NotificationKind.guardianDeclined => l10n.notifGuardianDeclinedTitle,
   NotificationKind.phoneChanged => l10n.notifPhoneChangedTitle,
+  NotificationKind.newDevice => l10n.notifNewDeviceTitle,
 };
 
 /// One short sentence. Run types name the run ("Mon 16/11, to school");
@@ -119,6 +120,7 @@ String notificationBody(AppLocalizations l10n, AppNotification n) {
     NotificationKind.guardianLinked => l10n.notifGuardianLinkedBody,
     NotificationKind.guardianDeclined => l10n.notifGuardianDeclinedBody,
     NotificationKind.phoneChanged => l10n.notifPhoneChangedBody,
+    NotificationKind.newDevice => l10n.notifNewDeviceBody,
   };
 }
 
