@@ -30,7 +30,7 @@ void main() {
     });
 
     test('a run moved with no time to confirm again is critical by event, not by kind', () {
-      final AppNotification n = AppNotification.fromDoc('t1', NotificationKind.timeChanged, <String, dynamic>{
+      final AppNotification n = AppNotification.fromDoc('t1', NotificationKind.timeChanged, const <String, dynamic>{
         'critical': true,
         'route': '/carpools/k1/schedule',
         'date': '2026-11-17',
@@ -56,7 +56,7 @@ void main() {
     });
 
     test('stored settings: odd values fall back to the defaults', () {
-      final NotificationSettings s = NotificationSettings.fromDoc(<String, dynamic>{
+      final NotificationSettings s = NotificationSettings.fromDoc(const <String, dynamic>{
         'whatsapp': <String, dynamic>{'swaps': true, 'noDriver': 'no', 'hack': true},
         'quiet': <String, dynamic>{'on': false, 'from': 21},
       });

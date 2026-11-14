@@ -106,13 +106,22 @@ class FirebasePushMessaging implements PushMessaging {
       // APNs has not answered yet; the next start (or tokenRefresh) registers.
       return null;
     }
+    // firebase_messaging 17 deprecates the registration-token API in favour
+    // of Firebase Installation ID registration (register()/onRegistered).
+    // FCM still fully supports tokens, and our server sends to tokens
+    // (FCM HTTP v1 `token`). Moving to FIDs changes the server's send target
+    // too (`fid`), so it is one planned change, not done blind here:
+    // docs/progress/prompt-08.md, "Not done".
+    // ignore: deprecated_member_use
     return _messaging.getToken();
   }
 
   @override
+  // ignore: deprecated_member_use
   Stream<String> get tokenRefresh => kIsWeb ? const Stream<String>.empty() : _messaging.onTokenRefresh;
 
   @override
+  // ignore: deprecated_member_use
   Future<void> deleteToken() => kIsWeb ? Future<void>.value() : _messaging.deleteToken();
 
   @override
