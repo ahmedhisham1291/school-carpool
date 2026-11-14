@@ -24,6 +24,7 @@ import 'carpool_fakes.dart';
 import 'chat_fakes.dart';
 import 'map_fakes.dart';
 import 'notification_fakes.dart';
+import 'trust_fakes.dart';
 import 'wallet_fakes.dart';
 
 /// Dev config for tests: no emulators, no Sentry.
@@ -192,7 +193,8 @@ class FakeAuthRepository implements AuthRepository {
 /// fake (Prompt 7; pass [schedule]) and the notification fakes (Prompt 8;
 /// pass [notifications], [push] and [alarms]) and the chat fakes (Prompt 9;
 /// pass [chat], [chatRepository] and [photos]) and the wallet fakes
-/// (Prompt 11B; pass [wallet] and [deviceAuth]). The number of
+/// (Prompt 11B; pass [wallet] and [deviceAuth]) and the trust fake
+/// (Prompt 11; pass [trust]). The number of
 /// overrides is the same for every call (one ProviderScope per test).
 List<Override> authOverrides({
   SessionState session = testVerifiedSession,
@@ -213,6 +215,7 @@ List<Override> authOverrides({
   LocationTracker? tracker,
   FakeWalletRepository? wallet,
   FakeDeviceAuth? deviceAuth,
+  FakeTrustRepository? trust,
 }) => <Override>[
   sessionProvider.overrideWithValue(session),
   authRepositoryProvider.overrideWithValue(repository ?? FakeAuthRepository()),
@@ -221,4 +224,5 @@ List<Override> authOverrides({
   ...notificationOverrides(notifications: notifications, push: push, alarms: alarms),
   ...chatOverrides(provider: chat, repository: chatRepository, photos: photos),
   ...walletOverrides(repository: wallet, auth: deviceAuth),
+  ...trustOverrides(repository: trust),
 ];

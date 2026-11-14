@@ -307,6 +307,8 @@ describe("ratings and vouching (F17)", () => {
     assert.equal((await rateParent(t.deps, as("cara"), { uid: "alice", stars: 4, tags: ["unsafe-driving"] })).flagged, true);
     const queue = await adminTrustQueue(t.deps);
     assert.equal(queue.flags.length, 2);
+    assert.equal(queue.flags[0].rateeFirstName, "Alice");
+    assert.ok(["Bob", "Cara"].includes(queue.flags[0].raterFirstName));
     const id = queue.flags[0].id;
     const done = await adminResolveRatingFlag(t.deps, "admin1", { flagId: id, outcome: "contacted" }, null);
     assert.equal(done.status, "handled");

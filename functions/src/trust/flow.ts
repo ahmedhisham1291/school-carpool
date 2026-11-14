@@ -492,9 +492,26 @@ export async function getFamily(deps: TrustDeps, caller: Caller): Promise<Family
 // Admin (F14): guardian links in review and rating flags
 // --------------------------------------------------------------------------
 
-export async function adminTrustQueue(deps: TrustDeps): Promise<{ links: GuardianLink[]; flags: RatingFlag[] }> {
+export interface FlagView extends RatingFlag {
+  raterFirstName: string;
+  rateeFirstName: string;
+  rateeParentId: string;
+}
+
+/** Links waiting for review and open rating flags, with first names and the rated parent's ID. */
+export async function adminTrustQueue(deps: TrustDeps): Promise<{ links: GuardianLink[]; flags: FlagView[] }> {
   const [links, flags] = await Promise.all([deps.store.linksInReview(100), deps.store.flags("open", 100)]);
-  return { links, flags };
+  const accounts = new Map<string, TrustAccount | null>();
+  for (const uid of new Set(flags.flatMap((f) => [f.raterUid, f.rateeUid]))) accounts.set(uid, await deps.store.account(uid));
+  return {
+    links,
+    flags: flags.map((f) => ({
+      ...f,
+      raterFirstName: accounts.get(f.raterUid)?.firstName ?? "",
+      rateeFirstName: accounts.get(f.rateeUid)?.firstName ?? "",
+      rateeParentId: accounts.get(f.rateeUid)?.parentId ?? "",
+    })),
+  };
 }
 
 export async function adminDecideGuardianLink(deps: TrustDeps, adminUid: string, data: unknown, ip: string | null): Promise<{ status: string }> {
