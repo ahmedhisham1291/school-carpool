@@ -296,6 +296,30 @@ void main() {
       expect(find.text('Location stopped. Do the steps to continue.'), findsNothing);
     });
 
+    testWidgets('switching apps, a call or the lock screen never stop tracking (paused, hidden, inactive)', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
+      final FakeLocationTracker tracker = FakeLocationTracker();
+      addTearDown(trips.dispose);
+      addTearDown(tracker.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker));
+      await _tap(tester, 'drive.start');
+      for (final AppLifecycleState state in <AppLifecycleState>[
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+      expect(tracker.stops, 0);
+      expect(await tracker.activeTrip(), isNotNull);
+      expect(find.byKey(const Key('gate.screen')), findsNothing);
+    });
+
     testWidgets('permission taken away in Settings: found on return to the app', (WidgetTester tester) async {
       final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
       final FakeLocationTracker tracker = FakeLocationTracker();

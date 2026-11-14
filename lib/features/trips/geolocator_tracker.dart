@@ -162,6 +162,14 @@ class HttpPointPoster implements PointPoster {
 /// - A car waiting at a gate sends nothing with a distance filter, so a
 ///   heartbeat fix is taken when no point came for [heartbeatEvery].
 ///
+/// Switching apps, a phone call and the lock screen (Prompt 13, owner
+/// request 13:44): the stream keeps running in the background because of
+/// [AppleSettings.allowBackgroundLocationUpdates], the `location` background
+/// mode (tool/patch_native.py), no automatic pausing and the blue
+/// indicator; nothing in the app stops it on `inactive`, `hidden` or
+/// `paused` (test/trips/trip_screens_test.dart). If iOS closes the app,
+/// run_recovery.dart takes over.
+///
 /// Never logs a coordinate (PRIVACY).
 class GeolocatorTracker implements LocationTracker {
   GeolocatorTracker({
