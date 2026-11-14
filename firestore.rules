@@ -356,9 +356,44 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Prompt 11B (F43, F44): wallet. MONEY rules: the app never writes a
+    // balance or a transfer, and reads its wallet only through the wallet
+    // functions (balance from the partner, history from Cloud Functions).
+    // Transfers and their results are append-only, written by Cloud
+    // Functions alone; the fake partner's test money and the counters are
+    // server records. Closed to everyone here, admins included (the admin
+    // panel reads through functions and cannot move money).
+    match /wallets/{uid} {
+      allow read, write: if false;
+    }
+    match /transfers/{id} {
+      allow read, write: if false;
+    }
+    match /transferResults/{id} {
+      allow read, write: if false;
+    }
+    match /walletPending/{id} {
+      allow read, write: if false;
+    }
+    match /walletDaily/{id} {
+      allow read, write: if false;
+    }
+    match /walletLimits/{uid} {
+      allow read, write: if false;
+    }
+    match /walletAlerts/{id} {
+      allow read, write: if false;
+    }
+    match /fakeWalletAccounts/{ref} {
+      allow read, write: if false;
+    }
+    match /fakeWalletOps/{id} {
+      allow read, write: if false;
+    }
+
     // Reserved parent IDs, sign-in codes and sign-in limits: Cloud
-    // Functions only. Parent ID lookups (F44) will go through a
-    // rate-limited function, never a direct read.
+    // Functions only. Parent ID lookups (F44) go through the rate-limited
+    // lookupParentId function (Prompt 11B), never a direct read.
     match /parentIds/{parentId} {
       allow read, write: if false;
     }

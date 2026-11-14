@@ -54,6 +54,11 @@ export const TEXTS: Readonly<Texts> = {
     "A drop-off was not confirmed. Please check now.",
   ),
   "chat-message": t("رسالة جديدة", "لديك رسالة جديدة.", "New message", "You have a new message."),
+  "wallet-received": t("وصلك تحويل", "افتح المحفظة لرؤية التفاصيل.", "Money received", "Open your wallet to see the details."),
+  "wallet-sent": t("تم التحويل", "وصل تحويلك. افتح المحفظة للتفاصيل.", "Transfer sent", "Your transfer went through. Open your wallet."),
+  "wallet-failed": t("لم يتم التحويل", "لم تُخصم أي أموال. افتح المحفظة للتفاصيل.", "Transfer failed", "No money left your wallet. Open it for details."),
+  "wallet-frozen": t("المحفظة موقوفة", "أوقفنا محفظتك مؤقتًا. افتح التطبيق للتفاصيل.", "Wallet paused", "Your wallet is paused for now. Open the app."),
+  "wallet-updated": t("تحديث المحفظة", "افتح المحفظة لرؤية التحديث.", "Wallet update", "Open your wallet to see what changed."),
 };
 
 const WEEKDAYS: Record<Language, string[]> = {

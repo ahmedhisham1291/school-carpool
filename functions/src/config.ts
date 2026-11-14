@@ -203,3 +203,19 @@ export const CHAT_CHANGES_PER_DAY = defineInt("CHAT_CHANGES_PER_DAY", { default:
  * until then.
  */
 export const CHAT_RETENTION_DAYS = defineInt("CHAT_RETENTION_DAYS", { default: 180 });
+
+/**
+ * Wallet (Prompt 11B: F43, F44). "fake" (dev and staging: test money in
+ * Firestore, refused in prod) or "partner" (the CBE-licensed partner,
+ * stubbed until the contract: it refuses every call while
+ * WALLET_PARTNER_ENABLED is false). Limits are server settings in
+ * config/wallet (wallet/model.ts), not params, so they change without a
+ * deploy. COST MODE: fake until the pilot (docs/COSTS.md).
+ */
+export const WALLET_PROVIDER = defineString("WALLET_PROVIDER", { default: "fake" });
+export const WALLET_PARTNER_ENABLED = defineBoolean("WALLET_PARTNER_ENABLED", { default: false });
+/**
+ * Warm instances for the wallet functions (CLAUDE.md STACK names the
+ * wallet). COST MODE: 0 by default; raise in functions/.env.<alias>.
+ */
+export const MIN_INSTANCES_WALLET = defineInt("MIN_INSTANCES_WALLET", { default: 0 });

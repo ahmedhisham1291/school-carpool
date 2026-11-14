@@ -45,10 +45,10 @@ void main() {
       expect(AppNotification.fromDoc('t2', NotificationKind.timeChanged, const <String, dynamic>{}).critical, isFalse);
     });
 
-    test('COST MODE: WhatsApp on by default only for the urgent groups', () {
+    test('COST MODE: WhatsApp on by default only for the urgent groups and the wallet', () {
       expect(
         WhatsAppGroup.values.where((WhatsAppGroup g) => g.defaultOn),
-        <WhatsAppGroup>[WhatsAppGroup.noDriver, WhatsAppGroup.childNotConfirmed],
+        <WhatsAppGroup>[WhatsAppGroup.noDriver, WhatsAppGroup.childNotConfirmed, WhatsAppGroup.wallet],
       );
       const NotificationSettings s = NotificationSettings();
       expect(s.whatsappOn(WhatsAppGroup.noDriver), isTrue);
@@ -74,6 +74,7 @@ void main() {
       expect(NotificationRoutes.safe('/carpools/k1/schedule'), '/carpools/k1/schedule');
       expect(NotificationRoutes.safe('/carpools/k1'), '/carpools/k1');
       expect(NotificationRoutes.safe('/profile'), '/profile');
+      expect(NotificationRoutes.safe('/profile/wallet'), '/profile/wallet');
       expect(NotificationRoutes.safe('/home/nearby'), '/home/nearby');
       for (final Object? bad in <Object?>[null, 5, '', 'https://evil.example', '/carpools/../admin', '/dev/gallery', '/carpools/k1/schedule?x=1']) {
         expect(NotificationRoutes.safe(bad), '/notifications', reason: '$bad');

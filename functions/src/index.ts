@@ -152,3 +152,28 @@ export {
   unblockChatUser,
   updateChatSettings,
 } from "./chat/callables";
+
+// Wallet (Prompt 11B: F43, F44, F25) through ONE WalletProvider (the
+// CBE-licensed partner; a fake with test money until the contract). Every
+// transfer runs here: verified parents, open wallets, limits from server
+// settings, one transfer per request ID, append-only records, a
+// reconciliation job for unknown outcomes. Admins: read-only log, freeze,
+// alerts; never money movement.
+export {
+  addMoney,
+  adminGetWallet,
+  adminListTransfers,
+  adminListWalletAlerts,
+  adminResolveWalletAlert,
+  adminSetWalletFrozen,
+  getTransfer,
+  getWallet,
+  listWalletHistory,
+  lookupParentId,
+  openWallet,
+  reportTransfer,
+  sendMoney,
+  walletContacts,
+  walletReconcile,
+  withdrawMoney,
+} from "./wallet/callables";

@@ -71,9 +71,9 @@ describe("catalog", () => {
     assert.deepEqual(critical, ["no-driver", "child-not-confirmed"]);
   });
 
-  it("COST MODE: WhatsApp is on by default only for the critical alerts; chat is never WhatsApp", () => {
+  it("COST MODE: WhatsApp is on by default only for the critical alerts and the wallet; chat is never WhatsApp", () => {
     const on = WHATSAPP_GROUPS.filter((g) => WHATSAPP_DEFAULTS[g]);
-    assert.deepEqual(on, ["noDriver", "childNotConfirmed"]);
+    assert.deepEqual(on, ["noDriver", "childNotConfirmed", "wallet"]);
     assert.equal(TYPES["chat-message"].template, null);
   });
 

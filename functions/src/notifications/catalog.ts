@@ -42,6 +42,12 @@ export const NOTIFICATION_TYPES = [
   "child-not-confirmed",
   // Chat (Prompt 9): push only, never WhatsApp.
   "chat-message",
+  // Wallet (Prompt 11B, F43): no amount, name or note in the text.
+  "wallet-received",
+  "wallet-sent",
+  "wallet-failed",
+  "wallet-frozen",
+  "wallet-updated",
   // The second, louder push of a critical alert nobody opened in time.
   "critical-alarm",
 ] as const;
@@ -66,6 +72,7 @@ export const WHATSAPP_GROUPS = [
   "joins",
   "verification",
   "newParents",
+  "wallet",
 ] as const;
 
 export type WhatsAppGroup = (typeof WHATSAPP_GROUPS)[number];
@@ -86,6 +93,9 @@ export const WHATSAPP_DEFAULTS: Readonly<Record<WhatsAppGroup, boolean>> = {
   joins: false,
   verification: false,
   newParents: false,
+  // Prompt 11B: money moving is a security signal (a stolen phone), so
+  // wallet messages go to WhatsApp by default; few per parent.
+  wallet: true,
 };
 
 export function isWhatsAppGroup(value: unknown): value is WhatsAppGroup {
@@ -135,6 +145,11 @@ export const TYPES: Readonly<Record<NotificationType, TypeSpec>> = {
   "new-parent": spec("newParents", "cp_new_parent", false),
   "child-not-confirmed": spec("childNotConfirmed", "cp_child_not_confirmed", false, true),
   "chat-message": spec("chat", null, false),
+  "wallet-received": spec("wallet", "cp_wallet_received", false),
+  "wallet-sent": spec("wallet", "cp_wallet_sent", false),
+  "wallet-failed": spec("wallet", "cp_wallet_failed", false),
+  "wallet-frozen": spec("wallet", "cp_wallet_frozen", false),
+  "wallet-updated": spec("wallet", "cp_wallet_updated", false),
   "critical-alarm": spec("alarm", null, false, true),
 };
 
@@ -186,6 +201,12 @@ export function routeFor(input: RouteInput): string {
       const id = at > 0 ? (input.chatCid as string).slice(at + 1) : "";
       return CHAT_PART.test(type) && CHAT_PART.test(id) ? `/chats/${type}/${id}` : "/chats";
     }
+    case "wallet-received":
+    case "wallet-sent":
+    case "wallet-failed":
+    case "wallet-frozen":
+    case "wallet-updated":
+      return "/profile/wallet";
     case "critical-alarm":
       return "/notifications";
     default:

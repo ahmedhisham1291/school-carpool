@@ -96,8 +96,17 @@ const paths = [
   "users/alice/chatPushes/chat_m1",
   "reports/r1",
   "scheduleEntries/e1",
+  // Prompt 11B (wallet.test.ts): every wallet record is closed, the
+  // owner's own wallet and transfers included.
   "wallets/alice",
   "transfers/t1",
+  "transferResults/t1",
+  "walletPending/t1",
+  "walletDaily/alice_2026-11-16",
+  "walletLimits/alice",
+  "walletAlerts/a1",
+  "fakeWalletAccounts/fw_1",
+  "fakeWalletOps/t1",
   "auditLog/l1",
   "anything/else",
 ];

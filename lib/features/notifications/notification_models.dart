@@ -27,7 +27,13 @@ enum NotificationKind {
   verificationRejected('verification-rejected', WhatsAppGroup.verification),
   newParent('new-parent', WhatsAppGroup.newParents),
   childNotConfirmed('child-not-confirmed', WhatsAppGroup.childNotConfirmed, critical: true),
-  chatMessage('chat-message', null);
+  chatMessage('chat-message', null),
+  // Prompt 11B (F43): wallet. The text never has an amount or a name.
+  walletReceived('wallet-received', WhatsAppGroup.wallet),
+  walletSent('wallet-sent', WhatsAppGroup.wallet),
+  walletFailed('wallet-failed', WhatsAppGroup.wallet),
+  walletFrozen('wallet-frozen', WhatsAppGroup.wallet),
+  walletUpdated('wallet-updated', WhatsAppGroup.wallet);
 
   const NotificationKind(this.wire, this.group, {this.critical = false});
 
@@ -60,11 +66,15 @@ enum WhatsAppGroup {
   schedule,
   joins,
   verification,
-  newParents;
+  newParents,
+
+  /// Prompt 11B: money moving is a security signal, so it is on by default.
+  wallet(defaultOn: true);
 
   const WhatsAppGroup({this.defaultOn = false});
 
-  /// COST MODE: only the critical alerts go to WhatsApp unless switched on.
+  /// COST MODE: only the critical alerts (and the wallet, Prompt 11B) go to
+  /// WhatsApp unless switched on.
   final bool defaultOn;
 }
 
@@ -74,7 +84,7 @@ abstract final class NotificationRoutes {
   static const String fallback = '/notifications';
   static final RegExp _allowed = RegExp(
     // Prompt 9: a chat push opens that chat (/chats/<type>/<id>).
-    r'^/(notifications|profile|chats|chats/cp_(private|school|area|carpool)/[A-Za-z0-9_-]{1,64}|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule)?)$',
+    r'^/(notifications|profile|profile/wallet|chats|chats/cp_(private|school|area|carpool)/[A-Za-z0-9_-]{1,64}|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule)?)$',
   );
 
   static String safe(Object? route) => route is String && _allowed.hasMatch(route) ? route : fallback;
