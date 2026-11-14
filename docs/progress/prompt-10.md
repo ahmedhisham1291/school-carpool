@@ -4,16 +4,17 @@ Branch: `prompt-10-trips` (from `main` with Prompts 1 to 8; chat, Prompt 9,
 is on another branch and is not used). Date: 14 Nov 2026. The coordinator
 gave "go" on the owner's behalf.
 
-**Status: code complete. Functions unit tests were run here (419 pass, 38
-of them new: 35 trips, 3 driver photo). The Flutter code, the logic, widget, one-line and screenshot
+**Status: code complete, merged with main (Prompt 9 chat). Functions unit
+tests were run here (480 pass after the merge; 40 of them for trips and the
+driver photo). The Flutter code, the logic, widget, one-line and screenshot
 tests and the rules tests were written, not run here** (no Flutter SDK or
 npm registry in this workspace; Functions were compiled with `tsc` against
 the stand-in type stubs as in earlier prompts, rules tests type-checked
 against a stub). `tool/patch_native.py` was run twice on a fake generated
 tree (iOS and Android output checked, idempotent). Expect small analyzer
-fixes on the first CI run, most likely in
-`lib/features/trips/background_location_tracker.dart` (the only file that
-calls flutter_background_geolocation; its API could not be checked here).
+fixes on the first CI run. `lib/features/trips/background_location_tracker.dart`
+(the only file that calls flutter_background_geolocation) was checked
+against the plugin's 5.9.2 source.
 
 ## Plan that was followed
 
@@ -94,7 +95,8 @@ calls flutter_background_geolocation; its API could not be checked here).
   (critical, the Prompt 8 alarm and WhatsApp) goes to that parent and the
   driver. This is the producer Prompt 8 left for trips.
 - **Quick buttons (F35).** Running late, At the gate, All children in: one
-  tap, no typing, to the run's parents (same message at most every 2 min).
+  tap, no typing, to the run's parents (same message at most every 2 min),
+  and as a system message in the carpool chat.
 - **Emergency (F20).** Asks first, then alerts every member of the carpool
   (critical) and sends the saved emergency contact a WhatsApp template with
   a Google Maps link to the car's point. The point goes only to the
@@ -104,6 +106,9 @@ calls flutter_background_geolocation; its API could not be checked here).
 - **Today's driver card (F33).** `getTodayDriverCards`: approved members of
   the carpool, today only (Cairo date): first name, car model, color and
   plate, and a 15-minute link to the photo approved during verification.
+- **Pause.** A failed selfie check uses Prompt 9's driving pause
+  (`drivingPaused: true`, `pauseDriverRuns`), so the admin's "lift" clears
+  it too.
 - **Selfie check (F38).** For drivers with an approved photo, 20 percent of
   runs (decided once per run on the server, also when the app skips the
   prepare call) ask for a live selfie first. Match: start. Mismatch: the
@@ -129,12 +134,14 @@ calls flutter_background_geolocation; its API could not be checked here).
 
 ## New package (CLAUDE.md rule 3)
 
-- `flutter_background_geolocation: ^4.16.0` — in the STACK list ("Live
-  location on the phone: flutter_background_geolocation (paid license)").
-  iOS and debug need no licence; Android release reads `BG_GEO_LICENSE`
-  (SETUP.md 20.5). It brings `background_fetch`. If CI cannot resolve
-  4.16 with our Flutter version, pin the newest 4.x it accepts (or move to
-  5.x and adjust the one tracker file).
+- `flutter_background_geolocation: ^5.9.2` (latest tag, 29 Oct 2026) — in
+  the STACK list ("Live location on the phone: flutter_background_geolocation
+  (paid license)"). The tracker uses v5's compound config (`GeoConfig`,
+  `AppConfig`, `HttpConfig`, `ActivityConfig`, `PersistenceConfig`), checked
+  against the plugin's source at that tag. Debug builds need no licence;
+  **v5 checks the new JWT licence on iPhone and Android release builds**
+  (`BG_GEO_LICENSE`, SETUP.md 20.5): needed before the first TestFlight
+  build with trips. CocoaPods needs static framework linkage (patched).
 
 ## Decisions
 
@@ -152,8 +159,12 @@ calls flutter_background_geolocation; its API could not be checked here).
    verification, approved by the reviewer and kept (other images are still
    deleted). It is the face reference of the selfie check; drivers without
    one get no selfie check and an initial on the card.
-6. **Quick messages go to the run's parents as notifications**; posting
-   them into the carpool chat waits for Prompt 9 (one call to add).
+6. **Quick messages go to the run's parents as notifications and into the
+   carpool chat** (after merging Prompt 9): a system message from the
+   carpool system user with the driver's first name and the message in
+   Arabic and English, a fixed message ID (no double post), no location,
+   no Stream push (our sender already told the parents). A chat failure
+   never fails the tap.
 7. **Emergency contact gets a WhatsApp template** with a maps link; it is
    not an app user, so it is sent directly, not through the notification
    outbox.
@@ -212,21 +223,19 @@ trip` shows `ended` with no new points.
    ID and selfie are still deleted). Spec F33 says the photo is approved
    during verification; please confirm with the lawyer (DECISIONS.md asks
    for a check when a new data type is kept).
-6. Quick messages into the carpool chat once Prompt 9 is merged?
 
 ## Not done / known gaps
 
-- Posting quick messages and swap requests into the carpool chat (needs
-  Prompt 9).
+- Swap requests as messages in the carpool chat (quick messages are
+  posted since the Prompt 9 merge).
 - Android: permission flow for "Allow all the time", the foreground
   notification text and the licence (Stage 3).
 - Website: parents can follow a run (the live run screen works on the web
   with the Google map in Stage 2); drivers cannot start runs there (spec).
 - Valify face match for the selfie check (stub answers "error" until the
   contract: the run goes on and an admin is told).
-- Lifting a pause (admin panel action) comes with the admin work of
-  Prompt 11 (suspend/unsuspend); today an admin clears
-  `users/{uid}.drivingPaused` in the console.
+- Lifting a pause after a selfie mismatch uses Prompt 9's lift path
+  (`drivingPaused` cleared); the report reason is `selfie-mismatch`.
 - Battery test on low-end phones (spec section 11) needs real devices.
 - Account deletion must also remove `handoverAdults`, `emergencyContacts`,
   `tripLimits` and the driver photo (Prompt 12 list).

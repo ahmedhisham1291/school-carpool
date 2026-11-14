@@ -24,7 +24,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
 | WhatsApp Business | Pay per template message | Codes and critical alerts only by default; other notifications are push unless the parent switches WhatsApp on | Meta WhatsApp Manager > Insights | Budget set by the owner |
 | Valify, wallet partner | Fake providers | Nothing is called until the pilot | n/a | Contract signed |
-| flutter_background_geolocation | No license | Debug builds and iOS need none (Prompt 10 uses it on iPhone) | n/a | Before the first Android release build (SETUP.md 20.5) |
+| flutter_background_geolocation | No license (v5) | Debug builds need none; v5 checks the licence on iPhone and Android release builds | n/a | Before the first TestFlight build with trips (SETUP.md 20.5) |
 
 ## Rules the code follows
 

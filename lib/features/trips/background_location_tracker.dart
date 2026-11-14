@@ -4,9 +4,12 @@ import 'package:flutter_background_geolocation/flutter_background_geolocation.da
 import 'package:geolocator/geolocator.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
 
-/// [LocationTracker] on the phone: flutter_background_geolocation
-/// (Transistor Software, paid licence for Android release builds; iPhone
-/// and debug builds need none). It keeps sending with the phone locked or
+/// [LocationTracker] on the phone: flutter_background_geolocation 5
+/// (Transistor Software; its compound config: GeoConfig, AppConfig,
+/// HttpConfig, ActivityConfig, PersistenceConfig). Debug builds need no
+/// licence; release builds need the v5 JWT licence on iPhone
+/// (`TSLocationManagerLicense` in Info.plist) and Android (manifest), both
+/// from build settings, never the repository (SETUP.md section 20.5). It keeps sending with the phone locked or
 /// another app open, and its own uploader posts each point to the
 /// tripLocation function with the run's token, so points keep flowing even
 /// when iOS pauses the Flutter engine. Points not sent yet wait on the
@@ -47,7 +50,13 @@ class BackgroundLocationTracker implements LocationTracker {
   Future<void> _init() async {
     bg.BackgroundGeolocation.onLocation(
       (bg.Location location) {
-        final DateTime? at = DateTime.tryParse(location.timestamp)?.toUtc();
+        // v5: an ISO-8601 string by default (or epoch ms when configured).
+        final Object? ts = location.timestamp;
+        final DateTime? at = switch (ts) {
+          final String iso => DateTime.tryParse(iso)?.toUtc(),
+          final int ms => DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true),
+          _ => null,
+        };
         _status.add(TrackerStatus(tracking: _tripId != null, tripId: _tripId, lastFixAt: at));
       },
       (bg.LocationError error) {
@@ -71,21 +80,22 @@ class BackgroundLocationTracker implements LocationTracker {
     });
     await bg.BackgroundGeolocation.ready(
       bg.Config(
-        // Plugin defaults kept: high accuracy, a point every 10 m, Always
-        // permission, automatic upload one point at a time, one day on the
-        // phone at most, logging off.
-        locationUpdateInterval: 5000,
-        fastestLocationUpdateInterval: 5000,
-        disableElasticity: true,
-        disableStopDetection: true,
-        pausesLocationUpdatesAutomatically: false,
-        heartbeatInterval: 60,
-        preventSuspend: true,
+        geolocation: const bg.GeoConfig(
+          // Defaults kept: high accuracy, a point every 10 m, "Always".
+          locationUpdateInterval: 5000,
+          fastestLocationUpdateInterval: 5000,
+          disableElasticity: true,
+          pausesLocationUpdatesAutomatically: false,
+          showsBackgroundLocationIndicator: true,
+        ),
         // Keeps tracking when the app is swiped away during a run; never
         // starts on boot (plugin default). The server's 410 and the
-        // elapsed-time cap below stop it after the run.
-        stopOnTerminate: false,
-        showsBackgroundLocationIndicator: true,
+        // elapsed-time cap set at start stop it after the run.
+        app: const bg.AppConfig(stopOnTerminate: false, heartbeatInterval: 60, preventSuspend: true),
+        // A car waiting at a gate must not pause tracking.
+        activity: const bg.ActivityConfig(disableStopDetection: true),
+        // Points not sent yet are kept at most one day on the phone.
+        persistence: const bg.PersistenceConfig(maxDaysToPersist: 1),
       ),
     );
   }
@@ -122,13 +132,15 @@ class BackgroundLocationTracker implements LocationTracker {
     _tripId = session.tripId;
     await bg.BackgroundGeolocation.setConfig(
       bg.Config(
-        url: session.uploadUrl,
-        headers: <String, dynamic>{'Authorization': 'Bearer ${session.token}'},
-        extras: <String, dynamic>{'trip': session.tripId},
-        httpRootProperty: 'location',
+        http: bg.HttpConfig(
+          url: session.uploadUrl,
+          headers: <String, dynamic>{'Authorization': 'Bearer ${session.token}'},
+          rootProperty: 'location',
+        ),
+        persistence: bg.PersistenceConfig(maxDaysToPersist: 1, extras: <String, dynamic>{'trip': session.tripId}),
         // Hard cap, same as the server's (4 hours): never outside a run,
         // even if the app is never opened again.
-        stopAfterElapsedMinutes: 240,
+        geolocation: const bg.GeoConfig(stopAfterElapsedMinutes: 240),
       ),
     );
     final bg.State state = await bg.BackgroundGeolocation.state;
@@ -146,7 +158,12 @@ class BackgroundLocationTracker implements LocationTracker {
     await bg.BackgroundGeolocation.stop();
     // Points not sent yet belong to a run that is over.
     await bg.BackgroundGeolocation.destroyLocations();
-    await bg.BackgroundGeolocation.setConfig(bg.Config(url: '', headers: <String, dynamic>{}, extras: <String, dynamic>{}));
+    await bg.BackgroundGeolocation.setConfig(
+      bg.Config(
+        http: bg.HttpConfig(url: '', headers: <String, dynamic>{}),
+        persistence: const bg.PersistenceConfig(extras: <String, dynamic>{}),
+      ),
+    );
     _status.add(TrackerStatus.idle);
   }
 
@@ -157,7 +174,7 @@ class BackgroundLocationTracker implements LocationTracker {
     if (!state.enabled) {
       return null;
     }
-    final Object? trip = state.extras?['trip'];
+    final Object? trip = state.persistence.extras?['trip'];
     _tripId = trip is String && trip.isNotEmpty ? trip : null;
     return _tripId;
   }

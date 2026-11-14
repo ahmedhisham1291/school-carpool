@@ -1144,17 +1144,26 @@ asked to tell that person.
 - App Store review: say in the review notes that location runs in the
   background only while a parent drives a school run, for the parents of
   the children in the car, and stops at the last drop-off.
-- No licence key is needed on iPhone (Transistor's licence is checked on
-  Android release builds only).
+- flutter_background_geolocation 5: CocoaPods needs
+  `use_frameworks! :linkage => :static` in `ios/Podfile` (patched). Debug
+  builds run without a licence; **release builds (TestFlight, App Store)
+  need the v5 licence** in Info.plist `TSLocationManagerLicense`, which
+  the patch sets to `$(BG_GEO_LICENSE)` from `ios/Flutter/BgGeo.xcconfig`
+  (written from the `BG_GEO_LICENSE` environment variable; not committed).
 
-### 20.5 Android licence (before the first Android release build)
+### 20.5 Licence (before the first TestFlight build with trips)
 
-Buy the flutter_background_geolocation licence for the Android
-application IDs (`org.schoolcarpool.app`, `.staging`, `.dev`). Never commit
-it. Give it to the release build as a Gradle property or environment
-variable `BG_GEO_LICENSE` (Codemagic: an encrypted environment variable);
-`tool/patch_native.py` puts it into the manifest
-(`com.transistorsoft.locationmanager.license`). Debug builds work without.
+flutter_background_geolocation **5** uses a new JWT licence (the "New" tab
+in Transistor's customer dashboard; v4 keys do not work) and checks it on
+**release builds on both iPhone and Android**; debug builds work without.
+Buy it for the bundle and application IDs (`org.schoolcarpool.app`,
+`.staging`, `.dev`). Never commit it. Give it to the build as the
+environment variable `BG_GEO_LICENSE` (Codemagic: an encrypted variable in
+the iOS workflow; Android also reads it as a Gradle property).
+`tool/patch_native.py` writes it to `ios/Flutter/BgGeo.xcconfig` (Info.plist
+`TSLocationManagerLicense`) and to the Android manifest
+(`com.transistorsoft.locationmanager.license`). A value that is not
+key-shaped stops the patch. No extra Maven folders are needed in v5.
 
 ### 20.6 Try it (the "Done when" check)
 
