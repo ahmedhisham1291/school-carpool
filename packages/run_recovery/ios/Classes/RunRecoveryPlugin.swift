@@ -18,12 +18,16 @@ import UIKit
 /// (UserDefaults); never a coordinate.
 public class RunRecoveryPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
   private static let activeKey = "schoolcarpool.runRecovery.active"
-  private static let alwaysTimeout: TimeInterval = 30
+  /// Fallback only: the answer normally comes from the authorization
+  /// callback or when the app becomes active again after iOS's prompt.
+  private static let alwaysTimeout: TimeInterval = 10
 
   private let manager = CLLocationManager()
   private var launchedForLocation = false
   private var monitoring = false
   private var pendingAlways: [FlutterResult] = []
+  /// Each request's own timer: an old timer never answers a newer request.
+  private var alwaysRequest = 0
   /// CLBackgroundActivitySession (iOS 17+), typed loosely for older SDK checks.
   private var activitySession: AnyObject?
   /// CLServiceSession (iOS 18+).
@@ -39,8 +43,12 @@ public class RunRecoveryPlugin: NSObject, FlutterPlugin, CLLocationManagerDelega
 
   // MARK: Launch
 
+  /// Gets the real launch options because the app uses the classic app
+  /// delegate (no UIScene; tool/patch_native.py patch_ios_launch). With a
+  /// scene-based app Flutter would pass empty options here.
   public func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [AnyHashable: Any] = [:]) -> Bool {
     launchedForLocation = launchOptions[UIApplication.LaunchOptionsKey.location.rawValue] != nil
+      || launchOptions[UIApplication.LaunchOptionsKey.location] != nil
     if launchedForLocation && UserDefaults.standard.bool(forKey: Self.activeKey) && status() == .authorizedAlways {
       // Relaunched by a significant change during a run: keep monitoring
       // (iOS needs it started again in this process) while Dart resumes.
@@ -96,9 +104,24 @@ public class RunRecoveryPlugin: NSObject, FlutterPlugin, CLLocationManagerDelega
       return
     }
     pendingAlways.append(result)
+    alwaysRequest += 1
+    let request = alwaysRequest
     manager.requestAlwaysAuthorization()
     DispatchQueue.main.asyncAfter(deadline: .now() + Self.alwaysTimeout) { [weak self] in
-      self?.answerAlways()
+      guard let self = self, self.alwaysRequest == request else { return }
+      self.answerAlways()
+    }
+  }
+
+  /// "Keep Only While Using" changes nothing, so no authorization callback
+  /// comes; iOS's prompt closing makes the app active again: answer then
+  /// (shortly after, so a real change is seen first).
+  public func applicationDidBecomeActive(_ application: UIApplication) {
+    guard !pendingAlways.isEmpty else { return }
+    let request = alwaysRequest
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+      guard let self = self, self.alwaysRequest == request else { return }
+      self.answerAlways()
     }
   }
 

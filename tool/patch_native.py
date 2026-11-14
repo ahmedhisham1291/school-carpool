@@ -39,6 +39,13 @@ What it changes
   Location (Prompt 13) geolocator: background mode `location`, "While
            Using the App" texts; the paid plugin's keys, licence and
            background task are removed (no licence is needed).
+  Launch   (Prompt 13 review, blocker 2) classic app delegate, no UIScene:
+           the AppDelegate starts the Flutter engine (Dart main) and
+           registers the plugins in didFinishLaunching, also when iOS
+           relaunches the app in the background for location, and plugins
+           get the real launch options. The scene manifest is removed and a
+           generated SceneDelegate.swift is emptied. Revisit when Apple
+           requires UIScene (docs/DECISIONS.md).
 """
 
 from __future__ import annotations
@@ -201,6 +208,76 @@ def patch_ios(bundle_id: str, display_name: str) -> None:
 
 
 _DOMAIN = re.compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$")
+
+
+CLASSIC_MARKER = "school-carpool: classic app delegate"
+
+CLASSIC_APP_DELEGATE = """import Flutter
+import UIKit
+
+// """ + CLASSIC_MARKER + """ (tool/patch_native.py, Prompt 13 review).
+// No UIScene: when iOS relaunches the app in the background for a
+// significant location change during a run, no scene connects, so the
+// engine must start here for Dart main() (run recovery) to run, and plugins
+// must be registered here to receive the real launch options.
+@main
+@objc class AppDelegate: FlutterAppDelegate {
+  private lazy var flutterEngine = FlutterEngine(name: "school_carpool")
+
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    // Dart main() starts now, with or without a screen.
+    flutterEngine.run()
+    GeneratedPluginRegistrant.register(with: flutterEngine)
+    let controller = FlutterViewController(engine: flutterEngine, nibName: nil, bundle: nil)
+    window = UIWindow(frame: UIScreen.main.bounds)
+    window?.rootViewController = controller
+    window?.makeKeyAndVisible()
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+"""
+
+EMPTY_SCENE_DELEGATE = (
+    "// " + CLASSIC_MARKER + ": not used (no UIScene; tool/patch_native.py).\n"
+)
+
+
+def classic_app_delegate(text: str) -> str:
+    """The generated AppDelegate.swift becomes the classic one (idempotent)."""
+    return text if CLASSIC_MARKER in text else CLASSIC_APP_DELEGATE
+
+
+def classic_info(info: dict) -> dict:
+    """No scene manifest and no main storyboard (the AppDelegate builds the window)."""
+    out = dict(info)
+    out.pop("UIApplicationSceneManifest", None)
+    out.pop("UIMainStoryboardFile", None)
+    return out
+
+
+def patch_ios_launch() -> None:
+    runner = ROOT / "ios" / "Runner"
+    if not runner.is_dir():
+        return
+    delegate = runner / "AppDelegate.swift"
+    if delegate.exists():
+        patch_text(delegate, classic_app_delegate)
+    scene = runner / "SceneDelegate.swift"
+    if scene.exists():
+        # Emptied, not deleted: the Xcode project still lists the file.
+        patch_text(scene, lambda t: t if CLASSIC_MARKER in t else EMPTY_SCENE_DELEGATE)
+    info_path = runner / "Info.plist"
+    if info_path.exists():
+        with info_path.open("rb") as f:
+            info = plistlib.load(f)
+        updated = classic_info(info)
+        if updated != info:
+            with info_path.open("wb") as f:
+                plistlib.dump(updated, f, sort_keys=False)
+            log("updated ios/Runner/Info.plist (classic launch, no scene manifest)")
 
 
 def patch_associated_domains(entitlements: Path) -> None:
@@ -504,6 +581,8 @@ def main() -> int:
     args = parser.parse_args()
 
     patch_ios(args.ios_bundle_id, args.display_name)
+    # Before the Maps and alerts patches, which add lines to this delegate.
+    patch_ios_launch()
     patch_maps_ios()
     patch_android(args.android_app_id)
     patch_maps_android()
