@@ -244,3 +244,113 @@ All of these behaved correctly:
 - Rules tests prove the app cannot write a balance or a transfer:
   `tests/rules/wallet.test.ts` passed in CI.
 - The iPhone check itself is still the owner's (progress steps 1 to 10).
+
+## Re-review (head `06099f1`)
+
+Commits reviewed: `d4fcfb4` (review fixes) and `06099f1` (merge of `main`
+with the CI change).
+
+### Verdict: PASS
+
+The money fixes hold up under the same probes and under new ones. One
+condition stays open: the Android compile, which is now checked when the
+branch merges to `main`.
+
+### CI
+
+Run 43570403328 on `06099f1`:
+
+| Job | Result |
+| --- | --- |
+| Flutter analyze, tests and screenshots | success |
+| Cloud Functions tests and rules tests (emulators) | success |
+| Web, admin panel and Android compile (staging) | skipped by design (builds now run on `main`, tags or manual) |
+
+Blocking item 1 (the Android compile, including the
+`FlutterFragmentActivity` patch) is therefore **not verified on this
+branch**. It must be green on the `main` run after the merge; if it is
+not, that run blocks.
+
+### Probes re-run (Node harness against the new `flow.ts`)
+
+| Probe | Before | Now |
+| --- | --- | --- |
+| Same request ID, other receiver | replayed as the earlier transfer | `request-reused`, nothing sent |
+| Same request ID, other note | replayed | `request-reused` |
+| Same ID, other amount or kind | `request-reused` | unchanged |
+| 5 concurrent sends with one ID | moved once | unchanged |
+| 3 parallel sends past the daily limit | 2 done, 1 refused | unchanged |
+| Timeout, then lost, then reconcile | moved once | unchanged |
+| Sender frozen while the outcome is unknown, then the original request arrives late at the partner | recorded failed; the late request could still run | reconcile calls `cancelOperation` first; the late request finds the tombstone and fails; nothing moves |
+| Partner cannot confirm or cancel | n/a | stays pending, one `stuck_<id>` admin alert |
+| Given up after 24 h | failed | failed through cancel; the day is given back; nothing moved |
+| 3 concurrent reconciles of one transfer | could resend in parallel | lease: one partner send, moved once |
+| Admin freeze lands between the pre-check and the start transaction | would send | `frozen` from inside the transaction, nothing sent |
+| "Not me" while the partner is down | our side only, never retried | `partnerSynced: false`; `syncPartnerFreezes` applies it on the next job; audited; `wallet-frozen` event |
+| Lookup of a suspended or banned parent | first name returned | `receiver-not-found` |
+| Self, no shared carpool, float or string amounts, suspended, missing claim, lookup rate limit, frozen send/add/withdraw/receive | correct | unchanged |
+
+I also ported the new `Money.parse` to Python and ran edge cases:
+
+- Accepted: "12,50" → 1250 piastres, "1,25" → 125, "1,250" → 125000,
+  "1,250.50" → 125050, Arabic digits and marks.
+- Refused: "1,2,3", "1.250", "1,250,50", "12,50.5", ".5".
+- "12,500" is read as 12,500 pounds. That is over the per-transfer limit,
+  so it is refused anyway.
+
+### Blocking items
+
+1. **Android compile:** deferred to the `main` run (see CI).
+2. **Retry after a lost answer: fixed.**
+   - `send_screen.dart`: `_locked` stops `_go`, Back leaves to the
+     wallet, and the review keeps the same `_requestId` with a lock note.
+   - `money_screens.dart`: `_locked` disables the amount field and keeps
+     the ID.
+   - Widget tests cover the send lock, the withdraw lock, and "a definite
+     refusal does not lock".
+3. **Decimal comma: fixed.** Strict `Money.parse`, with the new cases in
+   `wallet_logic_test.dart`.
+
+### Non-blocking items fixed
+
+Fixed, as listed in the first review:
+
+- Item 1: request reuse with another receiver, carpool or note.
+- Item 2: cancel at the partner before recording failed, else a stuck
+  alert.
+- Item 3: a lease on reconcile.
+- Item 4: freeze re-checked in the transaction.
+- Item 5: the partner freeze is retried by the job; "Not me" is audited
+  and notified.
+- Item 6: lookups hide suspended and banned parents.
+- Item 7: `initialStatus` instead of `status`.
+- Item 8: Pay contribution is hidden for the organizer and for members
+  without children; the amount is 0 without children.
+- Item 9: wallet WhatsApp is off by default, per COST MODE.
+- Item 10: audit before the change.
+- Item 11: failed incoming transfers are hidden from the receiver.
+
+ARB keys are in parity.
+
+### New (non-blocking)
+
+1. **"Stuck" alerts are mislabeled in Firestore and the admin panel.**
+   - `functions/src/wallet/firestore_store.ts:185`: `ALERT_KINDS` lacks
+     `"stuck"`, so `alertFromDoc` reads a stuck alert back as
+     `"report"`.
+   - `lib/admin/screens/wallet_screens.dart:35-37` has no label for it.
+   - Effect: admins see a "transfer report" with no reason instead of
+     "outcome unknown, settle with the partner". The memory store test
+     does not catch this.
+   - Fix: add `"stuck"` to `ALERT_KINDS`, add an admin label and icon,
+     and add a resolve outcome such as `settledWithPartner`.
+2. **Nothing settles a stuck transfer.** Its pending entry stays and keeps
+   counting against that day. Document the manual path in SETUP.md 20
+   (the partner confirms, then a server-side script records the result).
+   Admins still cannot move money.
+3. **A cancel reports "not-received" even when the cause was a freeze.**
+   The parent sees "not received" rather than "wallet paused". This is
+   cosmetic: pass the freeze reason through when the partner answers
+   "cancelled".
+4. **The reconcile lease is never released** after a pass. A "Check
+   again" within 60 s of the job returns pending once. This is harmless.
