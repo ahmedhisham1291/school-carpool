@@ -621,12 +621,12 @@ export async function requestToJoin(deps: CarpoolDeps, caller: Caller, data: unk
     if (existing?.status === "requested") throw new CarpoolError("already-requested");
     if (carpool.kind === "school" && children.some((c) => c.schoolId !== carpool.schoolId)) throw new CarpoolError("wrong-school");
     if (!input.acceptRules || (carpool.contribution && !input.acceptContribution)) throw new CarpoolError("must-accept");
-    if (children.length > seatsLeft(carpool)) throw new CarpoolError("no-seats");
     const current = await tx.members(input.carpoolId);
     // Prompt 11 (F17): a child linked to both parents (guardian link) is in
     // a carpool once: the other parent may already have brought them.
     const taken = childIdsIn(current, await tx.requests(input.carpoolId), caller.uid);
     if (children.some((c) => taken.has(c.id))) throw new CarpoolError("child-in-carpool");
+    if (children.length > seatsLeft(carpool)) throw new CarpoolError("no-seats");
     // Prompt 8: the carpool's admins are told (IDs only; they open the request in the app).
     const admins = current.filter((m) => m.role === "admin").map((m) => m.uid);
     const nowMs = deps.now();
