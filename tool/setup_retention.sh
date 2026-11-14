@@ -55,7 +55,8 @@ ttl expiresAt scheduleEvents
 # Notifications (Prompt 8)
 ttl expiresAt notificationEvents
 ttl expiresAt notifications
-# Chat (Prompt 9)
+# Chat: requests and push records. Messages have NO TTL: a chat is kept for
+# its life + 1 year and then deleted whole by retentionDaily (docs/DECISIONS.md).
 ttl expiresAt chatRequests
 ttl expiresAt chatPushes
 # Trips (Prompt 10): live points within 24 hours

@@ -301,6 +301,15 @@ if [ -n "${GCS_AGENT}" ]; then
   done
   [ -n "${GCS_OK}" ] || todo "Storage agent not ready yet: run the same command again in 10 minutes (it grants ${GCS_AGENT} the Pub/Sub publisher role)."
 fi
+# Chat photos (SETUP 19): storage.rules read the chat's member document in
+# Firestore, so Firebase Storage's own agent needs the rules role. Without
+# it every chat photo is refused (text chat still works).
+FBS_AGENT="service-${PROJECT_NUMBER}@gcp-sa-firebasestorage.iam.gserviceaccount.com"
+if grant "serviceAccount:${FBS_AGENT}" roles/firebaserules.firestoreServiceAgent 2>/dev/null; then
+  ok "Firebase Storage agent: may read Firestore from the Storage rules (chat photos)"
+else
+  todo "Chat photos: grant ${FBS_AGENT} the role 'Firebase Rules Firestore Service Agent' (IAM page), or run this script again in 10 minutes (SETUP 19.2)."
+fi
 EXTRA_ROLE=""
 [ -n "${HAS_EDITOR}" ] || EXTRA_ROLE=", Cloud Build builder"
 ok "service account roles: Token Creator, Secret accessor, Eventarc receiver${EXTRA_ROLE}; Storage agent: Pub/Sub publisher"
@@ -378,7 +387,8 @@ ensure_secret NATIONAL_ID_HMAC_KEY random
 ensure_secret WHATSAPP_ACCESS_TOKEN unused WHATSAPP_PROVIDER
 ensure_secret ALGOLIA_WRITE_KEY unused SCHOOL_SEARCH_PROVIDER
 ensure_secret ALGOLIA_SEARCH_KEY unused SCHOOL_SEARCH_PROVIDER
-ensure_secret STREAM_API_SECRET unused CHAT_PROVIDER
+# Chat is our own (Firestore): no secret. An old STREAM_API_SECRET placeholder
+# in the project is harmless and no longer read.
 # MAPS_SERVER_KEY: the real server key (a placeholder 'unused' is replaced).
 CURRENT_MAPS=""
 secret_has_value MAPS_SERVER_KEY && CURRENT_MAPS="$(gcloud secrets versions access latest --secret=MAPS_SERVER_KEY --project="${PROJECT}" 2>/dev/null || true)"
