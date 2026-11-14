@@ -35,7 +35,9 @@ echo "== Firestore TTL policies"
 # alone, so the script is safe to run again (tool/cloud_setup.sh calls it).
 ttl() {
   local state
-  state="$(gcloud firestore fields describe "$1" --collection-group="$2" --project="${project}" \
+  # (`gcloud firestore fields` has only the `ttls` group; the field's
+  # ttlConfig is read with `gcloud firestore indexes fields describe`.)
+  state="$(gcloud firestore indexes fields describe "$1" --collection-group="$2" --project="${project}" \
     --format='value(ttlConfig.state)' 2>/dev/null || true)"
   case "${state}" in
     ACTIVE|CREATING) echo "  $2.$1: already ${state}"; return 0 ;;
