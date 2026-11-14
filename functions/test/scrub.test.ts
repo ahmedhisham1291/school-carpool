@@ -26,6 +26,18 @@ describe("scrubString", () => {
     });
   }
 
+  it("removes an InstaPay address (name@instapay has no dot, so it is not an email)", () => {
+    for (const input of ["pay mona.ali@instapay now", "MONA_92@InstaPay", "to a-b.c@instapay."]) {
+      const out = scrubString(input);
+      assert.ok(out.includes(REDACTED), out);
+      assert.ok(!/instapay/i.test(out), out);
+      assert.ok(!/mona|a-b/i.test(out), out);
+    }
+    assert.equal(isSensitiveKey("instaPayAddress"), true);
+    assert.equal(isSensitiveKey("address"), true);
+    assert.deepEqual(scrubValue({ address: "mona.ali@instapay", reason: "invalid-address" }), { address: REDACTED, reason: "invalid-address" });
+  });
+
   it("keeps error codes and short numbers", () => {
     const input = "permission-denied on step 3 (HTTP 404)";
     assert.equal(scrubString(input), input);
