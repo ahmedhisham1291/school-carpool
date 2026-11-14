@@ -8,6 +8,7 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/maps/home_location_screen.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
+import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 
@@ -35,6 +36,8 @@ class HomeScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),
         children: <Widget>[
+          // Prompt 13: location off, refused or approximate (never blocks).
+          const LocationOffBanner(),
           AppSectionHeader(l10n.homeAroundYouSection),
           AppListRow(
             key: const Key('home.nearby'),

@@ -30,6 +30,8 @@ void main() {
         'guardian-declined', 'phone-changed',
         // Prompt 12.
         'new-device',
+        // Prompt 13.
+        'run-still-on',
       ];
       expect(NotificationKind.values.map((NotificationKind k) => k.wire), server);
       expect(
@@ -94,9 +96,12 @@ void main() {
       // Prompt 10: the live run and the group's emergencies.
       expect(NotificationRoutes.safe('/carpools/k1/trip/2026-11-16_am'), '/carpools/k1/trip/2026-11-16_am');
       expect(NotificationRoutes.safe('/carpools/k1/emergency'), '/carpools/k1/emergency');
+      // Prompt 13: the driver's run ("Run still on") and the phones list.
+      expect(NotificationRoutes.safe('/carpools/k1/trip/2026-11-16_am/drive'), '/carpools/k1/trip/2026-11-16_am/drive');
+      expect(NotificationRoutes.safe('/profile/privacy/devices'), '/profile/privacy/devices');
       for (final Object? bad in <Object?>[
         null, 5, '', 'https://evil.example', '/carpools/../admin', '/dev/gallery', '/carpools/k1/schedule?x=1', //
-        '/carpools/k1/trip/x', '/carpools/k1/trip/2026-11-16_am/drive',
+        '/carpools/k1/trip/x', '/carpools/k1/trip/2026-11-16_am/drive/x', '/profile/privacy',
       ]) {
         expect(NotificationRoutes.safe(bad), '/notifications', reason: '$bad');
       }

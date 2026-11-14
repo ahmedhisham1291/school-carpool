@@ -217,13 +217,12 @@ void main() {
   });
 
   group('fake location tracker', () {
-    test('asks for Always, starts only with it and stops after the run', () async {
-      final FakeLocationTracker tracker = FakeLocationTracker();
+    test('While Using is enough (Always is never asked); starts only with a permission and stops after the run', () async {
+      final FakeLocationTracker tracker = FakeLocationTracker(permission: TrackerPermission.notAsked);
       addTearDown(tracker.dispose);
-      expect(await tracker.permission(), TrackerPermission.notAsked);
       const TrackerSession session = TrackerSession(tripId: 't', uploadUrl: 'https://x.test', token: 'tok');
       await expectLater(tracker.start(session), throwsStateError);
-      expect(await tracker.requestAlways(), TrackerPermission.always);
+      tracker.permissionValue = TrackerPermission.whileInUse;
       await tracker.start(session);
       expect(await tracker.activeTrip(), 't');
       await tracker.stop();
@@ -231,10 +230,12 @@ void main() {
       expect(tracker.stops, 1);
     });
 
-    test('refused: stays refused', () async {
-      final FakeLocationTracker tracker = FakeLocationTracker(grantOnRequest: TrackerPermission.whileInUse);
-      addTearDown(tracker.dispose);
-      expect(await tracker.requestAlways(), TrackerPermission.whileInUse);
+    test('refused or service off: no run', () async {
+      for (final TrackerPermission p in <TrackerPermission>[TrackerPermission.denied, TrackerPermission.serviceOff]) {
+        final FakeLocationTracker tracker = FakeLocationTracker(permission: p);
+        addTearDown(tracker.dispose);
+        await expectLater(tracker.start(const TrackerSession(tripId: 't', uploadUrl: 'https://x.test', token: 'tok')), throwsStateError);
+      }
     });
   });
 }

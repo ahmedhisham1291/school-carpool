@@ -58,6 +58,11 @@ abstract interface class TripRepository {
   /// Review item 5: ends this parent's live trips (before signing out).
   Future<void> stopMyTrips();
 
+  /// Prompt 13: location went away during the driver's run ([reason]:
+  /// service, permission or precise). The parents get "location stopped"
+  /// once per gap.
+  Future<void> reportTrackingLost(String carpoolId, String runId, String reason);
+
   /// Returns whether the saved emergency contact got the WhatsApp message.
   Future<bool> emergency({required String carpoolId, required String runId, GeoPin? point});
 
@@ -215,6 +220,10 @@ class FirebaseTripRepository implements TripRepository {
 
   @override
   Future<void> stopMyTrips() => _call('stopMyTrips', <String, Object?>{});
+
+  @override
+  Future<void> reportTrackingLost(String carpoolId, String runId, String reason) =>
+      _call('reportTrackingLost', <String, Object?>{..._run(carpoolId, runId), 'reason': reason});
 
   @override
   Future<bool> emergency({required String carpoolId, required String runId, GeoPin? point}) async {

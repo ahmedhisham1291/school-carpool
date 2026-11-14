@@ -5924,26 +5924,6 @@
   "@tripDriveTitle": {
     "description": "Driver screen app bar title"
   },
-  "tripLocationHeading": "شارك موقعك",
-  "@tripLocationHeading": {
-    "description": "Step heading"
-  },
-  "tripLocationBody": "يراه أولياء أمور الأطفال في سيارتك على الخريطة أثناء المشوار فقط. يعمل والهاتف مقفل ويتوقف عند آخر توصيل. اختر دائمًا.",
-  "@tripLocationBody": {
-    "description": "Step body"
-  },
-  "tripLocationChooseAlways": "المشوار يحتاج الموقع على دائمًا. افتح الإعدادات، ثم الموقع، واختر دائمًا.",
-  "@tripLocationChooseAlways": {
-    "description": "Step body after refusal"
-  },
-  "tripLocationServiceOff": "خدمات الموقع متوقفة. شغّلها من الإعدادات.",
-  "@tripLocationServiceOff": {
-    "description": "Step body"
-  },
-  "tripLocationTurnOn": "تشغيل الموقع",
-  "@tripLocationTurnOn": {
-    "description": "Button"
-  },
   "tripSelfieHeading": "سيلفي سريع",
   "@tripSelfieHeading": {
     "description": "Step heading"
@@ -8705,5 +8685,123 @@
   "privacyErrorUnchecked": "تعذّر فحص السيلفي الآن. سيراجعه فريقنا ويُخبرك.",
   "@privacyErrorUnchecked": {
     "description": "Error: the face check could not decide; an admin reviews the selfie"
+  },
+  "gateTitle": "قبل أن تقود",
+  "@gateTitle": {
+    "description": "Title of the full-screen location steps shown before a run"
+  },
+  "gateIntro": "يرى أولياء الأمور سيارتك أثناء المشوار فقط. أكمل هذه الخطوات ثم عد إلى التطبيق.",
+  "@gateIntro": {
+    "description": "Intro of the driving location steps"
+  },
+  "gateLocationTitle": "شغّل الموقع",
+  "@gateLocationTitle": {
+    "description": "Title of the non-blocking location steps (home banner)"
+  },
+  "gateLocationIntro": "يلزم الموقع في يوم قيادتك فقط. يمكنك استخدام باقي التطبيق الآن.",
+  "@gateLocationIntro": {
+    "description": "Intro of the non-blocking location steps"
+  },
+  "gateServiceTitle": "خدمات الموقع",
+  "@gateServiceTitle": {
+    "description": "Missing item: iOS Location Services are off"
+  },
+  "gateServiceStep1": "افتح تطبيق الإعدادات.",
+  "@gateServiceStep1": {
+    "description": "Step: Location Services"
+  },
+  "gateServiceStep2": "اضغط الخصوصية والأمن.",
+  "@gateServiceStep2": {
+    "description": "Step: Location Services (iOS label)"
+  },
+  "gateServiceStep3": "اضغط خدمات الموقع.",
+  "@gateServiceStep3": {
+    "description": "Step: Location Services (iOS label)"
+  },
+  "gateServiceStep4": "شغّل خدمات الموقع.",
+  "@gateServiceStep4": {
+    "description": "Step: Location Services"
+  },
+  "gatePermissionTitle": "إذن الموقع",
+  "@gatePermissionTitle": {
+    "description": "Missing item: the app has no location permission"
+  },
+  "gateOpenStep": "اضغط فتح الإعدادات بالأسفل.",
+  "@gateOpenStep": {
+    "description": "Step 1 of the app-settings steps"
+  },
+  "gateLocationStep": "اضغط الموقع.",
+  "@gateLocationStep": {
+    "description": "Step: app settings (iOS label)"
+  },
+  "gatePermissionStep": "اختر أثناء استخدام التطبيق.",
+  "@gatePermissionStep": {
+    "description": "Step: location permission (iOS label)"
+  },
+  "gatePreciseTitle": "الموقع الدقيق",
+  "@gatePreciseTitle": {
+    "description": "Missing item: Precise Location is off"
+  },
+  "gatePreciseStep": "شغّل الموقع الدقيق.",
+  "@gatePreciseStep": {
+    "description": "Step: Precise Location (iOS label)"
+  },
+  "gateNotificationsTitle": "الإشعارات",
+  "@gateNotificationsTitle": {
+    "description": "Missing item: notifications are off"
+  },
+  "gateNotificationsStep1": "اضغط الإشعارات.",
+  "@gateNotificationsStep1": {
+    "description": "Step: notifications (iOS label)"
+  },
+  "gateNotificationsStep2": "شغّل السماح بالإشعارات.",
+  "@gateNotificationsStep2": {
+    "description": "Step: notifications (iOS label)"
+  },
+  "gateRecheck": "تُغلق هذه الصفحة وحدها عند اكتمال الخطوات.",
+  "@gateRecheck": {
+    "description": "Hint under the steps"
+  },
+  "gateStepNumber": "الخطوة {number}",
+  "@gateStepNumber": {
+    "description": "Screen reader label of a step number",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "locationBannerTitle": "الموقع مغلق",
+  "@locationBannerTitle": {
+    "description": "Home banner title (one line)"
+  },
+  "locationBannerBody": "مطلوب في يوم قيادتك.",
+  "@locationBannerBody": {
+    "description": "Home banner body"
+  },
+  "locationBannerAction": "الخطوات",
+  "@locationBannerAction": {
+    "description": "Home banner button: show the steps"
+  },
+  "tripKeepOpenHint": "أبقِ التطبيق مفتوحًا، ويمكنك قفل الهاتف.",
+  "@tripKeepOpenHint": {
+    "description": "One-line hint on the driver's run screen"
+  },
+  "tripTrackingLost": "توقف الموقع. أكمل الخطوات للمتابعة.",
+  "@tripTrackingLost": {
+    "description": "Driver run screen: location was lost mid-run"
+  },
+  "notifRunStillOnTitle": "المشوار مستمر",
+  "@notifRunStillOnTitle": {
+    "description": "Notification title to the driver: no location for 2 minutes"
+  },
+  "notifRunStillOnBody": "افتح التطبيق للمتابعة: {run}.",
+  "@notifRunStillOnBody": {
+    "description": "Notification sentence to the driver",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
   }
 }

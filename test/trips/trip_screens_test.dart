@@ -10,6 +10,7 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/maps/map_view.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
+import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
 import 'package:school_carpool/features/trips/trip_models.dart';
 import 'package:school_carpool/features/verification/capture_screen.dart';
@@ -56,13 +57,14 @@ FakeCarpoolRepository _carpools() => FakeCarpoolRepository(
 List<Override> _overrides({
   required FakeTripRepository trips,
   FakeLocationTracker? tracker,
+  FakeDrivingReadiness? readiness,
   FakeScheduleRepository? schedule,
   FakeCamera? camera,
   List<ChildRecord> children = const <ChildRecord>[],
 }) => <Override>[
   flavorConfigProvider.overrideWithValue(testDevConfig),
   settingsStoreProvider.overrideWithValue(InMemorySettingsStore()),
-  ...authOverrides(carpools: _carpools(), schedule: schedule ?? FakeScheduleRepository(), trips: trips, tracker: tracker),
+  ...authOverrides(carpools: _carpools(), schedule: schedule ?? FakeScheduleRepository(), trips: trips, tracker: tracker, readiness: readiness),
   verificationRepositoryProvider.overrideWithValue(FakeVerificationRepository()),
   captureLauncherProvider.overrideWithValue((camera ?? FakeCamera()).launch),
   childrenProvider.overrideWith((Ref ref) => Stream<List<ChildRecord>>.value(children)),
@@ -129,42 +131,86 @@ void main() {
   setUpAll(loadAppFonts);
 
   group('driver: before the run (F15, F38)', () {
-    testWidgets('explains live location first; the run starts only after Always is allowed', (WidgetTester tester) async {
+    testWidgets('Start run asks the system prompts first; all allowed: the run starts', (WidgetTester tester) async {
       final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
       final FakeLocationTracker tracker = FakeLocationTracker();
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness(
+        current: const DrivingCheck(missing: <GateItem>{GateItem.permission, GateItem.notifications}, locationNotAsked: true, notificationsNotAsked: true),
+        afterRequest: DrivingCheck.ready,
+      );
       addTearDown(trips.dispose);
       addTearDown(tracker.dispose);
-      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker));
-      expect(find.byKey(const Key('drive.permission')), findsOneWidget);
-      expect(find.text('Share your location'), findsOneWidget);
-      expect(find.byKey(const Key('drive.start')), findsNothing);
-      expect(trips.calls.contains('start'), isFalse);
-
-      await _tap(tester, 'drive.allowLocation');
+      addTearDown(readiness.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
       expect(find.byKey(const Key('drive.ready')), findsOneWidget);
       expect(find.text('2 children on this run.'), findsOneWidget);
+      expect(trips.calls.contains('start'), isFalse);
 
       await _tap(tester, 'drive.start');
+      expect(readiness.requests, 1);
+      expect(find.byKey(const Key('gate.screen')), findsNothing);
       expect(trips.calls, contains('start'));
       expect(tracker.starts, 1);
       expect(tracker.session?.token, 'token-123');
       expect(tracker.session?.uploadUrl, contains('tripLocation'));
       expect(find.text('Run started'), findsOneWidget);
+      expect(find.byKey(const Key('drive.keepOpen')), findsOneWidget);
+      expect(find.text('Keep the app open — you can lock the phone.'), findsOneWidget);
       expect(find.byKey(const Key('drive.stop.c1')), findsOneWidget);
       expect(find.byKey(const Key('drive.stop.h1')), findsOneWidget);
     });
 
-    testWidgets('refused: says to choose Always and opens Settings; no run starts', (WidgetTester tester) async {
-      final FakeTripRepository trips = FakeTripRepository(run: _today());
-      final FakeLocationTracker tracker = FakeLocationTracker(grantOnRequest: TrackerPermission.whileInUse);
+    testWidgets('gate: lists only what is missing, opens Settings, closes by itself once fixed', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
+      final FakeLocationTracker tracker = FakeLocationTracker();
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness(
+        current: const DrivingCheck(missing: <GateItem>{GateItem.precise, GateItem.notifications}),
+      );
       addTearDown(trips.dispose);
       addTearDown(tracker.dispose);
-      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker));
-      await _tap(tester, 'drive.allowLocation');
-      expect(find.textContaining('Always'), findsWidgets);
-      expect(find.text('Open Settings'), findsOneWidget);
-      await _tap(tester, 'drive.allowLocation');
-      expect(tracker.settingsOpened, 1);
+      addTearDown(readiness.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
+      await _tap(tester, 'drive.start');
+      expect(find.byKey(const Key('gate.screen')), findsOneWidget);
+      expect(find.text('Before you drive'), findsOneWidget);
+      expect(find.byKey(const Key('gate.item.precise')), findsOneWidget);
+      expect(find.byKey(const Key('gate.item.notifications')), findsOneWidget);
+      expect(find.byKey(const Key('gate.item.service')), findsNothing);
+      expect(find.byKey(const Key('gate.item.permission')), findsNothing);
+      expect(find.text('Turn on Precise Location.'), findsOneWidget);
+      expect(trips.calls.contains('start'), isFalse);
+
+      await _tap(tester, 'gate.openSettings');
+      expect(readiness.settingsOpened, 1);
+      expect(find.byKey(const Key('gate.screen')), findsOneWidget, reason: 'still missing');
+
+      // Back from Settings with everything on: the steps close and the run starts.
+      readiness.current = DrivingCheck.ready;
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('gate.screen')), findsNothing);
+      expect(trips.calls, contains('start'));
+      expect(tracker.starts, 1);
+    });
+
+    testWidgets('gate closed: no run starts; the rest of the app stays open', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today());
+      final FakeLocationTracker tracker = FakeLocationTracker();
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness(current: const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.permission}));
+      addTearDown(trips.dispose);
+      addTearDown(tracker.dispose);
+      addTearDown(readiness.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
+      await _tap(tester, 'drive.start');
+      expect(find.byKey(const Key('gate.item.service')), findsOneWidget);
+      expect(find.text('Tap Privacy & Security.'), findsOneWidget);
+      expect(find.byKey(const Key('gate.item.permission')), findsOneWidget);
+      expect(find.text('Choose While Using the App.'), findsOneWidget);
+      expect(find.textContaining('Always'), findsNothing);
+      await _tap(tester, 'gate.close');
+      expect(find.byKey(const Key('gate.screen')), findsNothing);
+      expect(find.byKey(const Key('drive.ready')), findsOneWidget);
       expect(tracker.starts, 0);
       expect(trips.calls.contains('start'), isFalse);
     });
@@ -223,6 +269,49 @@ void main() {
       await _tap(tester, 'drive.start');
       return (trips, tracker);
     }
+
+    testWidgets('location lost mid-run: steps at once, server told, tracking resumes when fixed', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
+      final FakeLocationTracker tracker = FakeLocationTracker();
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness();
+      addTearDown(trips.dispose);
+      addTearDown(tracker.dispose);
+      addTearDown(readiness.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
+      await _tap(tester, 'drive.start');
+      expect(tracker.starts, 1);
+
+      readiness.current = const DrivingCheck(missing: <GateItem>{GateItem.service});
+      readiness.service(false);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('gate.screen')), findsOneWidget);
+      expect(find.byKey(const Key('gate.item.service')), findsOneWidget);
+      expect(trips.calls, contains('lost:service'));
+
+      readiness.current = DrivingCheck.ready;
+      readiness.service(true);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('gate.screen')), findsNothing);
+      expect(tracker.starts, 2, reason: 'tracking starts again with a fresh token');
+      expect(find.text('Location stopped. Do the steps to continue.'), findsNothing);
+    });
+
+    testWidgets('permission taken away in Settings: found on return to the app', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
+      final FakeLocationTracker tracker = FakeLocationTracker();
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness();
+      addTearDown(trips.dispose);
+      addTearDown(tracker.dispose);
+      addTearDown(readiness.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
+      await _tap(tester, 'drive.start');
+      readiness.current = const DrivingCheck(missing: <GateItem>{GateItem.precise});
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('gate.item.precise')), findsOneWidget);
+      expect(trips.calls, contains('lost:precise'));
+    });
 
     testWidgets('Arrived tells the parents; a second tap repeats it; each tap has its own request ID', (WidgetTester tester) async {
       final (FakeTripRepository trips, FakeLocationTracker _) = await running(tester);
@@ -526,8 +615,6 @@ void main() {
           addTearDown(tracker.dispose);
           final List<Override> overrides = _overrides(trips: trips, tracker: tracker);
           await _pump(tester, _drive(), overrides: overrides, locale: locale, width: 320, height: 4000, textScale: scale);
-          check('location step');
-          await _tap(tester, 'drive.allowLocation');
           check('ready step');
           await _tap(tester, 'drive.start');
           check('driver run');
@@ -558,7 +645,15 @@ void main() {
                   l10n.tripStart,
                   l10n.tripStartOpen,
                   l10n.tripFollow,
-                  l10n.tripLocationTurnOn,
+                  l10n.gateTitle,
+                  l10n.gateLocationTitle,
+                  l10n.gateServiceTitle,
+                  l10n.gatePermissionTitle,
+                  l10n.gatePreciseTitle,
+                  l10n.gateNotificationsTitle,
+                  l10n.locationBannerTitle,
+                  l10n.locationBannerAction,
+                  l10n.notifRunStillOnTitle,
                   l10n.tripSelfieTake,
                   l10n.tripActionArrived,
                   l10n.tripActionArrivedAgain,

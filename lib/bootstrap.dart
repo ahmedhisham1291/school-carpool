@@ -7,7 +7,8 @@ import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/analytics/analytics.dart';
 import 'package:school_carpool/features/notifications/push_messaging.dart';
-import 'package:school_carpool/features/trips/background_location_tracker.dart';
+import 'package:school_carpool/features/trips/geolocator_tracker.dart';
+import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:school_carpool/l10n/l10n.dart';
@@ -45,10 +46,13 @@ Future<void> bootstrap(Flavor flavor) async {
           overrides: [
             flavorConfigProvider.overrideWithValue(config),
             settingsStoreProvider.overrideWithValue(store),
-            // Prompt 10: live location on the phone only (drivers never run
-            // a trip from the website); tests and the web keep the fake.
+            // Live location on the phone only (drivers never run a trip from
+            // the website); tests and the web keep the fakes. Prompt 13: the
+            // free geolocator plugin for every flavor (DECISIONS.md).
             if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android))
-              locationTrackerProvider.overrideWithValue(BackgroundLocationTracker()),
+              locationTrackerProvider.overrideWithValue(GeolocatorTracker(store: store)),
+            if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android))
+              drivingReadinessProvider.overrideWithValue(const DeviceDrivingReadiness()),
             // Prompt 12: usage analytics on the phone (no PII; switch in Settings).
             if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android))
               analyticsSinkProvider.overrideWithValue(FirebaseAnalyticsSink()),

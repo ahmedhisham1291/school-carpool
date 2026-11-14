@@ -49,6 +49,7 @@ import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
 import 'package:school_carpool/features/schools/school_picker_screen.dart';
+import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
 import 'package:school_carpool/features/trips/trip_models.dart';
 import 'package:school_carpool/features/trips/trip_repository.dart';
@@ -95,6 +96,7 @@ Future<void> _pumpScreen(
   FakeChatRepository? chatRepository,
   TripRepository? trips,
   LocationTracker? tracker,
+  DrivingReadiness? readiness,
   FakeWalletRepository? wallet,
   FakeTrustRepository? trust,
 }) async {
@@ -130,6 +132,7 @@ Future<void> _pumpScreen(
           chatRepository: chatRepository,
           trips: trips,
           tracker: tracker,
+          readiness: readiness,
           wallet: wallet,
           trust: trust,
         ),
@@ -755,6 +758,65 @@ void main() {
           );
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Prompt 13: the driving gate (every item missing, blocking) and the
+  // home banner with its non-blocking steps. Fake data only.
+  for (final String locale in locales) {
+    for (final String mode in modes) {
+      final String gate = 'trips_gate_${locale}_$mode';
+      testWidgets(gate, skip: skip, (WidgetTester tester) async {
+        final FakeTripRepository trips = FakeTripRepository(trip: testTrip(driverUid: 'uid-1'));
+        final FakeDrivingReadiness readiness = FakeDrivingReadiness(
+          current: const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.permission, GateItem.precise, GateItem.notifications}),
+        );
+        addTearDown(trips.dispose);
+        addTearDown(readiness.dispose);
+        await _pumpScreen(
+          tester,
+          location: CarpoolRoutes.drive('k1', '2026-11-14_am'),
+          locale: locale,
+          themeMode: mode,
+          direction: 'a',
+          logicalSize: const Size(390, 844),
+          pixelRatio: 3,
+          trips: trips,
+          readiness: readiness,
+          extraOverrides: verificationOverrides(repository: FakeVerificationRepository()),
+        );
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.tap(find.byKey(const Key('drive.start')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$gate.png'));
+      });
+      for (final bool steps in <bool>[false, true]) {
+        final String banner = steps ? 'home_location_steps_${locale}_$mode' : 'home_location_banner_${locale}_$mode';
+        testWidgets(banner, skip: skip, (WidgetTester tester) async {
+          final FakeDrivingReadiness readiness = FakeDrivingReadiness(
+            current: const DrivingCheck(missing: <GateItem>{GateItem.permission, GateItem.notifications}),
+          );
+          addTearDown(readiness.dispose);
+          await _pumpScreen(
+            tester,
+            location: '/home',
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            readiness: readiness,
+          );
+          await tester.pump(const Duration(milliseconds: 400));
+          if (steps) {
+            await tester.tap(find.text(locale == 'ar' ? 'الخطوات' : 'Steps'));
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 600));
+          }
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$banner.png'));
         });
       }
     }
