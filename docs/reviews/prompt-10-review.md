@@ -487,3 +487,85 @@ B. **The identity selfie is now kept indefinitely, against spec section 7
 
 The earlier non-blocking items 4, 6, 8 to 12 are still open, as recorded
 in the progress note.
+
+## Re-review 2 (head `8d43395`: fix A in `f769b75`, owner decision merged)
+
+### Verdict: CHANGES NEEDED
+
+CI fails `flutter analyze`. Nothing else blocks.
+
+### CI
+
+Run 43574219382 on `8d43395`: **failed**, and the fail-fast step cancelled
+the other jobs.
+
+| Job | Result |
+| --- | --- |
+| Flutter analyze, tests and screenshots | **failure** at `flutter analyze`; `flutter test` was skipped |
+| Cloud Functions tests and rules tests (emulators) | cancelled |
+| Web, admin panel and Android compile (staging) | skipped (Android runs only on main or by hand) |
+
+Analyzer error: `test/trips/tracker_guard_test.dart:45:17`, "The name
+'Override' isn't a type" (`non_type_as_type_argument`).
+
+### Blocking
+
+1. **CI is red.**
+   - Where: `test/trips/tracker_guard_test.dart:45`.
+   - Problem: the test uses `List<Override>`, but `Override` is not
+     exported by the Riverpod version in use.
+   - Fix:
+     - Drop the type argument, or use the type the other test helpers use
+       (see `test/helpers/test_app.dart`).
+     - Then get Flutter and Functions/rules green on the head commit. The
+       guard tests have not run yet.
+
+### Fix A (tracker guard on relaunch): fixed in code, not yet tested in CI
+
+- `trackerGuardDecision` decides nothing while the session is
+  `SessionLoading` or `SessionFailed`, or the account is still `null`.
+- It stops tracking only on sign-out, another uid, or a loaded account
+  that is not verified.
+- `driver` is updated after the decision, so a different uid is detected.
+- A guard stop calls `sync()` and keeps unsent points instead of
+  `destroyLocations`.
+- Six tests are written (`tracker_guard_test.dart`), including "loading,
+  then account loading, then verified: keeps tracking". They are
+  blocked by the analyzer error above.
+
+### Item B (identity selfie as the face reference): resolved by the owner's decision
+
+DECISIONS.md "Data retention and collection" (14 Nov 2026) and the
+CLAUDE.md PRIVACY bullet now allow keeping photos, including the identity
+selfie as the face reference, while the account is active.
+
+### Follow-ups for the data-retention step (not blocking here)
+
+1. **KMS encryption** with our own Cloud KMS key for `faceRefs/`,
+   `driverPhotos/` and the other kept photos.
+2. **Deletion 1 year after the account closes**, covering `faceRefs/`,
+   `driverPhotos/`, `handoverAdults`, `emergencyContacts`, `tripLimits`
+   and trip documents. Deletion on a ban or a later rejection too.
+3. **Admin access only with a logged reason.** Today the photos are
+   Cloud Functions only. Any admin viewer added later must log the
+   reason.
+4. **Live selfie checks.** DECISIONS.md lists them as kept, but the code
+   still deletes them at once and sweeps them after 1 hour. That is
+   stricter and fine for now. The data-retention step should decide
+   which rule applies and make the code and the docs match.
+5. **The lawyer's confirmation** of the new retention periods. DECISIONS.md
+   says the owner will get it.
+
+### Non-blocking (new)
+
+1. **Unsent points stay on the phone after a guard stop.**
+   - After a stop with `keepUnsent`, points that could not be sent stay
+     in the plugin's database for up to a day. That includes the case
+     where another parent signs in on the phone.
+   - The server rejects them on a later trip, because they fall before
+     that trip's start.
+   - Fix: for `otherParent`/`signedOut`, destroy the unsent points after
+     one `sync()` attempt.
+
+The earlier non-blocking items 4, 6 and 9 to 12, and the new items 1 and 2
+from the first re-review, are still open.
