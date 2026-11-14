@@ -11,7 +11,11 @@ enum VerificationDocument {
   selfie('selfie.jpg'),
   selfieTurn('selfie_turn.jpg'),
   license('license.jpg'),
-  carLicense('car_license.jpg');
+  carLicense('car_license.jpg'),
+
+  /// Prompt 10 (F33, F38): optional face photo for today's driver card,
+  /// approved with the rest and kept (the other images are deleted).
+  driverPhoto('driver_photo.jpg');
 
   const VerificationDocument(this.fileName);
 
@@ -23,7 +27,7 @@ String schoolIdFileName(String ref) => 'school_id_$ref.jpg';
 
 /// What the camera is used for. Selfies use the front camera and the
 /// liveness prompt; documents use the back camera and a card frame.
-enum CaptureKind { idFront, idBack, selfie, schoolId, license, carLicense }
+enum CaptureKind { idFront, idBack, selfie, schoolId, license, carLicense, driverPhoto }
 
 /// Direction of the head-turn prompt, picked at random for each selfie.
 enum LivenessChallenge { left, right }

@@ -11,6 +11,7 @@ import 'package:school_carpool/features/carpools/carpool_logic.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
+import 'package:school_carpool/features/trips/today_section.dart';
 import 'package:school_carpool/features/verification/verification_labels.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/features/verification/verification_repository.dart';
@@ -195,6 +196,8 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
         if (member) _MembersSection(carpoolId: _id, busy: _busy, run: _run),
         if (admin) _RequestsSection(carpool: c, busy: _busy, run: _run),
         if (member) _ScheduleLinks(carpoolId: _id),
+        // Prompt 10: today's driver card (F33) and emergency alerts (F20).
+        if (member) TodayDriversSection(carpoolId: _id),
         const SizedBox(height: AppSpacing.s32),
         Padding(
           padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter),

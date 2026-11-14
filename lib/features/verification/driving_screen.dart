@@ -66,6 +66,7 @@ class _DrivingScreenState extends ConsumerState<DrivingScreen> {
         files: <String, Uint8List>{
           VerificationDocument.license.fileName: license,
           VerificationDocument.carLicense.fileName: carLicense,
+          VerificationDocument.driverPhoto.fileName: ?_draft.driverPhoto,
         },
         payload: <String, Object?>{
           'children': const <Object?>[],

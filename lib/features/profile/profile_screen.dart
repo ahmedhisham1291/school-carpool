@@ -181,6 +181,21 @@ class ProfileScreen extends ConsumerWidget {
         leadingIcon: Icons.directions_car_outlined,
         onTap: () => context.go(ProfileRoutes.driving),
       ),
+      // Prompt 10: who may receive each child (F29) and the emergency contact (F20).
+      AppListRow(
+        key: const Key('profile.handover'),
+        title: l10n.handoverTitle,
+        subtitle: l10n.profileHandoverHelper,
+        leadingIcon: Icons.family_restroom_outlined,
+        onTap: () => context.go(ProfileRoutes.handover),
+      ),
+      AppListRow(
+        key: const Key('profile.emergencyContact'),
+        title: l10n.emergencyContactTitle,
+        subtitle: l10n.profileEmergencyHelper,
+        leadingIcon: Icons.contact_emergency_outlined,
+        onTap: () => context.go(ProfileRoutes.emergencyContact),
+      ),
     ];
   }
 }

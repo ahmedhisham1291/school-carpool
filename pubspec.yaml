@@ -77,6 +77,14 @@ dependencies:
   # already depends on.
   timezone: ^0.10.0
 
+  # Live location during runs (Prompt 10, F15; in the STACK list:
+  # "flutter_background_geolocation (paid license)"). Transistor Software.
+  # Keeps sending with the phone locked, uploads points itself (HTTP to the
+  # tripLocation function) and runs only while a run is on. No licence for
+  # iPhone or debug builds; the Android release build needs the licence key
+  # (BG_GEO_LICENSE, SETUP.md section 19). Pulls in background_fetch.
+  flutter_background_geolocation: ^4.16.0
+
   # Persists the language, theme mode and dev design direction on the phone.
   # Official Flutter plugin; flagged to the owner in docs/progress/prompt-01.md.
   shared_preferences: ^2.5.3

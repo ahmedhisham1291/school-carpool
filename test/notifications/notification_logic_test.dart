@@ -19,12 +19,15 @@ void main() {
         'plan-ready', 'no-driver', 'swap-requested', 'swap-accepted', 'swap-cancelled', 'run-taken', //
         'child-absent', 'child-back', 'driver-unavailable', 'schedule-changed', 'time-changed', 'drive-evening', 'drive-hour',
         'confirm-reminder', 'join-requested', 'join-approved', 'join-declined', 'verification-approved',
-        'verification-rejected', 'new-parent', 'child-not-confirmed', 'chat-message',
+        'verification-rejected', 'new-parent', 'child-not-confirmed', //
+        // Prompt 10: trips.
+        'trip-started', 'driver-arrived', 'child-picked-up', 'child-dropped', 'child-received', 'location-stopped',
+        'driver-late', 'driver-at-gate', 'all-children-in', 'emergency', 'chat-message',
       ];
       expect(NotificationKind.values.map((NotificationKind k) => k.wire), server);
       expect(
         NotificationKind.values.where((NotificationKind k) => k.critical).map((NotificationKind k) => k.wire),
-        <String>['no-driver', 'child-not-confirmed'],
+        <String>['no-driver', 'child-not-confirmed', 'emergency'],
       );
       expect(NotificationKind.fromWire('launch-rockets'), isNull);
       expect(NotificationKind.chatMessage.group, isNull);
@@ -48,7 +51,7 @@ void main() {
     test('COST MODE: WhatsApp on by default only for the urgent groups', () {
       expect(
         WhatsAppGroup.values.where((WhatsAppGroup g) => g.defaultOn),
-        <WhatsAppGroup>[WhatsAppGroup.noDriver, WhatsAppGroup.childNotConfirmed],
+        <WhatsAppGroup>[WhatsAppGroup.noDriver, WhatsAppGroup.childNotConfirmed, WhatsAppGroup.emergency, WhatsAppGroup.tripAlerts],
       );
       const NotificationSettings s = NotificationSettings();
       expect(s.whatsappOn(WhatsAppGroup.noDriver), isTrue);
@@ -75,7 +78,13 @@ void main() {
       expect(NotificationRoutes.safe('/carpools/k1'), '/carpools/k1');
       expect(NotificationRoutes.safe('/profile'), '/profile');
       expect(NotificationRoutes.safe('/home/nearby'), '/home/nearby');
-      for (final Object? bad in <Object?>[null, 5, '', 'https://evil.example', '/carpools/../admin', '/dev/gallery', '/carpools/k1/schedule?x=1']) {
+      // Prompt 10: the live run and the group's emergencies.
+      expect(NotificationRoutes.safe('/carpools/k1/trip/2026-11-16_am'), '/carpools/k1/trip/2026-11-16_am');
+      expect(NotificationRoutes.safe('/carpools/k1/emergency'), '/carpools/k1/emergency');
+      for (final Object? bad in <Object?>[
+        null, 5, '', 'https://evil.example', '/carpools/../admin', '/dev/gallery', '/carpools/k1/schedule?x=1', //
+        '/carpools/k1/trip/x', '/carpools/k1/trip/2026-11-16_am/drive',
+      ]) {
         expect(NotificationRoutes.safe(bad), '/notifications', reason: '$bad');
       }
     });

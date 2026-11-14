@@ -27,6 +27,17 @@ enum NotificationKind {
   verificationRejected('verification-rejected', WhatsAppGroup.verification),
   newParent('new-parent', WhatsAppGroup.newParents),
   childNotConfirmed('child-not-confirmed', WhatsAppGroup.childNotConfirmed, critical: true),
+  // Prompt 10: trips.
+  tripStarted('trip-started', WhatsAppGroup.trips),
+  driverArrived('driver-arrived', WhatsAppGroup.tripAlerts),
+  childPickedUp('child-picked-up', WhatsAppGroup.trips),
+  childDropped('child-dropped', WhatsAppGroup.trips),
+  childReceived('child-received', WhatsAppGroup.trips),
+  locationStopped('location-stopped', WhatsAppGroup.tripAlerts),
+  driverLate('driver-late', WhatsAppGroup.trips),
+  driverAtGate('driver-at-gate', WhatsAppGroup.trips),
+  allChildrenIn('all-children-in', WhatsAppGroup.trips),
+  emergency('emergency', WhatsAppGroup.emergency, critical: true),
   chatMessage('chat-message', null);
 
   const NotificationKind(this.wire, this.group, {this.critical = false});
@@ -54,6 +65,10 @@ enum NotificationKind {
 enum WhatsAppGroup {
   noDriver(defaultOn: true),
   childNotConfirmed(defaultOn: true),
+  // Prompt 10: the emergency button and Arrived / location stopped.
+  emergency(defaultOn: true),
+  tripAlerts(defaultOn: true),
+  trips,
   reminders,
   swaps,
   absences,
@@ -73,7 +88,7 @@ enum WhatsAppGroup {
 abstract final class NotificationRoutes {
   static const String fallback = '/notifications';
   static final RegExp _allowed = RegExp(
-    r'^/(notifications|profile|chats|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule)?)$',
+    r'^/(notifications|profile|chats|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule|/emergency|/trip/\d{4}-\d{2}-\d{2}_(am|pm))?)$',
   );
 
   static String safe(Object? route) => route is String && _allowed.hasMatch(route) ? route : fallback;

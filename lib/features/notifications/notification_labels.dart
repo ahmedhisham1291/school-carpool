@@ -43,6 +43,16 @@ String notificationTitle(AppLocalizations l10n, NotificationKind k) => switch (k
   NotificationKind.verificationRejected => l10n.notifRejectedTitle,
   NotificationKind.newParent => l10n.notifNewParentTitle,
   NotificationKind.childNotConfirmed => l10n.notifChildNotConfirmedTitle,
+  NotificationKind.tripStarted => l10n.notifTripStartedTitle,
+  NotificationKind.driverArrived => l10n.notifDriverArrivedTitle,
+  NotificationKind.childPickedUp => l10n.notifPickedUpTitle,
+  NotificationKind.childDropped => l10n.notifDroppedTitle,
+  NotificationKind.childReceived => l10n.notifReceivedTitle,
+  NotificationKind.locationStopped => l10n.notifLocationStoppedTitle,
+  NotificationKind.driverLate => l10n.tripQuickLate,
+  NotificationKind.driverAtGate => l10n.tripQuickGate,
+  NotificationKind.allChildrenIn => l10n.tripQuickAllIn,
+  NotificationKind.emergency => l10n.notifEmergencyTitle,
   NotificationKind.chatMessage => l10n.notifChatTitle,
 };
 
@@ -72,12 +82,24 @@ String notificationBody(AppLocalizations l10n, AppNotification n) {
     NotificationKind.verificationRejected => l10n.notifRejectedBody,
     NotificationKind.newParent => l10n.notifNewParentBody,
     NotificationKind.childNotConfirmed => l10n.notifChildNotConfirmedBody,
+    NotificationKind.tripStarted => l10n.notifTripStartedBody(run),
+    NotificationKind.driverArrived => l10n.notifDriverArrivedBody(run),
+    NotificationKind.childPickedUp => l10n.notifPickedUpBody(run),
+    NotificationKind.childDropped => l10n.notifDroppedBody(run),
+    NotificationKind.childReceived => l10n.notifReceivedBody(run),
+    NotificationKind.locationStopped => l10n.notifLocationStoppedBody(run),
+    NotificationKind.driverLate => l10n.notifDriverLateBody(run),
+    NotificationKind.driverAtGate => l10n.notifAtGateBody(run),
+    NotificationKind.allChildrenIn => l10n.notifAllInBody(run),
+    NotificationKind.emergency => l10n.notifEmergencyBody(run),
     NotificationKind.chatMessage => l10n.notifChatBody,
   };
 }
 
 IconData notificationIcon(NotificationKind k) => switch (k.group) {
   WhatsAppGroup.noDriver || WhatsAppGroup.childNotConfirmed => Icons.warning_amber_rounded,
+  WhatsAppGroup.emergency => Icons.sos_rounded,
+  WhatsAppGroup.tripAlerts || WhatsAppGroup.trips => Icons.directions_car_outlined,
   WhatsAppGroup.reminders => Icons.alarm_rounded,
   WhatsAppGroup.swaps => Icons.swap_horiz_rounded,
   WhatsAppGroup.absences => Icons.event_busy_outlined,
@@ -92,6 +114,9 @@ IconData notificationIcon(NotificationKind k) => switch (k.group) {
 String whatsAppGroupTitle(AppLocalizations l10n, WhatsAppGroup g) => switch (g) {
   WhatsAppGroup.noDriver => l10n.notifGroupNoDriver,
   WhatsAppGroup.childNotConfirmed => l10n.notifGroupChildNotConfirmed,
+  WhatsAppGroup.emergency => l10n.notifGroupEmergency,
+  WhatsAppGroup.tripAlerts => l10n.notifGroupTripAlerts,
+  WhatsAppGroup.trips => l10n.notifGroupTrips,
   WhatsAppGroup.reminders => l10n.notifGroupReminders,
   WhatsAppGroup.swaps => l10n.notifGroupSwaps,
   WhatsAppGroup.absences => l10n.notifGroupAbsences,

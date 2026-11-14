@@ -61,6 +61,10 @@ PERMISSION_TEXTS = {
     "NSLocationAlwaysAndWhenInUseUsageDescription":
         "While you drive a run, your location keeps updating for the parents of the children "
         "in your car, even when the phone is locked. It stops when the run ends.",
+    # Prompt 10: flutter_background_geolocation uses the motion sensors to
+    # save battery while the car waits.
+    "NSMotionUsageDescription":
+        "Motion data helps save battery while your car waits during a run.",
     "NSFaceIDUsageDescription":
         "Face ID locks the app and confirms every wallet transfer.",
     "NSLocalNetworkUsageDescription":
@@ -129,9 +133,16 @@ def patch_ios(bundle_id: str, display_name: str) -> None:
     ats["NSAllowsLocalNetworking"] = True  # dev builds talk to the emulators
     info["NSAppTransportSecurity"] = ats
     modes = list(info.get("UIBackgroundModes", []))
-    if "remote-notification" not in modes:
-        modes.append("remote-notification")  # Firebase Cloud Messaging
+    # Firebase Cloud Messaging; Prompt 10: live location during a run with
+    # the phone locked, and the plugin's background fetch.
+    for mode in ("remote-notification", "location", "fetch", "processing"):
+        if mode not in modes:
+            modes.append(mode)
     info["UIBackgroundModes"] = modes
+    tasks = list(info.get("BGTaskSchedulerPermittedIdentifiers", []))
+    if "com.transistorsoft.fetch" not in tasks:
+        tasks.append("com.transistorsoft.fetch")
+    info["BGTaskSchedulerPermittedIdentifiers"] = tasks
     # Prompt 5: the Maps key comes from ios/Flutter/Maps.xcconfig (patch_maps_ios).
     info["GMSApiKey"] = "$(MAPS_API_KEY)"
     # Prompt 6: universal links (invite links) reach go_router.
@@ -430,6 +441,53 @@ def patch_alerts_android() -> None:
         patch_text(manifest, xml)
 
 
+# --------------------------------------------------------------------------
+# Live location (Prompt 10): flutter_background_geolocation on Android
+# --------------------------------------------------------------------------
+
+BGGEO_MARKER = "school-carpool: background geolocation"
+BGGEO_REPOS = (
+    "// " + BGGEO_MARKER + ": the plugin's own Maven folders (older plugin\n"
+    "// versions ship their AARs there; harmless when a folder is missing).\n"
+    "allprojects {\n"
+    "    repositories {\n"
+    "        rootProject.findProject(\":flutter_background_geolocation\")?.let { maven(url = \"${it.projectDir}/libs\") }\n"
+    "        rootProject.findProject(\":background_fetch\")?.let { maven(url = \"${it.projectDir}/libs\") }\n"
+    "    }\n"
+    "}\n"
+)
+BGGEO_LICENSE_META = (
+    '<meta-data android:name="com.transistorsoft.locationmanager.license" android:value="${bgGeoLicense}" />'
+)
+
+
+def patch_bggeo_android() -> None:
+    root_gradle = ROOT / "android" / "build.gradle.kts"
+    if root_gradle.exists():
+        patch_text(root_gradle, lambda t: t if BGGEO_MARKER in t else t.rstrip("\n") + "\n\n" + BGGEO_REPOS)
+    gradle = ROOT / "android" / "app" / "build.gradle.kts"
+    if gradle.exists():
+        def kts(text: str) -> str:
+            if BGGEO_MARKER in text:
+                return text
+            # The licence key comes from the build (Gradle property or
+            # environment, never the repository). Debug builds need none.
+            line = (
+                "        // " + BGGEO_MARKER + ": licence key for release builds (SETUP.md section 19).\n"
+                '        manifestPlaceholders["bgGeoLicense"] = (project.findProperty("BG_GEO_LICENSE") as String?)\n'
+                '            ?: System.getenv("BG_GEO_LICENSE") ?: ""\n'
+            )
+            return re.sub(r"(defaultConfig\s*\{\n)", lambda m: m.group(1) + line, text, count=1)
+        patch_text(gradle, kts)
+    manifest = ROOT / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
+    if manifest.exists():
+        def xml(text: str) -> str:
+            if "com.transistorsoft.locationmanager.license" in text:
+                return text
+            return re.sub(r"(<application[^>]*>\n)", lambda m: m.group(1) + f"        <!-- {BGGEO_MARKER} -->\n        {BGGEO_LICENSE_META}\n", text, count=1)
+        patch_text(manifest, xml)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ios-bundle-id", required=True)
@@ -444,6 +502,7 @@ def main() -> int:
     patch_maps_web()
     patch_alerts_ios()
     patch_alerts_android()
+    patch_bggeo_android()
     return 0
 
 
