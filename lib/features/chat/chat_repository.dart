@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 

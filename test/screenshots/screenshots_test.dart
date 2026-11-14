@@ -677,7 +677,7 @@ void main() {
         testWidgets(name, skip: skip, (WidgetTester tester) async {
           final FakeChatProvider chat = FakeChatProvider(chats: sampleChats(), messages: sampleMessages(), now: chatNow);
           final FakeChatRepository repo = FakeChatRepository(
-            requests: <ChatRequest>[testChatRequest('hoda_uid-1', from: 'uid-hoda', to: 'uid-1', fromName: 'Hoda')],
+            requests: <ChatRequest>[testChatRequest('hoda_uid-1', from: 'uid-hoda', fromName: 'Hoda')],
             blocks: const <ChatBlock>[ChatBlock(blockedUid: 'uid-x', firstName: 'Samir')],
           );
           addTearDown(chat.close);

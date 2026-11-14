@@ -184,7 +184,7 @@ class FakeChatPhotoPicker implements ChatPhotoPicker {
 /// the fake repository, the fake photo picker and a fixed clock. Always the
 /// same four overrides.
 List<Override> chatOverrides({FakeChatProvider? provider, FakeChatRepository? repository, FakeChatPhotoPicker? photos}) {
-  final FakeChatProvider p = provider ?? FakeChatProvider(me: 'uid-1', now: chatNow);
+  final FakeChatProvider p = provider ?? FakeChatProvider(now: chatNow);
   return <Override>[
     chatClientProvider.overrideWith((Ref ref) async => p),
     chatRepositoryProvider.overrideWithValue(repository ?? FakeChatRepository()),

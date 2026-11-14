@@ -64,7 +64,7 @@ class AppChatBubble extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         borderRadius: radius,
-        border: mine ? null : Border.all(color: colors.outlineVariant, width: AppBorders.hairline),
+        border: mine ? null : Border.all(color: colors.outlineVariant),
       ),
       child: Padding(
         padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.s16, AppSpacing.s8, AppSpacing.s16, AppSpacing.s8),
@@ -150,7 +150,7 @@ class AppChatComposer extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.appColors.surfaceRaised,
-        border: Border(top: BorderSide(color: colors.outlineVariant, width: AppBorders.hairline)),
+        border: Border(top: BorderSide(color: colors.outlineVariant)),
       ),
       child: SafeArea(
         top: false,
