@@ -773,7 +773,7 @@ void main() {
     for (final String mode in modes) {
       final String gate = 'trips_gate_${locale}_$mode';
       testWidgets(gate, skip: skip, (WidgetTester tester) async {
-        final FakeTripRepository trips = FakeTripRepository(trip: testTrip(driverUid: 'uid-1'));
+        final FakeTripRepository trips = FakeTripRepository(trip: testTrip());
         final FakeDrivingReadiness readiness = FakeDrivingReadiness(
           current: const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.permission, GateItem.precise, GateItem.notifications}),
         );
@@ -799,7 +799,7 @@ void main() {
       });
       final String always = 'trips_always_${locale}_$mode';
       testWidgets(always, skip: skip, (WidgetTester tester) async {
-        final FakeTripRepository trips = FakeTripRepository(trip: testTrip(driverUid: 'uid-1'));
+        final FakeTripRepository trips = FakeTripRepository(trip: testTrip());
         addTearDown(trips.dispose);
         await _pumpScreen(
           tester,
