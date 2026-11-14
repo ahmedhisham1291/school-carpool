@@ -1,7 +1,10 @@
 // Our own chat on Firestore (improvement B): the provider behind the
 // ChatProvider interface, with the data layer faked in memory (no Firebase)
 // and the pure mapping from chat documents to what the screens show.
-// Written, not run here (no Flutter SDK in the build workspace). CI runs it.
+// A hung test fails within a minute instead of using up the CI job.
+@Timeout(Duration(seconds: 60))
+library;
+
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -337,7 +340,7 @@ void main() {
     });
   });
 
-  group('chat list', timeout: const Timeout(Duration(seconds: 60)), () {
+  group('chat list', () {
     test('one listener on the rows, one head per school or area group, none on messages', () async {
       backend.rows[_carpool] = _row(unread: 1, extra: <String, Object?>{'lastAt': _t0});
       backend.rows[_school] = _row(kind: 'school', readSeq: 2);
@@ -398,7 +401,7 @@ void main() {
     });
   });
 
-  group('conversation', timeout: const Timeout(Duration(seconds: 60)), () {
+  group('conversation', () {
     const ChatRef carpool = ChatRef(ChatKind.carpool, 'c-k1');
     const ChatRef school = ChatRef(ChatKind.school, 's-nile');
 
