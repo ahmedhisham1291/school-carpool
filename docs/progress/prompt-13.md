@@ -76,6 +76,134 @@ note and review (open items).
 4. Android: the geolocator tracker runs on Android too, but background
    tracking there needs a foreground-service notification (Stage 3).
 
-## Status
+## Scope added while building
 
-Building. This section is replaced at the end with what was built.
+- **Owner answers 13:29** (DECISIONS.md): transfer records 5 years (wording);
+  closed-carpool trips kept per parent, active + 1 year (built); chat up to
+  60 minutes after sign-out accepted (open-items C1).
+- **Owner request 13:44** (DECISIONS.md): run recovery on iPhone with our
+  own plugin and an optional "Always" step (built, below). This replaces the
+  plan's "never ask for Always": the gate still never requires it.
+
+## What was built
+
+### Location on iPhone (F15)
+
+- `lib/features/trips/geolocator_tracker.dart`: free geolocator tracker
+  (bestForNavigation, automotiveNavigation, 15 m, no auto pause, background
+  updates, blue indicator); on-phone buffer (1 day, 2,000 points, survives a
+  restart), batches of 50 to `tripLocation`, 401/410 stop, 60 s heartbeat
+  while still, listens again after a loss is fixed. Wired for iPhone and
+  Android in `bootstrap.dart`. The paid plugin is removed everywhere
+  (pubspec, patch_native, Codemagic, SETUP, COSTS, CLAUDE.md/AGENTS.md);
+  DECISIONS says how to bring it back.
+- `location_gate.dart`: driving gate (Location Services, While Using,
+  Precise Location, notifications), system prompts first when never asked,
+  then full-screen steps AR/EN with Open Settings, re-checked on resume and
+  on Location Services changes, closes by itself; blocks driving only.
+  Home banner "Location is off" (warning tone of `AppAlertBanner`, in the
+  gallery) with the same steps, non-blocking. Wording note: the owner's
+  one-line banner sentence did not fit 320 dp, so it is split into the title
+  "Location is off" and the body "Needed on your driving day."
+- Run screen: one-line hint "Keep the app open — you can lock the phone.";
+  mid-run loss (service stream, tracker errors, re-check on resume) shows the
+  steps at once and calls `reportTrackingLost`; fixed: tracking restarts
+  with a fresh token.
+- Server: `tripTick` sends parents "location stopped" and the driver the new
+  `run-still-on` push after 2 minutes without a point, once per gap;
+  `reportTrackingLost` callable; template `cp_run_still_on` (SETUP 20.3).
+- **Run recovery** (owner 13:44): `packages/run_recovery` (our Swift plugin,
+  path dependency, no third-party code): CLBackgroundActivitySession (iOS
+  17+), CLServiceSession (iOS 18+), significant location changes with
+  Always, launch-for-location flag; Android/web answer "unsupported" in
+  Dart. `lib/features/trips/run_recovery.dart`: local run marker (uid,
+  carpool, run, start; no coordinates), `decideRecovery` rule (none,
+  signed out, other parent, older than 3 h, run ended, resume), resume on
+  launch before the first frame (bootstrap now builds the ProviderContainer
+  first and uses `UncontrolledProviderScope`), "Tracking resumed" local
+  notification, marker cleared when tracking stops or on sign-out.
+  Optional "Resume runs by itself" screen (once per install, iPhone, after
+  While Using), analytics `always_location` (granted 0/1).
+- Nothing in the app stops tracking on inactive/hidden/paused (audited:
+  app lock, capture screen, offline queue, device guard, tracker guard;
+  widget test added).
+- Info.plist (patch_native): background modes `location` +
+  `remote-notification` only; final AR/EN purpose texts for camera, photos,
+  location while in use, Always (honest: optional, runs only), Face ID;
+  Arabic development region; the paid plugin's keys are removed.
+
+### Prompt 13 proper
+
+- Codemagic `ios-staging` (already signed via `CodemagicASC`, TestFlight,
+  main/tags/manual only); header updated; owner steps in
+  `docs/testflight.md`.
+- `docs/app-store-privacy.md` (moved from docs/privacy/, finalised):
+  every Apple data type, who receives it, linked, tracking (no), purposes.
+- Permission texts AR/EN in InfoPlist.strings and the gate/Always screens.
+  The notification prompt still has no in-app explanation screen
+  (open-items D5).
+- `docs/app-review-notes.md`: reviewer notes (background location, Always
+  optional, demo account, review code), owner recording steps.
+- Review sign-in: one allow-listed test phone with a fixed code
+  (`config/reviewAccess`, keyed hashes, at most 30 days, off by default,
+  every limit still applies, fails closed), script `npm run review-access`.
+- Admin panel: user page card "New phone check open" > Compare and decide
+  (reference photo and latest selfie, logged reason, outcome approved or
+  confirmed another way, confirm dialog); server `adminDecideDeviceCheck`.
+- Trips per parent (`trip_retention.ts`), transfer records 5 years.
+- `docs/test-iphone.md` (F1 to F44, location gate L1-L8, lock/call/app
+  switch/swipe-away with and without Always, Low Power Mode, battery) and
+  `docs/open-items.md`.
+
+### Design pass (bounded)
+
+- Scanned every screen under lib/features and lib/admin for hard-coded
+  sizes, colours, radii, paddings and non-tokenised text: none found.
+- New screens use tokens, one primary action, `AppBarTitle`/`OneLineText`
+  for one-line titles, skeleton loading, AR/EN, light/dark.
+- Fixed: Home's stale "Today's trips will appear here" placeholder is now a
+  "Today's runs" row to the carpools; the location banner's wording split
+  so it fits 320 dp.
+- Not done (needs the rendered screenshots, which CI produces): a visual
+  check of every screen in AR/EN light/dark at 320 dp and 200 % text;
+  a pre-permission screen for notifications (D5).
+
+## Tests
+
+- Functions: **run here: 630 pass, 0 fail** (`node --test` with the
+  workspace's type stubs; `tsc` shows only the known stub noise, no new
+  errors). New: run-still-on and reportTrackingLost (trips), review
+  sign-in (otp_flow), trip retention and the admin device decision
+  (privacy).
+- Flutter: **written, not run here** (no Flutter SDK):
+  `test/trips/geolocator_tracker_test.dart` (fake geolocator source),
+  `location_gate_test.dart`, `run_recovery_test.dart` (rule, service,
+  launcher, plugin channel with a fake platform), `always_location_test.dart`,
+  driver screen tests rewritten for the gate, mid-run loss and lifecycle,
+  admin device check test, notification kinds and routes; goldens
+  `trips_gate_*`, `trips_always_*`, `home_location_banner_*`,
+  `home_location_steps_*` (AR/EN, light/dark; rendered only with
+  `--update-goldens` in CI). `flutter analyze` not run here.
+- Rules: no rules change in Prompt 13 (`config/` is already deny-all).
+- Swift (`packages/run_recovery`): **not compiled here**; compiles in the
+  Codemagic iOS build only.
+
+## Only verifiable on a real iPhone
+
+- Tracking with the phone locked, other apps and calls (T1-T4).
+- That iOS relaunches the app after a swipe away with Always, how soon
+  (iOS decides; usually after about 500 m of movement), and that a
+  background-relaunched app gets enough time to sign in, call the server
+  and restart tracking (T6). Apple documents that significant-change
+  relaunch can be suppressed after a user force-quit on some iOS versions,
+  and never happens with Location Services or Background App Refresh off;
+  the 2-minute server push stays the fallback (T5).
+- The first location prompt shows "While Using" (L2); the Always upgrade
+  prompt appears once from the optional screen.
+- Low Power Mode and battery (T8, T10).
+
+## Not done
+
+- Everything in docs/open-items.md section D (D3b: recovery reliability).
+- Android background tracking (foreground service) and recovery: Stage 3.
+- Screenshots of the new screens: next full CI screenshots run.
