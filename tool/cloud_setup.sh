@@ -290,7 +290,7 @@ if [ -z "${HAS_EDITOR}" ]; then
   grant "serviceAccount:${SA}" roles/cloudbuild.builds.builder
 fi
 # The photo trigger (Storage -> Eventarc) needs Storage's agent to publish to Pub/Sub.
-GCS_AGENT="$(gcloud storage service-agent --project="${PROJECT}" 2>/dev/null | tail -1 || true)"
+GCS_AGENT="$(gcloud storage service-agent --project="${PROJECT}" 2>/dev/null | tail -1 | tr -d '[:space:]' || true)"
 # A new project's Storage agent can take a few minutes to exist after the
 # first lookup creates it: retry, and never stop the whole setup for it.
 if [ -n "${GCS_AGENT}" ]; then
@@ -315,14 +315,34 @@ create_key() {
 find_key() { gcloud services api-keys list --project="${PROJECT}" --filter="displayName=\"$1\"" --format='value(name)' 2>/dev/null | head -1; }
 IOS_KEY_NAME="Maps iOS (${BUNDLE_ID})"
 SERVER_KEY_NAME="Maps server (Places, Routes) for Cloud Functions"
+# Firebase adopts a key restricted to the app's bundle id as the iOS app's own
+# API key, so this one key serves Maps AND Firebase on the iPhone. It must
+# therefore allow the Firebase APIs too, or sign-in, the database and push
+# are refused (API_KEY_SERVICE_BLOCKED). Still locked to the bundle id.
+IOS_KEY_TARGETS=(
+  --api-target=service=maps-ios-backend.googleapis.com
+  --api-target=service=identitytoolkit.googleapis.com
+  --api-target=service=securetoken.googleapis.com
+  --api-target=service=firestore.googleapis.com
+  --api-target=service=firebasestorage.googleapis.com
+  --api-target=service=firebaseinstallations.googleapis.com
+  --api-target=service=fcmregistrations.googleapis.com
+  --api-target=service=firebaseappcheck.googleapis.com
+  --api-target=service=firebase.googleapis.com
+)
 if [ -z "$(find_key "${IOS_KEY_NAME}")" ]; then
-  create_key --display-name="${IOS_KEY_NAME}" \
-    --allowed-bundle-ids="${BUNDLE_ID}" --api-target=service=maps-ios-backend.googleapis.com
+  create_key --display-name="${IOS_KEY_NAME}" --allowed-bundle-ids="${BUNDLE_ID}" "${IOS_KEY_TARGETS[@]}"
 fi
 IOS_KEY_RES="$(find_key "${IOS_KEY_NAME}")"
 [ -n "${IOS_KEY_RES}" ] || die "could not create the iOS Maps key."
+if gcloud services api-keys update "${IOS_KEY_RES}" --project="${PROJECT}" --quiet \
+     --allowed-bundle-ids="${BUNDLE_ID}" "${IOS_KEY_TARGETS[@]}" >/dev/null 2>"${WORK}/key.err"; then
+  ok "iOS key: only ${BUNDLE_ID}; Maps SDK for iOS and the Firebase APIs the app uses"
+else
+  grep -iE 'error|denied|invalid' "${WORK}/key.err" | grep -v keyString | head -3 || true
+  todo "iOS key: ${GCP}/apis/credentials?project=${PROJECT} > '${IOS_KEY_NAME}' > API restrictions: add Identity Toolkit, Token Service, Cloud Firestore, Cloud Storage for Firebase, Firebase Installations, FCM Registration, Firebase App Check and Firebase Management next to Maps SDK for iOS > Save. Without this the iPhone app cannot sign in."
+fi
 MAPS_IOS_KEY="$(gcloud services api-keys get-key-string "${IOS_KEY_RES}" --format='value(keyString)')"
-ok "iOS Maps key: only ${BUNDLE_ID}, only Maps SDK for iOS"
 if [ -z "$(find_key "${SERVER_KEY_NAME}")" ]; then
   # No application restriction is possible for Cloud Functions (SETUP 15.2).
   create_key --display-name="${SERVER_KEY_NAME}" \
