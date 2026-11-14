@@ -22,7 +22,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Stream Chat | Build (free), later Maker | Free plan limits on monthly active users and concurrent connections (see Stream's pricing page); Maker is free for small companies that qualify | Stream Dashboard > Usage (monthly active users, connections) | 80 percent of the free plan's monthly active users or connections; see "Chat (Prompt 9)" |
 | Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
-| WhatsApp Business | Pay per template message | Codes and critical alerts only by default (wallet messages too only if the parent switches them on); other notifications are push unless the parent switches WhatsApp on | Meta WhatsApp Manager > Insights | Budget set by the owner |
+| WhatsApp Business | Pay per delivered template message (no free tier for templates). Egypt, rate card of 1 Oct 2026: about USD 0.0036 per sign-in code or alert (**not confirmed on Meta's own rate card**; docs/meta-whatsapp-setup.md section 11) | Codes and critical alerts only by default (wallet messages too only if the parent switches them on); other notifications are push unless the parent switches WhatsApp on. New accounts: 250 different people per 24 hours until the business is verified | Meta WhatsApp Manager > Insights | Budget set by the owner |
 | Valify, wallet partner | Fake providers | Nothing is called until the pilot | n/a | Contract signed |
 | Live location (geolocator) | Free, no licence | Nothing to track | n/a | Owner decision 14 Nov 2026: the paid flutter_background_geolocation (about USD 400, one-time) only if the Android stage or the pilot shows tracking is unreliable (DECISIONS.md) |
 
@@ -41,8 +41,9 @@ Limits below are the public free allowances as understood in November 2026.
 ## Sign-in (Prompt 2)
 
 - One WhatsApp **authentication** template message per code. Meta bills
-  authentication messages per message at the Egypt rate (check Meta's
-  pricing page; it changes). Codes are capped at 5 per number, 10 per
+  authentication messages per delivered message at the Egypt rate (about
+  USD 3.60 per 1,000 on the 1 Oct 2026 rate card, unconfirmed; details,
+  sources and how to check in docs/meta-whatsapp-setup.md section 11). Codes are capped at 5 per number, 10 per
   device and 60 per IP address per hour, and a number is locked for an hour
   after 10 wrong codes, so abuse cannot run up the bill.
 - Dev and staging use the fake sender: no WhatsApp cost at all.
