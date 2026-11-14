@@ -8291,7 +8291,7 @@
   "@keepNinetyDays": {
     "description": "Retention"
   },
-  "keepLaw": "المدة التي يطلبها القانون",
+  "keepLaw": "5 سنوات كما يطلب القانون",
   "@keepLaw": {
     "description": "Retention"
   },
