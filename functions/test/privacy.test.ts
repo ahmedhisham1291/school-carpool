@@ -15,6 +15,7 @@ import {
   pathFor,
   PURGE_TARGETS,
   purgeSteps,
+  SUBCOLLECTIONS,
   type ClosedAccount,
   type DeletionRunner,
   type FlowStep,
@@ -42,6 +43,7 @@ import {
   type SignInPlan,
   type SignOutReason,
 } from "../src/privacy/devices";
+import { anonymiseBalance, anonymiseCarpool, anonymiseRun, anonymiseSwap, anonymiseTrip, DELETED_ID, initialOf } from "../src/privacy/anonymise";
 import { buildExport, redact } from "../src/privacy/export";
 import { runRetention, type RetentionReport, type RetentionStore } from "../src/privacy/jobs";
 import { accessReason, selfieArchivePath, thumbOwner, thumbPath } from "../src/privacy/photos";
@@ -494,12 +496,73 @@ describe("account deletion", () => {
     assert.deepEqual(missing, []);
   });
 
+  it("every subcollection of a shared record (carpools, trips) says how the parent's data in it ends", () => {
+    const nested = rulesCollections().filter((c) => c.includes("/") && !c.startsWith("users/"));
+    assert.ok(nested.length >= 10, `parsed ${nested.length} subcollections`);
+    assert.deepEqual(nested.filter((c) => SUBCOLLECTIONS[c] === undefined), []);
+  });
+
+  it("names left with other parents become initials: trips, past runs, swaps, balances, the carpool card", () => {
+    assert.equal(initialOf("Adam"), "A.");
+    assert.equal(initialOf("  سارة "), "س.");
+    assert.equal(initialOf(""), "");
+    // Another driver's trip with the deleted parent's child and someone else's.
+    const trip = {
+      driverUid: "d1",
+      driverFirstName: "Dina",
+      viewerUids: ["d1", "u1", "u2"],
+      childIds: ["c1", "c2"],
+      stops: [
+        { childId: "c1", firstName: "Adam", parentUid: "u1", state: "dropped", droppedAtMs: 5, handover: [{ name: "Grandma Mona", relation: "grandparent" }] },
+        { childId: "c2", firstName: "Bana", parentUid: "u2", state: "dropped", droppedAtMs: 6, handover: [{ name: "Aunt", relation: "aunt" }] },
+      ],
+    };
+    const t = anonymiseTrip(trip, "u1")!;
+    const stops = t.stops as Array<Record<string, unknown>>;
+    assert.deepEqual(stops[0], { childId: DELETED_ID, firstName: "A.", parentUid: DELETED_ID, state: "dropped", droppedAtMs: 5, handover: [] });
+    assert.deepEqual(stops[1], trip.stops[1], "other children untouched");
+    assert.deepEqual(t.viewerUids, ["d1", "u2"]);
+    assert.deepEqual(t.childIds, ["c2"]);
+    assert.ok(!JSON.stringify(t).includes("Adam") && !JSON.stringify(t).includes("Mona"));
+    assert.equal(anonymiseTrip(trip, "u9"), null, "nothing to change");
+    // A trip the deleted parent drove: only the driver's initial (purged after a year).
+    assert.deepEqual(anonymiseTrip({ ...trip, driverUid: "u1", viewerUids: ["u1"], stops: [] }, "u1"), { driverFirstName: "D." });
+    // A past run: riders, absent list and driver.
+    const run = {
+      driverUid: "u1",
+      driverFirstName: "Omar",
+      riders: [{ id: "c1", firstName: "Adam", parentUid: "u1" }, { id: "c2", firstName: "Bana", parentUid: "u2" }],
+      absent: [{ id: "c3", firstName: "Zein", parentUid: "u1" }],
+      swapBy: null,
+    };
+    assert.deepEqual(anonymiseRun(run, "u1"), {
+      riders: [{ id: DELETED_ID, firstName: "A.", parentUid: DELETED_ID }, run.riders[1]],
+      absent: [{ id: DELETED_ID, firstName: "Z.", parentUid: DELETED_ID }],
+      driverUid: DELETED_ID,
+      driverFirstName: "O.",
+    });
+    assert.deepEqual(anonymiseSwap({ requesterUid: "u1", requesterFirstName: "Omar", acceptedBy: "u2", suggestedUids: ["u1", "u3"] }, "u1"), {
+      requesterUid: DELETED_ID,
+      requesterFirstName: "O.",
+      suggestedUids: ["u3"],
+    });
+    const bal = anonymiseBalance({ families: { u1: { firstName: "Omar", driven: 4, received: 3, share: 3.5 }, u2: { firstName: "Hoda", driven: 1, received: 2, share: 1.5 } } }, "u1")!;
+    const families = bal.families as Record<string, Record<string, unknown>>;
+    assert.equal(families.u1, undefined);
+    assert.deepEqual(families.u2.firstName, "Hoda");
+    const anon = Object.entries(families).find(([k]) => k.startsWith(`${DELETED_ID}_`))!;
+    assert.deepEqual(anon[1], { firstName: "O.", driven: 4, received: 3, share: 3.5 }, "the counts stay fair for the others");
+    assert.ok(!anon[0].includes("u1"));
+    assert.deepEqual(anonymiseCarpool({ creatorUid: "u1", creatorFirstName: "Omar" }, "u1"), { creatorUid: DELETED_ID, creatorFirstName: "O." });
+    assert.equal(anonymiseCarpool({ creatorUid: "u2", creatorFirstName: "Hoda" }, "u1"), null);
+  });
+
   it("deletes everything listed at once, the user record last; keeps the ban list and transfers", async () => {
     const r = new FakeRunner();
     const res = await deleteAccount(r, "u1", NOW, () => undefined);
     assert.equal(res.failed, 0);
     assert.equal(res.purgeAtMs, NOW + 365 * DAY_MS);
-    assert.deepEqual(r.ran.slice(0, 5), ["flow:trips", "flow:carpools", "flow:chat", "flow:trust", "flow:identity"]);
+    assert.deepEqual(r.ran.slice(0, 6), ["flow:trips", "flow:carpools", "flow:anonymise", "flow:chat", "flow:trust", "flow:identity"]);
     assert.ok(r.ran.includes("homes/u1"));
     assert.ok(r.ran.includes("children.ownerUid"));
     assert.ok(r.ran.includes("ratings.rateeUid"));
@@ -554,7 +617,7 @@ describe("account deletion", () => {
     const c = newClosedAccount("u1", "ABCD2345", false, NOW);
     assert.equal((await continueDeletion(r, c, NOW + 364 * DAY_MS, () => undefined)).purged, false);
     assert.deepEqual(r.ran, []);
-    assert.equal(immediateSteps().length, IMMEDIATE_TARGETS.length + 7);
+    assert.equal(immediateSteps().length, IMMEDIATE_TARGETS.length + 8);
     assert.equal(purgeSteps().length, PURGE_TARGETS.length + 2);
   });
 });
@@ -649,6 +712,11 @@ class MemoryRetention implements RetentionStore {
     await freeze("cp_carpool:c-k9");
     return 1;
   }
+  purgedCarpoolsBefore: number[] = [];
+  async purgeClosedCarpoolsBefore(before: number) {
+    this.purgedCarpoolsBefore.push(before);
+    return 2;
+  }
   async endedChatsBefore() {
     return this.chats;
   }
@@ -704,6 +772,8 @@ describe("retention job", () => {
     assert.deepEqual(store.deletedChats, ["private:a"], "a chat whose Stream delete failed keeps its record (retried)");
     assert.deepEqual(report.tasks.exports, { deleted: 4, failed: 0 });
     assert.deepEqual(store.frozen, ["cp_carpool:c-k9"], "a closed carpool's chat is frozen and its year starts");
+    assert.deepEqual(report.tasks.closedCarpools, { deleted: 2, failed: 0 });
+    assert.deepEqual(store.purgedCarpoolsBefore, [NOW - 365 * DAY_MS], "closed carpools go 1 year after they closed");
     assert.deepEqual(report.failures.sort(), ["chat:private:b", "routeArchives"]);
     assert.equal(store.runs.length, 1);
     assert.equal(store.alerts.length, 1);

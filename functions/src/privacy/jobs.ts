@@ -1,5 +1,5 @@
 import { continueDeletion, type ClosedAccount, type DeletionRunner } from "./account_deletion";
-import { AUDIT_LOG_DAYS, CHAT_AFTER_END_DAYS, cutoff, EXPORT_FILE_DAYS, REPORT_CONTEXT_DAYS, SECURITY_ALERT_DAYS, TRIP_STOPS_DAYS } from "./retention";
+import { AUDIT_LOG_DAYS, CHAT_AFTER_END_DAYS, CLOSED_CARPOOL_DAYS, cutoff, EXPORT_FILE_DAYS, REPORT_CONTEXT_DAYS, SECURITY_ALERT_DAYS, TRIP_STOPS_DAYS } from "./retention";
 
 /**
  * retentionDaily (spec section 7: "a retention schedule enforced by a
@@ -21,6 +21,12 @@ export interface RetentionStore {
    * [freeze]); Prompt 9 review item 13. Returns how many.
    */
   endClosedCarpoolChats(nowMs: number, limit: number, freeze: (cid: string) => Promise<void>): Promise<number>;
+  /**
+   * Carpools closed before [before]: the card with every subcollection
+   * (members, requests, pickup points, runs, swaps, balances,
+   * emergencies), its memberships, invites and trips. Returns how many.
+   */
+  purgeClosedCarpoolsBefore(before: number, limit: number): Promise<number>;
   /** Chats that ended before [before]: IDs ("type:id"). */
   endedChatsBefore(before: number, limit: number): Promise<string[]>;
   deleteChatRecord(cid: string): Promise<void>;
@@ -94,6 +100,8 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
   await task("routeArchives", async () => ({ deleted: await deps.store.deleteRouteArchivesDue(nowMs, PAGE), failed: 0 }));
 
   await task("closedCarpoolChats", async () => ({ deleted: await deps.store.endClosedCarpoolChats(nowMs, PAGE, (cid) => deps.freezeChannel(cid)), failed: 0 }));
+
+  await task("closedCarpools", async () => ({ deleted: await deps.store.purgeClosedCarpoolsBefore(cutoff(nowMs, CLOSED_CARPOOL_DAYS), 50), failed: 0 }));
 
   // Chat: life of the chat + 1 year (owner decision; was 180 days).
   await task("chats", async () => {

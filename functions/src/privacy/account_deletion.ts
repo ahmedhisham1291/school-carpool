@@ -120,7 +120,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   transfers: "transfer records, as long as the law requires (lawyer)",
   transferResults: "transfer outcomes, with the transfers",
   walletPending: "empty: the wallet must be settled before deletion",
-  walletDaily: "per-day amounts for the limits; expire by TTL",
+  walletDaily: "per-day amounts for the limits (no names); TTL expiresAt, 35 days",
   walletAlerts: "admin alerts about transfers (with the transfer records)",
   wallets: "closed, not deleted: the partner reference the transfer records need",
   fakeWalletAccounts: "fake partner (dev/staging test money)",
@@ -132,14 +132,14 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   schools: "not personal",
   areas: "not personal",
   placeCache: "not personal (place details)",
-  carpools: "the group stays for the other members; counts updated by removeFromCarpool",
+  carpools: "the group stays for the other members (the parent's names become initials); a closed carpool is deleted 1 year after it closed",
   carpoolInvites: "carpool links (no personal data)",
-  schedule: "runs stay for the group; the parent's future runs are released",
+  schedule: "runs stay for the group with initials only; future runs are released; deleted with the closed carpool",
   scheduleEvents: "events, 30-day TTL",
   notificationEvents: "outbox, 30-day TTL",
   chatChannels: "the chat's record; a private chat ends and is deleted 1 year later",
   verifications: "purged 1 year after closure",
-  trips: "run summaries the parent drove are purged 1 year after closure",
+  trips: "other drivers' trips keep an initial for the parent's children; trips the parent drove are purged 1 year after closure",
   tripStops: "exact stops of one run, deleted 1 day after the run",
   tripChecks: "selfie-check state of one run (no image)",
   ratingFlags: "open flags are like reports (kept until handled)",
@@ -150,11 +150,36 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   securityAlerts: "admin alerts, 1 year after handled",
   routeArchives: "purged 1 year after the run (and with the account's purge step)",
   retentionRuns: "job reports (counts only)",
-  mail: "mail outbox; the extension deletes sent mail",
+  mail: "security emails to the parent's address; TTL expiresAt, 30 days",
+};
+
+/**
+ * Subcollections of shared records (carpools, trips) in firestore.rules
+ * and how a deleted parent's data in them ends (test: every one listed).
+ */
+export const SUBCOLLECTIONS: Readonly<Record<string, string>> = {
+  "carpools/members": "deleted by removeFromCarpool (carpools step)",
+  "carpools/requests": "deleted by removeFromCarpool (carpools step)",
+  "carpools/driverConsents": "deleted by removeFromCarpool (carpools step)",
+  "carpools/pickupPoints": "deleted by removeFromCarpool (carpools step)",
+  "carpools/schedule": "future runs released (carpools step); past runs keep initials only (anonymise step); deleted with the closed carpool",
+  "carpools/swaps": "initials only (anonymise step); deleted with the closed carpool",
+  "carpools/exceptions": "no-school days (creator uid, no names); deleted with the closed carpool",
+  "carpools/balances": "counts with an initial (anonymise step); deleted with the closed carpool",
+  "carpools/emergencies": "24-hour TTL",
+  "trips/points": "1-day TTL (live location)",
+  "trips/eta": "1-day TTL",
 };
 
 /** Steps that run through the app's flows (not plain deletes), in order. */
-export const FLOW_STEPS = ["trips", "carpools", "chat", "trust", "identity", "wallet", "records", "auth"] as const;
+/**
+ * anonymise: the parent's and children's names in records that stay with
+ * other parents (other drivers' trips, the carpools' past runs, swaps,
+ * balances, carpool cards) become initials (anonymise.ts). After
+ * "carpools" (future runs released) and before "records" (memberships,
+ * used to find the carpools, are deleted there).
+ */
+export const FLOW_STEPS = ["trips", "carpools", "anonymise", "chat", "trust", "identity", "wallet", "records", "auth"] as const;
 export type FlowStep = (typeof FLOW_STEPS)[number];
 /** routes: the parent's archived routes (files and records); stream: the Stream user and messages. */
 export const PURGE_STEPS = ["routes", "stream"] as const;

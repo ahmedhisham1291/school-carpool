@@ -25,6 +25,7 @@ import {
 } from "./model";
 import type { FakeAccount, FakeLedger, FakeMode, FakeOp } from "./provider";
 import type { ConsentRecord, SettleResult, StartResult, WalletContact, WalletLimitKind, WalletStore } from "./store";
+import { DAY_MS, WALLET_DAILY_DAYS } from "../privacy/retention";
 
 /**
  * Wallet records in Firestore. Cloud Functions only: firestore.rules close
@@ -316,7 +317,8 @@ export class FirestoreWalletStore implements WalletStore {
         checkedAt: ts(t.createdAtMs),
         leaseUntil: ts(0),
       });
-      tx.set(dailyRef, { uid: t.uid, day: t.day, ...next, updatedAt: ts(t.createdAtMs) });
+      // expiresAt: Firestore TTL (tool/setup_retention.sh); only today's counter is read.
+      tx.set(dailyRef, { uid: t.uid, day: t.day, ...next, updatedAt: ts(t.createdAtMs), expiresAt: ts(t.createdAtMs + WALLET_DAILY_DAYS * DAY_MS) });
       return { created: true, transfer: t, result: null };
     });
   }
@@ -356,7 +358,7 @@ export class FirestoreWalletStore implements WalletStore {
           t.kind === "topup"
             ? { topUpAmount: Math.max(0, d.topUpAmount - t.amount) }
             : { outAmount: Math.max(0, d.outAmount - t.amount), outCount: Math.max(0, d.outCount - 1) };
-        tx.set(dailyRef, { uid: t.uid, day: t.day, ...d, ...back, updatedAt: ts(r.settledAtMs) });
+        tx.set(dailyRef, { uid: t.uid, day: t.day, ...d, ...back, updatedAt: ts(r.settledAtMs), expiresAt: ts(t.createdAtMs + WALLET_DAILY_DAYS * DAY_MS) });
       }
       events.forEach((e, i) => {
         if (!eventSnaps[i].exists) tx.create(this.db.collection(NOTIFICATION_EVENTS).doc(e.id), outboxDoc(e));

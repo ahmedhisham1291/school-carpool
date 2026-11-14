@@ -39,6 +39,10 @@ export const EXPORT_FILE_DAYS = 1;
 export const ABUSE_COUNTER_DAYS = 2;
 /** Security alerts for admins once handled. */
 export const SECURITY_ALERT_DAYS = YEAR_DAYS;
+/** A closed carpool (card, members, runs, swaps, balances, its trips) is deleted 1 year after it closed (Prompt 12 review). */
+export const CLOSED_CARPOOL_DAYS = YEAR_DAYS;
+/** walletDaily/{uid}_{day}: the per-day limit counters live 35 days (TTL expiresAt; only today counts). */
+export const WALLET_DAILY_DAYS = 35;
 
 export type RetentionStart = "created" | "decision" | "runEnd" | "chatEnd" | "accountClosed" | "handled" | "never";
 
@@ -107,7 +111,14 @@ export const RETENTION: readonly RetentionRule[] = [
   { id: "children", where: "children/{id}, handover lists", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "vehicle", where: "vehicles/{uid}", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "home", where: "homes/{uid}, parentLocations/{uid} (rounded), mapLimits, newParentEvents", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
-  { id: "carpools", where: "memberships, carpools/{id}/members, requests, driverConsents, pickupPoints, carpoolWanted", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
+  {
+    id: "carpools",
+    // A closed carpool (the card, its runs, swaps, balances and trips) goes CLOSED_CARPOOL_DAYS after it closed (retentionDaily).
+    where: "memberships, carpools/{id}/members, requests, driverConsents, pickupPoints, carpoolWanted; names left in other parents' records become initials",
+    days: 0,
+    from: "accountClosed",
+    enforcedBy: ["accountDeletion", "retentionDaily"],
+  },
   { id: "schedule", where: "carpools/{id}/schedule (future runs released), swaps", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "trips", where: "trips/{id} run summaries (who drove, date, times, on time, children counted)", days: AFTER_CLOSURE_DAYS, from: "accountClosed", enforcedBy: ["retentionDaily"] },
   { id: "liveLocation", where: "trips/{id}/points, carpools/{id}/emergencies, tripStops/{id}", days: 1, from: "runEnd", enforcedBy: ["tripTick", "firestoreTtl", "retentionDaily"] },

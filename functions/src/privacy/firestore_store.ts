@@ -1,11 +1,12 @@
 import type { Bucket } from "../verification/store";
-import { FieldValue, Timestamp, type DocumentData, type Firestore, type Query } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, type DocumentData, type Firestore, type Query, type QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { USERS } from "../auth/accounts";
 import type { ChatServer } from "../chat/server";
 import { outboxDoc } from "../notifications/outbox";
 import type { OutboxEvent } from "../notifications/model";
 import type { AbuseCounter, AbuseKind, AbuseStore, SecurityAlert } from "./abuse";
 import { alertFor } from "./abuse";
+import { anonymiseBalance, anonymiseCarpool, anonymiseRun, anonymiseSwap, anonymiseTrip } from "./anonymise";
 import { CLOSING_REASON, pathFor, type ClosedAccount, type DeletionFacts, type DeletionRunner, type FlowStep, type PurgeStep, type Target, type WalletLock } from "./account_deletion";
 import type { DeviceAccount, DeviceRecord, DeviceStore, Platform, SignInPlan, SignOutReason } from "./devices";
 import type { ExportSource } from "./export";
@@ -398,6 +399,8 @@ export class FirestoreDeletionRunner implements DeletionRunner {
         }
         return;
       }
+      case "anonymise":
+        return this.anonymise(uid);
       case "chat": {
         await this.hooks.chat.revokeTokens(uid, nowMs + 1000);
         await this.hooks.chat.deactivateUser(uid);
@@ -438,6 +441,48 @@ export class FirestoreDeletionRunner implements DeletionRunner {
         await this.hooks.revokeSessions(uid);
         await this.hooks.deleteAuthUser(uid);
         return;
+    }
+  }
+
+  /** See anonymise.ts. Every page is read until empty (idempotent: a retry finds nothing left). */
+  private async anonymise(uid: string): Promise<void> {
+    const apply = async (docs: QueryDocumentSnapshot[], fn: (d: DocumentData, uid: string) => DocumentData | null) => {
+      for (const d of docs) {
+        const change = fn(d.data(), uid);
+        if (change) await d.ref.update(change);
+      }
+    };
+    // Trips the parent's children rode in (other drivers' records) and trips the parent drove.
+    await apply((await this.db.collection("trips").where("viewerUids", "array-contains", uid).limit(2_000).get()).docs, anonymiseTrip);
+    await apply((await this.db.collection("trips").where("driverUid", "==", uid).limit(2_000).get()).docs, anonymiseTrip);
+    // The carpools the parent was ever in (memberships of any status).
+    const carpoolIds = new Set<string>();
+    for (const m of (await this.db.collection("memberships").where("uid", "==", uid).limit(500).get()).docs) {
+      const id = text(m.get("carpoolId"));
+      if (id) carpoolIds.add(id);
+    }
+    for (const carpoolId of carpoolIds) {
+      const carpool = this.db.collection("carpools").doc(carpoolId);
+      const card = await carpool.get();
+      if (card.exists) {
+        const change = anonymiseCarpool(card.data() ?? {}, uid);
+        if (change) await carpool.update(change);
+      }
+      for (const [sub, fn] of [
+        ["schedule", anonymiseRun],
+        ["swaps", anonymiseSwap],
+        ["balances", anonymiseBalance],
+      ] as const) {
+        let last: QueryDocumentSnapshot | null = null;
+        for (;;) {
+          let q = carpool.collection(sub).orderBy(FieldPath.documentId()).limit(BATCH);
+          if (last) q = q.startAfter(last);
+          const page = await q.get();
+          await apply(page.docs, fn);
+          if (page.size < BATCH) break;
+          last = page.docs[page.docs.length - 1];
+        }
+      }
     }
   }
 
@@ -511,8 +556,9 @@ export class FirestoreRetentionStore implements RetentionStore {
   }
 
   async endClosedCarpoolChats(nowMs: number, limit: number, freeze: (cid: string) => Promise<void>): Promise<number> {
-    // Carpools closed in the last 3 days (the job runs daily).
-    const closed = await this.db.collection("carpools").where("status", "==", "closed").where("updatedAt", ">=", ts(nowMs - 3 * DAY_MS)).limit(limit).get();
+    // Carpools closed in the last 30 days (the job runs daily; a missed
+    // week still catches up; a chat already ended is skipped).
+    const closed = await this.db.collection("carpools").where("status", "==", "closed").where("updatedAt", ">=", ts(nowMs - 30 * DAY_MS)).limit(limit).get();
     let ended = 0;
     for (const c of closed.docs) {
       const channels = await this.db.collection("chatChannels").where("kind", "==", "carpool").where("refId", "==", c.id).limit(1).get();
@@ -524,6 +570,18 @@ export class FirestoreRetentionStore implements RetentionStore {
       }
     }
     return ended;
+  }
+
+  async purgeClosedCarpoolsBefore(before: number, limit: number): Promise<number> {
+    const closed = await this.db.collection("carpools").where("status", "==", "closed").where("updatedAt", "<=", ts(before)).limit(limit).get();
+    for (const c of closed.docs) {
+      for (const t of (await this.db.collection("trips").where("carpoolId", "==", c.id).limit(2_000).get()).docs) await this.db.recursiveDelete(t.ref);
+      await deleteQuery(this.db, this.db.collection("memberships").where("carpoolId", "==", c.id));
+      await deleteQuery(this.db, this.db.collection("carpoolInvites").where("carpoolId", "==", c.id));
+      // Last: the card with members, requests, pickupPoints, schedule, swaps, balances, emergencies.
+      await this.db.recursiveDelete(c.ref);
+    }
+    return closed.size;
   }
 
   async endedChatsBefore(before: number, limit: number): Promise<string[]> {

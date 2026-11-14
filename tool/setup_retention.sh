@@ -61,6 +61,7 @@ ttl expiresAt logins
 ttl expiresAt devices
 ttl expiresAt mail
 ttl expiresAt retentionRuns
+ttl expiresAt walletDaily
 
 if [ "${prod}" = true ]; then
   echo "== Point-in-time recovery (prod)"
