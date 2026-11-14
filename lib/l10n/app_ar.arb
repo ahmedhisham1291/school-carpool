@@ -8947,5 +8947,812 @@
   "adminDeviceShowPhotos": "اعرض الصور",
   "@adminDeviceShowPhotos": {
     "description": "Admin button: open the photos after choosing a reason (one line)"
+  },
+  "featureOffTitle": "غير متاح حاليًا",
+  "@featureOffTitle": {
+    "description": "Title of the screen shown for a feature that is switched off. One line at 320 dp."
+  },
+  "featureOffBody": "هذه الخدمة غير مفعّلة الآن. ستظهر هنا عند تفعيلها، دون تحديث التطبيق.",
+  "@featureOffBody": {
+    "description": "Body of the feature-off screen"
+  },
+  "featureOffAction": "العودة لحسابي",
+  "@featureOffAction": {
+    "description": "Button on the feature-off screen. One line."
+  },
+  "settleTitle": "التسوية",
+  "@settleTitle": {
+    "description": "Settle up: screen title and Profile row title. One line."
+  },
+  "profileSettleHelper": "سجّل ما لك وما عليك مع أولياء الأمور",
+  "@profileSettleHelper": {
+    "description": "Profile row subtitle for Settle up"
+  },
+  "settleCarpoolRowHelper": "طلبات الدفع بين أولياء أمور هذا المشوار",
+  "@settleCarpoolRowHelper": {
+    "description": "Carpool page row subtitle for Settle up"
+  },
+  "contributionHelperSettle": "اتفاق بين الأهالي، يُدفع نقدًا أو عبر «التسوية». التطبيق لا يأخذ شيئًا.",
+  "@contributionHelperSettle": {
+    "description": "How a contribution is paid while the wallet is off and Settle up is on"
+  },
+  "contributionHelperCash": "اتفاق بين الأهالي ويُدفع نقدًا. التطبيق لا يأخذ شيئًا.",
+  "@contributionHelperCash": {
+    "description": "How a contribution is paid while the wallet and Settle up are off"
+  },
+  "notifSettleRequestedTitle": "طلب تسوية جديد",
+  "@notifSettleRequestedTitle": {
+    "description": "Notification title. One line."
+  },
+  "notifSettleRequestedBody": "طلب منك ولي أمر تسوية مبلغ. افتح «التسوية» للتفاصيل.",
+  "@notifSettleRequestedBody": {
+    "description": "Notification body. No amount or name."
+  },
+  "notifSettlePaidTitle": "تم تسجيل دفعة",
+  "@notifSettlePaidTitle": {
+    "description": "Notification title. One line."
+  },
+  "notifSettlePaidBody": "سجّل ولي أمر أنه دفع لك. افتح «التسوية» وأكّد الاستلام.",
+  "@notifSettlePaidBody": {
+    "description": "Notification body. No amount or name."
+  },
+  "notifSettleUpdatedTitle": "تحديث في التسوية",
+  "@notifSettleUpdatedTitle": {
+    "description": "Notification title. One line."
+  },
+  "notifSettleUpdatedBody": "تغيّرت حالة أحد سجلات التسوية. افتح «التسوية».",
+  "@notifSettleUpdatedBody": {
+    "description": "Notification body. No amount or name."
+  },
+  "dataSettleUp": "التسوية",
+  "@dataSettleUp": {
+    "description": "Data type"
+  },
+  "dataSettleUpBody": "عنوان إنستاباي الخاص بك وسجلات طلبات الدفع بينك وبين أولياء الأمور. التطبيق لا يحتفظ بأي أموال ولا ببيانات بنكية.",
+  "@dataSettleUpBody": {
+    "description": "What the Settle up data type holds"
+  },
+  "settleAddressInvalid": "اكتب العنوان بهذا الشكل: name@instapay (حروف إنجليزية وأرقام).",
+  "@settleAddressInvalid": {
+    "description": "InstaPay address field error"
+  },
+  "settleAmountInvalid": "اكتب مبلغًا من 1 جنيه، بقرشين على الأكثر.",
+  "@settleAmountInvalid": {
+    "description": "Amount field error"
+  },
+  "settleAmountTooHigh": "أقصى مبلغ للطلب الواحد {amount}.",
+  "@settleAmountTooHigh": {
+    "description": "Amount above the server maximum",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settleErrorNotVerified": "«التسوية» لأولياء الأمور الموثّقين فقط. وثّق حسابك أولًا.",
+  "@settleErrorNotVerified": {
+    "description": "Settle up refused: not verified"
+  },
+  "settleErrorSuspended": "حسابك موقوف، فلا يمكنك إنشاء طلبات جديدة.",
+  "@settleErrorSuspended": {
+    "description": "Settle up refused: suspended"
+  },
+  "settleErrorNotAllowed": "لا يمكن إنشاء طلب مع ولي الأمر هذا. يجب أن تكونا في المشوار نفسه وحسابكما موثّق.",
+  "@settleErrorNotAllowed": {
+    "description": "Settle up refused: not in the same carpool, not verified or blocked"
+  },
+  "settleErrorNoAddress": "أضف عنوان إنستاباي الخاص بك أولًا ليتمكن ولي الأمر من الدفع لك.",
+  "@settleErrorNoAddress": {
+    "description": "A payee needs a saved address before asking"
+  },
+  "settleErrorNotFound": "لم نجد هذا السجل. ربما حُذف أو ليس من سجلاتك.",
+  "@settleErrorNotFound": {
+    "description": "Record not found"
+  },
+  "settleErrorState": "تغيّرت حالة هذا السجل. راجع حالته الآن ثم حاول.",
+  "@settleErrorState": {
+    "description": "The action no longer fits the record's state"
+  },
+  "settleErrorTooManyOpen": "لديكما سجلات كثيرة لم تُغلق. أغلقا بعضها أولًا.",
+  "@settleErrorTooManyOpen": {
+    "description": "Too many unfinished records between two parents"
+  },
+  "settleErrorReported": "أرسلت بلاغًا عن هذا السجل من قبل.",
+  "@settleErrorReported": {
+    "description": "Already reported"
+  },
+  "settleErrorRateLimited": "محاولات كثيرة. حاول بعد قليل.",
+  "@settleErrorRateLimited": {
+    "description": "Rate limited"
+  },
+  "settleErrorDeviceCheck": "أكّد هاتفك الجديد أولًا من «الخصوصية» في حسابي.",
+  "@settleErrorDeviceCheck": {
+    "description": "Refused during the new-phone check"
+  },
+  "settleStatusOpen": "لم يُدفع",
+  "@settleStatusOpen": {
+    "description": "Record state badge. One line."
+  },
+  "settleStatusPaid": "بانتظار التأكيد",
+  "@settleStatusPaid": {
+    "description": "Record state badge. One line."
+  },
+  "settleStatusClosed": "تم الاستلام",
+  "@settleStatusClosed": {
+    "description": "Record state badge. One line."
+  },
+  "settleStatusCancelled": "أُلغي",
+  "@settleStatusCancelled": {
+    "description": "Record state badge. One line."
+  },
+  "settleStatusDeclined": "مرفوض",
+  "@settleStatusDeclined": {
+    "description": "Record state badge. One line."
+  },
+  "settleNextPay": "ادفع من تطبيق إنستاباي ثم اضغط «دفعت».",
+  "@settleNextPay": {
+    "description": "What the payer does next"
+  },
+  "settleNextWaitPay": "بانتظار أن يدفع ولي الأمر.",
+  "@settleNextWaitPay": {
+    "description": "What the payee waits for"
+  },
+  "settleNextConfirm": "راجع حسابك في إنستاباي ثم أكّد الاستلام.",
+  "@settleNextConfirm": {
+    "description": "What the payee does next"
+  },
+  "settleNextWaitConfirm": "بانتظار أن يؤكد ولي الأمر الاستلام.",
+  "@settleNextWaitConfirm": {
+    "description": "What the payer waits for"
+  },
+  "settleNextClosed": "أكّد المستلم وصول المبلغ. انتهى السجل.",
+  "@settleNextClosed": {
+    "description": "Finished record"
+  },
+  "settleNextCancelled": "أُلغي هذا الطلب.",
+  "@settleNextCancelled": {
+    "description": "Cancelled record"
+  },
+  "settleNextDeclined": "رفض الدافع هذا الطلب.",
+  "@settleNextDeclined": {
+    "description": "Declined record"
+  },
+  "settleReasonLabel": "السبب",
+  "@settleReasonLabel": {
+    "description": "Label above the reason. One line."
+  },
+  "settleReasonContribution": "مساهمة",
+  "@settleReasonContribution": {
+    "description": "Reason chip. One line."
+  },
+  "settleReasonFuel": "وقود",
+  "@settleReasonFuel": {
+    "description": "Reason chip. One line."
+  },
+  "settleReasonOther": "أخرى",
+  "@settleReasonOther": {
+    "description": "Reason chip. One line."
+  },
+  "settleYouPay": "تدفع {amount}",
+  "@settleYouPay": {
+    "description": "Direction of a record in a list row",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settlePaysYou": "يدفع لك {amount}",
+  "@settlePaysYou": {
+    "description": "Direction of a record in a list row",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settleRowSubtitle": "{direction} · {status}",
+  "@settleRowSubtitle": {
+    "description": "List row subtitle: direction and state",
+    "placeholders": {
+      "direction": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "settleDeletedParent": "حساب محذوف",
+  "@settleDeletedParent": {
+    "description": "Shown instead of a name when nothing is left. One line."
+  },
+  "settleEventRequestedMe": "طلبتَ الدفع",
+  "@settleEventRequestedMe": {
+    "description": "History entry. One line."
+  },
+  "settleEventRequestedThem": "طُلب منك الدفع",
+  "@settleEventRequestedThem": {
+    "description": "History entry. One line."
+  },
+  "settleEventPaidMe": "سجّلتَ أنك دفعت",
+  "@settleEventPaidMe": {
+    "description": "History entry. One line."
+  },
+  "settleEventPaidThem": "سُجّل أنه دُفع",
+  "@settleEventPaidThem": {
+    "description": "History entry. One line."
+  },
+  "settleEventReceivedMe": "أكّدتَ الاستلام",
+  "@settleEventReceivedMe": {
+    "description": "History entry. One line."
+  },
+  "settleEventReceivedThem": "تم تأكيد الاستلام",
+  "@settleEventReceivedThem": {
+    "description": "History entry. One line."
+  },
+  "settleEventNotReceivedMe": "قلتَ إنه لم يصل",
+  "@settleEventNotReceivedMe": {
+    "description": "History entry. One line."
+  },
+  "settleEventNotReceivedThem": "قيل إنه لم يصل",
+  "@settleEventNotReceivedThem": {
+    "description": "History entry. One line."
+  },
+  "settleEventCancelled": "أُلغي الطلب",
+  "@settleEventCancelled": {
+    "description": "History entry. One line."
+  },
+  "settleEventDeclined": "رُفض الطلب",
+  "@settleEventDeclined": {
+    "description": "History entry. One line."
+  },
+  "settleEventReported": "أُرسل بلاغ",
+  "@settleEventReported": {
+    "description": "History entry. One line."
+  },
+  "settleEventAccountClosed": "أُغلق حساب",
+  "@settleEventAccountClosed": {
+    "description": "History entry. One line."
+  },
+  "settleVerifyTitle": "وثّق حسابك أولًا",
+  "@settleVerifyTitle": {
+    "description": "Title for unverified parents. One line."
+  },
+  "settleNoMoney": "التطبيق لا ينقل أموالًا. يسجّل الطلبات فقط، والدفع يتم من تطبيق إنستاباي.",
+  "@settleNoMoney": {
+    "description": "The principle, shown on every settle-up screen"
+  },
+  "settleAddressRow": "عنوان إنستاباي",
+  "@settleAddressRow": {
+    "description": "Row title for my InstaPay address. One line."
+  },
+  "settleAddressMissing": "أضف عنوانك ليدفع لك الآخرون",
+  "@settleAddressMissing": {
+    "description": "Row subtitle when no address is saved"
+  },
+  "settleNewAction": "طلب جديد",
+  "@settleNewAction": {
+    "description": "Primary button on the Settle up screen. One line."
+  },
+  "settleSummarySection": "الملخص",
+  "@settleSummarySection": {
+    "description": "Section header. One line."
+  },
+  "settleOpenSection": "لم تنتهِ",
+  "@settleOpenSection": {
+    "description": "Section header: unfinished records. One line."
+  },
+  "settleClosedSection": "انتهت",
+  "@settleClosedSection": {
+    "description": "Section header: finished records. One line."
+  },
+  "settleOpenEmpty": "لا توجد طلبات مفتوحة. اضغط «طلب جديد» للبدء.",
+  "@settleOpenEmpty": {
+    "description": "Empty state under Open"
+  },
+  "settleSummaryYouOwe": "عليك: {amount}",
+  "@settleSummaryYouOwe": {
+    "description": "Summary line",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settleSummaryOwesYou": "لك: {amount}",
+  "@settleSummaryOwesYou": {
+    "description": "Summary line",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settleSummaryWaiting": "بانتظار التأكيد: {amount}",
+  "@settleSummaryWaiting": {
+    "description": "Summary line",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settleAddressTitle": "عنوان إنستاباي",
+  "@settleAddressTitle": {
+    "description": "Screen title. One line."
+  },
+  "settleAddressIntro": "عنوان إنستاباي يشبه البريد الإلكتروني وينتهي بـ @instapay. يستخدمه الآخرون ليدفعوا لك من تطبيق إنستاباي.",
+  "@settleAddressIntro": {
+    "description": "Intro on the address screen"
+  },
+  "settleAddressLabel": "عنوان إنستاباي",
+  "@settleAddressLabel": {
+    "description": "Field label. One line."
+  },
+  "settleAddressHint": "name@instapay",
+  "@settleAddressHint": {
+    "description": "Field hint (not translated)"
+  },
+  "settleAddressHelper": "تجده في تطبيق إنستاباي ضمن بيانات حسابك.",
+  "@settleAddressHelper": {
+    "description": "Field helper"
+  },
+  "settleAddressPrivate": "يظهر فقط لك ولمن لديه طلب دفع مفتوح منك. لا نطلب أبدًا رقم حساب أو بطاقة.",
+  "@settleAddressPrivate": {
+    "description": "Who sees the address"
+  },
+  "settleAddressAdd": "إضافة العنوان",
+  "@settleAddressAdd": {
+    "description": "Button. One line."
+  },
+  "settleAddressSaved": "تم حفظ العنوان.",
+  "@settleAddressSaved": {
+    "description": "Snack bar"
+  },
+  "settleAddressRemove": "حذف العنوان",
+  "@settleAddressRemove": {
+    "description": "Button and confirm label. One line."
+  },
+  "settleAddressRemoveTitle": "حذف العنوان؟",
+  "@settleAddressRemoveTitle": {
+    "description": "Confirm dialog title. One line."
+  },
+  "settleAddressRemoveBody": "لن يتمكن أولياء الأمور من رؤية عنوانك في الطلبات المفتوحة حتى تضيفه من جديد.",
+  "@settleAddressRemoveBody": {
+    "description": "Confirm dialog body"
+  },
+  "settleAddressRemoved": "تم حذف العنوان.",
+  "@settleAddressRemoved": {
+    "description": "Snack bar"
+  },
+  "settleNewTitle": "طلب جديد",
+  "@settleNewTitle": {
+    "description": "Screen title. One line."
+  },
+  "settleWhatTitle": "ماذا تريد أن تسجّل؟",
+  "@settleWhatTitle": {
+    "description": "Step 1 heading"
+  },
+  "settleKindRequest": "طلب دفع",
+  "@settleKindRequest": {
+    "description": "Chip. One line."
+  },
+  "settleKindPaid": "دفعتُ بالفعل",
+  "@settleKindPaid": {
+    "description": "Chip. One line."
+  },
+  "settleKindRequestHelper": "تطلب من ولي أمر أن يدفع لك. سيرى عنوان إنستاباي الخاص بك.",
+  "@settleKindRequestHelper": {
+    "description": "Helper under the chips"
+  },
+  "settleKindPaidHelper": "تسجّل مبلغًا دفعته لولي أمر، وينتظر تأكيده.",
+  "@settleKindPaidHelper": {
+    "description": "Helper under the chips"
+  },
+  "settleWhoSection": "أولياء أمور مشاويرك",
+  "@settleWhoSection": {
+    "description": "Section header. One line."
+  },
+  "settleContactsEmpty": "لا يوجد أولياء أمور في مشاويرك بعد.",
+  "@settleContactsEmpty": {
+    "description": "Empty contacts"
+  },
+  "settleContactNotVerified": "حسابه غير موثّق بعد",
+  "@settleContactNotVerified": {
+    "description": "Row subtitle for a parent who cannot be chosen"
+  },
+  "settleAmountTitleRequest": "كم تطلب من {name}؟",
+  "@settleAmountTitleRequest": {
+    "description": "Step 2 heading (asking)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settleAmountTitlePaid": "كم دفعت إلى {name}؟",
+  "@settleAmountTitlePaid": {
+    "description": "Step 2 heading (paid)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settleAmountHelper": "حتى {amount} للطلب الواحد.",
+  "@settleAmountHelper": {
+    "description": "Amount field helper",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settleNoteHelper": "اختياري، يراه ولي الأمر الآخر.",
+  "@settleNoteHelper": {
+    "description": "Note field helper"
+  },
+  "settleReviewTitle": "راجع قبل الإرسال",
+  "@settleReviewTitle": {
+    "description": "Step 3 heading"
+  },
+  "settleReviewRequest": "تطلب من {name} أن يدفع لك",
+  "@settleReviewRequest": {
+    "description": "Review line (asking)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settleReviewPaid": "تسجّل أنك دفعت إلى {name}",
+  "@settleReviewPaid": {
+    "description": "Review line (paid)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settleSendAction": "إرسال الطلب",
+  "@settleSendAction": {
+    "description": "Primary button. One line."
+  },
+  "settleRecordAction": "تسجيل الدفعة",
+  "@settleRecordAction": {
+    "description": "Primary button. One line."
+  },
+  "settleSent": "تم إرسال الطلب.",
+  "@settleSent": {
+    "description": "Snack bar"
+  },
+  "settleRecorded": "تم تسجيل الدفعة.",
+  "@settleRecorded": {
+    "description": "Snack bar"
+  },
+  "settleDetailTitle": "تفاصيل الطلب",
+  "@settleDetailTitle": {
+    "description": "Screen title. One line."
+  },
+  "settleDetailYouPay": "تدفع إلى {name}",
+  "@settleDetailYouPay": {
+    "description": "Who pays whom",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settleDetailPaysYou": "يدفع لك {name}",
+  "@settleDetailPaysYou": {
+    "description": "Who pays whom",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settleAddressOf": "عنوان إنستاباي: {name}",
+  "@settleAddressOf": {
+    "description": "Label above the payee's address. One line.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settleCopyAction": "نسخ العنوان",
+  "@settleCopyAction": {
+    "description": "Copy button. One line."
+  },
+  "settleAddressCopied": "تم نسخ العنوان.",
+  "@settleAddressCopied": {
+    "description": "Snack bar after copying"
+  },
+  "settleNoAddressYet": "لم يحفظ {name} عنوان إنستاباي بعد. اطلبه منه في المحادثة.",
+  "@settleNoAddressYet": {
+    "description": "No address saved by the payee",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settleHowTitle": "طريقة الدفع",
+  "@settleHowTitle": {
+    "description": "Heading above the steps"
+  },
+  "settleHowStep1": "1. انسخ العنوان.",
+  "@settleHowStep1": {
+    "description": "Step"
+  },
+  "settleHowStep2": "2. افتح تطبيق إنستاباي وأرسل المبلغ إلى العنوان.",
+  "@settleHowStep2": {
+    "description": "Step"
+  },
+  "settleHowStep3": "3. ارجع إلى هنا واضغط «دفعت».",
+  "@settleHowStep3": {
+    "description": "Step"
+  },
+  "settlePaidAction": "دفعت",
+  "@settlePaidAction": {
+    "description": "Primary button for the payer. One line."
+  },
+  "settleReceivedAction": "استلمت",
+  "@settleReceivedAction": {
+    "description": "Primary button for the payee. One line."
+  },
+  "settleNotReceivedAction": "لم يصلني",
+  "@settleNotReceivedAction": {
+    "description": "Button for the payee. One line."
+  },
+  "settleCancelAction": "إلغاء الطلب",
+  "@settleCancelAction": {
+    "description": "Button for the payee. One line."
+  },
+  "settleDeclineAction": "رفض الطلب",
+  "@settleDeclineAction": {
+    "description": "Button for the payer. One line."
+  },
+  "settleConfirmReceivedTitle": "تأكيد الاستلام؟",
+  "@settleConfirmReceivedTitle": {
+    "description": "Dialog title. One line."
+  },
+  "settleConfirmReceivedBody": "تأكّد من وصول المبلغ إلى حسابك في إنستاباي أولًا. بعد التأكيد يُغلق السجل ولا يمكن التراجع.",
+  "@settleConfirmReceivedBody": {
+    "description": "Dialog body"
+  },
+  "settleConfirmNotReceivedTitle": "لم يصلك المبلغ؟",
+  "@settleConfirmNotReceivedTitle": {
+    "description": "Dialog title. One line."
+  },
+  "settleConfirmNotReceivedBody": "يعود الطلب مفتوحًا ويُخطر ولي الأمر الآخر.",
+  "@settleConfirmNotReceivedBody": {
+    "description": "Dialog body"
+  },
+  "settleConfirmCancelTitle": "إلغاء الطلب؟",
+  "@settleConfirmCancelTitle": {
+    "description": "Dialog title. One line."
+  },
+  "settleConfirmCancelBody": "يُغلق الطلب ولا يمكن فتحه من جديد. يمكنك إنشاء طلب آخر.",
+  "@settleConfirmCancelBody": {
+    "description": "Dialog body"
+  },
+  "settleConfirmDeclineTitle": "رفض الطلب؟",
+  "@settleConfirmDeclineTitle": {
+    "description": "Dialog title. One line."
+  },
+  "settleConfirmDeclineBody": "يُغلق الطلب ويُخطر ولي الأمر الآخر. لا يمكن التراجع.",
+  "@settleConfirmDeclineBody": {
+    "description": "Dialog body"
+  },
+  "settleDonePaid": "سُجّل أنك دفعت.",
+  "@settleDonePaid": {
+    "description": "Snack bar"
+  },
+  "settleDoneReceived": "تم تأكيد الاستلام.",
+  "@settleDoneReceived": {
+    "description": "Snack bar"
+  },
+  "settleDoneNotReceived": "عاد الطلب مفتوحًا.",
+  "@settleDoneNotReceived": {
+    "description": "Snack bar"
+  },
+  "settleDoneCancelled": "أُلغي الطلب.",
+  "@settleDoneCancelled": {
+    "description": "Snack bar"
+  },
+  "settleDoneDeclined": "رُفض الطلب.",
+  "@settleDoneDeclined": {
+    "description": "Snack bar"
+  },
+  "settleReportAction": "إبلاغ الإدارة",
+  "@settleReportAction": {
+    "description": "Button. One line."
+  },
+  "settleReportTitle": "إبلاغ الإدارة؟",
+  "@settleReportTitle": {
+    "description": "Dialog title. One line."
+  },
+  "settleReportBody": "تراجع الإدارة سلوك ولي الأمر الآخر. التطبيق لا يستطيع استرداد أي مبلغ: الأموال تنتقل عبر إنستاباي فقط.",
+  "@settleReportBody": {
+    "description": "Dialog body"
+  },
+  "settleReportDone": "تم إرسال البلاغ.",
+  "@settleReportDone": {
+    "description": "Snack bar"
+  },
+  "settleNotFoundTitle": "السجل غير موجود",
+  "@settleNotFoundTitle": {
+    "description": "Empty state title. One line."
+  },
+  "settleHistorySection": "السجل",
+  "@settleHistorySection": {
+    "description": "Section header. One line."
+  },
+  "adminNavSettings": "الإعدادات",
+  "@adminNavSettings": {
+    "description": "Admin navigation label. One short word."
+  },
+  "adminSettingsTitle": "الإعدادات",
+  "@adminSettingsTitle": {
+    "description": "Admin page title. One line."
+  },
+  "adminSettingsIntro": "فعّل أو أوقف الخدمات الاختيارية لكل أولياء الأمور. التغيير لا يحتاج تحديثًا للتطبيق ويُكتب في السجل.",
+  "@adminSettingsIntro": {
+    "description": "Intro on the admin settings page (super admin)"
+  },
+  "adminSettingsReadOnly": "المشرف العام فقط يستطيع تغيير هذه الإعدادات.",
+  "@adminSettingsReadOnly": {
+    "description": "Intro on the admin settings page (other admins)"
+  },
+  "adminSettingsFeatures": "الخدمات",
+  "@adminSettingsFeatures": {
+    "description": "Section header. One line."
+  },
+  "adminSettingsCore": "تسجيل الدخول والتوثيق والمشاوير والجدول والرحلات والتنبيهات والمحادثات تعمل دائمًا.",
+  "@adminSettingsCore": {
+    "description": "Note under the switches"
+  },
+  "adminFeatureWallet": "المحفظة",
+  "@adminFeatureWallet": {
+    "description": "Feature switch title. One line."
+  },
+  "adminFeatureWalletHelper": "تحويلات بين أولياء الأمور عبر الشريك المرخّص. موقوفة حتى توقيع العقد.",
+  "@adminFeatureWalletHelper": {
+    "description": "Feature switch helper"
+  },
+  "adminFeatureRatings": "التقييم والتزكية",
+  "@adminFeatureRatings": {
+    "description": "Feature switch title. One line."
+  },
+  "adminFeatureRatingsHelper": "نجوم وتزكيات بعد المشاوير المشتركة. لا علاقة لها بمن يُسمح له بالقيادة.",
+  "@adminFeatureRatingsHelper": {
+    "description": "Feature switch helper"
+  },
+  "adminFeatureYearly": "المراجعة السنوية",
+  "@adminFeatureYearly": {
+    "description": "Feature switch title. One line."
+  },
+  "adminFeatureYearlyHelper": "تأكيد الأطفال والصفوف والمدارس كل عام. عند الإيقاف لا يُذكَّر أحد ولا يُمنع أحد.",
+  "@adminFeatureYearlyHelper": {
+    "description": "Feature switch helper"
+  },
+  "adminFeatureSettle": "التسوية",
+  "@adminFeatureSettle": {
+    "description": "Feature switch title. One line."
+  },
+  "adminFeatureSettleHelper": "سجلات الدفع بين أولياء الأمور، والدفع عبر إنستاباي. التطبيق لا ينقل أموالًا.",
+  "@adminFeatureSettleHelper": {
+    "description": "Feature switch helper"
+  },
+  "adminFeatureOnTitle": "تفعيل الخدمة؟",
+  "@adminFeatureOnTitle": {
+    "description": "Confirm dialog title. One line."
+  },
+  "adminFeatureOffTitle": "إيقاف الخدمة؟",
+  "@adminFeatureOffTitle": {
+    "description": "Confirm dialog title. One line."
+  },
+  "adminFeatureOnBody": "ستظهر «{name}» لكل أولياء الأمور فورًا.",
+  "@adminFeatureOnBody": {
+    "description": "Confirm dialog body",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminFeatureOffBody": "ستختفي «{name}» من التطبيق لكل أولياء الأمور وتتوقف وظائفها. لا يُحذف شيء.",
+  "@adminFeatureOffBody": {
+    "description": "Confirm dialog body",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminFeatureTurnOn": "تفعيل",
+  "@adminFeatureTurnOn": {
+    "description": "Confirm button. One line."
+  },
+  "adminFeatureTurnOff": "إيقاف",
+  "@adminFeatureTurnOff": {
+    "description": "Confirm button. One line."
+  },
+  "adminErrFeatureOff": "هذه الخدمة موقوفة. فعّلها من الإعدادات أولًا.",
+  "@adminErrFeatureOff": {
+    "description": "Admin error: the feature is off"
+  },
+  "adminAuditFeatureOn": "تفعيل خدمة",
+  "@adminAuditFeatureOn": {
+    "description": "Audit log action. One line."
+  },
+  "adminAuditFeatureOff": "إيقاف خدمة",
+  "@adminAuditFeatureOff": {
+    "description": "Audit log action. One line."
+  },
+  "adminAuditSettleView": "عرض سجلات التسوية",
+  "@adminAuditSettleView": {
+    "description": "Audit log action. One line."
+  },
+  "adminSettleSection": "التسوية",
+  "@adminSettleSection": {
+    "description": "Section header on the admin user page. One line."
+  },
+  "adminSettleIntro": "للقراءة فقط. اختر السبب أولًا: فتح القائمة يُكتب في السجل. لا يظهر عنوان إنستاباي ولا الملاحظات.",
+  "@adminSettleIntro": {
+    "description": "Intro above the admin settle-up list"
+  },
+  "adminSettleShow": "عرض السجلات",
+  "@adminSettleShow": {
+    "description": "Button. One line."
+  },
+  "adminSettleNone": "لا توجد سجلات تسوية.",
+  "@adminSettleNone": {
+    "description": "Empty list"
+  },
+  "adminSettleFrom": "من {name}: {amount}",
+  "@adminSettleFrom": {
+    "description": "Row title: the parent is paid by name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSettleTo": "إلى {name}: {amount}",
+  "@adminSettleTo": {
+    "description": "Row title: the parent pays name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adminSettleBounced": "لم يصل: {count}",
+  "@adminSettleBounced": {
+    "description": "How many times the payee said not received",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settleAskAddress": "اطلب من {name} عنوان إنستاباي في المحادثة، أو اطلب منه أن يرسل لك طلب دفع من «التسوية». يظهر العنوان هنا فقط في الطلبات التي يرسلها صاحبه.",
+  "@settleAskAddress": {
+    "description": "Shown instead of the payee's address on a record the payer created, or a reported one",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

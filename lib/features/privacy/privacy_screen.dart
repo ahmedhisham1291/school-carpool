@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/analytics/analytics.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/privacy/privacy_labels.dart';
 import 'package:school_carpool/features/privacy/privacy_models.dart';
 import 'package:school_carpool/features/privacy/privacy_repository.dart';
@@ -37,6 +38,15 @@ final Provider<LinkOpener> linkOpenerProvider = Provider<LinkOpener>(
 ///
 /// States: loading (skeleton), error and offline (retry). Never empty (the
 /// data types are always listed).
+/// Whether [t] is listed on the privacy screen: the wallet, ratings and
+/// Settle up only while their feature switch is on.
+bool dataTypeShown(DataType t, FeatureSwitches features) => switch (t) {
+  DataType.wallet => features.wallet,
+  DataType.ratings => features.ratingsAndVouching,
+  DataType.settleUp => features.settleUp,
+  _ => true,
+};
+
 class PrivacyScreen extends ConsumerWidget {
   const PrivacyScreen({super.key});
 
@@ -167,6 +177,7 @@ class _PrivacyContentState extends ConsumerState<_PrivacyContent> {
 
   @override
   Widget build(BuildContext context) {
+    final FeatureSwitches features = ref.watch(featureSwitchesProvider);
     final AppLocalizations l10n = context.l10n;
     final TextStyle? quiet = context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant);
     final PrivacyOverview o = widget.overview;
@@ -196,12 +207,14 @@ class _PrivacyContentState extends ConsumerState<_PrivacyContent> {
         ),
         AppSectionHeader(l10n.privacyDataSection),
         for (final DataType t in DataType.values)
-          AppListRow(
-            key: Key('privacy.data.${t.name}'),
-            title: dataTypeTitle(l10n, t),
-            subtitle: keepLabel(l10n, keepOf(t)),
-            onTap: () => unawaited(_showType(t)),
-          ),
+          // Pilot feature switches: a feature that is off holds no data yet.
+          if (dataTypeShown(t, features))
+            AppListRow(
+              key: Key('privacy.data.${t.name}'),
+              title: dataTypeTitle(l10n, t),
+              subtitle: keepLabel(l10n, keepOf(t)),
+              onTap: () => unawaited(_showType(t)),
+            ),
         AppSectionHeader(l10n.privacyChoicesSection),
         for (final ConsentView c in o.consents)
           if (c.kind.switchable)

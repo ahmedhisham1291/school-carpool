@@ -8,9 +8,11 @@ import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/carpools/carpool_labels.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/carpools/carpool_search_screen.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/features/verification/verification_repository.dart';
@@ -71,10 +73,11 @@ List<Override> _overrides({
   VehicleRecord? vehicle,
   SettingsStore? store,
   FakeMapRepository? maps,
+  FeatureSwitches? features,
 }) => <Override>[
   flavorConfigProvider.overrideWithValue(testDevConfig),
   settingsStoreProvider.overrideWithValue(store ?? InMemorySettingsStore()),
-  ...authOverrides(session: session, carpools: carpools, sharer: sharer, maps: maps),
+  ...authOverrides(session: session, carpools: carpools, sharer: sharer, maps: maps, features: features),
   verificationRepositoryProvider.overrideWithValue(FakeVerificationRepository()),
   childrenProvider.overrideWith((Ref ref) => Stream<List<ChildRecord>>.value(children)),
   vehicleProvider.overrideWith((Ref ref) => Stream<VehicleRecord?>.value(vehicle)),
@@ -460,6 +463,30 @@ void main() {
       final Uri uri = router.routerDelegate.currentConfiguration.uri;
       expect(uri.path, '${ProfileRoutes.wallet}/${WalletRoutes.sendSegment}');
       expect(uri.queryParameters, <String, String>{'carpool': 'k1', 'amount': '5000'});
+    });
+
+    testWidgets('pilot switches: no Pay contribution while the wallet is off; the contribution is paid in cash or by Settle up', (WidgetTester tester) async {
+      final GoRouter router = await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: memberRepo(), features: FeatureSwitches.pilot));
+      expect(find.byKey(const Key('detail.payContribution')), findsNothing);
+      final AppLocalizations en = lookupAppLocalizations(AppLocales.english);
+      expect(contributionHelperText(en, FeatureSwitches.pilot), contains('paid in cash or by Settle up'));
+      expect(contributionHelperText(en, FeatureSwitches.allOn), contains('from the wallet'));
+      // Settle up (F45) opens with this carpool.
+      await _tapVisible(tester, 'detail.settleUp');
+      final Uri uri = router.routerDelegate.currentConfiguration.uri;
+      expect(uri.path, SettleUpRoutes.home);
+      expect(uri.queryParameters, <String, String>{'carpool': 'k1'});
+    });
+
+    testWidgets('pilot switches: with Settle up off too, the contribution is paid in cash and there is no Settle up row', (WidgetTester tester) async {
+      final FeatureSwitches off = FeatureSwitches.pilot.copyWith(settleUp: false);
+      await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: memberRepo(), features: off), height: 3000);
+      expect(find.byKey(const Key('detail.settleUp')), findsNothing);
+      expect(find.byKey(const Key('detail.payContribution')), findsNothing);
+      expect(contributionHelperText(lookupAppLocalizations(AppLocales.english), off), contains('paid in cash. The app takes nothing.'));
+      // The core rows are untouched.
+      expect(find.byKey(const Key('detail.schedule')), findsOneWidget);
+      expect(find.byKey(const Key('detail.chat')), findsOneWidget);
     });
 
     testWidgets('Pay contribution is not offered to the organizer', (WidgetTester tester) async {

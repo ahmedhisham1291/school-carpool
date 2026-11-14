@@ -31,6 +31,26 @@ void main() {
     });
   });
 
+  group('InstaPay addresses (F45)', () {
+    test('name@instapay is removed (it has no dot, so it is not an email)', () {
+      for (final String input in <String>['pay mona.ali@instapay now', 'MONA_92@InstaPay', 'to a-b.c@instapay.']) {
+        final String out = PiiScrubber.scrubString(input);
+        expect(out, contains(r));
+        expect(out.toLowerCase(), isNot(contains('instapay')));
+        expect(out.toLowerCase(), isNot(contains('mona')));
+      }
+    });
+
+    test('address keys are redacted whole', () {
+      expect(PiiScrubber.isSensitiveKey('instaPayAddress'), isTrue);
+      expect(PiiScrubber.isSensitiveKey('address'), isTrue);
+      expect(PiiScrubber.scrubMap(<String, Object?>{'address': 'mona.ali@instapay', 'reason': 'invalid-address'}), <String, Object?>{
+        'address': r,
+        'reason': 'invalid-address',
+      });
+    });
+  });
+
   group('scrubString keeps harmless text', () {
     test('error codes and short numbers stay readable', () {
       const String input = 'permission-denied on step 3 (HTTP 404)';

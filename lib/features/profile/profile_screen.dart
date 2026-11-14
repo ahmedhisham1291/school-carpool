@@ -9,6 +9,7 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/phone_number.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/maps/map_settings_section.dart';
 import 'package:school_carpool/features/onboarding/account_status_badge.dart';
 import 'package:school_carpool/features/onboarding/sign_out.dart';
@@ -34,10 +35,12 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppLocalizations l10n = context.l10n;
     final SessionState session = ref.watch(sessionProvider);
+    // Pilot feature switches: rows of a switched-off feature are not shown.
+    final FeatureSwitches features = ref.watch(featureSwitchesProvider);
     void retry() => ref.invalidate(sessionStreamProvider);
 
     final List<Widget> top = switch (session) {
-      SessionSignedIn(account: final Account account) => _accountSection(context, account),
+      SessionSignedIn(account: final Account account) => _accountSection(context, account, features),
       SessionSignedIn() || SessionLoading() => const <Widget>[_ProfileSkeleton()],
       SessionFailed(offline: true) => <Widget>[
         SizedBox(height: _stateHeight, child: OfflineStateView(onRetry: retry)),
@@ -104,7 +107,7 @@ class ProfileScreen extends ConsumerWidget {
 
   static const double _stateHeight = AppSpacing.s64 * 6;
 
-  List<Widget> _accountSection(BuildContext context, Account account) {
+  List<Widget> _accountSection(BuildContext context, Account account, FeatureSwitches features) {
     final AppLocalizations l10n = context.l10n;
     final String? email = account.email;
     final (String statusLabel, _, IconData statusIcon) = AccountStatusBadge.describe(
@@ -150,7 +153,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       // Prompt 11: the yearly check of children, grades and schools.
-      if (account.status == AccountStatus.verified) const YearCheckBanner(),
+      if (account.status == AccountStatus.verified && features.yearlyChecks) const YearCheckBanner(),
       Padding(
         padding: AppSpacing.screenPadding,
         child: AppCard(
@@ -229,14 +232,26 @@ class ProfileScreen extends ConsumerWidget {
       ),
       // Prompt 11 (F17): ratings and vouching, family links.
       if (account.status == AccountStatus.verified) const TrustProfileRows(),
+      // Settle up by InstaPay (F45), the pilot's payment feature: records of
+      // payments between parents; the app moves no money. Verified parents.
+      if (features.settleUp && account.status == AccountStatus.verified)
+        AppListRow(
+          key: const Key('profile.settleUp'),
+          title: l10n.settleTitle,
+          subtitle: l10n.profileSettleHelper,
+          leadingIcon: Icons.payments_outlined,
+          onTap: () => context.go(SettleUpRoutes.home),
+        ),
       // Prompt 11B (F43): verified parents; the screen explains otherwise.
-      AppListRow(
-        key: const Key('profile.wallet'),
-        title: l10n.walletTitle,
-        subtitle: l10n.profileWalletHelper,
-        leadingIcon: Icons.account_balance_wallet_outlined,
-        onTap: () => context.go(ProfileRoutes.wallet),
-      ),
+      // Hidden while the wallet is switched off (pilot).
+      if (features.wallet)
+        AppListRow(
+          key: const Key('profile.wallet'),
+          title: l10n.walletTitle,
+          subtitle: l10n.profileWalletHelper,
+          leadingIcon: Icons.account_balance_wallet_outlined,
+          onTap: () => context.go(ProfileRoutes.wallet),
+        ),
     ];
   }
 }

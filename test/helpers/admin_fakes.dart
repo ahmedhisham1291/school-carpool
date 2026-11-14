@@ -7,12 +7,14 @@ import 'package:school_carpool/admin/admin_app.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/data/admin_api.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
+import 'package:school_carpool/admin/data/admin_features.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
 import 'package:school_carpool/admin/data/admin_trust.dart';
 import 'package:school_carpool/admin/data/admin_wallet.dart';
 import 'package:school_carpool/admin/router/admin_router.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/features/auth/account.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/settings/app_settings.dart';
 import 'package:school_carpool/settings/settings_store.dart';
@@ -426,6 +428,7 @@ Future<GoRouter> pumpAdminPanel(
   FakeAdminAuthRepository? auth,
   FakeAdminWalletApi? wallet,
   FakeAdminTrustApi? trust,
+  FakeAdminFeaturesApi? features,
   String locale = 'ar',
   String themeMode = 'light',
   Size size = const Size(1280, 800),
@@ -455,6 +458,7 @@ Future<GoRouter> pumpAdminPanel(
         adminAuthRepositoryProvider.overrideWithValue(auth ?? FakeAdminAuthRepository()),
         adminWalletApiProvider.overrideWithValue(wallet ?? FakeAdminWalletApi()),
         adminTrustApiProvider.overrideWithValue(trust ?? FakeAdminTrustApi()),
+        adminFeaturesApiProvider.overrideWithValue(features ?? FakeAdminFeaturesApi()),
         ...extraOverrides,
       ],
       child: const AdminApp(),
@@ -576,5 +580,50 @@ class FakeAdminTrustApi implements AdminTrustApi {
   Future<void> resolveFlag({required String flagId, required FlagOutcome outcome}) async {
     await _maybeFail('resolveFlag:$flagId:${outcome.wire}');
     flags = <RatingFlagItem>[for (final RatingFlagItem f in flags) if (f.id != flagId) f];
+  }
+}
+
+/// Pilot feature switches and one parent's settle-up records (fake data
+/// only). Starts with the pilot defaults, like a project with no
+/// config/features document.
+class FakeAdminFeaturesApi implements AdminFeaturesApi {
+  final List<String> calls = <String>[];
+  AdminFailure? failure;
+  FeatureSwitches switches = FeatureSwitches.pilot;
+  List<AdminSettleRecord> records = <AdminSettleRecord>[
+    AdminSettleRecord(id: 's_1', payee: true, otherFirstName: 'Hoda', amount: 15000, reason: 'contribution', status: 'open', notReceived: 2, reported: true, createdAt: DateTime.utc(2026, 11, 16, 8)),
+    AdminSettleRecord(id: 's_2', payee: false, otherFirstName: 'Badr', amount: 8000, reason: 'fuel', status: 'closed', createdAt: DateTime.utc(2026, 11, 15, 8)),
+  ];
+
+  Future<void> _maybeFail(String call) async {
+    calls.add(call);
+    final AdminFailure? f = failure;
+    if (f != null) {
+      throw f;
+    }
+  }
+
+  @override
+  Future<FeatureSwitches> features() async {
+    await _maybeFail('features');
+    return switches;
+  }
+
+  @override
+  Future<FeatureSwitches> setFeature(AppFeature feature, {required bool on}) async {
+    await _maybeFail('setFeature:${feature.name}:$on');
+    switches = switch (feature) {
+      AppFeature.wallet => switches.copyWith(wallet: on),
+      AppFeature.ratingsAndVouching => switches.copyWith(ratingsAndVouching: on),
+      AppFeature.yearlyChecks => switches.copyWith(yearlyChecks: on),
+      AppFeature.settleUp => switches.copyWith(settleUp: on),
+    };
+    return switches;
+  }
+
+  @override
+  Future<List<AdminSettleRecord>> settleUps({required String uid, required AccessReasonCode reason}) async {
+    await _maybeFail('settleUps:$uid:${reason.name}');
+    return records;
   }
 }

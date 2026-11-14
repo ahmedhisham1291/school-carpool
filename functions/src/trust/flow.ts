@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { CarpoolDeps } from "../carpools/flow";
 import { cairoDate } from "../carpools/model";
 import { newEvent, type OutboxEvent } from "../notifications/model";
+import { FeatureOffError, type FeatureKey, type FeatureSwitches } from "../features/model";
 import { addDays } from "../schedule/cairo";
 import { leaveEmptyCarpools, removeChildFromCarpools, updateChildGrade } from "./carpools";
 import {
@@ -146,6 +147,19 @@ export interface TrustDeps {
   now: () => number;
   rateWindowDays: number;
   year: YearSettings;
+  /**
+   * The pilot feature switches (features/model.ts). Absent (unit tests of
+   * the features themselves): everything on.
+   */
+  features?: () => Promise<FeatureSwitches>;
+}
+
+async function featureOn(deps: TrustDeps, key: FeatureKey): Promise<boolean> {
+  return deps.features ? (await deps.features())[key] : true;
+}
+
+async function requireFeature(deps: TrustDeps, key: FeatureKey): Promise<void> {
+  if (!(await featureOn(deps, key))) throw new FeatureOffError(key);
 }
 
 export interface Caller {
@@ -197,6 +211,7 @@ export interface RateableParent {
 
 /** Parents the caller shared a finished trip with recently and has not rated this month. */
 export async function listRateable(deps: TrustDeps, caller: Caller): Promise<{ parents: RateableParent[]; month: string }> {
+  await requireFeature(deps, "ratingsAndVouching");
   await requireVerified(deps, caller);
   const day = today(deps);
   const month = monthOf(day);
@@ -220,6 +235,7 @@ export async function listRateable(deps: TrustDeps, caller: Caller): Promise<{ p
  * month). Low stars or "unsafe driving" go to the admins' queue.
  */
 export async function rateParent(deps: TrustDeps, caller: Caller, data: unknown): Promise<{ rated: true; flagged: boolean }> {
+  await requireFeature(deps, "ratingsAndVouching");
   const input = parseRating(data);
   await requireVerified(deps, caller);
   if (input.rateeUid === caller.uid) throw new TrustError("self");
@@ -261,6 +277,7 @@ export async function rateParent(deps: TrustDeps, caller: Caller, data: unknown)
  * are approved members of one carpool. The average shows from 3 ratings.
  */
 export async function getTrustSummary(deps: TrustDeps, caller: Caller, data: unknown): Promise<SummaryView> {
+  await requireFeature(deps, "ratingsAndVouching");
   const raw = data === undefined || data === null ? {} : record(data);
   const uid = raw.uid === undefined ? caller.uid : docId(raw.uid);
   await requireVerified(deps, caller);
@@ -285,6 +302,8 @@ export interface YearCheckView {
 }
 
 export async function yearCheckOf(deps: TrustDeps, account: TrustAccount): Promise<YearCheckView> {
+  // Pilot switch off: no yearly check for anyone (nothing due, nothing overdue).
+  if (!(await featureOn(deps, "yearlyChecks"))) return { state: "none", year: null, opensOn: null, startsOn: null, deadline: null, children: [] };
   const day = today(deps);
   const w = yearWindow(day, deps.year);
   const children = (await deps.store.childrenOf(account.uid)).filter((c) => c.status === "approved");
@@ -310,6 +329,7 @@ export async function yearCheckOf(deps: TrustDeps, account: TrustAccount): Promi
  * longer approved (Prompt 5 and 9 triggers). Their guardian links end.
  */
 export async function confirmSchoolYear(deps: TrustDeps, caller: Caller, data: unknown): Promise<{ state: YearState; left: number }> {
+  await requireFeature(deps, "yearlyChecks");
   const account = await requireVerified(deps, caller);
   const view = await yearCheckOf(deps, account);
   if (view.state !== "due" && view.state !== "overdue") throw new TrustError("year-not-open");
@@ -353,11 +373,14 @@ export async function getTrustOverview(
   caller: Caller,
 ): Promise<{ summary: SummaryView; toRate: number; yearCheck: YearCheckView; requests: number }> {
   const account = await requireVerified(deps, caller);
+  // Ratings switched off (pilot): no summary and nobody to rate; the family
+  // link requests and the rest of Profile keep working.
+  const ratings = await featureOn(deps, "ratingsAndVouching");
   const [rateable, yearCheck, requests, summary] = await Promise.all([
-    listRateable(deps, caller),
+    ratings ? listRateable(deps, caller) : Promise.resolve({ parents: [] as RateableParent[], month: "" }),
     yearCheckOf(deps, account),
     deps.store.guardianRequestsAs(caller.uid, "owner"),
-    deps.store.summary(caller.uid),
+    ratings ? deps.store.summary(caller.uid) : Promise.resolve(null),
   ]);
   return { summary: summaryView(summary), toRate: rateable.parents.length, yearCheck, requests: requests.filter((r) => r.status === "requested").length };
 }
@@ -529,7 +552,9 @@ export interface FlagView extends RatingFlag {
 
 /** Links waiting for review and open rating flags, with first names and the rated parent's ID. */
 export async function adminTrustQueue(deps: TrustDeps): Promise<{ links: GuardianLink[]; flags: FlagView[] }> {
-  const [links, flags] = await Promise.all([deps.store.linksInReview(100), deps.store.flags("open", 100)]);
+  // Rating flags are part of ratings and vouching (pilot switch); guardian links are not.
+  const ratings = await featureOn(deps, "ratingsAndVouching");
+  const [links, flags] = await Promise.all([deps.store.linksInReview(100), ratings ? deps.store.flags("open", 100) : Promise.resolve([] as RatingFlag[])]);
   const accounts = new Map<string, TrustAccount | null>();
   for (const uid of new Set(flags.flatMap((f) => [f.raterUid, f.rateeUid]))) accounts.set(uid, await deps.store.account(uid));
   return {
@@ -562,6 +587,7 @@ export async function adminDecideGuardianLink(deps: TrustDeps, adminUid: string,
 }
 
 export async function adminResolveRatingFlag(deps: TrustDeps, adminUid: string, data: unknown, ip: string | null): Promise<RatingFlag> {
+  await requireFeature(deps, "ratingsAndVouching");
   const raw = record(data);
   const id = docId(raw.flagId);
   if (typeof raw.outcome !== "string" || !(FLAG_OUTCOMES as readonly string[]).includes(raw.outcome)) throw new TrustError("invalid-request");

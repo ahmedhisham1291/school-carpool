@@ -50,9 +50,19 @@ account in **Sign-In Information** (section 2). Attach the run video
 > live selfie before they can join carpools. The demo account is already
 > verified, so you do not need to upload any document.
 >
-> **Wallet.** The wallet in this build is a test wallet with test money
-> (no real payments, no in-app purchases). Real money will only be handled
-> by a payment partner licensed by the Central Bank of Egypt.
+> **Payments: the app does not process payments.** "Settle up" (Profile >
+> Settle up) only records payment requests between two parents of the same
+> carpool (requested, paid, received) and shows the payee's InstaPay
+> address so the payer can copy it. The parent pays in the separate
+> InstaPay app (Egypt's national instant payment network); our app does
+> not open a payment, does not move, hold or see money, takes no fee or
+> commission, and never asks for a bank account or card number. There are
+> no in-app purchases and nothing digital is sold. The amounts are shared
+> real-world costs between parents (fuel, a contribution per child).
+>
+> **Wallet.** The wallet is switched off in this build (it is not shown).
+> If it is switched on later, real money will only be handled by a payment
+> partner licensed by the Central Bank of Egypt.
 >
 > **Camera and photos** are used for the ID check, the live selfie and
 > photos a parent chooses to send in a chat. **Face ID** locks the app (if

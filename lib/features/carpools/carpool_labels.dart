@@ -1,4 +1,5 @@
 import 'package:school_carpool/features/carpools/carpool_models.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/verification/verification_labels.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -61,3 +62,13 @@ String childText(AppLocalizations l10n, CarpoolChild c) {
 
 String childrenText(AppLocalizations l10n, List<CarpoolChild> children) =>
     children.map((CarpoolChild c) => childText(l10n, c)).join(l10n.listSeparator);
+
+/// How a contribution (F25) is paid, by what is switched on: from the
+/// wallet (F43) when it is on; during the pilot in cash or by Settle up
+/// (F45); in cash when both are off. The app never takes anything.
+String contributionHelperText(AppLocalizations l10n, FeatureSwitches features) {
+  if (features.wallet) {
+    return l10n.contributionHelper;
+  }
+  return features.settleUp ? l10n.contributionHelperSettle : l10n.contributionHelperCash;
+}

@@ -60,6 +60,9 @@ String notificationTitle(AppLocalizations l10n, NotificationKind k) => switch (k
   NotificationKind.walletFailed => l10n.notifWalletFailedTitle,
   NotificationKind.walletFrozen => l10n.notifWalletFrozenTitle,
   NotificationKind.walletUpdated => l10n.notifWalletUpdatedTitle,
+  NotificationKind.settleRequested => l10n.notifSettleRequestedTitle,
+  NotificationKind.settlePaid => l10n.notifSettlePaidTitle,
+  NotificationKind.settleUpdated => l10n.notifSettleUpdatedTitle,
   NotificationKind.licenceExpiring => l10n.notifLicenceExpiringTitle,
   NotificationKind.licenceExpired => l10n.notifLicenceExpiredTitle,
   NotificationKind.yearCheckDue => l10n.notifYearCheckTitle,
@@ -114,6 +117,9 @@ String notificationBody(AppLocalizations l10n, AppNotification n) {
     NotificationKind.walletFailed => l10n.notifWalletFailedBody,
     NotificationKind.walletFrozen => l10n.notifWalletFrozenBody,
     NotificationKind.walletUpdated => l10n.notifWalletUpdatedBody,
+    NotificationKind.settleRequested => l10n.notifSettleRequestedBody,
+    NotificationKind.settlePaid => l10n.notifSettlePaidBody,
+    NotificationKind.settleUpdated => l10n.notifSettleUpdatedBody,
     NotificationKind.licenceExpiring => l10n.notifLicenceExpiringBody(run),
     NotificationKind.licenceExpired => l10n.notifLicenceExpiredBody,
     NotificationKind.yearCheckDue => l10n.notifYearCheckBody,
@@ -126,21 +132,27 @@ String notificationBody(AppLocalizations l10n, AppNotification n) {
   };
 }
 
-IconData notificationIcon(NotificationKind k) => switch (k.group) {
-  WhatsAppGroup.noDriver || WhatsAppGroup.childNotConfirmed => Icons.warning_amber_rounded,
-  WhatsAppGroup.emergency => Icons.sos_rounded,
-  WhatsAppGroup.tripAlerts || WhatsAppGroup.trips => Icons.directions_car_outlined,
-  WhatsAppGroup.reminders => Icons.alarm_rounded,
-  WhatsAppGroup.swaps => Icons.swap_horiz_rounded,
-  WhatsAppGroup.absences => Icons.event_busy_outlined,
-  WhatsAppGroup.schedule => Icons.calendar_month_outlined,
-  WhatsAppGroup.joins => Icons.group_add_outlined,
-  WhatsAppGroup.verification => Icons.verified_user_outlined,
-  WhatsAppGroup.newParents => Icons.person_pin_circle_outlined,
-  WhatsAppGroup.wallet => Icons.account_balance_wallet_outlined,
-  WhatsAppGroup.trust => Icons.shield_outlined,
-  null => Icons.chat_bubble_outline_rounded,
-};
+IconData notificationIcon(NotificationKind k) {
+  // Settle up (F45) has no WhatsApp group: its own icon.
+  if (k == NotificationKind.settleRequested || k == NotificationKind.settlePaid || k == NotificationKind.settleUpdated) {
+    return Icons.payments_outlined;
+  }
+  return switch (k.group) {
+    WhatsAppGroup.noDriver || WhatsAppGroup.childNotConfirmed => Icons.warning_amber_rounded,
+    WhatsAppGroup.emergency => Icons.sos_rounded,
+    WhatsAppGroup.tripAlerts || WhatsAppGroup.trips => Icons.directions_car_outlined,
+    WhatsAppGroup.reminders => Icons.alarm_rounded,
+    WhatsAppGroup.swaps => Icons.swap_horiz_rounded,
+    WhatsAppGroup.absences => Icons.event_busy_outlined,
+    WhatsAppGroup.schedule => Icons.calendar_month_outlined,
+    WhatsAppGroup.joins => Icons.group_add_outlined,
+    WhatsAppGroup.verification => Icons.verified_user_outlined,
+    WhatsAppGroup.newParents => Icons.person_pin_circle_outlined,
+    WhatsAppGroup.wallet => Icons.account_balance_wallet_outlined,
+    WhatsAppGroup.trust => Icons.shield_outlined,
+    null => Icons.chat_bubble_outline_rounded,
+  };
+}
 
 /// Settings row title for a WhatsApp group (one line at 320 dp).
 String whatsAppGroupTitle(AppLocalizations l10n, WhatsAppGroup g) => switch (g) {

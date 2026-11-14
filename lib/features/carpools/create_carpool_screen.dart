@@ -11,6 +11,7 @@ import 'package:school_carpool/features/carpools/carpool_logic.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/verification/verification_labels.dart';
@@ -621,7 +622,7 @@ class _CreateCarpoolScreenState extends ConsumerState<CreateCarpoolScreen> {
           AppSwitchRow(
             key: const Key('create.contribution'),
             title: l10n.contributionSwitch,
-            subtitle: l10n.contributionHelper,
+            subtitle: contributionHelperText(l10n, ref.watch(featureSwitchesProvider)),
             value: _withContribution,
             onChanged: (bool on) => setState(() => _withContribution = on),
           ),

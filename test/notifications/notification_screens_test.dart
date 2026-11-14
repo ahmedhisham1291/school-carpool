@@ -10,6 +10,7 @@ import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/notifications/local_alarms.dart';
 import 'package:school_carpool/features/notifications/notification_center.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
@@ -45,10 +46,11 @@ List<Override> _overrides(
   FakeLocalAlarms? alarms,
   SettingsStore? store,
   SessionState session = _optedIn,
+  FeatureSwitches? features,
 }) => <Override>[
   flavorConfigProvider.overrideWithValue(testDevConfig),
   settingsStoreProvider.overrideWithValue(store ?? InMemorySettingsStore()),
-  ...authOverrides(session: session, notifications: repo, push: push, alarms: alarms),
+  ...authOverrides(session: session, notifications: repo, push: push, alarms: alarms, features: features),
 ];
 
 Future<GoRouter> _pump(
@@ -281,6 +283,23 @@ void main() {
     testWidgets('error and offline states', (WidgetTester tester) async {
       await _pump(tester, ProfileRoutes.notifications, overrides: _overrides(FakeNotificationRepository()..streamError = StateError('x')));
       expect(find.byType(ErrorStateView), findsOneWidget);
+    });
+
+    testWidgets('pilot switches: no wallet row in the alert settings while the wallet is off; the other groups stay', (WidgetTester tester) async {
+      await _pump(
+        tester,
+        ProfileRoutes.notifications,
+        overrides: _overrides(FakeNotificationRepository(), features: FeatureSwitches.pilot),
+        height: 4000,
+      );
+      expect(find.byKey(const Key('notifSettings.wallet')), findsNothing);
+      for (final WhatsAppGroup g in WhatsAppGroup.values) {
+        if (g != WhatsAppGroup.wallet) {
+          expect(find.byKey(Key('notifSettings.${g.name}')), findsOneWidget, reason: g.name);
+        }
+      }
+      // Settle up is push only: it has no WhatsApp switch at all.
+      expect(find.byKey(const Key('notifSettings.settleUp')), findsNothing);
     });
 
     testWidgets('Profile has a row to the alert settings', (WidgetTester tester) async {

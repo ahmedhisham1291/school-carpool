@@ -12,7 +12,8 @@ abstract final class SentryArea {
     if (fullPath.contains('/trip') || fullPath.contains('/emergency')) {
       return 'trips';
     }
-    if (fullPath.startsWith('/profile/wallet')) {
+    // Settle up (F45) is the pilot's payment feature: same alert as the wallet.
+    if (fullPath.startsWith('/profile/wallet') || fullPath.startsWith('/profile/settle-up')) {
       return 'wallet';
     }
     if (fullPath.startsWith('/profile/privacy')) {

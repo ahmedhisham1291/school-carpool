@@ -1,5 +1,6 @@
 import type { CarpoolDeps } from "../carpools/flow";
 import { cairoDate } from "../carpools/model";
+import type { FeatureSwitches } from "../features/model";
 import { newEvent, type OutboxEvent } from "../notifications/model";
 import { pauseDriverRuns } from "../schedule/pause";
 import { addDays, daysBetween } from "../schedule/cairo";
@@ -49,6 +50,8 @@ export interface JobDeps {
   now: () => number;
   reminderDays: number[];
   year: YearSettings;
+  /** The pilot feature switches; absent (unit tests): everything on. */
+  features?: () => Promise<FeatureSwitches>;
   log: (message: string, data?: Record<string, unknown>) => void;
 }
 
@@ -68,8 +71,10 @@ export interface DailyResult {
 
 export async function runTrustDaily(deps: JobDeps): Promise<DailyResult> {
   const result: DailyResult = { vehicles: 0, expiring: 0, expired: 0, runsFreed: 0, yearReminders: 0, overdue: 0, overdueCleared: 0 };
+  // Driving papers are driver eligibility: never switched off.
   await papersCheck(deps, result);
-  await yearCheck(deps, result);
+  // Pilot switch: with yearlyChecks off nobody is reminded or marked overdue.
+  if (!deps.features || (await deps.features()).yearlyChecks) await yearCheck(deps, result);
   return result;
 }
 

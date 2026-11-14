@@ -137,7 +137,44 @@ relaunching the app). Note the iOS version of phone A.
 | 8.4 | F13 | B: report a message from A; block A | Report in the admin panel Reports; A cannot message B |
 | 8.5 | F17 | After a shared run: Profile > Ratings > rate A | One rating per pair per month; vouch shown on A's summary |
 
-## 9. Wallet (test money)
+## 9. Settle up by InstaPay (two accounts, A and B in one carpool)
+
+The app moves no money: for this test nobody needs to pay anything. Use a
+made-up address like `a.test@instapay`. If you want to try a real payment,
+send EGP 1 between your own two InstaPay accounts.
+
+| # | Feature | Steps | Expect |
+| --- | --- | --- | --- |
+| 9.1 | F45 | A: Profile > Settle up | The line "The app does not move money"; "InstaPay address: Add yours"; no wallet row anywhere on Profile |
+| 9.2 | F45 | A: InstaPay address > type `a.test@gmail.com` | Error under the field; Save stays off |
+| 9.3 | F45 | A: type `a.test@instapay` > Save | "Address saved"; the address shows on the Settle up screen |
+| 9.4 | F45 | A: New request > Ask for payment > B > 150, Fuel, note "week 1" > Send request | The record opens, state "Not paid"; B gets a push "Settle-up request" with no amount and no name |
+| 9.5 | F45 | B: open the push (or Profile > Settle up) > the request | "You pay A", EGP 150, A's address, Copy, the three steps, "The app does not move money" |
+| 9.6 | F45 | B: Copy address, paste it into Notes | The address is pasted; "Address copied" shown |
+| 9.7 | F45 | B: tap I paid | State "Waiting to confirm"; the address is no longer shown; A gets a push "Payment recorded" |
+| 9.8 | F45 | A: open it > Not received > confirm | Back to "Not paid" for both; B gets a push |
+| 9.9 | F45 | B: I paid again; A: Not received again | "Report to admins" appears for both; A taps it > the report is in the admin panel > Reports |
+| 9.10 | F45 | B: I paid; A: Received > confirm | State "Received"; the record moves to "Finished"; no more buttons |
+| 9.11 | F45 | B: New request > I already paid > A > 50 > Record payment | A sees it waiting for confirmation; A: Received |
+| 9.11b | F45 (privacy) | B: I already paid > A > 20 > Record payment; A: Not received | On B's phone the record is "Not paid" but shows NO address, only "Ask A for their InstaPay address": an address appears only on a request its owner sent |
+| 9.12 | F45 | A: a new request to B, then Cancel request; another one, B: Decline request | Each closes after a confirmation; the other parent gets a push |
+| 9.13 | F45 | A: New request with 5001 | "The most for one request is EGP 5,000"; Next stays off |
+| 9.14 | F45, F25 | A: the carpool page | Row "Settle up"; no "Pay contribution" row; the contribution line says "in cash or by Settle up" |
+| 9.15 | F45 | Summary on A's Settle up screen | Per person: You owe, Owes you, Waiting to confirm; finished records count for nothing |
+| 9.16 | F45 | Admin panel > Users > A > Settle up > pick a reason > Show records | Read-only list, no address, no note; one "Settle-up records viewed" line in the Log |
+
+## 9b. Feature switches (admin panel > Settings, super admin)
+
+| # | Feature | Steps | Expect |
+| --- | --- | --- | --- |
+| 9b.1 | Switches | Open Settings | Wallet off, Ratings and vouching off, Yearly check off, Settle up on |
+| 9b.2 | Switches | A's phone, Profile (do not restart the app) | No Wallet row, no Rate parents row, no school-year card; Settle up row is there |
+| 9b.3 | Switches | Turn Settle up off (confirm); look at A's phone | The Settle up rows disappear within seconds; an open Settle up screen shows "Not available yet" |
+| 9b.4 | Switches | Turn Settle up on again | The rows are back, with the same records; no new build |
+| 9b.5 | Switches | Admin > Log | "Feature turned off" and "Feature turned on" with your name |
+| 9b.6 | Switches | Sign in to the panel as an ordinary admin > Settings | The switches show but cannot be changed |
+
+## 9c. Wallet (test money; only after turning the Wallet switch on)
 
 | # | Feature | Steps | Expect |
 | --- | --- | --- | --- |

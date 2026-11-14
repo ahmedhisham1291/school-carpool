@@ -33,6 +33,9 @@ enum DataType {
   notifications,
   devices,
   wallet,
+
+  /// Settle up (F45): my InstaPay address and my payment records.
+  settleUp,
   reports,
   analytics,
   crashReports,
@@ -72,7 +75,9 @@ enum Keep {
 
 /// The retention of each type (functions/src/privacy/retention.ts RETENTION).
 Keep keepOf(DataType t) => switch (t) {
-  DataType.consents || DataType.idPhotos || DataType.trips => Keep.yearAfterClosure,
+  // Settle up records: same rule as trips (while either parent's account
+  // is open, and 1 year after).
+  DataType.consents || DataType.idPhotos || DataType.trips || DataType.settleUp => Keep.yearAfterClosure,
   DataType.liveLocation => Keep.oneDay,
   DataType.routeArchive => Keep.yearAfterRun,
   DataType.chat => Keep.yearAfterChat,
