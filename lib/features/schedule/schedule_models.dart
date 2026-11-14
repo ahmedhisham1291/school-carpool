@@ -16,9 +16,11 @@ List<Object?> _list(Object? value) => value is List<Object?> ? value : const <Ob
 
 Map<Object?, Object?> _map(Object? value) => value is Map<Object?, Object?> ? value : const <Object?, Object?>{};
 
+/// An instant, always in UTC (show it with `toLocal()`; Cairo wall-clock
+/// times are the strings the server keeps, such as `time`).
 DateTime? _instant(Object? value) => switch (value) {
-  final Timestamp t => t.toDate(),
-  final num ms => DateTime.fromMillisecondsSinceEpoch(ms.toInt()),
+  final Timestamp t => t.toDate().toUtc(),
+  final num ms => DateTime.fromMillisecondsSinceEpoch(ms.toInt(), isUtc: true),
   _ => null,
 };
 

@@ -1033,5 +1033,7 @@
   "carpoolErrorTooLate": "Too late to change this run.",
   "carpoolErrorRunTaken": "Another member already took it.",
   "carpoolErrorNotPlannable": "Plan this week or the next three.",
-  "carpoolErrorTooManyExceptions": "Too many changes. Remove old ones first."
+  "carpoolErrorTooManyExceptions": "Too many changes. Remove old ones first.",
+  "scheduleDirToSchool": "To school",
+  "scheduleDirToHome": "Home"
 }

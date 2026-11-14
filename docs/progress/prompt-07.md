@@ -4,8 +4,8 @@ Branch: `prompt-07-schedule` (from `prompt-06-carpools`, which is under
 review, on top of `main` with Prompts 1 to 5). Date: 14 Nov 2026. The
 coordinator gave "go" on the owner's behalf.
 
-**Status: code complete. Functions unit tests were run here (315 pass, 43
-of them new). The Flutter code, the widget, logic, one-line and screenshot
+**Status: code complete. Functions unit tests were run here (320 pass, 46
+of them new; Prompt 6 fixes merged). The Flutter code, the widget, logic, one-line and screenshot
 tests and the rules tests were written, not run here** (no Flutter SDK or
 npm registry in this workspace). Expect small analyzer fixes on the first
 CI run.
@@ -96,6 +96,16 @@ Indexes: collection group `schedule` (status, confirmBy) and (status, startAt).
   and their future runs lose their driver; a parent who withdraws consent
   from a driver releases that driver's future runs carrying their
   children. Both alert the group.
+- **Every driver assignment re-checks the driver (Prompt 6 review,
+  non-blocking 1 and 2):** plan, driving days, confirm, swap suggestions,
+  take back, take and bringing a child back run `checkArrangement`
+  (consent and seats) against the driver's car and account **read again
+  inside the transaction** (`vehicles/{uid}`, `users/{uid}`), not the copy
+  in `members`. The creator's days chosen at creation give no run until
+  every other parent consents. A car re-verified with fewer seats or
+  expired papers, or a suspended account, stops that member driving at
+  once; planning refreshes the members' copy of the car. Seats per run are
+  always checked against the driver's current car.
 - **Limits:** 20 plans a day, 100 other schedule changes a day per parent.
 
 ## Screens and states
@@ -170,7 +180,7 @@ Indexes: collection group `schedule` (status, confirmBy) and (status, startAt).
 | Test | Status |
 | --- | --- |
 | `functions/test/schedule.test.ts` (43): Cairo offsets and conversions across the April and October 2026 changes, deadlines on the evening before (DST), late deadlines, weeks and terms; exceptions (no school beats times, Ramadan range with a later early dismissal, no new runs); rotation (one proposed driver per run, never confirmed; 5/5; **uneven children 1 and 2**; **odd 4/3/3**; term balance; driving days and fallback; consent, seats and car; open runs; exceptions; kept confirmed runs; past runs); flows: driving days need consent, admin-only and plannable weeks, plan with riders and deadlines, re-plan keeps confirmed, confirm only by the driver and before the cut-off, consent withdrawal releases runs, missed runs alert everyone and assign nobody (idempotent), balance counted once, swap request and accept (events, suggested order), **two accepts at once**, seats and consent re-checked on take, take back, swap expiry, late swap deadline, child absent and back, started runs locked, holiday cancel and reopen, Ramadan times keep drivers, exception input checks, leaving releases runs, the Done-when flow | **Run here: pass** |
-| All Functions unit tests | **Run here: 315 pass** (Node 22, `tsc` against stand-in type stubs as in earlier prompts; only the known stub gaps remain) |
+| All Functions unit tests | **Run here: 320 pass** (Node 22, `tsc` against stand-in type stubs as in earlier prompts; only the known stub gaps remain) |
 | `tests/rules/schedule.test.ts`; `deny_all.test.ts` paths | Written, not run here (CI); type-checked against a stub |
 | `test/schedule/schedule_logic_test.dart`: dates, run actions, grouping, own children, balance with uneven children, exception checks, parsing, server refusals | Written, not run here |
 | `test/schedule/schedule_screens_test.dart`: week plan (statuses, to confirm, next week empty, admin plans), confirm, can't drive (asks first), take a swap (asks first), refusal inline, take back, no action on others' runs, missed run; child absent and back; driving days with refusal; offline and error; days off (member read-only, holiday in two steps, Ramadan times need a time, remove asks first); balance (badge, zero state); detail link; **one line at 320 dp in AR and EN at x1 and x2** for titles, buttons, chips, sections, badges, run rows and the absent switch, and every schedule label | Written, not run here |

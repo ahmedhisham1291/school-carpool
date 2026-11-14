@@ -256,11 +256,15 @@ class _RunRow extends StatelessWidget {
     final (String label, AppBadgeTone tone) = runBadge(l10n, run);
     final String? driver = run.driverUid;
     final String who = driver == null ? l10n.scheduleNoDriver : (driver == uid ? l10n.scheduleYou : run.driverFirstName);
+    final String direction = run.direction == RunDirection.toSchool ? l10n.scheduleDirToSchool : l10n.scheduleDirToHome;
+    final String detail = run.status == RunStatus.cancelled ? l10n.runNoSchool : l10n.scheduleDriverLine(who, run.riders.length);
+    // The time is the title and the status badge sits beside it; no icon
+    // or chevron, so the title keeps its room at 320 dp and 200 percent.
     return AppListRow(
       key: Key('schedule.run.${run.id}'),
-      title: runTitle(l10n, run),
-      subtitle: run.status == RunStatus.cancelled ? l10n.runNoSchool : l10n.scheduleDriverLine(who, run.riders.length),
-      leadingIcon: run.direction == RunDirection.toSchool ? Icons.wb_sunny_outlined : Icons.wb_twilight_outlined,
+      title: run.time,
+      subtitle: '$direction${l10n.dotSeparator}$detail',
+      showChevron: false,
       trailing: AppStatusBadge(label: label, tone: tone),
       onTap: onTap,
     );

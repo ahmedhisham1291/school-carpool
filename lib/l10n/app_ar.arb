@@ -4486,5 +4486,13 @@
   "carpoolErrorTooManyExceptions": "تغييرات كثيرة. احذف القديم أولًا.",
   "@carpoolErrorTooManyExceptions": {
     "description": "Error"
+  },
+  "scheduleDirToSchool": "للمدرسة",
+  "@scheduleDirToSchool": {
+    "description": "Run row: the morning run to school"
+  },
+  "scheduleDirToHome": "للبيت",
+  "@scheduleDirToHome": {
+    "description": "Run row: the afternoon run home"
   }
 }

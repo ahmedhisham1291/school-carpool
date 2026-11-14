@@ -193,8 +193,8 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
           child: c.rules.isEmpty ? Text(l10n.carpoolNoRules, style: quiet) : RulesWrap(rules: c.rules),
         ),
         if (member) _MembersSection(carpoolId: _id, busy: _busy, run: _run),
-        if (member) _ScheduleLinks(carpoolId: _id),
         if (admin) _RequestsSection(carpool: c, busy: _busy, run: _run),
+        if (member) _ScheduleLinks(carpoolId: _id),
         const SizedBox(height: AppSpacing.s32),
         Padding(
           padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter),

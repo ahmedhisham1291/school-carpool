@@ -9,6 +9,7 @@ import {
 } from "../carpools/flow";
 import {
   cairoDate,
+  carInfo,
   CarpoolError,
   docId,
   driverStatus,
@@ -17,6 +18,7 @@ import {
   record,
   type ArrangementProblem,
   type CarpoolRecord,
+  type MemberRecord,
 } from "../carpools/model";
 import { addDays, cairoToUtcMs, daysBetween, isDate, termOf, weekStartOf } from "./cairo";
 import {
@@ -78,6 +80,23 @@ export function arrangementError(problem: ArrangementProblem): CarpoolError {
 }
 
 
+/**
+ * Members with their car and account read again inside the transaction
+ * ([only]: these uids; default everyone). A member's `car` is a copy taken
+ * when they joined; a car re-verified with fewer seats, expired papers or
+ * a suspended account must stop that member driving at once (Prompt 6
+ * review). Every driver assignment checks these fresh copies.
+ */
+async function withFreshCars(tx: CarpoolTx, members: MemberRecord[], only?: Array<string | null>): Promise<MemberRecord[]> {
+  return Promise.all(
+    members.map(async (m) => {
+      if (only && !only.includes(m.uid)) return m;
+      const [account, vehicle] = await Promise.all([tx.driverAccount(m.uid), tx.driverVehicle(m.uid)]);
+      return { ...m, car: account?.status === "verified" ? carInfo(vehicle) : null };
+    }),
+  );
+}
+
 function parseCarpoolRun(data: unknown): { carpoolId: string; runId: string } {
   const raw = record(data);
   const carpoolId = docId(raw.carpoolId);
@@ -112,7 +131,7 @@ export async function setDrivingDays(deps: CarpoolDeps, caller: Caller, data: un
   return deps.store.transact(async (tx) => {
     const carpool = await requireActiveCarpool(tx, carpoolId);
     const m = await requireApproved(tx, carpoolId, caller.uid);
-    const members = await tx.members(carpoolId);
+    const members = await withFreshCars(tx, await tx.members(carpoolId), [caller.uid]);
     const consents = await tx.consents(carpoolId);
     if (days.some((d) => !carpool.days.includes(d))) throw new CarpoolError("invalid-request");
     const me = members.find((x) => x.uid === caller.uid);
@@ -159,7 +178,8 @@ export async function planWeek(deps: CarpoolDeps, caller: Caller, data: unknown)
     const carpool = await requireActiveCarpool(tx, carpoolId);
     const admin = await requireApproved(tx, carpoolId, caller.uid);
     if (admin.role !== "admin") throw new CarpoolError("not-admin");
-    const members = await tx.members(carpoolId);
+    const stored = await tx.members(carpoolId);
+    const members = await withFreshCars(tx, stored);
     const consents = await tx.consents(carpoolId);
     const exceptions = await tx.exceptions(carpoolId);
     const existing = await tx.runs(carpoolId, weekStart, addDays(weekStart, 6));
@@ -177,6 +197,10 @@ export async function planWeek(deps: CarpoolDeps, caller: Caller, data: unknown)
       deadlines: deadlines(deps),
     });
     for (const run of result.runs) tx.putRun(run);
+    // Keep the members' copy of each car current (what the app shows).
+    stored.forEach((m, i) => {
+      if (JSON.stringify(m.car) !== JSON.stringify(members[i].car)) tx.putMember(carpoolId, members[i]);
+    });
     const planned = result.runs.filter((r) => r.status === "planned").length;
     tx.addEvent(event("plan-ready", carpoolId, uids(members), nowMs, { date: weekStart, actorUid: caller.uid }));
     return { weekStart, planned, open: result.open.length };
@@ -200,7 +224,7 @@ export async function confirmRun(deps: CarpoolDeps, caller: Caller, data: unknow
     await requireApproved(tx, carpoolId, caller.uid);
     const nowMs = deps.now();
     const run = await liveRun(tx, carpoolId, runId, nowMs);
-    const members = await tx.members(carpoolId);
+    const members = await withFreshCars(tx, await tx.members(carpoolId), [caller.uid]);
     const consents = await tx.consents(carpoolId);
     if (run.driverUid !== caller.uid || run.status === "open") throw new CarpoolError("not-driver");
     if (run.status === "confirmed") return run;
@@ -233,7 +257,7 @@ export async function requestSwap(deps: CarpoolDeps, caller: Caller, data: unkno
     const m = await requireApproved(tx, carpoolId, caller.uid);
     const nowMs = deps.now();
     const run = await liveRun(tx, carpoolId, runId, nowMs);
-    const members = await tx.members(carpoolId);
+    const members = await withFreshCars(tx, await tx.members(carpoolId));
     const consents = await tx.consents(carpoolId);
     const balance = await tx.balance(carpoolId, run.termId);
     if (run.driverUid !== caller.uid || (run.status !== "planned" && run.status !== "confirmed")) throw new CarpoolError("not-driver");
@@ -272,7 +296,7 @@ export async function cancelSwap(deps: CarpoolDeps, caller: Caller, data: unknow
     const nowMs = deps.now();
     const run = await liveRun(tx, carpoolId, runId, nowMs);
     const swap = run.swapId ? await tx.swap(carpoolId, run.swapId) : null;
-    const members = await tx.members(carpoolId);
+    const members = await withFreshCars(tx, await tx.members(carpoolId), [caller.uid]);
     const consents = await tx.consents(carpoolId);
     if (!swap || swap.status !== "open" || run.status !== "open") throw new CarpoolError("run-taken");
     if (swap.requesterUid !== caller.uid) throw new CarpoolError("not-driver");
@@ -316,7 +340,7 @@ export async function takeRun(deps: CarpoolDeps, caller: Caller, data: unknown):
     const nowMs = deps.now();
     const run = await liveRun(tx, carpoolId, runId, nowMs);
     const swap = run.swapId ? await tx.swap(carpoolId, run.swapId) : null;
-    const members = await tx.members(carpoolId);
+    const members = await withFreshCars(tx, await tx.members(carpoolId), [caller.uid]);
     const consents = await tx.consents(carpoolId);
     if (run.status !== "open" || run.driverUid) throw new CarpoolError("run-taken");
     if (nowMs >= run.confirmByMs) throw new CarpoolError("too-late");
@@ -372,7 +396,7 @@ export async function setChildAbsent(deps: CarpoolDeps, caller: Caller, data: un
     if (!m.children.some((c) => c.id === childId)) throw new CarpoolError("not-your-child");
     const nowMs = deps.now();
     const runs = (await tx.runs(carpoolId, date, date)).filter((r) => (directions as Direction[]).includes(r.direction));
-    const members = await tx.members(carpoolId);
+    const members = await withFreshCars(tx, await tx.members(carpoolId), runs.map((r) => r.driverUid));
     const consents = await tx.consents(carpoolId);
     const live = runs.filter((r) => isLive(r, nowMs));
     if (live.length === 0) throw new CarpoolError(runs.length === 0 ? "not-found" : "too-late");

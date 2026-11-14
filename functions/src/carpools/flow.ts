@@ -101,7 +101,11 @@ export interface CarpoolTx {
   /** null deletes the member's pickup point. */
   putPickupPoint(carpoolId: string, uid: string, point: PickupPoint | null): void;
 
-  // Schedule (Prompt 7). Runs between two Cairo dates, inclusive.
+  // Schedule (Prompt 7). A driver's account and car, read in the
+  // transaction (members hold only a copy taken when they joined).
+  driverAccount(uid: string): Promise<AccountInfo | null>;
+  driverVehicle(uid: string): Promise<VehicleInfo | null>;
+  // Runs between two Cairo dates, inclusive.
   runs(carpoolId: string, fromDate: string, toDate: string): Promise<RunRecord[]>;
   run(carpoolId: string, runId: string): Promise<RunRecord | null>;
   exceptions(carpoolId: string): Promise<ExceptionRecord[]>;

@@ -403,6 +403,20 @@ class FirestoreCarpoolTx implements CarpoolTx {
 
   // --- schedule (Prompt 7) ---
 
+  async driverAccount(uid: string): Promise<AccountInfo | null> {
+    const snap = await this.tx.get(this.db.collection(USERS).doc(uid));
+    if (!snap.exists) return null;
+    const d = snap.data() ?? {};
+    return { status: d.banned === true ? "suspended" : text(d.status), firstName: text(d.firstName) };
+  }
+
+  async driverVehicle(uid: string): Promise<VehicleInfo | null> {
+    const snap = await this.tx.get(this.db.collection(VEHICLES).doc(uid));
+    if (!snap.exists) return null;
+    const d = snap.data() ?? {};
+    return { status: text(d.status), seats: num(d.seats), licenseExpiry: text(d.licenseExpiry), carLicenseExpiry: text(d.carLicenseExpiry) };
+  }
+
   async runs(carpoolId: string, fromDate: string, toDate: string): Promise<RunRecord[]> {
     const snap = await this.tx.get(
       this.carpoolRef(carpoolId).collection(SCHEDULE).where("date", ">=", fromDate).where("date", "<=", toDate).limit(200),

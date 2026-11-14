@@ -136,9 +136,9 @@ void main() {
       expect(find.text('Week plan'), findsOneWidget);
       expect(find.byKey(const Key('schedule.toConfirm')), findsOneWidget);
       expect(find.text('You have 2 runs to confirm'), findsOneWidget);
-      expect(find.text('To school 07:30'), findsWidgets);
-      expect(find.text('You · 2 children'), findsWidgets);
-      expect(find.text('Hoda · 2 children'), findsWidgets);
+      expect(find.text('07:30'), findsWidgets);
+      expect(find.text('To school · You · 2 children'), findsWidgets);
+      expect(find.text('Home · Hoda · 2 children'), findsWidgets);
       for (final String badge in <String>['To confirm', 'Confirmed', 'Swap asked', 'Needs driver', 'No school']) {
         expect(find.text(badge), findsWidgets, reason: badge);
       }
@@ -276,7 +276,7 @@ void main() {
         },
       );
       await _pump(tester, _schedule(), overrides: _overrides(schedule: schedule));
-      expect(find.text('You · 1 child'), findsOneWidget);
+      expect(find.text('To school · You · 1 child'), findsOneWidget);
       await _tapInList(tester, 'schedule.run.2026-11-15_am');
       expect(find.text('Adam (away)'), findsOneWidget);
       await _tapInSheet(tester, 'run.absent.c1');

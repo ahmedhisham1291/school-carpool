@@ -544,10 +544,10 @@ describe("swaps (F11)", () => {
     const run = runsOf(store, k).find((r) => r.driverUid === "bob") as RunRecord;
     await requestSwap(deps, as("bob"), { carpoolId: k, runId: run.id });
     // Alice's car has 4 seats for 4 children; with a smaller car she cannot take it.
-    const alice = store.members.get(k)?.get("alice") as MemberRecord;
-    store.members.get(k)?.set("alice", { ...alice, car: { seats: 3, validUntil: "2030-01-01" } });
+    const car = store.vehicles.get("alice");
+    store.vehicles.set("alice", { status: "approved", seats: 3, licenseExpiry: "2030-01-01", carLicenseExpiry: "2030-01-01" });
     await rejects(takeRun(deps, as("alice"), { carpoolId: k, runId: run.id }), "too-many-children");
-    store.members.get(k)?.set("alice", alice);
+    if (car) store.vehicles.set("alice", car);
     await setDriverConsent(deps, as("cara"), { carpoolId: k, driverUid: "alice", accept: false });
     await rejects(takeRun(deps, as("alice"), { carpoolId: k, runId: run.id }), "no-consent");
   });
@@ -691,6 +691,46 @@ describe("leaving and consent (Prompt 6 hooks)", () => {
       }
     }
     assert.ok(store.events.some((e) => e.type === "driver-unavailable" && e.actorUid === "bob"));
+  });
+});
+
+describe("every driver assignment checks consent, seats, car and account (Prompt 6 review)", () => {
+  it("the creator's own driving days give no run before the other parents consent", async () => {
+    const { deps, store } = setup();
+    const k = await readyCarpool(deps, { consent: false });
+    // Alice chose every day at creation, but Bob and Cara never accepted her.
+    const result = await planWeek(deps, as("alice"), { carpoolId: k, weekStart: WEEK });
+    assert.deepEqual([result.planned, result.open], [0, 10]);
+    assert.ok(runsOf(store, k).every((r) => r.status === "open" && r.driverUid === null));
+  });
+
+  it("a car re-verified with fewer seats or expired papers stops that member driving at once", async () => {
+    const { deps, store } = setup();
+    const k = await readyCarpool(deps);
+    await planWeek(deps, as("alice"), { carpoolId: k, weekStart: WEEK });
+    const run = runsOf(store, k).find((r) => r.driverUid === "bob") as RunRecord;
+    // Bob's car now has 3 passenger seats (4 children ride): the member copy still says 6.
+    store.vehicles.set("bob", { status: "approved", seats: 3, licenseExpiry: "2030-01-01", carLicenseExpiry: "2030-01-01" });
+    await rejects(confirmRun(deps, as("bob"), { carpoolId: k, runId: run.id }), "too-many-children");
+    store.vehicles.set("bob", { status: "approved", seats: 6, licenseExpiry: "2026-11-01", carLicenseExpiry: "2030-01-01" });
+    await rejects(confirmRun(deps, as("bob"), { carpoolId: k, runId: run.id }), "car-expired");
+    await rejects(setDrivingDays(deps, as("bob"), { carpoolId: k, days: ["sun"] }), "car-expired");
+    // Planning again moves Bob's runs to Alice and updates the members' copy of his car.
+    await planWeek(deps, as("alice"), { carpoolId: k, weekStart: WEEK });
+    assert.ok(runsOf(store, k).every((r) => r.driverUid === "alice"));
+    assert.equal(store.members.get(k)?.get("bob")?.car?.validUntil, "2026-11-01");
+  });
+
+  it("a suspended parent cannot confirm or take a run", async () => {
+    const { deps, store } = setup();
+    const k = await readyCarpool(deps);
+    await planWeek(deps, as("alice"), { carpoolId: k, weekStart: WEEK });
+    const mine = runsOf(store, k).find((r) => r.driverUid === "alice") as RunRecord;
+    await requestSwap(deps, as("alice"), { carpoolId: k, runId: mine.id });
+    store.accounts.set("bob", { status: "suspended", firstName: "Bob" });
+    // Bob's own token still says verified; the account read in the transaction does not.
+    await assert.rejects(takeRun(deps, as("bob"), { carpoolId: k, runId: mine.id }), CarpoolError);
+    assert.equal(store.runs.get(k)?.get(mine.id)?.driverUid, null);
   });
 });
 

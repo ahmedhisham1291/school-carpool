@@ -75,6 +75,8 @@ export class MemoryCarpoolStore implements CarpoolStore {
             if (p) this.sub(this.pickups, c).set(u, clone(p));
             else this.sub(this.pickups, c).delete(u);
           }),
+        driverAccount: async (u) => clone(this.accounts.get(u) ?? null),
+        driverVehicle: async (u) => clone(this.vehicles.get(u) ?? null),
         runs: async (c, from, to) =>
           clone([...this.sub(this.runs, c).values()].filter((r) => r.date >= from && r.date <= to).sort((a, b) => a.id.localeCompare(b.id))),
         run: async (c, id) => clone(this.sub(this.runs, c).get(id) ?? null),
