@@ -8,6 +8,7 @@ import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/data/admin_api.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
+import 'package:school_carpool/admin/data/admin_trust.dart';
 import 'package:school_carpool/admin/data/admin_wallet.dart';
 import 'package:school_carpool/admin/router/admin_router.dart';
 import 'package:school_carpool/config/flavor.dart';
@@ -398,6 +399,7 @@ Future<GoRouter> pumpAdminPanel(
   FakeAdminApi? api,
   FakeAdminAuthRepository? auth,
   FakeAdminWalletApi? wallet,
+  FakeAdminTrustApi? trust,
   String locale = 'ar',
   String themeMode = 'light',
   Size size = const Size(1280, 800),
@@ -426,6 +428,7 @@ Future<GoRouter> pumpAdminPanel(
         adminApiProvider.overrideWithValue(api ?? FakeAdminApi()),
         adminAuthRepositoryProvider.overrideWithValue(auth ?? FakeAdminAuthRepository()),
         adminWalletApiProvider.overrideWithValue(wallet ?? FakeAdminWalletApi()),
+        adminTrustApiProvider.overrideWithValue(trust ?? FakeAdminTrustApi()),
         ...extraOverrides,
       ],
       child: const AdminApp(),
@@ -493,5 +496,59 @@ class FakeAdminWalletApi implements AdminWalletApi {
   Future<void> resolveAlert(String alertId, AlertOutcome outcome) async {
     await _maybeFail('resolve:$alertId:${outcome.name}');
     open = <WalletAlert>[for (final WalletAlert a in open) if (a.id != alertId) a];
+  }
+}
+
+/// Prompt 11: the admin trust functions (fake data only).
+class FakeAdminTrustApi implements AdminTrustApi {
+  final List<String> calls = <String>[];
+  AdminFailure? failure;
+  List<ReviewLink> links = <ReviewLink>[
+    ReviewLink(
+      id: 'k9_u-dina',
+      childFirstName: 'Laila',
+      ownerFirstName: 'Sami',
+      guardianFirstName: 'Dina',
+      guardianUid: 'u-dina',
+      relation: 'guardian',
+      createdAt: DateTime.utc(2026, 11, 16, 9),
+    ),
+  ];
+  List<RatingFlagItem> flags = <RatingFlagItem>[
+    RatingFlagItem(
+      id: '2026-11_u-hoda_u-ali',
+      stars: 2,
+      tags: const <String>['late', 'unsafe-driving'],
+      rateeUid: 'u-ali',
+      rateeFirstName: 'Ali',
+      raterFirstName: 'Hoda',
+      createdAt: DateTime.utc(2026, 11, 16, 10),
+    ),
+  ];
+
+  Future<void> _maybeFail(String call) async {
+    calls.add(call);
+    final AdminFailure? f = failure;
+    if (f != null) {
+      throw f;
+    }
+  }
+
+  @override
+  Future<TrustQueue> queue() async {
+    await _maybeFail('queue');
+    return TrustQueue(links: links, flags: flags);
+  }
+
+  @override
+  Future<void> decideLink({required String linkId, required bool approve}) async {
+    await _maybeFail('decideLink:$linkId:$approve');
+    links = <ReviewLink>[for (final ReviewLink l in links) if (l.id != linkId) l];
+  }
+
+  @override
+  Future<void> resolveFlag({required String flagId, required FlagOutcome outcome}) async {
+    await _maybeFail('resolveFlag:$flagId:${outcome.wire}');
+    flags = <RatingFlagItem>[for (final RatingFlagItem f in flags) if (f.id != flagId) f];
   }
 }

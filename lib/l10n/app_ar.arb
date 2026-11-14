@@ -2036,7 +2036,7 @@
   "@adminSuspendTitle": {
     "description": "Admin panel: dialog title"
   },
-  "adminSuspendBody": "سيُسجَّل خروج ولي الأمر ولن يستطيع استخدام التطبيق حتى رفع الإيقاف.",
+  "adminSuspendBody": "يتم تسجيل خروج ولي الأمر ولا يمكنه استخدام التطبيق حتى رفع الإيقاف. تُفتح أيام قيادته لمجموعاته، ويُقال لهم فقط إن السائق غير متاح.",
   "@adminSuspendBody": {
     "description": "Admin panel: dialog body"
   },
@@ -2048,7 +2048,7 @@
   "@adminUnsuspendBody": {
     "description": "Admin panel: dialog body"
   },
-  "adminBanUserBody": "يُوقف الحساب نهائيًا ويُضاف رقم البطاقة لقائمة الحظر. لا يمكن التراجع من هنا.",
+  "adminBanUserBody": "يُوقف الحساب نهائيًا ويُضاف رقم الهوية إلى قائمة الحظر. تُفتح أيام قيادته لمجموعاته. لا يمكن التراجع عن ذلك هنا.",
   "@adminBanUserBody": {
     "description": "Admin panel: dialog body"
   },
@@ -7261,5 +7261,734 @@
   "walletMoneyLocked": "لم نتأكد من النتيجة. حاول مرة أخرى بنفس المبلغ، أو راجع السجل أولًا.",
   "@walletMoneyLocked": {
     "description": "Shown after a lost answer on add money or withdraw"
+  },
+  "starsLabel": "{count, plural, =1{نجمة واحدة} =2{نجمتان} few{{count} نجوم} other{{count} نجمة}}",
+  "@starsLabel": {
+    "description": "Screen-reader label of one star",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "gallerySectionTrust": "التقييمات",
+  "@gallerySectionTrust": {
+    "description": "Gallery section"
+  },
+  "statusLeftSchool": "ترك المدرسة",
+  "@statusLeftSchool": {
+    "description": "Child status after the yearly check"
+  },
+  "rateTitle": "تقييم أولياء الأمور",
+  "@rateTitle": {
+    "description": "Screen title and Profile row"
+  },
+  "rateListHeader": "مشاوير مشتركة",
+  "@rateListHeader": {
+    "description": "Section header"
+  },
+  "rateEmptyTitle": "لا أحد لتقييمه",
+  "@rateEmptyTitle": {
+    "description": "Empty state title"
+  },
+  "rateEmptyBody": "بعد انتهاء المشوار يمكنك تقييم السائق، أو أولياء أمور الأطفال الذين أوصلتهم.",
+  "@rateEmptyBody": {
+    "description": "Empty state body"
+  },
+  "rateRoleDriver": "أوصل طفلك",
+  "@rateRoleDriver": {
+    "description": "Rateable parent subtitle"
+  },
+  "rateRoleParent": "ركب معك",
+  "@rateRoleParent": {
+    "description": "Rateable parent subtitle"
+  },
+  "rateSheetTitle": "تقييم {name}",
+  "@rateSheetTitle": {
+    "description": "Sheet title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rateSheetBody": "تقييم واحد في الشهر. المشرفون فقط يرون من قيّم.",
+  "@rateSheetBody": {
+    "description": "Sheet intro"
+  },
+  "rateTagOnTime": "في الموعد",
+  "@rateTagOnTime": {
+    "description": "Rating tag"
+  },
+  "rateTagSafe": "قيادة آمنة",
+  "@rateTagSafe": {
+    "description": "Rating tag"
+  },
+  "rateTagFriendly": "ودود",
+  "@rateTagFriendly": {
+    "description": "Rating tag"
+  },
+  "rateTagClear": "واضح",
+  "@rateTagClear": {
+    "description": "Rating tag: communicates clearly"
+  },
+  "rateTagLate": "متأخر",
+  "@rateTagLate": {
+    "description": "Rating tag"
+  },
+  "rateTagUnsafe": "قيادة غير آمنة",
+  "@rateTagUnsafe": {
+    "description": "Rating tag"
+  },
+  "rateTagRude": "غير لائق",
+  "@rateTagRude": {
+    "description": "Rating tag"
+  },
+  "rateVouchTitle": "أزكّيه",
+  "@rateVouchTitle": {
+    "description": "Switch title"
+  },
+  "rateVouchHelper": "أخبر أولياء الأمور أنك تثق في {name}.",
+  "@rateVouchHelper": {
+    "description": "Switch subtitle",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rateVouchOff": "فقط مع 4 أو 5 نجوم وبدون ملاحظة سلبية.",
+  "@rateVouchOff": {
+    "description": "Switch subtitle when off"
+  },
+  "rateAdminNote": "سيراجع المشرفون هذا التقييم. في حالة الخطر استخدم الإبلاغ: يوقف السائق فورًا.",
+  "@rateAdminNote": {
+    "description": "Inline note"
+  },
+  "rateSend": "إرسال التقييم",
+  "@rateSend": {
+    "description": "Button"
+  },
+  "rateSent": "شكرًا على التقييم",
+  "@rateSent": {
+    "description": "Snack bar"
+  },
+  "rateSentReview": "أُرسل وسيراجعه المشرفون",
+  "@rateSentReview": {
+    "description": "Snack bar"
+  },
+  "trustNoRatings": "لا توجد تقييمات بعد",
+  "@trustNoRatings": {
+    "description": "Own summary"
+  },
+  "trustRatingsCount": "{count, plural, =1{تقييم واحد} =2{تقييمان} few{{count} تقييمات} other{{count} تقييم}}",
+  "@trustRatingsCount": {
+    "description": "Own summary before an average shows",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trustAverage": "{average} من {count} تقييم",
+  "@trustAverage": {
+    "description": "Own summary",
+    "placeholders": {
+      "average": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trustVouches": "{count, plural, =0{بلا تزكيات} =1{تزكية واحدة} =2{تزكيتان} few{{count} تزكيات} other{{count} تزكية}}",
+  "@trustVouches": {
+    "description": "Own summary",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileRatingsHelper": "قيّم أولياء الأمور بعد المشاوير المشتركة.",
+  "@profileRatingsHelper": {
+    "description": "Profile row subtitle"
+  },
+  "profileToRate": "{count, plural, =1{ولي أمر واحد للتقييم} =2{وليا أمر للتقييم} few{{count} أولياء أمور للتقييم} other{{count} ولي أمر للتقييم}}",
+  "@profileToRate": {
+    "description": "Profile row subtitle",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileFamilyHelper": "شارك أطفالك مع ولي الأمر الآخر.",
+  "@profileFamilyHelper": {
+    "description": "Profile row subtitle"
+  },
+  "profileLinkRequests": "{count, plural, =1{طلب واحد للرد} =2{طلبان للرد} few{{count} طلبات للرد} other{{count} طلبًا للرد}}",
+  "@profileLinkRequests": {
+    "description": "Profile row subtitle",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyTitle": "روابط العائلة",
+  "@familyTitle": {
+    "description": "Screen title and Profile row"
+  },
+  "familyIntro": "اربط حسابك بولي الأمر الآخر ليتمكن كل منكما من التوصيل مع أطفالكما. كل منكما يوثّق حسابه بنفسه.",
+  "@familyIntro": {
+    "description": "Screen intro"
+  },
+  "familyLinkAction": "الربط بولي أمر",
+  "@familyLinkAction": {
+    "description": "Primary button"
+  },
+  "familyEmpty": "لا توجد روابط بعد.",
+  "@familyEmpty": {
+    "description": "Empty note"
+  },
+  "familyIncoming": "طلبات لك",
+  "@familyIncoming": {
+    "description": "Section header"
+  },
+  "familyOutgoing": "طلباتك",
+  "@familyOutgoing": {
+    "description": "Section header"
+  },
+  "familyShared": "أطفالك المشتركون",
+  "@familyShared": {
+    "description": "Section header"
+  },
+  "familyLinked": "مشترك معك",
+  "@familyLinked": {
+    "description": "Section header"
+  },
+  "familyWaiting": "في انتظار الرد",
+  "@familyWaiting": {
+    "description": "Outgoing request row title"
+  },
+  "familyInReview": "قيد المراجعة",
+  "@familyInReview": {
+    "description": "Link waiting for an admin"
+  },
+  "familyCancelled": "تم سحب الطلب",
+  "@familyCancelled": {
+    "description": "Snack bar"
+  },
+  "familyRemove": "إزالة الربط",
+  "@familyRemove": {
+    "description": "Button and tooltip"
+  },
+  "familyRemoveTitle": "إزالة هذا الربط؟",
+  "@familyRemoveTitle": {
+    "description": "Confirm title"
+  },
+  "familyRemoveBody": "سيخرج {child} من مجموعات توصيل ولي الأمر الآخر.",
+  "@familyRemoveBody": {
+    "description": "Confirm body",
+    "placeholders": {
+      "child": {
+        "type": "String"
+      }
+    }
+  },
+  "familyRemoved": "تمت إزالة الربط",
+  "@familyRemoved": {
+    "description": "Snack bar"
+  },
+  "familyLinkTitle": "الربط بولي أمر",
+  "@familyLinkTitle": {
+    "description": "Sheet title"
+  },
+  "familyLinkBody": "اكتب معرّف ولي الأمر الآخر من ملفه. هو يختار الأطفال المشتركين.",
+  "@familyLinkBody": {
+    "description": "Sheet intro"
+  },
+  "familyRelationLabel": "صلتك بالأطفال",
+  "@familyRelationLabel": {
+    "description": "Label above the relation chips"
+  },
+  "relationGuardian": "وصي",
+  "@relationGuardian": {
+    "description": "Relation chip"
+  },
+  "familyGuardianNote": "يراجع مشرف ربط الوصي أولًا.",
+  "@familyGuardianNote": {
+    "description": "Inline note"
+  },
+  "familySend": "إرسال الطلب",
+  "@familySend": {
+    "description": "Button"
+  },
+  "familyRequestSent": "أُرسل الطلب إلى {name}",
+  "@familyRequestSent": {
+    "description": "Snack bar",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyAnswerTitle": "طلب من {name}",
+  "@familyAnswerTitle": {
+    "description": "Sheet title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyAnswerBody": "{name} ({relation}) يطلب الربط. اختر الأطفال المشتركين.",
+  "@familyAnswerBody": {
+    "description": "Sheet intro",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "relation": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNoChildren": "لا يوجد لديك أطفال موثّقون للمشاركة بعد.",
+  "@familyNoChildren": {
+    "description": "Inline note"
+  },
+  "familyAccept": "قبول",
+  "@familyAccept": {
+    "description": "Button"
+  },
+  "familyDecline": "رفض",
+  "@familyDecline": {
+    "description": "Button"
+  },
+  "familyAccepted": "تم الربط",
+  "@familyAccepted": {
+    "description": "Snack bar"
+  },
+  "familyDeclined": "تم رفض الطلب",
+  "@familyDeclined": {
+    "description": "Snack bar"
+  },
+  "yearTitle": "العام الدراسي",
+  "@yearTitle": {
+    "description": "Screen title"
+  },
+  "schoolYearName": "العام الدراسي {start}/{end}",
+  "@schoolYearName": {
+    "description": "Heading, like 2027/28",
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "yearIntro": "قبل الفصل الأول، أكّد مدرسة وصف كل طفل.",
+  "@yearIntro": {
+    "description": "Intro"
+  },
+  "yearDeadline": "أكّد قبل {date}.",
+  "@yearDeadline": {
+    "description": "Deadline note",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "yearOverdue": "انتهى الموعد: لن تحصل على أيام قيادة جديدة حتى تؤكد.",
+  "@yearOverdue": {
+    "description": "Warning"
+  },
+  "yearStays": "مستمر",
+  "@yearStays": {
+    "description": "Chip: the child stays at this school"
+  },
+  "yearLeft": "ترك المدرسة",
+  "@yearLeft": {
+    "description": "Chip"
+  },
+  "yearGradeLabel": "الصف الجديد",
+  "@yearGradeLabel": {
+    "description": "Select label"
+  },
+  "yearLeftNote": "سيخرج الطفل من مجموعات توصيل ومحادثات هذه المدرسة. أضف المدرسة الجديدة من صفحة الأطفال.",
+  "@yearLeftNote": {
+    "description": "Note under a child who left"
+  },
+  "yearConfirm": "تأكيد",
+  "@yearConfirm": {
+    "description": "Button"
+  },
+  "yearLeftConfirmTitle": "أطفال تركوا المدرسة؟",
+  "@yearLeftConfirmTitle": {
+    "description": "Confirm title"
+  },
+  "yearLeftConfirmBody": "سيخرج {names} من مجموعات توصيل ومحادثات المدرسة.",
+  "@yearLeftConfirmBody": {
+    "description": "Confirm body",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "yearDone": "تم التأكيد للعام الجديد",
+  "@yearDone": {
+    "description": "Snack bar"
+  },
+  "yearNothingTitle": "لا شيء للتأكيد",
+  "@yearNothingTitle": {
+    "description": "Empty title"
+  },
+  "yearNothingBody": "سنطلب منك ذلك قبل العام الدراسي القادم.",
+  "@yearNothingBody": {
+    "description": "Empty body"
+  },
+  "yearBanner": "عام دراسي جديد: أكّد بيانات أطفالك.",
+  "@yearBanner": {
+    "description": "Profile banner"
+  },
+  "yearBannerOverdue": "أكّد بيانات أطفالك لتستمر أيام القيادة.",
+  "@yearBannerOverdue": {
+    "description": "Profile banner after the deadline"
+  },
+  "papersSoon": "{days, plural, =0{تنتهي أوراقك اليوم. أرسل الجديدة بالأسفل.} =1{تنتهي أوراقك غدًا. أرسل الجديدة بالأسفل.} =2{تنتهي أوراقك بعد يومين. أرسل الجديدة بالأسفل.} few{تنتهي أوراقك بعد {days} أيام. أرسل الجديدة بالأسفل.} other{تنتهي أوراقك بعد {days} يومًا. أرسل الجديدة بالأسفل.}}",
+  "@papersSoon": {
+    "description": "Driving screen warning",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "papersExpired": "انتهت أوراقك: لا أيام قيادة جديدة حتى ترسل الجديدة.",
+  "@papersExpired": {
+    "description": "Driving screen error"
+  },
+  "tripRateAction": "قيّم هذا المشوار",
+  "@tripRateAction": {
+    "description": "Button after a finished trip"
+  },
+  "phoneChangeTitle": "تغيير الرقم",
+  "@phoneChangeTitle": {
+    "description": "Screen title"
+  },
+  "phoneChangeIntro": "نرسل رمزًا عبر واتساب إلى الرقم الجديد، ثم نطلب صورة سيلفي للتأكد أنك أنت.",
+  "@phoneChangeIntro": {
+    "description": "Step 1 intro"
+  },
+  "phoneChangeNewLabel": "رقم الموبايل الجديد",
+  "@phoneChangeNewLabel": {
+    "description": "Field label"
+  },
+  "phoneChangeSendCode": "إرسال الرمز",
+  "@phoneChangeSendCode": {
+    "description": "Button"
+  },
+  "phoneChangeCodeIntro": "اكتب الرمز الذي أرسلناه عبر واتساب إلى {phone}.",
+  "@phoneChangeCodeIntro": {
+    "description": "Step 2 intro",
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneChangeCodeLabel": "الرمز",
+  "@phoneChangeCodeLabel": {
+    "description": "Field label"
+  },
+  "phoneChangeNext": "التالي",
+  "@phoneChangeNext": {
+    "description": "Button"
+  },
+  "phoneChangeOtherNumber": "استخدام رقم آخر",
+  "@phoneChangeOtherNumber": {
+    "description": "Button"
+  },
+  "phoneChangeSelfieIntro": "التقط صورة سيلفي سريعة. نطابقها مع صورة التوثيق ثم نحذفها.",
+  "@phoneChangeSelfieIntro": {
+    "description": "Step 3 intro"
+  },
+  "phoneChangeSelfieAction": "التقاط سيلفي",
+  "@phoneChangeSelfieAction": {
+    "description": "Button"
+  },
+  "phoneChangeDoneTitle": "تم تغيير الرقم",
+  "@phoneChangeDoneTitle": {
+    "description": "Done title"
+  },
+  "phoneChangeDoneBody": "سجّل الدخول بالرقم {phone} من الآن.",
+  "@phoneChangeDoneBody": {
+    "description": "Done body",
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "phoneChangeBack": "العودة للملف",
+  "@phoneChangeBack": {
+    "description": "Button"
+  },
+  "phoneChangeErrorSame": "هذا رقمك الحالي. اكتب الرقم الجديد.",
+  "@phoneChangeErrorSame": {
+    "description": "Error"
+  },
+  "phoneChangeErrorTaken": "حساب آخر يستخدم هذا الرقم. تواصل مع الدعم.",
+  "@phoneChangeErrorTaken": {
+    "description": "Error"
+  },
+  "phoneChangeErrorSelfie": "التقط السيلفي مرة أخرى ثم حاول ثانية.",
+  "@phoneChangeErrorSelfie": {
+    "description": "Error"
+  },
+  "phoneChangeErrorNoReference": "لا توجد صورة للمقارنة. تواصل مع الدعم لتغيير رقمك.",
+  "@phoneChangeErrorNoReference": {
+    "description": "Error"
+  },
+  "phoneChangeErrorMismatch": "لم تتطابق الصورة. اطلب رمزًا جديدًا وحاول مرة أخرى.",
+  "@phoneChangeErrorMismatch": {
+    "description": "Error"
+  },
+  "phoneChangeErrorUnavailable": "تعذر فحص الصورة الآن. اطلب رمزًا جديدًا وحاول لاحقًا.",
+  "@phoneChangeErrorUnavailable": {
+    "description": "Error"
+  },
+  "trustErrorNotVerified": "هذه الميزة لأولياء الأمور الموثّقين. وثّق حسابك أولًا.",
+  "@trustErrorNotVerified": {
+    "description": "Error"
+  },
+  "trustErrorNotFound": "لم نجد ولي الأمر. تحقق من المعرّف وحاول مرة أخرى.",
+  "@trustErrorNotFound": {
+    "description": "Error"
+  },
+  "trustErrorSelf": "هذا معرّفك أنت.",
+  "@trustErrorSelf": {
+    "description": "Error"
+  },
+  "trustErrorNoTrip": "يمكنك التقييم فقط بعد مشوار مشترك منتهٍ.",
+  "@trustErrorNoTrip": {
+    "description": "Error"
+  },
+  "trustErrorAlreadyRated": "قيّمت ولي الأمر هذا بالفعل هذا الشهر.",
+  "@trustErrorAlreadyRated": {
+    "description": "Error"
+  },
+  "trustErrorNotAllowed": "لا يمكن الربط مع ولي الأمر هذا الآن.",
+  "@trustErrorNotAllowed": {
+    "description": "Error"
+  },
+  "trustErrorAlreadyLinked": "هذا الطفل مرتبط بولي الأمر هذا بالفعل.",
+  "@trustErrorAlreadyLinked": {
+    "description": "Error"
+  },
+  "trustErrorAlreadyRequested": "أرسلت طلبًا بالفعل. انتظر الرد.",
+  "@trustErrorAlreadyRequested": {
+    "description": "Error"
+  },
+  "trustErrorTooManyGuardians": "هذا الطفل مرتبط بالفعل بشخصين بالغين.",
+  "@trustErrorTooManyGuardians": {
+    "description": "Error"
+  },
+  "trustErrorChanged": "تغيّر شيء في هذه الأثناء. حدّث الصفحة وحاول مرة أخرى.",
+  "@trustErrorChanged": {
+    "description": "Error"
+  },
+  "trustErrorRateLimited": "محاولات كثيرة. انتظر قليلًا وحاول مرة أخرى.",
+  "@trustErrorRateLimited": {
+    "description": "Error"
+  },
+  "notifGroupTrust": "الأوراق والعائلة",
+  "@notifGroupTrust": {
+    "description": "WhatsApp group row"
+  },
+  "notifLicenceExpiringTitle": "الأوراق تنتهي قريبًا",
+  "@notifLicenceExpiringTitle": {
+    "description": "Notification title"
+  },
+  "notifLicenceExpiringBody": "تنتهي رخصتك أو رخصة السيارة يوم {when}. حدّث بيانات القيادة.",
+  "@notifLicenceExpiringBody": {
+    "description": "Notification body",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "notifLicenceExpiredTitle": "انتهت الأوراق",
+  "@notifLicenceExpiredTitle": {
+    "description": "Notification title"
+  },
+  "notifLicenceExpiredBody": "لا أيام قيادة جديدة حتى تحدّث بيانات القيادة.",
+  "@notifLicenceExpiredBody": {
+    "description": "Notification body"
+  },
+  "notifYearCheckTitle": "عام دراسي جديد",
+  "@notifYearCheckTitle": {
+    "description": "Notification title"
+  },
+  "notifYearCheckBody": "أكّد أطفالك وصفوفهم ومدارسهم.",
+  "@notifYearCheckBody": {
+    "description": "Notification body"
+  },
+  "notifGuardianRequestedTitle": "طلب ربط",
+  "@notifGuardianRequestedTitle": {
+    "description": "Notification title"
+  },
+  "notifGuardianRequestedBody": "طلب ولي أمر آخر الربط بأطفالك.",
+  "@notifGuardianRequestedBody": {
+    "description": "Notification body"
+  },
+  "notifGuardianLinkedTitle": "تم ربط الأطفال",
+  "@notifGuardianLinkedTitle": {
+    "description": "Notification title"
+  },
+  "notifGuardianLinkedBody": "تم ربطك بأطفال ولي الأمر الآخر.",
+  "@notifGuardianLinkedBody": {
+    "description": "Notification body"
+  },
+  "notifGuardianDeclinedTitle": "لم يتم الربط",
+  "@notifGuardianDeclinedTitle": {
+    "description": "Notification title"
+  },
+  "notifGuardianDeclinedBody": "لم يتم ربطك بالأطفال.",
+  "@notifGuardianDeclinedBody": {
+    "description": "Notification body"
+  },
+  "notifPhoneChangedTitle": "تغيّر الرقم",
+  "@notifPhoneChangedTitle": {
+    "description": "Notification title"
+  },
+  "notifPhoneChangedBody": "تغيّر رقم حسابك. إن لم تفعل ذلك تواصل معنا.",
+  "@notifPhoneChangedBody": {
+    "description": "Notification body"
+  },
+  "adminNavTrust": "الثقة",
+  "@adminNavTrust": {
+    "description": "Admin nav"
+  },
+  "adminTrustTitle": "الثقة",
+  "@adminTrustTitle": {
+    "description": "Admin page title"
+  },
+  "adminTrustLinks": "روابط عائلية للمراجعة",
+  "@adminTrustLinks": {
+    "description": "Section"
+  },
+  "adminTrustNoLinks": "لا روابط في الانتظار.",
+  "@adminTrustNoLinks": {
+    "description": "Empty"
+  },
+  "adminTrustFlags": "تقييمات للمراجعة",
+  "@adminTrustFlags": {
+    "description": "Section"
+  },
+  "adminTrustNoFlags": "لا تقييمات مفتوحة.",
+  "@adminTrustNoFlags": {
+    "description": "Empty"
+  },
+  "adminTrustLinkTitle": "{guardian} لـ {child}",
+  "@adminTrustLinkTitle": {
+    "description": "Row title",
+    "placeholders": {
+      "guardian": {
+        "type": "String"
+      },
+      "child": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTrustLinkOwner": "ولي الأمر: {name}",
+  "@adminTrustLinkOwner": {
+    "description": "Row subtitle part",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTrustLinkBody": "سيتمكن {guardian} من رؤية {child} والتوصيل معه. وافق {owner}.",
+  "@adminTrustLinkBody": {
+    "description": "Confirm body",
+    "placeholders": {
+      "guardian": {
+        "type": "String"
+      },
+      "child": {
+        "type": "String"
+      },
+      "owner": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTrustApprove": "موافقة",
+  "@adminTrustApprove": {
+    "description": "Button"
+  },
+  "adminTrustReject": "رفض",
+  "@adminTrustReject": {
+    "description": "Button"
+  },
+  "adminTrustApproveTitle": "الموافقة على هذا الربط؟",
+  "@adminTrustApproveTitle": {
+    "description": "Confirm title"
+  },
+  "adminTrustRejectTitle": "رفض هذا الربط؟",
+  "@adminTrustRejectTitle": {
+    "description": "Confirm title"
+  },
+  "adminTrustFlagTitle": "{name}: {stars} من 5 نجوم",
+  "@adminTrustFlagTitle": {
+    "description": "Row title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "stars": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTrustFlagBy": "من {name}",
+  "@adminTrustFlagBy": {
+    "description": "Row subtitle part",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTrustResolve": "إغلاق",
+  "@adminTrustResolve": {
+    "description": "Button and sheet title"
+  },
+  "adminTrustOutcomeNoIssue": "لا مشكلة",
+  "@adminTrustOutcomeNoIssue": {
+    "description": "Outcome"
+  },
+  "adminTrustOutcomeContacted": "تم التواصل مع ولي الأمر",
+  "@adminTrustOutcomeContacted": {
+    "description": "Outcome"
+  },
+  "adminTrustOutcomeEscalated": "تم التصعيد",
+  "@adminTrustOutcomeEscalated": {
+    "description": "Outcome"
+  },
+  "familyCancelRequest": "سحب الطلب",
+  "@familyCancelRequest": {
+    "description": "Tooltip of the cancel button on an outgoing link request"
   }
 }

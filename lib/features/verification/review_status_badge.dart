@@ -14,6 +14,7 @@ class ReviewStatusBadge extends StatelessWidget {
     ReviewStatus.pending => AppBadgeTone.warning,
     ReviewStatus.approved => AppBadgeTone.success,
     ReviewStatus.rejected => AppBadgeTone.error,
+    ReviewStatus.left => AppBadgeTone.neutral,
   };
 
   /// The icon for [status], shared with list rows that show the status as
@@ -22,6 +23,7 @@ class ReviewStatusBadge extends StatelessWidget {
     ReviewStatus.pending => Icons.hourglass_top_rounded,
     ReviewStatus.approved => Icons.verified_rounded,
     ReviewStatus.rejected => Icons.error_outline_rounded,
+    ReviewStatus.left => Icons.school_outlined,
   };
 
   @override

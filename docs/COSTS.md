@@ -314,6 +314,25 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
   transfer, 5,000 EGP and 20 transfers a day, 20 parent ID lookups an hour,
   10 reports a day (SETUP.md 21.2).
 
+## Trust (Prompt 11)
+
+- **Cloud Scheduler:** `trustDaily` once a day is one more job (USD 0.10 a
+  month per project once the 3 free jobs are used).
+- **Firestore:** `trustDaily` reads every `vehicles` document once a day
+  (one read per driver) and, only while the yearly check is open (about 50
+  days a year), every verified parent and their children. At pilot size
+  (a few hundred parents) that is well inside the 50,000 free reads a day.
+  A rating is one transaction (rating, summary, maybe a flag); the "to
+  rate" list reads the parent's finished trips of the last 30 days.
+- **Cloud Functions:** three new triggers (`users`, `vehicles`,
+  `guardianLinks` writes) that return at once unless something relevant
+  changed; `minInstances` 0.
+- **WhatsApp:** the seven trust templates are off by default (COST MODE);
+  phone-change codes use the sign-in code template (one paid message per
+  code, same limits as sign-in).
+- **Face check:** a phone change runs one face match (Valify, fake until the
+  contract).
+
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub

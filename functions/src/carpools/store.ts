@@ -4,6 +4,8 @@ import { AREAS, SCHOOLS } from "../admin_panel/store";
 import { takeFromWindow, type WindowCounter } from "../maps/limits";
 import { HOMES } from "../maps/store";
 import { CHILDREN, VEHICLES } from "../verification/store";
+import { usableVehicle } from "../verification/vehicle";
+import { linkedChildIds } from "../trust/links";
 import type { LatLng } from "../maps/geo";
 import type { AccountInfo, AreaInfo, CarpoolLimitKind, CarpoolStore, CarpoolTx, ChildInfo, PickupPoint, RunRef, SchoolInfo } from "./flow";
 import type { BalanceRecord, ExceptionRecord, RunRecord, ScheduleEvent, SwapRecord } from "../schedule/model";
@@ -410,16 +412,16 @@ class FirestoreCarpoolTx implements CarpoolTx {
     // Prompt 9: an urgent report pauses driving (`drivingPaused: true`);
     // Prompt 10 (F38): so does a failed selfie check. Status "paused": no
     // car, so no plan, confirm or take.
-    const paused = d.drivingPaused != null && d.drivingPaused !== false;
+    // Prompt 11 (F17): a parent who did not confirm their children for the
+    // new school year by the deadline gets no new driving days either.
+    const paused = (d.drivingPaused != null && d.drivingPaused !== false) || d.yearCheckOverdue === true;
     const status = d.banned === true ? "suspended" : paused ? "paused" : text(d.status);
     return { status, firstName: text(d.firstName) };
   }
 
   async driverVehicle(uid: string): Promise<VehicleInfo | null> {
     const snap = await this.tx.get(this.db.collection(VEHICLES).doc(uid));
-    if (!snap.exists) return null;
-    const d = snap.data() ?? {};
-    return { status: text(d.status), seats: num(d.seats), licenseExpiry: text(d.licenseExpiry), carLicenseExpiry: text(d.carLicenseExpiry) };
+    return snap.exists ? vehicleInfo(snap.data()) : null;
   }
 
   async runs(carpoolId: string, fromDate: string, toDate: string): Promise<RunRecord[]> {
@@ -504,16 +506,22 @@ export class FirestoreCarpoolStore implements CarpoolStore {
 
   async approvedChildren(uid: string): Promise<ChildInfo[]> {
     const snap = await this.db.collection(CHILDREN).where("ownerUid", "==", uid).get();
-    return snap.docs
-      .filter((d) => d.get("status") === "approved")
-      .map((d) => ({ id: d.id, firstName: text(d.get("firstName")), grade: text(d.get("grade")), schoolId: text(d.get("schoolId")) }));
+    const own = snap.docs.filter((d) => d.get("status") === "approved");
+    // Prompt 11 (F17): children another parent linked to this parent
+    // (guardian links) can ride in this parent's carpools too.
+    const linkedIds = (await linkedChildIds(this.db, uid)).filter((id) => !own.some((d) => d.id === id));
+    const linked = linkedIds.length > 0 ? await this.db.getAll(...linkedIds.map((id) => this.db.collection(CHILDREN).doc(id))) : [];
+    return [...own, ...linked.filter((d) => d.exists && d.get("status") === "approved")].map((d) => ({
+      id: d.id,
+      firstName: text(d.get("firstName")),
+      grade: text(d.get("grade")),
+      schoolId: text(d.get("schoolId")),
+    }));
   }
 
   async vehicle(uid: string): Promise<VehicleInfo | null> {
     const snap = await this.db.collection(VEHICLES).doc(uid).get();
-    if (!snap.exists) return null;
-    const d = snap.data() ?? {};
-    return { status: text(d.status), seats: num(d.seats), licenseExpiry: text(d.licenseExpiry), carLicenseExpiry: text(d.carLicenseExpiry) };
+    return snap.exists ? vehicleInfo(snap.data()) : null;
   }
 
   async school(id: string): Promise<SchoolInfo | null> {
@@ -658,4 +666,13 @@ export class FirestoreCarpoolStore implements CarpoolStore {
     const snap = await this.db.collectionGroup(SCHEDULE).where("status", "==", "confirmed").where("startAt", "<=", ts(nowMs)).limit(limit).get();
     return snap.docs.map((d) => ({ carpoolId: text(d.get("carpoolId")), runId: d.id }));
   }
+}
+
+/**
+ * Prompt 11 (F17): the car a parent may drive with now. A renewal of the
+ * same car waiting for review keeps the approved one (verification/vehicle.ts).
+ */
+function vehicleInfo(d: DocumentData | undefined): VehicleInfo | null {
+  const v = usableVehicle(d);
+  return v ? { status: v.status, seats: v.seats, licenseExpiry: v.licenseExpiry, carLicenseExpiry: v.carLicenseExpiry } : null;
 }

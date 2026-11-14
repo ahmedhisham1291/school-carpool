@@ -200,3 +200,31 @@ export {
   walletReconcile,
   withdrawMoney,
 } from "./wallet/callables";
+
+// Trust and yearly checks (Prompt 11, F17): ratings and vouching after
+// shared finished trips (one per pair per month), guardian links (a spouse
+// verifies separately and is linked to the same children), driving papers
+// (reminders before expiry, no driving days after), suspended or banned
+// drivers' runs opened for the group, the yearly check of children, grades
+// and schools, and re-verification when the phone number or the car changes.
+export {
+  adminDecideGuardianLink,
+  adminResolveRatingFlag,
+  adminTrustQueue,
+  answerGuardianRequest,
+  cancelGuardianRequest,
+  confirmPhoneChange,
+  confirmSchoolYear,
+  getFamily,
+  getTrustOverview,
+  getTrustSummary,
+  listRateable,
+  rateParent,
+  recheckRunsOnVehicleWrite,
+  refreshOnGuardianLinkWrite,
+  releaseRunsOnUserBlock,
+  removeGuardianLink,
+  requestGuardianLink,
+  requestPhoneChange,
+  trustDaily,
+} from "./trust/callables";

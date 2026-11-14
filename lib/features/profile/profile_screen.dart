@@ -13,6 +13,7 @@ import 'package:school_carpool/features/maps/map_settings_section.dart';
 import 'package:school_carpool/features/onboarding/account_status_badge.dart';
 import 'package:school_carpool/features/onboarding/sign_out.dart';
 import 'package:school_carpool/features/settings/settings_section.dart';
+import 'package:school_carpool/features/trust/trust_profile_section.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
@@ -20,7 +21,8 @@ import 'package:school_carpool/router/session_redirect.dart';
 /// Profile tab (spec section 10): parent ID with a copy button (F44), the
 /// account's status, phone and email, children and driving (Prompt 3),
 /// settings, About (with the OpenStreetMap credit, Prompt 4B), the wallet
-/// (Prompt 11B) and sign out.
+/// (Prompt 11B), ratings, family links, the yearly check and the phone
+/// change (Prompt 11) and sign out.
 ///
 /// States: loading (skeleton), empty (signed out or record not created
 /// yet), error and offline (full-screen with retry). Settings stay usable
@@ -124,6 +126,8 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
         ),
+      // Prompt 11: the yearly check of children, grades and schools.
+      if (account.status == AccountStatus.verified) const YearCheckBanner(),
       Padding(
         padding: AppSpacing.screenPadding,
         child: AppCard(
@@ -143,10 +147,13 @@ class ProfileScreen extends ConsumerWidget {
         subtitle: statusLabel,
         leadingIcon: statusIcon,
       ),
+      // Prompt 11: a new number is checked again (WhatsApp code and a live selfie).
       AppListRow(
+        key: const Key('profile.phone'),
         title: l10n.profilePhone,
         subtitle: EgyptPhone.display(account.phone),
         leadingIcon: Icons.phone_iphone_rounded,
+        onTap: account.status == AccountStatus.verified ? () => context.go(ProfileRoutes.phone) : null,
       ),
       AppListRow(
         title: l10n.emailLabel,
@@ -197,6 +204,8 @@ class ProfileScreen extends ConsumerWidget {
         leadingIcon: Icons.contact_emergency_outlined,
         onTap: () => context.go(ProfileRoutes.emergencyContact),
       ),
+      // Prompt 11 (F17): ratings and vouching, family links.
+      if (account.status == AccountStatus.verified) const TrustProfileRows(),
       // Prompt 11B (F43): verified parents; the screen explains otherwise.
       AppListRow(
         key: const Key('profile.wallet'),

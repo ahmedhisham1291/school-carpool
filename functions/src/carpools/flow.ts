@@ -247,6 +247,14 @@ async function ownChildren(deps: CarpoolDeps, uid: string, ids: string[]): Promi
   });
 }
 
+/** Children already in the carpool (members) or asked for (open requests), not counting [exceptUid]'s. */
+function childIdsIn(members: MemberRecord[], requests: RequestRecord[], exceptUid: string): Set<string> {
+  const ids = new Set<string>();
+  for (const m of members) if (m.uid !== exceptUid) for (const c of m.children) ids.add(c.id);
+  for (const r of requests) if (r.uid !== exceptUid) for (const c of r.children) ids.add(c.id);
+  return ids;
+}
+
 function childRefs(children: ChildInfo[]): ChildRef[] {
   return children.map((c) => ({ id: c.id, firstName: c.firstName, grade: c.grade }));
 }
@@ -613,9 +621,14 @@ export async function requestToJoin(deps: CarpoolDeps, caller: Caller, data: unk
     if (existing?.status === "requested") throw new CarpoolError("already-requested");
     if (carpool.kind === "school" && children.some((c) => c.schoolId !== carpool.schoolId)) throw new CarpoolError("wrong-school");
     if (!input.acceptRules || (carpool.contribution && !input.acceptContribution)) throw new CarpoolError("must-accept");
+    const current = await tx.members(input.carpoolId);
+    // Prompt 11 (F17): a child linked to both parents (guardian link) is in
+    // a carpool once: the other parent may already have brought them.
+    const taken = childIdsIn(current, await tx.requests(input.carpoolId), caller.uid);
+    if (children.some((c) => taken.has(c.id))) throw new CarpoolError("child-in-carpool");
     if (children.length > seatsLeft(carpool)) throw new CarpoolError("no-seats");
     // Prompt 8: the carpool's admins are told (IDs only; they open the request in the app).
-    const admins = (await tx.members(input.carpoolId)).filter((m) => m.role === "admin").map((m) => m.uid);
+    const admins = current.filter((m) => m.role === "admin").map((m) => m.uid);
     const nowMs = deps.now();
     tx.putMembership({
       carpoolId: input.carpoolId,
@@ -682,6 +695,8 @@ export async function decideJoinRequest(deps: CarpoolDeps, caller: Caller, data:
     }
     if (!requester || requester.status !== "verified") throw new CarpoolError("not-verified");
     if (carpool.childrenCount + m.children.length > carpool.seats) throw new CarpoolError("no-seats");
+    const taken = childIdsIn(await tx.members(carpoolId), [], uid);
+    if (m.children.some((c) => taken.has(c.id))) throw new CarpoolError("child-in-carpool");
     const approved: MembershipRecord = { ...m, status: "approved", car, decidedAtMs: nowMs, decidedBy: caller.uid, updatedAtMs: nowMs };
     tx.putMembership(approved);
     tx.putMember(carpoolId, memberFrom(approved, nowMs));

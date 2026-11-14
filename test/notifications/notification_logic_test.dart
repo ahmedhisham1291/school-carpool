@@ -25,6 +25,9 @@ void main() {
         'driver-late', 'driver-at-gate', 'all-children-in', 'emergency', 'chat-message',
         // Prompt 11B (functions/src/notifications/catalog.ts, same order).
         'wallet-received', 'wallet-sent', 'wallet-failed', 'wallet-frozen', 'wallet-updated',
+        // Prompt 11 (functions/src/notifications/catalog.ts, same order).
+        'licence-expiring', 'licence-expired', 'year-check-due', 'guardian-requested', 'guardian-linked',
+        'guardian-declined', 'phone-changed',
       ];
       expect(NotificationKind.values.map((NotificationKind k) => k.wire), server);
       expect(
@@ -80,6 +83,11 @@ void main() {
       expect(NotificationRoutes.safe('/carpools/k1'), '/carpools/k1');
       expect(NotificationRoutes.safe('/profile'), '/profile');
       expect(NotificationRoutes.safe('/profile/wallet'), '/profile/wallet');
+      // Prompt 11: papers, the yearly check and family links.
+      expect(NotificationRoutes.safe('/profile/driving'), '/profile/driving');
+      expect(NotificationRoutes.safe('/profile/school-year'), '/profile/school-year');
+      expect(NotificationRoutes.safe('/profile/family'), '/profile/family');
+      expect(NotificationRoutes.safe('/profile/family/x'), NotificationRoutes.fallback);
       expect(NotificationRoutes.safe('/home/nearby'), '/home/nearby');
       // Prompt 10: the live run and the group's emergencies.
       expect(NotificationRoutes.safe('/carpools/k1/trip/2026-11-16_am'), '/carpools/k1/trip/2026-11-16_am');

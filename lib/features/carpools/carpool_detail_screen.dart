@@ -13,6 +13,7 @@ import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
 import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/trips/today_section.dart';
+import 'package:school_carpool/features/trust/trust_repository.dart';
 import 'package:school_carpool/features/verification/verification_labels.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/features/verification/verification_repository.dart';
@@ -95,6 +96,8 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
     final AsyncValue<Membership?> membership = ref.watch(_myMembershipProvider(_id));
     // The parent's children, for the join sheet (kept loaded while open).
     ref.watch(childrenProvider);
+    // Prompt 11: children another parent linked to me can join too.
+    ref.watch(linkedChildrenProvider);
     void reload() {
       ref
         ..invalidate(_carpoolProvider(_id))
@@ -257,7 +260,11 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
 
   Future<void> _join(Carpool c) async {
     // Watched in build, so the children are already loaded here.
-    final List<ChildRecord> children = ref.read(childrenProvider).value ?? const <ChildRecord>[];
+    final List<ChildRecord> children = <ChildRecord>[
+      ...ref.read(childrenProvider).value ?? const <ChildRecord>[],
+      // Prompt 11: children another parent linked to me (guardian links).
+      ...ref.read(linkedChildrenProvider).value ?? const <ChildRecord>[],
+    ];
     final List<ChildRecord> eligible = <ChildRecord>[
       for (final ChildRecord child in children)
         if (child.status == ReviewStatus.approved && (c.kind == CarpoolKind.activity || child.schoolId == c.schoolId)) child,

@@ -162,6 +162,7 @@ class _UserScreenState extends ConsumerState<UserScreen> {
                               ReviewStatus.approved => AppBadgeTone.success,
                               ReviewStatus.rejected => AppBadgeTone.error,
                               ReviewStatus.pending => AppBadgeTone.warning,
+                              ReviewStatus.left => AppBadgeTone.neutral,
                             },
                           ),
                   ),

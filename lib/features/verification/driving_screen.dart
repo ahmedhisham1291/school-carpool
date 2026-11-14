@@ -8,6 +8,7 @@ import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/trust/trust_models.dart';
 import 'package:school_carpool/features/verification/driver_form.dart';
 import 'package:school_carpool/features/verification/review_status_badge.dart';
 import 'package:school_carpool/features/verification/screen_security.dart';
@@ -143,7 +144,7 @@ class _DrivingScreenState extends ConsumerState<DrivingScreen> {
                 padding: AppSpacing.screenPadding,
                 children: <Widget>[
                   if (car != null) ...<Widget>[
-                    _CarCard(car: car),
+                    _CarCard(car: car, today: _today),
                     const SizedBox(height: AppSpacing.s24),
                   ] else if (!showForm)
                     Text(verified ? l10n.drivingNone : l10n.drivingAddInVerification, style: context.text.bodyLarge),
@@ -204,9 +205,10 @@ class _DrivingScreenState extends ConsumerState<DrivingScreen> {
 }
 
 class _CarCard extends StatelessWidget {
-  const _CarCard({required this.car});
+  const _CarCard({required this.car, required this.today});
 
   final VehicleRecord car;
+  final DateTime today;
 
   @override
   Widget build(BuildContext context) {
@@ -231,6 +233,18 @@ class _CarCard extends StatelessWidget {
               '${l10n.driverCarLicenseExpiryLabel}: ${dates.formatMediumDate(carLicense)}',
               style: context.text.bodyLarge,
             ),
+          // Prompt 11 (F17): remind before the papers expire; after, no new driving days.
+          ...switch (papersNotice(license, carLicense, today)) {
+            PapersExpireSoon(:final int days) => <Widget>[
+              const SizedBox(height: AppSpacing.s16),
+              AppInlineMessage(key: const Key('driving.papersSoon'), message: l10n.papersSoon(days), tone: AppStateTone.warning),
+            ],
+            PapersExpired() => <Widget>[
+              const SizedBox(height: AppSpacing.s16),
+              AppInlineMessage(key: const Key('driving.papersExpired'), message: l10n.papersExpired, tone: AppStateTone.error),
+            ],
+            PapersFine() => const <Widget>[],
+          },
         ],
       ),
     );

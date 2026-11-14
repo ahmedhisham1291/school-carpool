@@ -103,7 +103,9 @@ export type CarpoolErrorReason =
   | "too-late"
   | "run-taken"
   | "not-plannable"
-  | "too-many-exceptions";
+  | "too-many-exceptions"
+  // Prompt 11 (F17): a child linked to two parents rides once per carpool.
+  | "child-in-carpool";
 
 export class CarpoolError extends Error {
   constructor(
@@ -151,6 +153,7 @@ export const CARPOOL_ERROR_CODES: Record<CarpoolErrorReason, string> = {
   "run-taken": "failed-precondition",
   "not-plannable": "invalid-argument",
   "too-many-exceptions": "resource-exhausted",
+  "child-in-carpool": "already-exists",
 };
 
 // --------------------------------------------------------------------------

@@ -176,6 +176,9 @@ class GalleryScreen extends ConsumerWidget {
           // Prompt 11B: wallet pieces (fake data only).
           AppSectionHeader(l10n.gallerySectionWallet),
           const _WalletSamples(),
+          // Prompt 11: stars for ratings (F17).
+          AppSectionHeader(l10n.gallerySectionTrust),
+          const _Padded(child: _TrustSamples()),
           AppSectionHeader(l10n.gallerySectionSheets),
           const _Padded(child: _SheetSamples()),
           AppSectionHeader(l10n.gallerySectionSkeleton),
@@ -244,6 +247,27 @@ class _WalletSamples extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Prompt 11: the star rating, chosen and read-only.
+class _TrustSamples extends StatefulWidget {
+  const _TrustSamples();
+
+  @override
+  State<_TrustSamples> createState() => _TrustSamplesState();
+}
+
+class _TrustSamplesState extends State<_TrustSamples> {
+  int _stars = 4;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      AppStarRating(key: const Key('gallery.stars'), value: _stars, onChanged: (int v) => setState(() => _stars = v)),
+      const AppStarRating(value: 2, onChanged: null),
+    ],
+  );
 }
 
 class _ChatSamples extends StatefulWidget {

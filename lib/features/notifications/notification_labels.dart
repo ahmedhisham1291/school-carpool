@@ -60,6 +60,13 @@ String notificationTitle(AppLocalizations l10n, NotificationKind k) => switch (k
   NotificationKind.walletFailed => l10n.notifWalletFailedTitle,
   NotificationKind.walletFrozen => l10n.notifWalletFrozenTitle,
   NotificationKind.walletUpdated => l10n.notifWalletUpdatedTitle,
+  NotificationKind.licenceExpiring => l10n.notifLicenceExpiringTitle,
+  NotificationKind.licenceExpired => l10n.notifLicenceExpiredTitle,
+  NotificationKind.yearCheckDue => l10n.notifYearCheckTitle,
+  NotificationKind.guardianRequested => l10n.notifGuardianRequestedTitle,
+  NotificationKind.guardianLinked => l10n.notifGuardianLinkedTitle,
+  NotificationKind.guardianDeclined => l10n.notifGuardianDeclinedTitle,
+  NotificationKind.phoneChanged => l10n.notifPhoneChangedTitle,
 };
 
 /// One short sentence. Run types name the run ("Mon 16/11, to school");
@@ -105,6 +112,13 @@ String notificationBody(AppLocalizations l10n, AppNotification n) {
     NotificationKind.walletFailed => l10n.notifWalletFailedBody,
     NotificationKind.walletFrozen => l10n.notifWalletFrozenBody,
     NotificationKind.walletUpdated => l10n.notifWalletUpdatedBody,
+    NotificationKind.licenceExpiring => l10n.notifLicenceExpiringBody(run),
+    NotificationKind.licenceExpired => l10n.notifLicenceExpiredBody,
+    NotificationKind.yearCheckDue => l10n.notifYearCheckBody,
+    NotificationKind.guardianRequested => l10n.notifGuardianRequestedBody,
+    NotificationKind.guardianLinked => l10n.notifGuardianLinkedBody,
+    NotificationKind.guardianDeclined => l10n.notifGuardianDeclinedBody,
+    NotificationKind.phoneChanged => l10n.notifPhoneChangedBody,
   };
 }
 
@@ -120,6 +134,7 @@ IconData notificationIcon(NotificationKind k) => switch (k.group) {
   WhatsAppGroup.verification => Icons.verified_user_outlined,
   WhatsAppGroup.newParents => Icons.person_pin_circle_outlined,
   WhatsAppGroup.wallet => Icons.account_balance_wallet_outlined,
+  WhatsAppGroup.trust => Icons.shield_outlined,
   null => Icons.chat_bubble_outline_rounded,
 };
 
@@ -138,6 +153,7 @@ String whatsAppGroupTitle(AppLocalizations l10n, WhatsAppGroup g) => switch (g) 
   WhatsAppGroup.verification => l10n.notifGroupVerification,
   WhatsAppGroup.newParents => l10n.notifGroupNewParents,
   WhatsAppGroup.wallet => l10n.notifGroupWallet,
+  WhatsAppGroup.trust => l10n.notifGroupTrust,
 };
 
 /// "10:30" today, "Sun 15/11" before.

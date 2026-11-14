@@ -41,6 +41,10 @@ import 'package:school_carpool/features/trips/driver_trip_screen.dart';
 import 'package:school_carpool/features/trips/emergency_screens.dart';
 import 'package:school_carpool/features/trips/handover_screen.dart';
 import 'package:school_carpool/features/trips/trip_screen.dart';
+import 'package:school_carpool/features/trust/family_screen.dart';
+import 'package:school_carpool/features/trust/phone_change_screen.dart';
+import 'package:school_carpool/features/trust/rate_screen.dart';
+import 'package:school_carpool/features/trust/school_year_screen.dart';
 import 'package:school_carpool/features/verification/children_screen.dart';
 import 'package:school_carpool/features/verification/driving_screen.dart';
 import 'package:school_carpool/features/verification/verification_flow_screen.dart';
@@ -89,6 +93,16 @@ abstract final class ProfileRoutes {
   /// Prompt 11B: the wallet (F43).
   static const String walletSegment = 'wallet';
   static const String wallet = '/profile/$walletSegment';
+
+  /// Prompt 11 (F17): ratings, family links, the yearly check, phone change.
+  static const String ratingsSegment = 'ratings';
+  static const String familySegment = 'family';
+  static const String schoolYearSegment = 'school-year';
+  static const String phoneSegment = 'phone';
+  static const String ratings = '/profile/$ratingsSegment';
+  static const String family = '/profile/$familySegment';
+  static const String schoolYear = '/profile/$schoolYearSegment';
+  static const String phone = '/profile/$phoneSegment';
 }
 
 /// Wallet screens under Profile > Wallet (Prompt 11B). Verified parents
@@ -417,6 +431,22 @@ GoRouter buildAppRouter({
                       GoRoute(
                         path: ProfileRoutes.emergencyContactSegment,
                         builder: (BuildContext context, GoRouterState state) => const EmergencyContactScreen(),
+                      ),
+                      GoRoute(
+                        path: ProfileRoutes.ratingsSegment,
+                        builder: (BuildContext context, GoRouterState state) => const RateParentsScreen(),
+                      ),
+                      GoRoute(
+                        path: ProfileRoutes.familySegment,
+                        builder: (BuildContext context, GoRouterState state) => const FamilyScreen(),
+                      ),
+                      GoRoute(
+                        path: ProfileRoutes.schoolYearSegment,
+                        builder: (BuildContext context, GoRouterState state) => const SchoolYearScreen(),
+                      ),
+                      GoRoute(
+                        path: ProfileRoutes.phoneSegment,
+                        builder: (BuildContext context, GoRouterState state) => const PhoneChangeScreen(),
                       ),
                       GoRoute(
                         path: ProfileRoutes.walletSegment,

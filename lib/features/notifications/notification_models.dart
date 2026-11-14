@@ -45,7 +45,16 @@ enum NotificationKind {
   walletSent('wallet-sent', WhatsAppGroup.wallet),
   walletFailed('wallet-failed', WhatsAppGroup.wallet),
   walletFrozen('wallet-frozen', WhatsAppGroup.wallet),
-  walletUpdated('wallet-updated', WhatsAppGroup.wallet);
+  walletUpdated('wallet-updated', WhatsAppGroup.wallet),
+  // Prompt 11 (F17): driving papers, the yearly check, family links and a
+  // changed phone number. Same order as the server's catalog.
+  licenceExpiring('licence-expiring', WhatsAppGroup.trust),
+  licenceExpired('licence-expired', WhatsAppGroup.trust),
+  yearCheckDue('year-check-due', WhatsAppGroup.trust),
+  guardianRequested('guardian-requested', WhatsAppGroup.trust),
+  guardianLinked('guardian-linked', WhatsAppGroup.trust),
+  guardianDeclined('guardian-declined', WhatsAppGroup.trust),
+  phoneChanged('phone-changed', WhatsAppGroup.trust);
 
   const NotificationKind(this.wire, this.group, {this.critical = false});
 
@@ -86,7 +95,11 @@ enum WhatsAppGroup {
 
   /// Prompt 11B: push only by default (COST MODE); the parent can switch
   /// WhatsApp on.
-  wallet;
+  wallet,
+
+  /// Prompt 11: papers, the yearly check, family links, phone changes.
+  /// Push only by default (COST MODE).
+  trust;
 
   const WhatsAppGroup({this.defaultOn = false});
 
@@ -101,7 +114,7 @@ abstract final class NotificationRoutes {
   static final RegExp _allowed = RegExp(
     // Prompt 9: a chat push opens that chat (/chats/<type>/<id>); Prompt 10:
     // the live run and the group's emergencies.
-    r'^/(notifications|profile|profile/wallet|chats|chats/cp_(private|school|area|carpool)/[A-Za-z0-9_-]{1,64}|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule|/emergency|/trip/\d{4}-\d{2}-\d{2}_(am|pm))?)$',
+    r'^/(notifications|profile|profile/wallet|profile/driving|profile/school-year|profile/family|chats|chats/cp_(private|school|area|carpool)/[A-Za-z0-9_-]{1,64}|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule|/emergency|/trip/\d{4}-\d{2}-\d{2}_(am|pm))?)$',
   );
 
   static String safe(Object? route) => route is String && _allowed.hasMatch(route) ? route : fallback;

@@ -93,7 +93,7 @@ function whatsAppSender(): WhatsAppSender {
   );
 }
 
-function otpDeps(): OtpDeps {
+export function otpDeps(): OtpDeps {
   const db = adminDb();
   return {
     store: new FirestoreOtpStore(db),
