@@ -156,6 +156,14 @@ def patch_ios(bundle_id: str, display_name: str) -> None:
     info["GMSApiKey"] = "$(MAPS_API_KEY)"
     # Prompt 6: universal links (invite links) reach go_router.
     info["FlutterDeepLinkingEnabled"] = True
+    # Prompt 12: usage analytics without any advertising identifier. The
+    # app switches collection on after reading the parent's choice (on by
+    # default, off in Settings), so nothing is sent before that.
+    info["FIREBASE_ANALYTICS_COLLECTION_ENABLED"] = False
+    info["GOOGLE_ANALYTICS_ADID_COLLECTION_ENABLED"] = False
+    info["GOOGLE_ANALYTICS_IDFV_COLLECTION_ENABLED"] = False
+    info["GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_PERSONALIZATION_SIGNALS"] = False
+    info["GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_USER_DATA"] = False
 
     if info != before:
         with info_path.open("wb") as f:

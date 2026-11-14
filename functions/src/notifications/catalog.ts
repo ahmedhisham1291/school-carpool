@@ -70,6 +70,8 @@ export const NOTIFICATION_TYPES = [
   "guardian-linked",
   "guardian-declined",
   "phone-changed",
+  // Prompt 12: a sign-in from a new phone (reaches the old phone too).
+  "new-device",
   // The second, louder push of a critical alert nobody opened in time.
   "critical-alarm",
 ] as const;
@@ -208,6 +210,7 @@ export const TYPES: Readonly<Record<NotificationType, TypeSpec>> = {
   "guardian-linked": spec("trust", "cp_guardian_linked", false),
   "guardian-declined": spec("trust", "cp_guardian_declined", false),
   "phone-changed": spec("trust", "cp_phone_changed", false),
+  "new-device": spec("trust", "cp_new_device", false),
   "critical-alarm": spec("alarm", null, false, true),
 };
 
@@ -300,6 +303,8 @@ export function routeFor(input: RouteInput): string {
       return "/profile/family";
     case "phone-changed":
       return "/profile";
+    case "new-device":
+      return "/profile/privacy/devices";
     case "critical-alarm":
       return "/notifications";
     default:

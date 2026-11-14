@@ -36,7 +36,7 @@ enum FreezeReason {
   }
 }
 
-enum AlertOutcome { noIssue, frozen, sentToPartner, parentContacted }
+enum AlertOutcome { noIssue, frozen, sentToPartner, parentContacted, settledWithPartner }
 
 @immutable
 class AdminTransfer {

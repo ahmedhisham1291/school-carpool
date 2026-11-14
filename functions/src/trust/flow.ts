@@ -109,6 +109,8 @@ export interface TrustStore {
   finishedTrips(uid: string, sinceDate: string): Promise<TripLike[]>;
   /** Parents [raterUid] already rated in [month]. */
   ratedIn(raterUid: string, month: string): Promise<string[]>;
+  /** True when [raterUid] already rated [rateeUid] for [tripId] (any month; Prompt 11 review item 4). */
+  tripRated(raterUid: string, rateeUid: string, tripId: string): Promise<boolean>;
   /** Creates the rating (throws TrustError already-rated when it exists), updates the summary and the flag, in one transaction. */
   saveRating(r: RatingRecord, update: (s: TrustSummary | null) => TrustSummary, flag: RatingFlag | null): Promise<void>;
   summary(uid: string): Promise<TrustSummary | null>;
@@ -204,6 +206,7 @@ export async function listRateable(deps: TrustDeps, caller: Caller): Promise<{ p
   const out: RateableParent[] = [];
   const candidates = [...shared.values()].filter((s) => !rated.has(s.otherUid)).sort((a, b) => b.date.localeCompare(a.date));
   for (const s of candidates.slice(0, MAX_RATEABLE)) {
+    if (await deps.store.tripRated(caller.uid, s.otherUid, s.tripId)) continue;
     const other = await deps.store.account(s.otherUid);
     if (!other || other.status !== "verified") continue;
     out.push({ uid: s.otherUid, firstName: other.firstName, role: s.otherRole, date: s.date, carpoolId: s.carpoolId });
@@ -224,6 +227,9 @@ export async function rateParent(deps: TrustDeps, caller: Caller, data: unknown)
   const since = addDays(day, -deps.rateWindowDays);
   const shared = sharedTrips(await deps.store.finishedTrips(caller.uid, since), caller.uid, since).get(input.rateeUid);
   if (!shared) throw new TrustError("no-shared-trip");
+  // Once per trip and pair as well: a trip on the 31st cannot be rated
+  // again on the 1st of the next month (Prompt 11 review item 4).
+  if (await deps.store.tripRated(caller.uid, input.rateeUid, shared.tripId)) throw new TrustError("already-rated");
   const other = await deps.store.account(input.rateeUid);
   if (!other) throw new TrustError("not-found");
   await take(deps, caller.uid, "ratings");
@@ -316,7 +322,13 @@ export async function confirmSchoolYear(deps: TrustDeps, caller: Caller, data: u
   for (const a of answers) {
     const before = view.children.find((c) => c.id === a.childId);
     if (a.stays) {
-      if (a.grade && before && before.grade !== a.grade) await updateChildGrade(deps.carpools, caller.uid, a.childId, a.grade);
+      if (a.grade && before && before.grade !== a.grade) {
+        await updateChildGrade(deps.carpools, caller.uid, a.childId, a.grade);
+        // Prompt 11 review item 2: the carpools a linked parent brought the child into too.
+        for (const l of (await deps.store.linksOfChild(a.childId)).filter(linkLive)) {
+          await updateChildGrade(deps.carpools, l.guardianUid, a.childId, a.grade);
+        }
+      }
       continue;
     }
     left += 1;

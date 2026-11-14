@@ -189,4 +189,10 @@ export class MemoryTripFiles implements TripFiles {
   async signedReadUrl(path: string, expiresAtMs: number) {
     return `https://signed.example/${path}?e=${expiresAtMs}`;
   }
+  async copy(from: string, to: string) {
+    const f = this.files.get(from);
+    if (!f) throw new Error("no such file");
+    this.files.set(to, f);
+    this.created.set(to, this.created.get(from) ?? 0);
+  }
 }

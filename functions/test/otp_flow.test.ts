@@ -245,6 +245,35 @@ describe("sign-in codes", () => {
     await ask({ deviceId: "dddddddddddddddd" });
   });
 
+  it("a device where the number signed in before is not closed by strangers' wrong codes (review 2, N1)", async () => {
+    // The parent signs in once on their own phone: it becomes known.
+    await ask();
+    await check("123456");
+    assert.equal(store.known.size, 1);
+    assert.ok(!JSON.stringify([...store.known.keys()]).includes(DEVICE));
+    // A stranger rotates device IDs until the number is closed for the day.
+    let failures = 0;
+    let device = 0;
+    while (failures < DEFAULT_OTP_LIMITS.maxFailuresPerPhonePerDay) {
+      now += 3600_000;
+      const id = `${String(device++).padStart(4, "0")}eeeeeeeeeeeeeeee`;
+      await ask({ deviceId: id });
+      for (let i = 0; i < DEFAULT_OTP_LIMITS.maxAttemptsPerCode && failures < DEFAULT_OTP_LIMITS.maxFailuresPerPhonePerDay; i++) {
+        await check("000000", id).catch(() => undefined);
+        failures++;
+      }
+    }
+    now += 61_000;
+    await expectReason(ask({ deviceId: "ffffffffffffffff" }), "locked");
+    // The parent's own phone still gets a code and signs in.
+    codes = ["135790"];
+    await ask();
+    assert.deepEqual(await check("135790"), { uid: "uid-1", token: "token-for-uid-1" });
+    // Known only for knownDeviceDays.
+    now += (DEFAULT_OTP_LIMITS.knownDeviceDays + 1) * 24 * 3600_000;
+    assert.ok([...store.known.values()].every((until) => until < now));
+  });
+
   it("stores no plain value in the lock key either", async () => {
     await ask();
     await expectReason(check("000000"), "wrong-code");

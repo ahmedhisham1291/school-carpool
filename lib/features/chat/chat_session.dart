@@ -139,7 +139,8 @@ class DevicePhotoPicker implements ChatPhotoPicker {
     final Uint8List out;
     try {
       // keepExif is off: the compressor drops EXIF, GPS included.
-      out = await _compressor.compress(await file.readAsBytes(), document: false);
+      // Prompt 12: WebP on the phone (smaller); long edge at most 1600.
+      out = await _compressor.compress(await file.readAsBytes(), document: false, webp: true);
     } on Object {
       throw const ChatFailure(ChatFailureKind.photoFailed);
     }

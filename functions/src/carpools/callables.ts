@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import * as logger from "firebase-functions/logger";
-import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { HttpsError, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
 import {
   CARPOOL_CREATES_PER_DAY,
@@ -39,6 +39,8 @@ import {
 } from "./flow";
 import { CARPOOL_ERROR_CODES, CarpoolError } from "./model";
 import { FirestoreCarpoolStore } from "./store";
+import { noteAbuse } from "../privacy/abuse_hook";
+import { gatedCall } from "../privacy/device_gate";
 
 /**
  * Carpool callables (Prompt 6). Every membership, ownership and status
@@ -109,40 +111,47 @@ export async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
 export const opts = { enforceAppCheck: ENFORCE_APP_CHECK };
 
 /** F5, F25, F36, F39: { kind, schoolId|activity, areaId?, morning?, afternoon?, days, driveDays, seats, childIds, rules, contribution? } -> { carpoolId } */
-export const createCarpool = onCall(opts, (r) => run("createCarpool", () => createFlow(deps(), caller(r), r.data)));
+export const createCarpool = gatedCall(opts, (r) => run("createCarpool", () => createFlow(deps(), caller(r), r.data)));
 
 /** F5, F6: { kind, schoolId?, areaId?, morning?, afternoon?, radiusKm?, parentUid? } -> { carpools } */
-export const searchCarpools = onCall(opts, (r) => run("searchCarpools", () => searchFlow(deps(), caller(r), r.data)));
+export const searchCarpools = gatedCall(opts, (r) =>
+  run("searchCarpools", async () => {
+    // Prompt 12: searching many schools and areas in an hour alerts the admins.
+    const q = typeof r.data === "object" && r.data !== null ? (r.data as { schoolId?: unknown; areaId?: unknown }) : {};
+    await noteAbuse(caller(r).uid, "areaSearches", `${String(q.schoolId ?? "")}|${String(q.areaId ?? "")}`.slice(0, 64));
+    return searchFlow(deps(), caller(r), r.data);
+  }),
+);
 
 /** F6: { carpoolId, childIds, acceptRules, acceptContribution } -> { status } */
-export const requestToJoinCarpool = onCall(opts, (r) => run("requestToJoinCarpool", () => requestToJoin(deps(), caller(r), r.data)));
+export const requestToJoinCarpool = gatedCall(opts, (r) => run("requestToJoinCarpool", () => requestToJoin(deps(), caller(r), r.data)));
 
 /** F6: { carpoolId } -> { status } */
-export const cancelJoinRequest = onCall(opts, (r) => run("cancelJoinRequest", () => cancelFlow(deps(), caller(r), r.data)));
+export const cancelJoinRequest = gatedCall(opts, (r) => run("cancelJoinRequest", () => cancelFlow(deps(), caller(r), r.data)));
 
 /** F6: { carpoolId, uid, approve } -> { status } (carpool admin only) */
-export const decideJoinRequest = onCall(opts, (r) => run("decideJoinRequest", () => decideFlow(deps(), caller(r), r.data)));
+export const decideJoinRequest = gatedCall(opts, (r) => run("decideJoinRequest", () => decideFlow(deps(), caller(r), r.data)));
 
 /** { carpoolId } -> { status } */
-export const leaveCarpool = onCall(opts, (r) => run("leaveCarpool", () => leaveFlow(deps(), caller(r), r.data)));
+export const leaveCarpool = gatedCall(opts, (r) => run("leaveCarpool", () => leaveFlow(deps(), caller(r), r.data)));
 
 /** F26: { carpoolId, driverUid, accept } -> the consent */
-export const setDriverConsent = onCall(opts, (r) => run("setDriverConsent", () => consentFlow(deps(), caller(r), r.data)));
+export const setDriverConsent = gatedCall(opts, (r) => run("setDriverConsent", () => consentFlow(deps(), caller(r), r.data)));
 
 /** { carpoolId, share } -> { shared } */
-export const setPickupSharing = onCall(opts, (r) => run("setPickupSharing", () => pickupFlow(deps(), caller(r), r.data)));
+export const setPickupSharing = gatedCall(opts, (r) => run("setPickupSharing", () => pickupFlow(deps(), caller(r), r.data)));
 
 /** F31: { carpoolId } -> { code, url, expiresAtMs } */
-export const createCarpoolInvite = onCall(opts, (r) => run("createCarpoolInvite", () => createInvite(deps(), caller(r), r.data)));
+export const createCarpoolInvite = gatedCall(opts, (r) => run("createCarpoolInvite", () => createInvite(deps(), caller(r), r.data)));
 
 /** F31: { code } -> { carpoolId } (verified parents only) */
-export const openCarpoolInvite = onCall(opts, (r) => run("openCarpoolInvite", () => openInvite(deps(), caller(r), r.data)));
+export const openCarpoolInvite = gatedCall(opts, (r) => run("openCarpoolInvite", () => openInvite(deps(), caller(r), r.data)));
 
 /** F32: { schoolId, areaId?, morning?, afternoon?, days, childIds } -> the post */
-export const saveCarpoolWanted = onCall(opts, (r) => run("saveCarpoolWanted", () => saveWanted(deps(), caller(r), r.data)));
+export const saveCarpoolWanted = gatedCall(opts, (r) => run("saveCarpoolWanted", () => saveWanted(deps(), caller(r), r.data)));
 
 /** F32: {} -> { deleted } */
-export const deleteCarpoolWanted = onCall(opts, (r) => run("deleteCarpoolWanted", () => deleteWanted(deps(), caller(r))));
+export const deleteCarpoolWanted = gatedCall(opts, (r) => run("deleteCarpoolWanted", () => deleteWanted(deps(), caller(r))));
 
 /** F32: { schoolId, areaId? } -> { posts, suggestion } */
-export const listCarpoolWanted = onCall(opts, (r) => run("listCarpoolWanted", () => listWanted(deps(), caller(r), r.data)));
+export const listCarpoolWanted = gatedCall(opts, (r) => run("listCarpoolWanted", () => listWanted(deps(), caller(r), r.data)));

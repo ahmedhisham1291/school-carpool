@@ -62,10 +62,12 @@ export interface DailyResult {
   runsFreed: number;
   yearReminders: number;
   overdue: number;
+  /** Overdue marks cleared (confirmed, or no approved child left). */
+  overdueCleared: number;
 }
 
 export async function runTrustDaily(deps: JobDeps): Promise<DailyResult> {
-  const result: DailyResult = { vehicles: 0, expiring: 0, expired: 0, runsFreed: 0, yearReminders: 0, overdue: 0 };
+  const result: DailyResult = { vehicles: 0, expiring: 0, expired: 0, runsFreed: 0, yearReminders: 0, overdue: 0, overdueCleared: 0 };
   await papersCheck(deps, result);
   await yearCheck(deps, result);
   return result;
@@ -112,10 +114,19 @@ async function yearCheck(deps: JobDeps, result: DailyResult): Promise<void> {
   for (let page = 0; page < MAX_PAGES; page++) {
     const { rows, last }: { rows: UserRow[]; last: string | null } = await deps.store.verifiedUsers(after, PAGE);
     for (const u of rows) {
-      if (u.yearConfirmed !== null && u.yearConfirmed >= w.year) continue;
-      if (u.verifiedOn !== null && u.verifiedOn >= w.opensOn) continue;
+      const settled = (u.yearConfirmed !== null && u.yearConfirmed >= w.year) || (u.verifiedOn !== null && u.verifiedOn >= w.opensOn);
+      if (settled) {
+        // Prompt 11 review item 3: a mark left from before never blocks driving.
+        if (u.yearCheckOverdue) await clearOverdue(deps, u.uid, result);
+        continue;
+      }
       const children = await deps.store.approvedChildCount(u.uid);
       const state = yearState(w, today, { confirmedYear: u.yearConfirmed, verifiedOn: u.verifiedOn, hasChildren: children > 0 });
+      if ((state === "none" || state === "done") && u.yearCheckOverdue) {
+        // No approved child left (rejected or removed): nothing to confirm, so no mark.
+        await clearOverdue(deps, u.uid, result);
+        continue;
+      }
       if (state === "due" && stage) {
         if (await deps.store.createEvent(newEvent(`year-check_${u.uid}_${w.year}_${stage}`, "year-check-due", [u.uid], deps.now()))) result.yearReminders += 1;
       } else if (state === "overdue" && !u.yearCheckOverdue) {
@@ -127,6 +138,11 @@ async function yearCheck(deps: JobDeps, result: DailyResult): Promise<void> {
     after = last;
   }
   deps.log("trust daily: user pages full", { pages: MAX_PAGES });
+}
+
+async function clearOverdue(deps: JobDeps, uid: string, result: DailyResult): Promise<void> {
+  await deps.store.setYearCheckOverdue(uid, false);
+  result.overdueCleared += 1;
 }
 
 /** A users/{uid} document reads as blocked (suspended, banned or gone). */

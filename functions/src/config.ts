@@ -2,8 +2,8 @@ import { defineBoolean, defineInt, defineSecret, defineString } from "firebase-f
 
 /**
  * Region of every function. Must match kFunctionsRegion in
- * lib/firebase/firebase_setup.dart. Open question for the owner and the
- * lawyer (hosting abroad); see docs/progress/prompt-01.md.
+ * lib/firebase/firebase_setup.dart. Hosting abroad in europe-west1 is
+ * confirmed by the lawyer (docs/DECISIONS.md, 14 Nov 2026).
  */
 export const REGION = "europe-west1";
 
@@ -78,6 +78,13 @@ export const VALIFY_PASSWORD_NAME = "VALIFY_PASSWORD";
  * many users behind one address; a param so it can change per project.
  */
 export const OTP_MAX_SENDS_PER_IP = defineInt("OTP_MAX_SENDS_PER_IP", { default: 60 });
+
+/**
+ * Wrong codes for one number per day across all devices before the number
+ * is closed for the rest of that day (review 2, N1). Devices where the
+ * number signed in before are not closed by it (otp_flow.ts).
+ */
+export const OTP_MAX_FAILURES_PER_DAY = defineInt("OTP_MAX_FAILURES_PER_DAY", { default: 30 });
 
 /** Which X-Forwarded-For entry is the client, counted from the end (auth/client_ip.ts). */
 export const CLIENT_IP_HOP = defineInt("CLIENT_IP_HOP", { default: 1 });
@@ -196,13 +203,6 @@ export const CHAT_REQUESTS_PER_DAY = defineInt("CHAT_REQUESTS_PER_DAY", { defaul
 export const CHAT_REPORTS_PER_DAY = defineInt("CHAT_REPORTS_PER_DAY", { default: 20 });
 /** Blocks, mutes and settings changes per parent per day. */
 export const CHAT_CHANGES_PER_DAY = defineInt("CHAT_CHANGES_PER_DAY", { default: 100 });
-/**
- * Chat retention (spec sections 5 and 7: "chat after the chosen period").
- * Messages older than this are deleted from Stream by chatRetentionDaily.
- * The owner and the lawyer choose the period (open question); 180 days
- * until then.
- */
-export const CHAT_RETENTION_DAYS = defineInt("CHAT_RETENTION_DAYS", { default: 180 });
 
 /**
  * Trips (Prompt 10: F15, F16, F20, F29, F33, F34, F35, F38, F41).

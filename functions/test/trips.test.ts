@@ -260,6 +260,8 @@ describe("trips: random selfie check (F38)", () => {
     h.files.files.set(selfiePath("d1", tripKey()), Buffer.from("live"));
     assert.equal((await submitSelfieCheck(h.deps, driver, ids())).status, "passed");
     assert.equal(h.files.files.has(selfiePath("d1", tripKey())), false);
+    // Prompt 12 (owner decision): a copy is kept in the selfie archive.
+    assert.ok(h.files.files.has(`selfieArchive/d1/run_${tripKey()}.jpg`));
     await startTrip(h.deps, driver, ids());
     assert.ok(h.store.trips.has(tripKey()));
   });

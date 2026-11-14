@@ -28,7 +28,6 @@ import {
   privateChannelId,
   type ChannelRecord,
 } from "../src/chat/model";
-import { retentionDays, runChatRetention } from "../src/chat/retention";
 import { allChannelTypeSettings, APP_GRANTS, appGrantProblems, BLOCKED_TERMS_AR, BLOCKED_TERMS_EN, FORBIDDEN_APP_GRANTS, FORBIDDEN_FOR_PARENTS, moderationPolicy } from "../src/chat/setup_plan";
 import { createChatServer, FakeChatServer, signJwt, StreamChatServer, verifyWebhookSignature, type FetchLike } from "../src/chat/server";
 import { accountFromDoc, chatRelevant, nearestArea, syncAccess, syncCarpoolMember, syncParentGroups } from "../src/chat/sync";
@@ -181,7 +180,8 @@ describe("Stream REST calls", () => {
     await server.ensureChannel("cp_carpool", "c-k1", { nameAr: "أ", nameEn: "A", kind: "carpool", refId: "k1" }, ["alice"]);
     await server.addMembers("cp_carpool", "c-k1", ["bob"]);
     await server.setFrozen("cp_private", "dm-1", true);
-    await server.truncateBefore("cp_school", "s-1", T0);
+    await server.deleteChannel("cp_school", "s-1");
+    await server.deleteUser("alice");
     assert.deepEqual(
       calls.map((c) => `${c.method} ${c.url.replace("https://stream.test", "").split("?")[0]}`),
       [
@@ -190,12 +190,14 @@ describe("Stream REST calls", () => {
         "POST /channels/cp_carpool/c-k1/query",
         "POST /channels/cp_carpool/c-k1",
         "PATCH /channels/cp_private/dm-1",
-        "POST /channels/cp_school/s-1/truncate",
+        "DELETE /channels/cp_school/s-1",
+        "DELETE /users/alice",
       ],
     );
     assert.deepEqual(calls[0].body, { users: [{ id: "alice", set: { revoke_tokens_issued_before: new Date(T0).toISOString() } }] });
     assert.equal((calls[2].body as { data: { created_by_id: string } }).data.created_by_id, "carpool-system");
-    assert.deepEqual((calls[5].body as Record<string, unknown>).hard_delete, true);
+    assert.ok(calls[5].url.includes("hard_delete=true"));
+    assert.ok(calls[6].url.includes("hard_delete=true") && calls[6].url.includes("mark_messages_deleted=true"));
   });
   it("cutting off a parent who never opened chat (no Stream user) is done, not an error", async () => {
     const server = new StreamChatServer("K", "S", (async () => ({ ok: false, status: 400, json: async () => ({ code: 4 }) })) as FetchLike);
@@ -657,28 +659,20 @@ describe("admin: reports queue actions", () => {
   });
 });
 
-describe("retention", () => {
-  it("every registered channel loses messages older than the period", async () => {
+describe("retention (Prompt 12: life of the chat + 1 year, run by retentionDaily)", () => {
+  it("an ended chat is hard-deleted with its messages; the export reads the parent's own messages", async () => {
     const s = twoParents();
     await syncParentGroups(s.deps, "alice");
-    s.store.carpools.set("k1", { id: "k1", nameAr: "", nameEn: "", active: true });
-    await syncCarpoolMember(s.deps, "k1", "alice", true);
-    const r = await runChatRetention(s.deps, 180, 1);
-    assert.deepEqual(r, { channels: 2, failed: 0 });
-    assert.deepEqual(
-      s.server.truncated.map((t) => t.cid).sort(),
-      ["cp_carpool:c-k1", "cp_school:s-sch1"],
-    );
-    assert.ok(s.server.truncated.every((t) => t.beforeMs === T0 - 180 * 86_400_000));
-  });
-  it("odd periods fall back to 180 days; failures are counted, not fatal", async () => {
-    assert.equal(retentionDays(5), 180);
-    assert.equal(retentionDays(365), 365);
-    assert.equal(retentionDays(10_000), 180);
-    const s = twoParents();
-    await syncParentGroups(s.deps, "alice");
-    s.server.failing = true;
-    assert.deepEqual(await runChatRetention(s.deps, 90), { channels: 0, failed: 1 });
+    s.server.messages.set("cp_school:s-sch1", [
+      { id: "m1", text: "hello", user: { id: "alice" }, created_at: "2026-11-01T08:00:00Z" },
+      { id: "m2", text: "hi", user: { id: "bob" }, created_at: "2026-11-01T08:01:00Z" },
+    ]);
+    assert.deepEqual((await s.server.userMessages("alice", 10)).map((m) => m.id), ["m1"]);
+    await s.server.deleteUser("alice");
+    assert.deepEqual((await s.server.userMessages("alice", 10)).length, 0);
+    await s.server.deleteChannel("cp_school", "s-sch1");
+    assert.deepEqual(s.server.deletedChannels, ["cp_school:s-sch1"]);
+    assert.equal(s.server.channels.has("cp_school:s-sch1"), false);
   });
 });
 

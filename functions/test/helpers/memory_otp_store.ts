@@ -8,6 +8,7 @@ import type { CodeRecord, LimitRecord, OtpStore, OtpTransaction } from "../../sr
 export class MemoryOtpStore implements OtpStore {
   readonly limits = new Map<string, LimitRecord>();
   readonly codes = new Map<string, CodeRecord>();
+  readonly known = new Map<string, number>();
 
   async run<T>(fn: (tx: OtpTransaction) => Promise<T>): Promise<T> {
     const writes: Array<() => void> = [];
@@ -37,6 +38,14 @@ export class MemoryOtpStore implements OtpStore {
       deleteCode: (key) => {
         wrote = true;
         writes.push(() => this.codes.delete(key));
+      },
+      getKnownDevice: async (key) => {
+        readGuard();
+        return this.known.get(key) ?? 0;
+      },
+      setKnownDevice: (key, untilMs) => {
+        wrote = true;
+        writes.push(() => this.known.set(key, untilMs));
       },
     };
     const result = await fn(tx);

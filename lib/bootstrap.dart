@@ -5,6 +5,7 @@ import 'package:school_carpool/app.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/analytics/analytics.dart';
 import 'package:school_carpool/features/notifications/push_messaging.dart';
 import 'package:school_carpool/features/trips/background_location_tracker.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
@@ -48,6 +49,9 @@ Future<void> bootstrap(Flavor flavor) async {
             // a trip from the website); tests and the web keep the fake.
             if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android))
               locationTrackerProvider.overrideWithValue(BackgroundLocationTracker()),
+            // Prompt 12: usage analytics on the phone (no PII; switch in Settings).
+            if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android))
+              analyticsSinkProvider.overrideWithValue(FirebaseAnalyticsSink()),
           ],
           child: const CarpoolApp(),
         ),

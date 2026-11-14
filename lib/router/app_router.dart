@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/features/about/about_screen.dart';
+import 'package:school_carpool/features/analytics/analytics.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/carpools/carpool_detail_screen.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
@@ -32,6 +33,10 @@ import 'package:school_carpool/features/onboarding/starting_screen.dart';
 import 'package:school_carpool/features/onboarding/terms_screen.dart';
 import 'package:school_carpool/features/onboarding/verify_account_screen.dart';
 import 'package:school_carpool/features/onboarding/welcome_screen.dart';
+import 'package:school_carpool/features/privacy/delete_account_screen.dart';
+import 'package:school_carpool/features/privacy/devices_screen.dart';
+import 'package:school_carpool/features/privacy/new_device_screen.dart';
+import 'package:school_carpool/features/privacy/privacy_screen.dart';
 import 'package:school_carpool/features/profile/profile_screen.dart';
 import 'package:school_carpool/features/schedule/balance_screen.dart';
 import 'package:school_carpool/features/schedule/exceptions_screen.dart';
@@ -52,6 +57,7 @@ import 'package:school_carpool/features/wallet/money_screens.dart';
 import 'package:school_carpool/features/wallet/send_screen.dart';
 import 'package:school_carpool/features/wallet/transfer_screen.dart';
 import 'package:school_carpool/features/wallet/wallet_screen.dart';
+import 'package:school_carpool/observability/sentry_area.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 
 /// The five bottom tabs from spec section 10, in order.
@@ -103,6 +109,20 @@ abstract final class ProfileRoutes {
   static const String family = '/profile/$familySegment';
   static const String schoolYear = '/profile/$schoolYearSegment';
   static const String phone = '/profile/$phoneSegment';
+}
+
+/// Prompt 12: privacy screens under Profile > Privacy.
+abstract final class PrivacyRoutes {
+  static const String segment = 'privacy';
+  static const String devicesSegment = 'devices';
+  static const String deleteSegment = 'delete';
+  static const String newDeviceSegment = 'new-device';
+  static const String privacy = '/profile/$segment';
+  static const String devices = '$privacy/$devicesSegment';
+  static const String delete = '$privacy/$deleteSegment';
+
+  /// The fresh selfie after a sign-in from a new phone.
+  static const String newDevice = '$privacy/$newDeviceSegment';
 }
 
 /// Wallet screens under Profile > Wallet (Prompt 11B). Verified parents
@@ -474,6 +494,25 @@ GoRouter buildAppRouter({
                           ),
                         ],
                       ),
+                      // Prompt 12: privacy, phones, account deletion, new-phone check.
+                      GoRoute(
+                        path: PrivacyRoutes.segment,
+                        builder: (BuildContext context, GoRouterState state) => const PrivacyScreen(),
+                        routes: <RouteBase>[
+                          GoRoute(
+                            path: PrivacyRoutes.devicesSegment,
+                            builder: (BuildContext context, GoRouterState state) => const DevicesScreen(),
+                          ),
+                          GoRoute(
+                            path: PrivacyRoutes.deleteSegment,
+                            builder: (BuildContext context, GoRouterState state) => const DeleteAccountScreen(),
+                          ),
+                          GoRoute(
+                            path: PrivacyRoutes.newDeviceSegment,
+                            builder: (BuildContext context, GoRouterState state) => const NewDeviceScreen(),
+                          ),
+                        ],
+                      ),
                     ],
                   ],
                 ),
@@ -507,7 +546,21 @@ final Provider<GoRouter> routerProvider = Provider<GoRouter>((Ref ref) {
       }
     })),
   );
+  // Prompt 12: screen tracking for usage analytics (route patterns only,
+  // never IDs; consent in Settings) and the Sentry "area" tag.
+  void trackScreen() {
+    try {
+      final String pattern = router.routerDelegate.currentConfiguration.fullPath;
+      SentryArea.current = SentryArea.ofPath(pattern);
+      ref.read(analyticsProvider).screen(pattern);
+    } on Object catch (error) {
+      debugPrint('screen tracking: ${error.runtimeType}');
+    }
+  }
+
+  router.routerDelegate.addListener(trackScreen);
   ref.onDispose(() {
+    router.routerDelegate.removeListener(trackScreen);
     router.dispose();
     session.dispose();
   });

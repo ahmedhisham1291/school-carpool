@@ -12,8 +12,8 @@ import 'package:school_carpool/firebase/firebase_options_prod.dart' as prod;
 import 'package:school_carpool/firebase/firebase_options_staging.dart' as staging;
 
 /// Region of our Cloud Functions. Must match `REGION` in functions/src.
-/// Open question for the owner and the lawyer (hosting abroad), see
-/// docs/progress/prompt-01.md.
+/// Hosting abroad in europe-west1 is confirmed by the lawyer
+/// (docs/DECISIONS.md, 14 Nov 2026).
 const String kFunctionsRegion = 'europe-west1';
 
 /// Emulator ports, kept in sync with firebase.json.

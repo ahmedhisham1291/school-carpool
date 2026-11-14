@@ -1,0 +1,83 @@
+{
+  "rule": [
+    {
+      "action": {
+        "type": "SetStorageClass",
+        "storageClass": "NEARLINE"
+      },
+      "condition": {
+        "age": 30,
+        "matchesStorageClass": [
+          "STANDARD"
+        ],
+        "matchesPrefix": [
+          "verification/",
+          "faceRefs/",
+          "driverPhotos/",
+          "selfieArchive/",
+          "thumbs/"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "SetStorageClass",
+        "storageClass": "COLDLINE"
+      },
+      "condition": {
+        "age": 180,
+        "matchesStorageClass": [
+          "NEARLINE"
+        ],
+        "matchesPrefix": [
+          "verification/",
+          "faceRefs/",
+          "driverPhotos/",
+          "selfieArchive/",
+          "thumbs/"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "SetStorageClass",
+        "storageClass": "COLDLINE"
+      },
+      "condition": {
+        "age": 0,
+        "matchesStorageClass": [
+          "STANDARD",
+          "NEARLINE"
+        ],
+        "matchesPrefix": [
+          "routeArchive/"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "Delete"
+      },
+      "condition": {
+        "age": 400,
+        "matchesPrefix": [
+          "routeArchive/"
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "Delete"
+      },
+      "condition": {
+        "age": 2,
+        "matchesPrefix": [
+          "exports/",
+          "selfieChecks/",
+          "phoneChecks/",
+          "deviceChecks/"
+        ]
+      }
+    }
+  ]
+}

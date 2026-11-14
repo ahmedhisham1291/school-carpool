@@ -1,3 +1,4 @@
+import { selfieArchivePath } from "../privacy/photos";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { toEgyptE164 } from "../auth/phone";
 import { cairoDate } from "../carpools/model";
@@ -159,6 +160,8 @@ export interface TripFiles {
   read(path: string): Promise<Buffer>;
   delete(path: string): Promise<void>;
   signedReadUrl(path: string, expiresAtMs: number): Promise<string>;
+  /** Prompt 12: keeps a live selfie in the selfie archive before it leaves the upload folder. */
+  copy(from: string, to: string): Promise<void>;
 }
 
 export interface FaceMatcher {
@@ -343,8 +346,18 @@ export async function submitSelfieCheck(deps: TripDeps, caller: Caller, data: un
   try {
     return await checkSelfie(deps, caller, data);
   } finally {
-    // Never kept (spec section 7: face images only as long as needed).
-    if (live) await deps.files.delete(live);
+    // The upload folder is emptied on every path. Prompt 12 (owner
+    // decision, DECISIONS.md "Data retention": live selfie checks are kept)
+    // keeps a copy in the selfie archive: private bucket, KMS key, deleted
+    // 1 year after the account closes, admins only with a logged reason.
+    if (live) {
+      try {
+        if (await deps.files.exists(live)) await deps.files.copy(live, selfieArchivePath(caller.uid, `run_${live.slice(live.lastIndexOf("/") + 1)}`));
+      } catch (error) {
+        deps.log("selfie archive failed", { message: error instanceof Error ? error.message : "unknown" });
+      }
+      await deps.files.delete(live);
+    }
   }
 }
 

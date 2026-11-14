@@ -54,7 +54,9 @@ enum NotificationKind {
   guardianRequested('guardian-requested', WhatsAppGroup.trust),
   guardianLinked('guardian-linked', WhatsAppGroup.trust),
   guardianDeclined('guardian-declined', WhatsAppGroup.trust),
-  phoneChanged('phone-changed', WhatsAppGroup.trust);
+  phoneChanged('phone-changed', WhatsAppGroup.trust),
+  // Prompt 12: a sign-in from a new phone.
+  newDevice('new-device', WhatsAppGroup.trust);
 
   const NotificationKind(this.wire, this.group, {this.critical = false});
 

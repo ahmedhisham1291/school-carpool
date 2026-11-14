@@ -1,7 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { HttpsError, onCall, onRequest, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
-import { onSchedule } from "firebase-functions/v2/scheduler";
+import { HttpsError, onRequest, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
 import { deps as carpoolDeps } from "../carpools/callables";
 import {
@@ -9,7 +8,6 @@ import {
   CHAT_PROVIDER,
   CHAT_REPORTS_PER_DAY,
   CHAT_REQUESTS_PER_DAY,
-  CHAT_RETENTION_DAYS,
   CHAT_TOKEN_TTL_MIN,
   CHAT_TOKENS_PER_HOUR,
   ENFORCE_APP_CHECK,
@@ -18,7 +16,6 @@ import {
   STREAM_API_KEY,
   STREAM_API_SECRET,
 } from "../config";
-import { CAIRO_TZ } from "../schedule/cairo";
 import { reportError } from "../sentry";
 import { FirestoreChatStore, FirestoreDrivingPauser } from "./firestore_store";
 import {
@@ -37,10 +34,11 @@ import {
   type ChatDeps,
 } from "./flow";
 import { CHAT_ERROR_CODES, ChatError } from "./model";
-import { runChatRetention } from "./retention";
 import { createChatServer, verifyWebhookSignature, type ChatServer } from "./server";
 import { accountFromDoc, syncAccess, syncCarpoolMember, syncParentGroups, type SyncDeps } from "./sync";
 import { handleWebhook } from "./webhook";
+import { noteAbuse } from "../privacy/abuse_hook";
+import { gatedCall } from "../privacy/device_gate";
 
 /**
  * Chat functions (Prompt 9: F8, F9, F10, F13). The Stream secret is bound
@@ -59,7 +57,7 @@ function secretValue(): string {
   }
 }
 
-function server(): ChatServer {
+export function server(): ChatServer {
   return createChatServer(CHAT_PROVIDER.value(), process.env.APP_ENV ?? "dev", STREAM_API_KEY.value(), secretValue(), (m) => logger.info(m));
 }
 
@@ -112,34 +110,45 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK, secrets };
 
 /** {} -> { provider, apiKey, userId, token, expiresAtMs }: verified, non-suspended parents only. */
-export const getChatToken = onCall(opts, (r) => run("getChatToken", () => tokenFlow(chatDeps(), caller(r))));
+export const getChatToken = gatedCall(opts, (r) =>
+  run("getChatToken", async () => {
+    return tokenFlow(chatDeps(), caller(r));
+  }),
+);
 
 /** {} -> { groups, carpools }: joins the caller's school, area and carpool chats. */
-export const syncMyChats = onCall(opts, (r) => run("syncMyChats", () => syncMineFlow(chatDeps(), caller(r))));
+export const syncMyChats = gatedCall(opts, (r) => run("syncMyChats", () => syncMineFlow(chatDeps(), caller(r))));
 
 /** { toUid } -> { id, status, cid } */
-export const sendChatRequest = onCall(opts, (r) => run("sendChatRequest", () => sendFlow(chatDeps(), caller(r), r.data)));
+export const sendChatRequest = gatedCall(opts, (r) =>
+  run("sendChatRequest", async () => {
+    // Prompt 12: many chat requests in an hour alert the admins.
+    const to = typeof r.data === "object" && r.data !== null ? (r.data as { toUid?: unknown; uid?: unknown }) : {};
+    await noteAbuse(caller(r).uid, "chatRequests", String(to.toUid ?? to.uid ?? "").slice(0, 64));
+    return sendFlow(chatDeps(), caller(r), r.data);
+  }),
+);
 
 /** { requestId, accept } -> { id, status, cid } */
-export const answerChatRequest = onCall(opts, (r) => run("answerChatRequest", () => answerFlow(chatDeps(), caller(r), r.data)));
+export const answerChatRequest = gatedCall(opts, (r) => run("answerChatRequest", () => answerFlow(chatDeps(), caller(r), r.data)));
 
 /** { requestId } -> { id, status, cid } */
-export const cancelChatRequest = onCall(opts, (r) => run("cancelChatRequest", () => cancelFlow(chatDeps(), caller(r), r.data)));
+export const cancelChatRequest = gatedCall(opts, (r) => run("cancelChatRequest", () => cancelFlow(chatDeps(), caller(r), r.data)));
 
 /** { requestsOff } -> { requestsOff } */
-export const updateChatSettings = onCall(opts, (r) => run("updateChatSettings", () => settingsFlow(chatDeps(), caller(r), r.data)));
+export const updateChatSettings = gatedCall(opts, (r) => run("updateChatSettings", () => settingsFlow(chatDeps(), caller(r), r.data)));
 
 /** { cid, muted } -> { muted } */
-export const setChatMute = onCall(opts, (r) => run("setChatMute", () => muteFlow(chatDeps(), caller(r), r.data)));
+export const setChatMute = gatedCall(opts, (r) => run("setChatMute", () => muteFlow(chatDeps(), caller(r), r.data)));
 
 /** { uid } -> { blocked: true } */
-export const blockChatUser = onCall(opts, (r) => run("blockChatUser", () => blockFlow(chatDeps(), caller(r), r.data)));
+export const blockChatUser = gatedCall(opts, (r) => run("blockChatUser", () => blockFlow(chatDeps(), caller(r), r.data)));
 
 /** { uid } -> { blocked: false } */
-export const unblockChatUser = onCall(opts, (r) => run("unblockChatUser", () => unblockFlow(chatDeps(), caller(r), r.data)));
+export const unblockChatUser = gatedCall(opts, (r) => run("unblockChatUser", () => unblockFlow(chatDeps(), caller(r), r.data)));
 
 /** { targetType, cid, messageId?, uid?, reason, note? } -> { reportId, urgent } */
-export const reportChat = onCall(opts, (r) => run("reportChat", () => reportFlow(chatDeps(), caller(r), r.data)));
+export const reportChat = gatedCall(opts, (r) => run("reportChat", () => reportFlow(chatDeps(), caller(r), r.data)));
 
 // --------------------------------------------------------------------------
 // Triggers: access and membership follow the records at once
@@ -257,12 +266,6 @@ export const chatWebhook = onRequest(
   },
 );
 
-/** Every night, Cairo time: chat older than CHAT_RETENTION_DAYS is deleted (spec section 7). */
-export const chatRetentionDaily = onSchedule(
-  { schedule: "every day 03:30", timeZone: CAIRO_TZ, retryCount: 1, timeoutSeconds: 540, minInstances: MIN_INSTANCES, secrets },
-  async () => {
-    const result = await runChatRetention({ store: new FirestoreChatStore(adminDb()), server: server(), now: () => Date.now() }, CHAT_RETENTION_DAYS.value());
-    logger.info("chat retention", result);
-    if (result.failed > 0) await reportError(new Error(`chat retention: ${result.failed} channel(s) failed`));
-  },
-);
+// Prompt 12: chat retention moved to retentionDaily (privacy/jobs.ts): a
+// chat is kept for its life + 1 year (owner decision), so nothing is
+// truncated nightly any more (Prompt 9 review item 3).

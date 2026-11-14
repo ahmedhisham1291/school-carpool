@@ -27,8 +27,7 @@ import {
 import { refresh as refreshParentMap } from "../maps/callables";
 import { CAIRO_TZ } from "../schedule/cairo";
 import { reportError } from "../sentry";
-import { createKycProvider, type FaceMatcher } from "../verification/kyc";
-import { readFakeKycSetting } from "../verification/store";
+import { faceMatcher } from "../verification/face_match";
 import { faceRefPath } from "../verification/submission";
 import { usableVehicle } from "../verification/vehicle";
 import { asLanguage } from "../whatsapp/sender";
@@ -54,6 +53,8 @@ import { releaseOnBlock, runTrustDaily } from "./jobs";
 import { parseReminderDays, TRUST_ERROR_CODES, TrustError, yearSettings } from "./model";
 import { confirmPhoneChange as confirmPhoneFlow, phoneChangeKey, requestPhoneChange as requestPhoneFlow, type PhoneChangeDeps, type PhoneFiles } from "./phone";
 import { FirestoreTrustStore } from "./store";
+import { noteAbuse } from "../privacy/abuse_hook";
+import { gatedCall } from "../privacy/device_gate";
 
 /**
  * Trust functions (Prompt 11, F17). The app reads and writes nothing of
@@ -108,38 +109,45 @@ const opts = { enforceAppCheck: ENFORCE_APP_CHECK, minInstances: MIN_INSTANCES }
 // Ratings and vouching ----------------------------------------------------
 
 /** {} -> { summary, toRate, yearCheck, requests } (Profile) */
-export const getTrustOverview = onCall(opts, (r) => run("getTrustOverview", () => overviewFlow(trustDeps(), caller(r))));
+export const getTrustOverview = gatedCall(opts, (r) => run("getTrustOverview", () => overviewFlow(trustDeps(), caller(r))));
 
 /** {} -> { parents: [{ uid, firstName, role, date, carpoolId }], month } */
-export const listRateable = onCall(opts, (r) => run("listRateable", () => rateableFlow(trustDeps(), caller(r))));
+export const listRateable = gatedCall(opts, (r) => run("listRateable", () => rateableFlow(trustDeps(), caller(r))));
 
 /** { uid, stars, tags?, vouch? } -> { rated, flagged } */
-export const rateParent = onCall(opts, (r) => run("rateParent", () => rateFlow(trustDeps(), caller(r), r.data)));
+export const rateParent = gatedCall(opts, (r) => run("rateParent", () => rateFlow(trustDeps(), caller(r), r.data)));
 
 /** { uid? } -> { ratings, average, vouches } (self, or a parent of a shared carpool) */
-export const getTrustSummary = onCall(opts, (r) => run("getTrustSummary", () => summaryFlow(trustDeps(), caller(r), r.data)));
+export const getTrustSummary = gatedCall(opts, (r) =>
+  run("getTrustSummary", async () => {
+    // Prompt 12: opening many other parents' profiles alerts the admins.
+    const target = typeof r.data === "object" && r.data !== null ? (r.data as { uid?: unknown }).uid : undefined;
+    if (typeof target === "string" && target !== caller(r).uid) await noteAbuse(caller(r).uid, "profiles", target.slice(0, 64));
+    return summaryFlow(trustDeps(), caller(r), r.data);
+  }),
+);
 
 // Yearly check --------------------------------------------------------------
 
 /** { year, children: [{ childId, stays, grade? }] } -> { state, left } */
-export const confirmSchoolYear = onCall(opts, (r) => run("confirmSchoolYear", () => confirmYearFlow(trustDeps(), caller(r), r.data)));
+export const confirmSchoolYear = gatedCall(opts, (r) => run("confirmSchoolYear", () => confirmYearFlow(trustDeps(), caller(r), r.data)));
 
 // Guardian links ------------------------------------------------------------
 
 /** {} -> { incoming, outgoing, shared, linked } */
-export const getFamily = onCall(opts, (r) => run("getFamily", () => familyFlow(trustDeps(), caller(r))));
+export const getFamily = gatedCall(opts, (r) => run("getFamily", () => familyFlow(trustDeps(), caller(r))));
 
 /** { parentId, relation } -> { requestId, firstName } */
-export const requestGuardianLink = onCall(opts, (r) => run("requestGuardianLink", () => requestLinkFlow(trustDeps(), caller(r), r.data)));
+export const requestGuardianLink = gatedCall(opts, (r) => run("requestGuardianLink", () => requestLinkFlow(trustDeps(), caller(r), r.data)));
 
 /** { requestId } -> { status } */
-export const cancelGuardianRequest = onCall(opts, (r) => run("cancelGuardianRequest", () => cancelFlow(trustDeps(), caller(r), r.data)));
+export const cancelGuardianRequest = gatedCall(opts, (r) => run("cancelGuardianRequest", () => cancelFlow(trustDeps(), caller(r), r.data)));
 
 /** { requestId, accept, childIds? } -> { status, links } */
-export const answerGuardianRequest = onCall(opts, (r) => run("answerGuardianRequest", () => answerFlow(trustDeps(), caller(r), r.data)));
+export const answerGuardianRequest = gatedCall(opts, (r) => run("answerGuardianRequest", () => answerFlow(trustDeps(), caller(r), r.data)));
 
 /** { linkId } -> { status } */
-export const removeGuardianLink = onCall(opts, (r) => run("removeGuardianLink", () => removeLinkFlow(trustDeps(), caller(r), r.data)));
+export const removeGuardianLink = gatedCall(opts, (r) => run("removeGuardianLink", () => removeLinkFlow(trustDeps(), caller(r), r.data)));
 
 // Phone change ----------------------------------------------------------------
 
@@ -168,17 +176,17 @@ class StoragePhoneFiles implements PhoneFiles {
     const [exists] = await this.bucket.file(path).exists();
     return exists;
   }
+
+  async copy(from: string, to: string): Promise<void> {
+    await this.bucket.file(from).copy(this.bucket.file(to));
+  }
 }
 
 function phoneDeps(): PhoneChangeDeps {
   const db = adminDb();
   const signIn = otpDeps();
-  const kyc = createKycProvider({
-    provider: process.env.KYC_PROVIDER ?? "fake",
-    appEnv: process.env.APP_ENV ?? "dev",
-    fakeSetting: () => readFakeKycSetting(db),
-    valify: { enabled: false, baseUrl: "", username: "", clientId: "", clientSecret: "", password: "", bundleKey: "" },
-  }) as unknown as FaceMatcher;
+  // The project's face match (Valify in prod), built per match.
+  const kyc = faceMatcher();
   return {
     store: new FirestoreTrustStore(db, adminAuth()),
     files: new StoragePhoneFiles(),
@@ -194,7 +202,7 @@ function phoneDeps(): PhoneChangeDeps {
 const phoneOpts = { enforceAppCheck: ENFORCE_APP_CHECK, minInstances: MIN_INSTANCES, secrets: [OTP_HMAC_KEY, WHATSAPP_ACCESS_TOKEN] };
 
 /** { phone, deviceId, language } -> { expiresInSeconds, resendAfterSeconds } (code to the NEW number) */
-export const requestPhoneChange = onCall(phoneOpts, (r) =>
+export const requestPhoneChange = gatedCall(phoneOpts, (r) =>
   run("requestPhoneChange", () => {
     const data: unknown = r.data;
     const language = asLanguage(typeof data === "object" && data !== null ? (data as Record<string, unknown>).language : undefined);
@@ -203,7 +211,7 @@ export const requestPhoneChange = onCall(phoneOpts, (r) =>
 );
 
 /** { phone, code, deviceId } after uploading phoneChecks/{uid}/selfie.jpg -> { changed } */
-export const confirmPhoneChange = onCall(phoneOpts, (r) => run("confirmPhoneChange", () => confirmPhoneFlow(phoneDeps(), caller(r), r.data)));
+export const confirmPhoneChange = gatedCall(phoneOpts, (r) => run("confirmPhoneChange", () => confirmPhoneFlow(phoneDeps(), caller(r), r.data)));
 
 // Admin panel (F14) -------------------------------------------------------
 

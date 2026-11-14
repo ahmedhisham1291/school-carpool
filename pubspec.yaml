@@ -34,6 +34,11 @@ dependencies:
   cloud_functions: ^7.0.0
   firebase_messaging: ^17.0.0
   firebase_app_check: ^0.5.0
+  # Usage analytics (Prompt 12, owner decision DECISIONS.md "Data retention
+  # and collection"): screens and features, no PII, switch in Settings.
+  # Google Analytics for Firebase, part of Firebase (free); FlutterFire
+  # BoM 5.1 line (firebase_core 5.1, firebase_analytics 13.0).
+  firebase_analytics: ^13.0.0
 
   # Errors (Sentry 10: Swift Package Manager only on iOS, Android minSdk 26)
   sentry_flutter: ^10.0.0

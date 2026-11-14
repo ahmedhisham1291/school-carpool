@@ -44,6 +44,7 @@ import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
 import 'package:school_carpool/features/notifications/notification_repository.dart';
+import 'package:school_carpool/features/privacy/privacy_repository.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
@@ -66,6 +67,7 @@ import '../helpers/chat_fakes.dart';
 import '../helpers/fonts.dart';
 import '../helpers/map_fakes.dart';
 import '../helpers/notification_fakes.dart';
+import '../helpers/privacy_fakes.dart';
 import '../helpers/schedule_fakes.dart';
 import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
@@ -132,6 +134,8 @@ Future<void> _pumpScreen(
           trust: trust,
         ),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
+        // Prompt 12: the device guard reads the privacy repository.
+        privacyRepositoryProvider.overrideWithValue(FakePrivacyRepository()),
         ...extraOverrides,
       ],
       child: const CarpoolApp(),
@@ -811,6 +815,35 @@ void main() {
             logicalSize: const Size(390, 844),
             pixelRatio: 3,
             trust: FakeTrustRepository(overviewValue: const TrustOverview(summary: TrustSummary(ratings: 4, average: 4.5, vouches: 2), toRate: 2, yearCheck: sampleYearCheck), familyValue: sampleFamily),
+          );
+          await tester.pump(const Duration(milliseconds: 400));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Prompt 12: privacy, phones and sign-ins, delete account, new phone.
+  // Fake data only.
+  final Map<String, String> privacyScreens = <String, String>{
+    'privacy': PrivacyRoutes.privacy,
+    'devices': PrivacyRoutes.devices,
+    'delete': PrivacyRoutes.delete,
+    'new_device': PrivacyRoutes.newDevice,
+  };
+  for (final MapEntry<String, String> screen in privacyScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'privacy_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: screen.value,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
           );
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));

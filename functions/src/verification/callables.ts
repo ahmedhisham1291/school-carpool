@@ -1,7 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { onInit } from "firebase-functions/v2";
 import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
-import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminAuth, adminDb, adminStorage } from "../admin";
 import { ipOf, requireAdminCaller } from "../admin_panel/access";
 import {
@@ -20,7 +19,6 @@ import { reportError } from "../sentry";
 import {
   decideVerification as decideFlow,
   openVerificationCase as openFlow,
-  purgeVerificationImages,
   removeChild as removeChildFlow,
   withdrawVerification as withdrawFlow,
   submitVerification as submitFlow,
@@ -29,6 +27,7 @@ import {
 import { createKycProvider, kycConfigProblem, type KycProvider } from "./kyc";
 import { CloudStorageFiles, FirebaseClaimsService, FirestoreVerificationStore, readFakeKycSetting } from "./store";
 import { VerificationError, type VerificationErrorReason } from "./submission";
+import { gatedCall } from "../privacy/device_gate";
 
 /**
  * Callable functions for verification (F2, F3, F18) and the daily
@@ -65,6 +64,7 @@ const ERROR_CODES: Record<VerificationErrorReason, FunctionsErrorCode> = {
   "own-case": "permission-denied",
   "name-check-missing": "failed-precondition",
   "not-admin": "permission-denied",
+  "reason-required": "failed-precondition",
 };
 
 export function toVerificationHttpsError(error: unknown): HttpsError {
@@ -177,12 +177,12 @@ const options = { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [NATIONAL_ID_HMAC
  * { identity?, children: [...], driver?, consents } -> { caseId }
  * The images must already be in verification/{uid}/pending/.
  */
-export const submitVerification = onCall(options, (request) =>
+export const submitVerification = gatedCall(options, (request) =>
   run("submitVerification", () => submitFlow(deps(true), requireUid(request), request.data)),
 );
 
 /** Parent: remove a child (F3). { childId } -> { ok } */
-export const removeChild = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const removeChild = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("removeChild", async () => {
     await removeChildFlow(deps(false), requireUid(request), request.data);
     return { ok: true };
@@ -190,7 +190,7 @@ export const removeChild = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (reque
 );
 
 /** Parent: withdraw the case waiting for review (releases the ID claim). { caseId } -> { ok } */
-export const withdrawVerification = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const withdrawVerification = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("withdrawVerification", async () => {
     await withdrawFlow(deps(false), requireUid(request), request.data);
     return { ok: true };
@@ -220,20 +220,4 @@ export const decideVerification = onCall({ enforceAppCheck: ENFORCE_APP_CHECK },
   run("decideVerification", async () => decideFlow(deps(false), await requireAdmin(request), request.data, ipOf(request))),
 );
 
-/**
- * Daily at 03:10 Cairo time: deletes verification images of decided cases
- * (5 days after the decision, so always within 7 days), uploads never
- * submitted, and orphaned case folders. minInstances stays 0 (global
- * option); one Cloud Scheduler job (free tier: 3 jobs per billing account).
- */
-export const purgeVerificationImagesDaily = onSchedule(
-  { schedule: "10 3 * * *", timeZone: "Africa/Cairo", retryCount: 2, timeoutSeconds: 540 },
-  async () => {
-    const result = await purgeVerificationImages({
-      store: new FirestoreVerificationStore(adminDb()),
-      files: new CloudStorageFiles(adminStorage().bucket()),
-      now: () => Date.now(),
-    });
-    logger.info("verification images purged", result);
-  },
-);
+// Prompt 12: the daily image purge runs inside retentionDaily (privacy/callables.ts).

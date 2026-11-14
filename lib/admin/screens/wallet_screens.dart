@@ -35,6 +35,8 @@ String _kindLabel(AppLocalizations l10n, String kind) => switch (kind) {
   'new-receivers' => l10n.adminWalletAlertNewReceivers,
   'many-transfers' => l10n.adminWalletAlertMany,
   'report' => l10n.adminWalletAlertReport,
+  // Review 11B: the partner could not confirm or cancel; settled with the partner (SETUP.md 21.6).
+  'stuck' => l10n.adminWalletAlertStuck,
   _ => kind,
 };
 
@@ -64,6 +66,7 @@ String _outcomeLabel(AppLocalizations l10n, AlertOutcome o) => switch (o) {
   AlertOutcome.frozen => l10n.adminWalletOutcomeFrozen,
   AlertOutcome.sentToPartner => l10n.adminWalletOutcomePartner,
   AlertOutcome.parentContacted => l10n.adminWalletOutcomeContacted,
+  AlertOutcome.settledWithPartner => l10n.adminWalletOutcomeSettled,
 };
 
 /// Wallet (F43, F14): open alerts first (unusual patterns such as many
@@ -155,7 +158,8 @@ class _AlertRow extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          for (final AlertOutcome o in AlertOutcome.values)
+          // settledWithPartner is recorded only by the settle script.
+          for (final AlertOutcome o in AlertOutcome.values.where((AlertOutcome o) => o != AlertOutcome.settledWithPartner))
             Builder(
               builder: (BuildContext sheet) => AppListRow(
                 key: Key('adminWallet.outcome.${o.name}'),

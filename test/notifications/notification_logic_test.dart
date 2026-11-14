@@ -28,6 +28,8 @@ void main() {
         // Prompt 11 (functions/src/notifications/catalog.ts, same order).
         'licence-expiring', 'licence-expired', 'year-check-due', 'guardian-requested', 'guardian-linked',
         'guardian-declined', 'phone-changed',
+        // Prompt 12.
+        'new-device',
       ];
       expect(NotificationKind.values.map((NotificationKind k) => k.wire), server);
       expect(

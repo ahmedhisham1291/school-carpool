@@ -198,6 +198,12 @@ export interface ChannelRecord {
   frozen: boolean;
   createdAtMs: number;
   updatedAtMs: number;
+  /**
+   * Prompt 12: when the chat ended (carpool closed, a private chat whose
+   * parent deleted the account). retentionDaily deletes it on Stream one
+   * year later (owner decision: life of the chat + 1 year).
+   */
+  endedAtMs?: number | null;
 }
 
 export type RequestStatus = "pending" | "accepted" | "declined" | "cancelled";

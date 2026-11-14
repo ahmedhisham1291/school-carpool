@@ -69,6 +69,15 @@ class ProfileScreen extends ConsumerWidget {
               leadingIcon: Icons.notifications_active_outlined,
               onTap: () => context.go(ProfileRoutes.notifications),
             ),
+          // Prompt 12: see, correct, download and delete your data; consents; phones.
+          if (session is SessionSignedIn)
+            AppListRow(
+              key: const Key('profile.privacy'),
+              title: l10n.privacyTitle,
+              subtitle: l10n.profilePrivacyHelper,
+              leadingIcon: Icons.privacy_tip_outlined,
+              onTap: () => context.go(PrivacyRoutes.privacy),
+            ),
           AppListRow(
             key: const Key('profile.about'),
             title: l10n.aboutTitle,
@@ -124,6 +133,20 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      // Prompt 12: signed in on a new phone; a fresh selfie opens chats,
+      // the wallet and child data again.
+      if (account.newDeviceCheck)
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.screenGutter, AppSpacing.s16, AppSpacing.screenGutter, 0),
+          child: AppAlertBanner(
+            key: const Key('profile.newDevice'),
+            icon: Icons.phonelink_lock_outlined,
+            title: l10n.newDeviceTitle,
+            body: l10n.newDeviceBanner,
+            actionLabel: l10n.newDeviceAction,
+            onAction: () => context.go(PrivacyRoutes.newDevice),
           ),
         ),
       // Prompt 11: the yearly check of children, grades and schools.

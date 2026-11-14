@@ -4,6 +4,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/notifications/notification_center.dart';
+import 'package:school_carpool/features/privacy/device_guard.dart';
+import 'package:school_carpool/features/schedule/offline_confirmations.dart';
+import 'package:school_carpool/features/security/app_lock.dart';
 import 'package:school_carpool/features/trips/tracker_guard.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
@@ -59,6 +62,10 @@ class _CarpoolAppState extends ConsumerState<CarpoolApp> with WidgetsBindingObse
     // Prompt 10: live location stops on sign-out or when the account is no
     // longer verified.
     ref.watch(trackerGuardProvider);
+    // Prompt 12: a phone signed out from another phone signs out here too;
+    // run confirmations made offline are sent once the connection is back.
+    ref.watch(deviceGuardProvider);
+    ref.listen<List<PendingConfirm>>(confirmationQueueProvider, (List<PendingConfirm>? previous, List<PendingConfirm> next) {});
 
     return MaterialApp.router(
       onGenerateTitle: (BuildContext context) => context.l10n.appTitle,
@@ -71,8 +78,9 @@ class _CarpoolAppState extends ConsumerState<CarpoolApp> with WidgetsBindingObse
       darkTheme: AppTheme.dark(direction, reduceMotion: _reduceMotion),
       themeMode: themeMode,
       themeAnimationDuration: _reduceMotion ? Duration.zero : AppMotion.normal,
+      // Prompt 12: the app lock (Face ID, fingerprint or passcode) covers everything.
       builder: (BuildContext context, Widget? child) =>
-          FlavorBanner(flavor: config.flavor, child: child ?? const SizedBox.shrink()),
+          FlavorBanner(flavor: config.flavor, child: AppLockGate(child: child ?? const SizedBox.shrink())),
     );
   }
 }

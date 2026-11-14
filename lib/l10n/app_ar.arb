@@ -536,7 +536,7 @@
   "@termsTermsText": {
     "description": "Draft terms of use"
   },
-  "termsPrivacyText": "نجمع فقط ما نحتاجه لتوثيق الأهالي وتنظيم المشاوير: رقم الموبايل والبريد، ثم لاحقًا صورة البطاقة والسيلفي وبيانات الأطفال. صور التوثيق تُحذف بعد المراجعة. لا يرى الأهالي الآخرون إلا اسمك الأول والمدرسة والمنطقة وعلامة التوثيق. لا نبيع بياناتك. يمكنك رؤية بياناتك وتصحيحها وحذفها وسحب موافقتك.",
+  "termsPrivacyText": "نجمع ما نحتاجه لتوثيق الأهالي وتنظيم المشاوير وحمايتها: رقم الموبايل والبريد، ثم صورة البطاقة والسيلفي وبيانات الأطفال ورخص القيادة. تُحفظ الصور مشفّرة في مخزن خاص ما دام حسابك مفتوحًا، وتُحذف بعد سنة من إغلاقه. نحتفظ بملخص كل مشوار ومسار مضغوط له لمدة سنة للتحقيق في السلامة، ويراه المسؤولون فقط مع سبب مسجّل. نجمع إحصاءات استخدام بلا أسماء أو أرقام أو أماكن، ويمكنك إيقافها. يرى الأهالي الآخرون اسمك الأول ومدرستك ومنطقتك وشارة التوثيق فقط. لا نبيع بياناتك أبدًا. يمكنك رؤية بياناتك وتصحيحها وتنزيلها وحذفها وسحب أي موافقة من شاشة الخصوصية.",
   "@termsPrivacyText": {
     "description": "Draft privacy policy summary"
   },
@@ -856,7 +856,7 @@
   "@verifyOpenStatus": {
     "description": "Button to the verification status screen"
   },
-  "verifyPrivacyNote": "تُحفظ بطاقتك وصورك في مخزن خاص، ولا يراها إلا المراجع، وتُحذف خلال ٧ أيام من القرار. نحتفظ فقط بتاريخ انتهاء البطاقة.",
+  "verifyPrivacyNote": "تُحفظ بطاقتك وصورك مشفّرة في مخزن خاص ولا يراها إلا المراجعون بسبب مسجّل. تبقى ما دام حسابك مفتوحًا وتُحذف بعد سنة من إغلاقه.",
   "@verifyPrivacyNote": {
     "description": "Privacy note on verify screen"
   },
@@ -880,7 +880,7 @@
   "@verifyPendingNext2": {
     "description": "Pending next step"
   },
-  "verifyPendingNext3": "تُحذف بطاقتك وصورك خلال ٧ أيام من القرار.",
+  "verifyPendingNext3": "تبقى صورك مشفّرة ما دام حسابك مفتوحًا.",
   "@verifyPendingNext3": {
     "description": "Pending next step"
   },
@@ -989,7 +989,7 @@
   "@verifyConsentLabel": {
     "description": "Consent checkbox"
   },
-  "verifyConsentHelper": "تُستخدم بطاقتك وصور وجهك وبيانات أطفالك للتحقق منك فقط. تُحذف الصور خلال ٧ أيام من القرار. يمكنك سحب موافقتك من حسابك.",
+  "verifyConsentHelper": "تُستخدم بطاقتك وصور وجهك وبيانات أطفالك للتحقق منك ولفحص السيلفي أثناء المشاوير. تُحفظ الصور ما دام حسابك مفتوحًا وتُحذف بعد سنة من إغلاقه. يمكنك سحب موافقتك من شاشة الخصوصية.",
   "@verifyConsentHelper": {
     "description": "Consent helper"
   },
@@ -1122,7 +1122,7 @@
   "@childEditHelper": {
     "description": "Edit helper"
   },
-  "childFormBody": "نحتفظ فقط بالاسم الأول والعمر والصف والمدرسة. تُحذف صورة بطاقة المدرسة بعد المراجعة.",
+  "childFormBody": "نحفظ الاسم الأول والعمر والصف والمدرسة فقط. تُحفظ صورة بطاقة المدرسة مشفّرة ما دام حسابك مفتوحًا.",
   "@childFormBody": {
     "description": "Form intro"
   },
@@ -1879,7 +1879,7 @@
   "@adminBanBody": {
     "description": "Admin panel: dialog body"
   },
-  "adminImagesDeleted": "حُذفت الصور بعد القرار (قاعدة الاحتفاظ).",
+  "adminImagesDeleted": "حُذفت الصور حسب قاعدة الحفظ (بعد سنة من إغلاق الحساب).",
   "@adminImagesDeleted": {
     "description": "Admin panel: note"
   },
@@ -7990,5 +7990,720 @@
   "familyCancelRequest": "سحب الطلب",
   "@familyCancelRequest": {
     "description": "Tooltip of the cancel button on an outgoing link request"
+  },
+  "adminWalletAlertStuck": "نتيجة غير معروفة",
+  "@adminWalletAlertStuck": {
+    "description": "Admin wallet alert kind: the partner could not confirm or cancel a transfer; settle with the partner"
+  },
+  "adminWalletOutcomeSettled": "سُوّيت مع الشريك",
+  "@adminWalletOutcomeSettled": {
+    "description": "Admin wallet alert outcome recorded by the settle script"
+  },
+  "notifNewDeviceTitle": "هاتف جديد",
+  "@notifNewDeviceTitle": {
+    "description": "Notification title: sign-in from a new phone"
+  },
+  "notifNewDeviceBody": "دخل أحدهم إلى حسابك من هاتف جديد. إن لم تكن أنت فتواصل معنا.",
+  "@notifNewDeviceBody": {
+    "description": "Notification body: sign-in from a new phone"
+  },
+  "analyticsSetting": "إحصاءات الاستخدام",
+  "@analyticsSetting": {
+    "description": "Settings switch title"
+  },
+  "analyticsSettingHelper": "الشاشات والميزات فقط، بلا أسماء أو أرقام أو أماكن.",
+  "@analyticsSettingHelper": {
+    "description": "Settings switch helper"
+  },
+  "analyticsOn": "تم تشغيل الإحصاءات",
+  "@analyticsOn": {
+    "description": "Snack bar"
+  },
+  "analyticsOff": "تم إيقاف الإحصاءات",
+  "@analyticsOff": {
+    "description": "Snack bar"
+  },
+  "appLockSetting": "قفل التطبيق",
+  "@appLockSetting": {
+    "description": "Settings switch title"
+  },
+  "appLockSettingHelper": "اطلب بصمة الوجه أو الإصبع أو رمز الهاتف عند فتح التطبيق.",
+  "@appLockSettingHelper": {
+    "description": "Settings switch helper"
+  },
+  "appLockOn": "تم تشغيل القفل",
+  "@appLockOn": {
+    "description": "Snack bar"
+  },
+  "appLockOff": "تم إيقاف القفل",
+  "@appLockOff": {
+    "description": "Snack bar"
+  },
+  "appLockNeedsPasscode": "ضع رمز قفل للهاتف أولًا.",
+  "@appLockNeedsPasscode": {
+    "description": "Snack bar: the phone has no lock"
+  },
+  "appLockReason": "افتح تطبيق التوصيل المدرسي",
+  "@appLockReason": {
+    "description": "System prompt reason for Face ID"
+  },
+  "appLockTitle": "التطبيق مقفل",
+  "@appLockTitle": {
+    "description": "Lock screen title"
+  },
+  "appLockBody": "افتحه ببصمة الوجه أو الإصبع أو رمز الهاتف.",
+  "@appLockBody": {
+    "description": "Lock screen body"
+  },
+  "appLockFailed": "لم يُفتح. حاول مرة أخرى.",
+  "@appLockFailed": {
+    "description": "Lock screen after a failed check"
+  },
+  "appLockUnlock": "افتح",
+  "@appLockUnlock": {
+    "description": "Lock screen button"
+  },
+  "carpoolErrorChildInCarpool": "هذا الطفل في هذه المجموعة مع وليّ الأمر الآخر بالفعل.",
+  "@carpoolErrorChildInCarpool": {
+    "description": "Join error: a linked parent picked a child the other parent brought"
+  },
+  "consentTerms": "شروط الاستخدام",
+  "@consentTerms": {
+    "description": "Consent row"
+  },
+  "consentPrivacy": "سياسة الخصوصية",
+  "@consentPrivacy": {
+    "description": "Consent row"
+  },
+  "consentConduct": "قواعد السلوك",
+  "@consentConduct": {
+    "description": "Consent row"
+  },
+  "consentWhatsapp": "رسائل واتساب",
+  "@consentWhatsapp": {
+    "description": "Consent switch"
+  },
+  "consentId": "بيانات البطاقة",
+  "@consentId": {
+    "description": "Consent row"
+  },
+  "consentFace": "صور الوجه",
+  "@consentFace": {
+    "description": "Consent row"
+  },
+  "consentChildData": "بيانات الأطفال",
+  "@consentChildData": {
+    "description": "Consent row"
+  },
+  "consentWalletTerms": "شروط المحفظة",
+  "@consentWalletTerms": {
+    "description": "Consent row"
+  },
+  "consentAnalytics": "إحصاءات الاستخدام",
+  "@consentAnalytics": {
+    "description": "Consent switch"
+  },
+  "consentShowOnMap": "الظهور على الخريطة",
+  "@consentShowOnMap": {
+    "description": "Consent switch"
+  },
+  "dataAccount": "الحساب",
+  "@dataAccount": {
+    "description": "Data type"
+  },
+  "dataAccountBody": "رقمك وبريدك واسمك ورقم وليّ الأمر واللغة. يرى الأهالي اسمك الأول ورقم وليّ الأمر فقط.",
+  "@dataAccountBody": {
+    "description": "Data type details"
+  },
+  "dataConsents": "الموافقات",
+  "@dataConsents": {
+    "description": "Data type"
+  },
+  "dataConsentsBody": "ما وافقت عليه ومتى وبأي نسخة، دليلًا على موافقتك.",
+  "@dataConsentsBody": {
+    "description": "Data type details"
+  },
+  "dataIdPhotos": "صور التوثيق",
+  "@dataIdPhotos": {
+    "description": "Data type"
+  },
+  "dataIdPhotosBody": "البطاقة والسيلفي وبطاقات المدرسة والرخص وصورة السائق وصور السيلفي أثناء المشاوير. مشفّرة بمفتاحنا، ويراها المسؤولون فقط بسبب مسجّل.",
+  "@dataIdPhotosBody": {
+    "description": "Data type details"
+  },
+  "dataChildren": "الأطفال",
+  "@dataChildren": {
+    "description": "Data type"
+  },
+  "dataChildrenBody": "الاسم الأول والعمر والصف والمدرسة. يراها أهالي مجموعتك فقط.",
+  "@dataChildrenBody": {
+    "description": "Data type details"
+  },
+  "dataVehicle": "السيارة",
+  "@dataVehicle": {
+    "description": "Data type"
+  },
+  "dataVehicleBody": "الطراز واللون واللوحة وتواريخ الرخص. يراها أهالي مجموعتك يوم قيادتك.",
+  "@dataVehicleBody": {
+    "description": "Data type details"
+  },
+  "dataHome": "المنزل",
+  "@dataHome": {
+    "description": "Data type"
+  },
+  "dataHomeBody": "موقع منزلك الدقيق لك وحدك؛ يرى الآخرون منطقة تقريبية فقط.",
+  "@dataHomeBody": {
+    "description": "Data type details"
+  },
+  "dataCarpools": "المجموعات",
+  "@dataCarpools": {
+    "description": "Data type"
+  },
+  "dataCarpoolsBody": "مجموعاتك وطلبات الانضمام ونقاط الالتقاط وموافقات السائقين.",
+  "@dataCarpoolsBody": {
+    "description": "Data type details"
+  },
+  "dataSchedule": "الجدول",
+  "@dataSchedule": {
+    "description": "Data type"
+  },
+  "dataScheduleBody": "أيام القيادة والمشاوير والتبديلات والغياب.",
+  "@dataScheduleBody": {
+    "description": "Data type details"
+  },
+  "dataTrips": "ملخص المشاوير",
+  "@dataTrips": {
+    "description": "Data type"
+  },
+  "dataTripsBody": "من قاد ومتى وفي الموعد أم متأخرًا وعدد الأطفال.",
+  "@dataTripsBody": {
+    "description": "Data type details"
+  },
+  "dataLiveLocation": "الموقع المباشر",
+  "@dataLiveLocation": {
+    "description": "Data type"
+  },
+  "dataLiveLocationBody": "موقع السيارة أثناء المشوار، لأهالي أطفال هذا المشوار فقط.",
+  "@dataLiveLocationBody": {
+    "description": "Data type details"
+  },
+  "dataRouteArchive": "مسار المشوار",
+  "@dataRouteArchive": {
+    "description": "Data type"
+  },
+  "dataRouteArchiveBody": "مسار مضغوط لكل مشوار قدته (نقطة كل 30 ثانية تقريبًا) للتحقيق في السلامة فقط. لا يراه الأهالي.",
+  "@dataRouteArchiveBody": {
+    "description": "Data type details"
+  },
+  "dataChat": "المحادثات",
+  "@dataChat": {
+    "description": "Data type"
+  },
+  "dataChatBody": "رسائلك وصورك في المحادثات، محفوظة عند Stream.",
+  "@dataChatBody": {
+    "description": "Data type details"
+  },
+  "dataRatings": "التقييمات",
+  "@dataRatings": {
+    "description": "Data type"
+  },
+  "dataRatingsBody": "تقييماتك للأهالي وملخص تقييماتك. لا يُعرف من قيّمك.",
+  "@dataRatingsBody": {
+    "description": "Data type details"
+  },
+  "dataFamilyLinks": "روابط العائلة",
+  "@dataFamilyLinks": {
+    "description": "Data type"
+  },
+  "dataFamilyLinksBody": "الأهالي المرتبطون بأطفالك وصلة القرابة.",
+  "@dataFamilyLinksBody": {
+    "description": "Data type details"
+  },
+  "dataHandover": "قائمة الاستلام",
+  "@dataHandover": {
+    "description": "Data type"
+  },
+  "dataHandoverBody": "البالغون المسموح لهم باستلام كل طفل.",
+  "@dataHandoverBody": {
+    "description": "Data type details"
+  },
+  "dataEmergencyContact": "جهة الطوارئ",
+  "@dataEmergencyContact": {
+    "description": "Data type"
+  },
+  "dataEmergencyContactBody": "اسم ورقم من نتصل به في الطوارئ.",
+  "@dataEmergencyContactBody": {
+    "description": "Data type details"
+  },
+  "dataNotifications": "التنبيهات",
+  "@dataNotifications": {
+    "description": "Data type"
+  },
+  "dataNotificationsBody": "التنبيهات التي وصلتك وإعداداتها.",
+  "@dataNotificationsBody": {
+    "description": "Data type details"
+  },
+  "dataDevices": "الهواتف",
+  "@dataDevices": {
+    "description": "Data type"
+  },
+  "dataDevicesBody": "نوع كل هاتف دخلت منه ووقت الدخول، بلا معرّف للجهاز.",
+  "@dataDevicesBody": {
+    "description": "Data type details"
+  },
+  "dataWallet": "المحفظة",
+  "@dataWallet": {
+    "description": "Data type"
+  },
+  "dataWalletBody": "سجل التحويلات. يحتفظ الشريك المرخّص بالأموال.",
+  "@dataWalletBody": {
+    "description": "Data type details"
+  },
+  "dataReports": "البلاغات",
+  "@dataReports": {
+    "description": "Data type"
+  },
+  "dataReportsBody": "بلاغاتك وقرارات المسؤولين.",
+  "@dataReportsBody": {
+    "description": "Data type details"
+  },
+  "dataAnalytics": "إحصاءات الاستخدام",
+  "@dataAnalytics": {
+    "description": "Data type"
+  },
+  "dataAnalyticsBody": "الشاشات والميزات المستخدمة، بلا أسماء أو أرقام أو نصوص أو أماكن. يمكنك إيقافها.",
+  "@dataAnalyticsBody": {
+    "description": "Data type details"
+  },
+  "dataCrashReports": "تقارير الأعطال",
+  "@dataCrashReports": {
+    "description": "Data type"
+  },
+  "dataCrashReportsBody": "تقارير الأخطاء بعد حذف الأرقام والأماكن والنصوص.",
+  "@dataCrashReportsBody": {
+    "description": "Data type details"
+  },
+  "keepUntilDeletion": "حتى تحذف حسابك",
+  "@keepUntilDeletion": {
+    "description": "Retention"
+  },
+  "keepYearAfterClosure": "ما دام حسابك مفتوحًا وسنة بعد إغلاقه",
+  "@keepYearAfterClosure": {
+    "description": "Retention"
+  },
+  "keepOneDay": "تُحذف خلال 24 ساعة",
+  "@keepOneDay": {
+    "description": "Retention"
+  },
+  "keepYearAfterRun": "سنة بعد المشوار",
+  "@keepYearAfterRun": {
+    "description": "Retention"
+  },
+  "keepYearAfterChat": "طوال المحادثة وسنة بعدها",
+  "@keepYearAfterChat": {
+    "description": "Retention"
+  },
+  "keepSixtyDays": "60 يومًا",
+  "@keepSixtyDays": {
+    "description": "Retention"
+  },
+  "keepNinetyDays": "90 يومًا",
+  "@keepNinetyDays": {
+    "description": "Retention"
+  },
+  "keepLaw": "المدة التي يطلبها القانون",
+  "@keepLaw": {
+    "description": "Retention"
+  },
+  "keepUntilHandled": "حتى تُعالج، والنص سنة بعدها",
+  "@keepUntilHandled": {
+    "description": "Retention"
+  },
+  "deleteAccountTitle": "حذف الحساب",
+  "@deleteAccountTitle": {
+    "description": "Screen title and row"
+  },
+  "deleteAccountHelper": "احذف حسابك وبياناتك.",
+  "@deleteAccountHelper": {
+    "description": "Row helper"
+  },
+  "deleteAccountAction": "احذف حسابي",
+  "@deleteAccountAction": {
+    "description": "Destructive button"
+  },
+  "deleteAccountConfirmTitle": "حذف الحساب نهائيًا؟",
+  "@deleteAccountConfirmTitle": {
+    "description": "Confirm dialog title"
+  },
+  "deleteAccountConfirmBody": "لا يمكن التراجع. ستخرج من مجموعاتك ومحادثاتك الآن.",
+  "@deleteAccountConfirmBody": {
+    "description": "Confirm dialog body"
+  },
+  "deleteAccountReason": "تأكيد حذف الحساب",
+  "@deleteAccountReason": {
+    "description": "System prompt reason"
+  },
+  "deleteAccountDone": "تم حذف حسابك",
+  "@deleteAccountDone": {
+    "description": "Snack bar"
+  },
+  "deleteNowTitle": "يُحذف الآن",
+  "@deleteNowTitle": {
+    "description": "Card title"
+  },
+  "deleteNowBody": "حسابك وأطفالك وسيارتك ومنزلك ومجموعاتك وتقييماتك وروابط العائلة والهواتف.",
+  "@deleteNowBody": {
+    "description": "Card body"
+  },
+  "deleteYearTitle": "يُحفظ سنة ثم يُحذف",
+  "@deleteYearTitle": {
+    "description": "Card title"
+  },
+  "deleteYearBody": "صور التوثيق وملخصات ومسارات مشاويرك والموافقات ورسائلك، للمسؤولين فقط بسبب مسجّل.",
+  "@deleteYearBody": {
+    "description": "Card body"
+  },
+  "deleteKeptTitle": "يبقى بعد ذلك",
+  "@deleteKeptTitle": {
+    "description": "Card title"
+  },
+  "deleteKeptBody": "سجلات التحويلات كما يطلب القانون، والبلاغات المفتوحة، ورمز البطاقة المشفّر في قائمة الحظر إن كنت محظورًا.",
+  "@deleteKeptBody": {
+    "description": "Card body"
+  },
+  "deleteExportHint": "نزّل بياناتك أولًا إن أردت نسخة.",
+  "@deleteExportHint": {
+    "description": "Hint"
+  },
+  "deleteNext": "التالي",
+  "@deleteNext": {
+    "description": "Button"
+  },
+  "deleteBack": "رجوع",
+  "@deleteBack": {
+    "description": "Button"
+  },
+  "deleteWalletNote": "يجب أن تكون المحفظة فارغة وبلا تحويلات معلّقة.",
+  "@deleteWalletNote": {
+    "description": "Step 2 body"
+  },
+  "deleteUnderstood": "فهمت ما سيُحذف وما سيبقى",
+  "@deleteUnderstood": {
+    "description": "Check row"
+  },
+  "deleteRefusedTitle": "لا يمكن الحذف بعد",
+  "@deleteRefusedTitle": {
+    "description": "Banner title"
+  },
+  "deleteOpenWallet": "افتح المحفظة",
+  "@deleteOpenWallet": {
+    "description": "Banner action"
+  },
+  "deviceIphone": "آيفون",
+  "@deviceIphone": {
+    "description": "Platform"
+  },
+  "deviceAndroid": "أندرويد",
+  "@deviceAndroid": {
+    "description": "Platform"
+  },
+  "deviceWeb": "متصفح",
+  "@deviceWeb": {
+    "description": "Platform"
+  },
+  "devicesTitle": "الهواتف والدخول",
+  "@devicesTitle": {
+    "description": "Screen title and row"
+  },
+  "devicesHelper": "الهواتف المتصلة بحسابك وآخر دخول.",
+  "@devicesHelper": {
+    "description": "Row helper"
+  },
+  "devicesIntro": "إن رأيت هاتفًا لا تعرفه فأخرجه وتواصل معنا.",
+  "@devicesIntro": {
+    "description": "Intro"
+  },
+  "devicesActiveSection": "الهواتف المتصلة",
+  "@devicesActiveSection": {
+    "description": "Section"
+  },
+  "devicesRecentSection": "آخر دخول",
+  "@devicesRecentSection": {
+    "description": "Section"
+  },
+  "devicesThisPhone": "هذا الهاتف",
+  "@devicesThisPhone": {
+    "description": "Row title"
+  },
+  "devicesCurrent": "الحالي",
+  "@devicesCurrent": {
+    "description": "Badge"
+  },
+  "devicesLastSeen": "آخر استخدام {when}",
+  "@devicesLastSeen": {
+    "description": "Row subtitle",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "devicesNewPhone": "هاتف جديد",
+  "@devicesNewPhone": {
+    "description": "Sign-in marker"
+  },
+  "devicesOnlyThis": "لا هواتف أخرى متصلة.",
+  "@devicesOnlyThis": {
+    "description": "Empty note"
+  },
+  "devicesSignOut": "أخرج",
+  "@devicesSignOut": {
+    "description": "Button"
+  },
+  "devicesSignOutAll": "أخرج الأخرى",
+  "@devicesSignOutAll": {
+    "description": "Button"
+  },
+  "devicesSignOutTitle": "إخراج هذا الهاتف؟",
+  "@devicesSignOutTitle": {
+    "description": "Dialog title"
+  },
+  "devicesSignOutAllTitle": "إخراج الهواتف الأخرى؟",
+  "@devicesSignOutAllTitle": {
+    "description": "Dialog title"
+  },
+  "devicesSignOutBody": "يخرج فورًا. الهواتف الأخرى تحتاج رمزًا جديدًا للدخول.",
+  "@devicesSignOutBody": {
+    "description": "Dialog body"
+  },
+  "devicesSignedOut": "تم الإخراج",
+  "@devicesSignedOut": {
+    "description": "Snack bar"
+  },
+  "newDeviceTitle": "هاتف جديد",
+  "@newDeviceTitle": {
+    "description": "Screen and banner title"
+  },
+  "newDeviceBody": "دخلت من هاتف جديد. التقط سيلفي لنتأكد أنك أنت قبل فتح المحادثات والمحفظة وبيانات الأطفال.",
+  "@newDeviceBody": {
+    "description": "Screen body"
+  },
+  "newDeviceBanner": "التقط سيلفي لفتح المحادثات والمحفظة وبيانات الأطفال.",
+  "@newDeviceBanner": {
+    "description": "Profile banner body"
+  },
+  "newDeviceNotYou": "لست أنت؟ تواصل معنا فورًا.",
+  "@newDeviceNotYou": {
+    "description": "Hint"
+  },
+  "newDeviceAction": "التقط سيلفي",
+  "@newDeviceAction": {
+    "description": "Button"
+  },
+  "newDeviceDone": "تم. كل شيء مفتوح الآن.",
+  "@newDeviceDone": {
+    "description": "Snack bar"
+  },
+  "privacyTitle": "الخصوصية",
+  "@privacyTitle": {
+    "description": "Screen title and profile row"
+  },
+  "profilePrivacyHelper": "بياناتك وموافقاتك وهواتفك.",
+  "@profilePrivacyHelper": {
+    "description": "Profile row helper"
+  },
+  "privacyIntro": "هنا ترى كل ما نحفظه عنك ومدة حفظه، وتصححه وتنزّله وتحذفه، وتسحب أي موافقة. نسجّل كل طلب.",
+  "@privacyIntro": {
+    "description": "Intro"
+  },
+  "privacyExport": "نزّل بياناتي",
+  "@privacyExport": {
+    "description": "Primary button"
+  },
+  "privacyExportHelper": "ملف واحد فيه كل بياناتك ومحادثاتك وسجل المحفظة. الرابط صالح ساعة.",
+  "@privacyExportHelper": {
+    "description": "Helper"
+  },
+  "privacyExportReady": "بياناتك جاهزة",
+  "@privacyExportReady": {
+    "description": "Snack bar"
+  },
+  "privacyExportNotOpened": "جاهزة، لكن لم يُفتح الرابط. حاول مرة أخرى.",
+  "@privacyExportNotOpened": {
+    "description": "Snack bar"
+  },
+  "privacyDataSection": "بياناتك",
+  "@privacyDataSection": {
+    "description": "Section"
+  },
+  "privacyChoicesSection": "اختياراتك",
+  "@privacyChoicesSection": {
+    "description": "Section"
+  },
+  "privacyCorrectSection": "صحّح بياناتك",
+  "@privacyCorrectSection": {
+    "description": "Section"
+  },
+  "privacySecuritySection": "الأمان",
+  "@privacySecuritySection": {
+    "description": "Section"
+  },
+  "privacyRequestsSection": "طلباتك",
+  "@privacyRequestsSection": {
+    "description": "Section"
+  },
+  "privacyDeleteSection": "الحساب",
+  "@privacyDeleteSection": {
+    "description": "Section"
+  },
+  "privacyKeptTitle": "مدة الحفظ",
+  "@privacyKeptTitle": {
+    "description": "Sheet row"
+  },
+  "privacyConsentGivenOn": "منذ {date}",
+  "@privacyConsentGivenOn": {
+    "description": "Consent row subtitle",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "privacyConsentNotGiven": "غير مُعطاة",
+  "@privacyConsentNotGiven": {
+    "description": "Consent row subtitle"
+  },
+  "privacyConsentGiven": "تم الحفظ",
+  "@privacyConsentGiven": {
+    "description": "Snack bar"
+  },
+  "privacyConsentWithdrawn": "تم سحب الموافقة",
+  "@privacyConsentWithdrawn": {
+    "description": "Snack bar"
+  },
+  "privacyNeedsDeletion": "التطبيق يحتاج هذه الموافقة. لسحبها احذف حسابك.",
+  "@privacyNeedsDeletion": {
+    "description": "Snack bar"
+  },
+  "privacyNeedsChildRemoval": "لسحبها احذف أطفالك من شاشة الأطفال.",
+  "@privacyNeedsChildRemoval": {
+    "description": "Snack bar"
+  },
+  "privacyWithdraw": "اسحب",
+  "@privacyWithdraw": {
+    "description": "Dialog button"
+  },
+  "privacyWithdrawTitle": "سحب «{consent}»؟",
+  "@privacyWithdrawTitle": {
+    "description": "Dialog title",
+    "placeholders": {
+      "consent": {
+        "type": "String"
+      }
+    }
+  },
+  "privacyWithdrawBody": "نسجّل طلبك. بعض الموافقات يحتاجها التطبيق ليعمل.",
+  "@privacyWithdrawBody": {
+    "description": "Dialog body"
+  },
+  "privacyCorrectId": "الاسم أو بيانات البطاقة",
+  "@privacyCorrectId": {
+    "description": "Row"
+  },
+  "privacyCorrectIdHelper": "يراجع المسؤول التصحيح.",
+  "@privacyCorrectIdHelper": {
+    "description": "Row helper"
+  },
+  "privacyPhotoCopy": "نسخة من صوري",
+  "@privacyPhotoCopy": {
+    "description": "Row"
+  },
+  "privacyPhotoCopyHelper": "نرسلها لك بطريقة آمنة.",
+  "@privacyPhotoCopyHelper": {
+    "description": "Row helper"
+  },
+  "privacyRequestSent": "تم إرسال الطلب",
+  "@privacyRequestSent": {
+    "description": "Snack bar"
+  },
+  "privacyErrorWalletNotEmpty": "في محفظتك مال. اسحبه أو حوّله أولًا.",
+  "@privacyErrorWalletNotEmpty": {
+    "description": "Error"
+  },
+  "privacyErrorWalletPending": "تحويل ما زال معلّقًا. انتظر حتى ينتهي.",
+  "@privacyErrorWalletPending": {
+    "description": "Error"
+  },
+  "privacyErrorDriving": "أنت تقود مشوارًا الآن. حاول بعد انتهائه.",
+  "@privacyErrorDriving": {
+    "description": "Error"
+  },
+  "privacyErrorRateLimited": "طلبات كثيرة اليوم. حاول غدًا.",
+  "@privacyErrorRateLimited": {
+    "description": "Error"
+  },
+  "privacyErrorMismatch": "السيلفي لا يطابق صورتك. تواصل معنا.",
+  "@privacyErrorMismatch": {
+    "description": "Error"
+  },
+  "privacyErrorOwnDevice": "لا يمكن إخراج هذا الهاتف من هنا. استخدم «تسجيل الخروج».",
+  "@privacyErrorOwnDevice": {
+    "description": "Error"
+  },
+  "privacyErrorExport": "تعذّر تجهيز الملف. حاول بعد قليل.",
+  "@privacyErrorExport": {
+    "description": "Error"
+  },
+  "requestExport": "تنزيل البيانات",
+  "@requestExport": {
+    "description": "Request kind"
+  },
+  "requestDelete": "حذف الحساب",
+  "@requestDelete": {
+    "description": "Request kind"
+  },
+  "requestCorrect": "تصحيح",
+  "@requestCorrect": {
+    "description": "Request kind"
+  },
+  "requestWithdraw": "سحب موافقة",
+  "@requestWithdraw": {
+    "description": "Request kind"
+  },
+  "requestConsent": "موافقة",
+  "@requestConsent": {
+    "description": "Request kind"
+  },
+  "requestPhotoCopy": "نسخة الصور",
+  "@requestPhotoCopy": {
+    "description": "Request kind"
+  },
+  "requestDone": "تم",
+  "@requestDone": {
+    "description": "Request status"
+  },
+  "requestOpen": "قيد المعالجة",
+  "@requestOpen": {
+    "description": "Request status"
+  },
+  "requestRefused": "لم يتم",
+  "@requestRefused": {
+    "description": "Request status"
+  },
+  "requestFailed": "تعذّر",
+  "@requestFailed": {
+    "description": "Request status"
+  },
+  "scheduleConfirmQueued": "حُفظ. سيُرسل عند عودة الاتصال.",
+  "@scheduleConfirmQueued": {
+    "description": "Snack bar: confirmation queued offline"
+  },
+  "devicesTapToSignOut": "اضغط للإخراج",
+  "@devicesTapToSignOut": {
+    "description": "Device row subtitle"
+  },
+  "privacyErrorUnchecked": "تعذّر فحص السيلفي الآن. سيراجعه فريقنا ويُخبرك.",
+  "@privacyErrorUnchecked": {
+    "description": "Error: the face check could not decide; an admin reviews the selfie"
   }
 }

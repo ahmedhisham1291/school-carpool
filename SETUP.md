@@ -20,7 +20,7 @@ Placeholders used in the code that you will replace with your own values:
 
 1. Enroll at developer.apple.com (paid yearly). An organization account needs
    a D-U-N-S number; this decides the seller name on the App Store (ties to
-   the "operator entity" question for the lawyer).
+   the operating entity, which the lawyer confirmed; docs/DECISIONS.md).
 2. **Certificates, Identifiers & Profiles > Identifiers > +  > App IDs > App.**
    Create three explicit App IDs:
    - `org.schoolcarpool.app.dev` (School Carpool Dev)
@@ -63,9 +63,9 @@ and staging, ever.
 2. **Upgrade to Blaze** (pay as you go). Cloud Functions need it. You pay
    nothing while usage stays in the free quotas; step 4 adds budget alerts.
 3. **Location** (asked when you create Firestore): this is permanent.
-   Hosting data abroad needs the lawyer's answer (spec section 7). Until
-   then, use `europe-west1` (Belgium) for the dev project only and wait
-   with staging and prod. Functions use `europe-west1` too
+   Hosting abroad in `europe-west1` (Belgium) is confirmed by the lawyer
+   (docs/DECISIONS.md, 14 Nov 2026): use it for dev, staging and prod.
+   Functions use `europe-west1` too
    (`functions/src/config.ts`, `lib/firebase/firebase_setup.dart`).
 4. **Build > Firestore Database > Create database**: Standard edition,
    **production mode** (deny all). We deploy our own rules anyway.
@@ -165,8 +165,8 @@ and staging, ever.
 
 ## 5. Firestore point-in-time recovery and daily backups
 
-COST MODE: point-in-time recovery (PITR) **off** for now; daily backups
-**on in prod only**. Install the Google Cloud CLI (`gcloud`) and log in.
+Owner decision (14 Nov 2026): point-in-time recovery (PITR) **on in prod**;
+daily backups **on in prod only**. Install the Google Cloud CLI (`gcloud`) and log in.
 
 - Daily backup, prod only, kept 7 days:
 
@@ -177,22 +177,22 @@ COST MODE: point-in-time recovery (PITR) **off** for now; daily backups
   gcloud firestore backups schedules list --project=<prod-id> --database='(default)'
   ```
 
-- Switch PITR on later (before real families join, your decision; it adds
-  storage cost):
+- Switch PITR on in prod (owner decision; it adds storage cost, COSTS.md):
 
   ```sh
   gcloud firestore databases update --project=<prod-id> \
     --database='(default)' --enable-pitr
   ```
 
-  Off again: `--no-enable-pitr`. With PITR on you can read or restore data
-  from any minute of the last 7 days.
-- A restore drill is written in Prompt 12.
+  With PITR on you can read or restore data from any minute of the last
+  7 days. Leave it on in prod.
+- The restore drill: `docs/restore-test.md` (SETUP 23.7).
 
 ## 6. Sentry (free Developer plan)
 
 1. sentry.io > sign up > choose the **Developer** (free) plan. Pick the EU
-   data region if offered (cross-border data question for the lawyer).
+   data region if offered (hosting abroad is confirmed by the lawyer;
+   docs/DECISIONS.md).
 2. Create two projects: **carpool-app** (platform Flutter) and
    **carpool-functions** (platform Node.js). Environments (dev, staging,
    prod) come from the app, so one project each is enough.
@@ -1057,9 +1057,10 @@ Dashboard > Webhooks that the URL is set and the last calls return 200.
 
 ### 19.6 Retention and expiry (each cloud project)
 
-- `chatRetentionDaily` (03:30 Cairo) deletes, in every channel we created,
-  messages older than `CHAT_RETENTION_DAYS` (default 180 days; the owner
-  and the lawyer choose the period). Reports keep their own short copy.
+- Since Prompt 12, `retentionDaily` (03:10 Cairo) deletes a chat 1 year
+  after it ended (owner decision, confirmed by the lawyer; docs/DECISIONS.md).
+  `chatRetentionDaily` and `CHAT_RETENTION_DAYS` are gone. Reports keep
+  their own short copy, cleared 1 year after the report is handled.
 - Firestore > TTL policies: collection `chatRequests`, field `expiresAt`
   (30 days after the last change), and collection group `chatPushes`,
   field `expiresAt` (2 days: delivery records of chat pushes).
@@ -1307,6 +1308,20 @@ Change them to the partner's limits when the contract is signed.
   how add money (payment page) and withdraw (to which account) work, the
   dispute process, and that transfers between parents carry no fee.
 
+### 21.6 A "stuck" transfer (Prompt 12)
+
+When the partner could neither confirm nor cancel a transfer, admins see an
+"Outcome unknown" alert (admin panel > Wallet). Nothing is guessed and no
+money moves from our side:
+
+1. Ask the partner, in writing, what happened to that request ID (the
+   transfer ID in the alert): it ran, or it was cancelled and will never run.
+2. A super admin records the answer once (it is written to the audit log):
+   `GCLOUD_PROJECT=<project> npm --prefix functions run wallet:settle -- <transferId> done|failed <partnerRef or -> <yourAdminUid>`
+3. The transfer gets its one result (append-only), the day's limit counter
+   is released, both parents are told, and the alert closes as "Settled
+   with partner".
+
 
 ## 22. Trust and yearly checks (Prompt 11)
 
@@ -1395,3 +1410,143 @@ The iPhone is a verified parent in a carpool with the seed's Hoda
 6. **Phone change.** Profile > Phone > new number > code (the fake
    WhatsApp sender logs it in the functions emulator) > selfie. The fake
    face check answers what `config/kyc` says (section 12).
+
+## 23. Privacy and security hardening (Prompt 12)
+
+Code: `functions/src/privacy/`, `lib/features/privacy/`,
+`lib/features/security/app_lock.dart`, `lib/features/analytics/`.
+SECURITY.md has the MASVS checklist, the outside services and the incident
+plan; `docs/restore-test.md` the backup restore test.
+
+### 23.1 Deploy (each cloud project)
+
+- `npm --prefix functions install` picks up **sharp** (server thumbnails).
+- `firebase deploy --only functions,firestore:rules,firestore:indexes,storage`.
+  The deploy asks to delete `purgeVerificationImagesDaily` and
+  `chatRetentionDaily`: answer yes. Both now run inside `retentionDaily`
+  (03:10 Cairo time), so the number of Cloud Scheduler jobs goes down by one.
+- `makePhotoThumbnail` is a Storage trigger on the default bucket; the bucket
+  must be in `europe-west1` like the functions (it is, if it was created with
+  the project in that region; otherwise set the trigger's region to the
+  bucket's).
+- Give the Cloud Functions service account the "Cloud KMS CryptoKey
+  Encrypter/Decrypter" role only if a function writes with an explicit key;
+  with the bucket's default key (23.2) Cloud Storage's own service agent
+  does the encryption and the functions need nothing more.
+- New parameters (optional, defaults in brackets): `OTP_MAX_FAILURES_PER_DAY`
+  (30).
+
+### 23.2 Our own encryption key for the photos (each project, once)
+
+Run `tool/setup_kms.sh <project-id>` (gcloud signed in as owner). It creates
+key ring `school-carpool` and key `private-photos` in `europe-west1` with a
+yearly automatic rotation, lets Cloud Storage use it, and sets it as the
+bucket's default key. Then:
+
+1. Check: `gcloud storage buckets describe gs://<bucket> --format='value(default_kms_key)'`.
+2. Upload a test photo in staging; `gcloud storage objects describe gs://<bucket>/<path> --format='value(kms_key)'`
+   shows the key.
+3. Never destroy the key or its versions: every photo encrypted with it
+   would be lost. Give "Cloud KMS Admin" to the owner only.
+4. Photos uploaded before the key was set keep Google's key until rewritten.
+   To rewrite them once: `gcloud storage objects update gs://<bucket>/verification/** --encryption-key=<key id>`
+   (and the same for `faceRefs/**`, `driverPhotos/**`, `selfieArchive/**`,
+   `thumbs/**` and `routeArchive/**`). Then run
+   `GCLOUD_PROJECT=<project> npm --prefix functions run thumbs:backfill` so
+   every kept photo has a thumbnail made from its current version.
+5. `tool/setup_kms.sh` runs on Linux, Cloud Shell and macOS (it picks GNU or
+   BSD `date`, or python3).
+
+### 23.3 Retention: lifecycle rules and TTL policies (each project, once)
+
+Run `tool/setup_retention.sh <project-id>`. It applies
+`tool/storage_lifecycle.json` (kept photos to Nearline after 30 days and
+Coldline after 180 days; route archives Coldline at once and deleted after
+400 days; exports and live selfies deleted after 2 days), keeps soft delete
+at 7 days, and switches on every Firestore TTL policy (sign-in records,
+place cache, invites, "looking" posts, events, notifications, chat requests
+and pushes, live trip points, privacy requests, abuse counters, sign-ins,
+phones, mail, job reports). Section 12.6's "turn off soft delete" no longer
+applies: photos are now kept, and 7 days of soft delete protect against a
+mistaken deletion.
+
+`retentionDaily` writes `retentionRuns/{date}` (counts only). A failure opens
+a "retentionFailed" security alert and a Sentry error.
+
+### 23.4 Email for "new phone signed in" (owner decision needed)
+
+The functions write the email to the `mail` collection in the format of
+Firebase's **Trigger Email from Firestore** extension. Until the extension is
+installed the messages wait there (30-day TTL) and nothing else breaks. To
+send them (a new tool: owner's OK first, SETUP and COSTS):
+Firebase console > Extensions > Trigger Email from Firestore, collection
+`mail`, an SMTP connection URI from a provider in Secret Manager, a "From"
+address on the app's domain, region `europe-west1`.
+
+The same alert also goes as a push (`new-device`) to the old phone. Its
+WhatsApp template `cp_new_device` is off by default (COST MODE); submit it
+to Meta with the other templates (18.4) only if the owner wants WhatsApp too:
+
+| Template | Text (English; Arabic in functions/src/notifications/texts.ts) |
+| --- | --- |
+| `cp_new_device` | Someone signed in to your account on a new phone, so we signed out the others. If it wasn't you, contact us at once. |
+
+### 23.5 Google Analytics (each project)
+
+Firebase console > Analytics: link or create the Analytics property for the
+project (free). Then Admin > Data settings > **Data retention: 2 months**;
+Data collection: Google signals **off**; Data sharing: all **off**. The app
+sends no user ID and no advertising ID (docs/analytics-events.md).
+
+### 23.6 Sentry alerts on new errors in sign-in, trips and the wallet
+
+Every event carries the tag `area` (`signin`, `trips`, `wallet`, `privacy`,
+`other`), from the route pattern in the app and from the function name in
+Cloud Functions. In Sentry, for each project (app and functions):
+Alerts > Create alert > Issues > "A new issue is created" AND "The event's
+tags match `area` equals `signin`" (then the same for `trips` and `wallet`)
+> send an email to the owner. Keep Sentry's own PII scrubbing ("Data
+scrubber", "Use default scrubbers") on as the second layer.
+
+### 23.7 Point-in-time recovery and backups (prod)
+
+Owner decision (14 Nov 2026, "best option, even if paid"): **point-in-time
+recovery ON in prod**, and the daily backups stay on (section 5). Switch it
+on once:
+
+```sh
+gcloud firestore databases update --database='(default)' --enable-pitr --project=<prod-id>
+gcloud firestore databases describe --database='(default)' --project=<prod-id> \
+  --format='value(pointInTimeRecoveryEnablement,versionRetentionPeriod)'
+# expect POINT_IN_TIME_RECOVERY_ENABLED and 604800s (7 days)
+```
+
+`tool/setup_retention.sh <prod-id> --prod` does the same. Any minute of the
+last 7 days can then be read or cloned into a new database
+(`docs/restore-test.md`). Run the restore test once now in staging and
+every 3 months.
+
+### 23.8 Try it on the iPhone (the "Done when" check)
+
+1. **Export:** Profile > Privacy > Download my data. The JSON opens in
+   Safari (share it to Files to keep it). It has a section for every data
+   type, your chat messages and your wallet history.
+2. **A second phone listed:** sign in with the same number on a second
+   phone (or the simulator). On the iPhone the account gets "New phone"
+   (push), and the first phone signs out at its next start. On the second
+   phone, Profile shows "New phone: take a selfie"; chats and the wallet
+   open after the selfie (the fake face check answers what `config/kyc`
+   says). Profile > Privacy > Phones and sign-ins lists both phones;
+   "Sign out" on the other one.
+3. **App lock:** Profile > Settings > App lock (Face ID asks once). Leave the
+   app for over 30 seconds and come back: it is locked; Face ID opens it.
+4. **Delete a test account:** with an empty wallet, Profile > Privacy >
+   Delete account > Next > tick > Delete my account > Face ID. The app
+   returns to Welcome. In the console: `users/<uid>` is gone,
+   `closedAccounts/<uid>` holds the purge date and an empty `failed` list,
+   `transfers` still hold its transfer records, `bannedIds` keeps the ID's
+   hash only if the account was banned. Photos, run summaries, route
+   archives and consents wait in place until the purge date (owner
+   decision: 1 year after closure).
+5. **Rules tests:** `npm --prefix tests/rules run test:emulator` (CI runs it).
+

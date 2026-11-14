@@ -642,6 +642,9 @@ enum CarpoolFailureKind {
   runTaken,
   notPlannable,
   tooManyExceptions,
+  // Prompt 11 review item 1: a linked parent picked a child the other
+  // parent already brought into this carpool.
+  childInCarpool,
   invalid,
   unknown,
 }
@@ -684,6 +687,7 @@ class CarpoolFailure implements Exception {
         'run-taken' => CarpoolFailureKind.runTaken,
         'not-plannable' => CarpoolFailureKind.notPlannable,
         'too-many-exceptions' => CarpoolFailureKind.tooManyExceptions,
+        'child-in-carpool' => CarpoolFailureKind.childInCarpool,
         'invalid-request' || 'invalid-school' || 'invalid-area' || 'no-children' || 'not-your-child' || 'self-consent' =>
           CarpoolFailureKind.invalid,
         _ => switch (error.code) {
@@ -732,6 +736,7 @@ class CarpoolFailure implements Exception {
     CarpoolFailureKind.runTaken => l10n.carpoolErrorRunTaken,
     CarpoolFailureKind.notPlannable => l10n.carpoolErrorNotPlannable,
     CarpoolFailureKind.tooManyExceptions => l10n.carpoolErrorTooManyExceptions,
+    CarpoolFailureKind.childInCarpool => l10n.carpoolErrorChildInCarpool,
     CarpoolFailureKind.invalid || CarpoolFailureKind.unknown => l10n.errorGeneric,
   };
 

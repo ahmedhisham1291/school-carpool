@@ -7,11 +7,14 @@ import { USERS } from "./accounts";
  * The versions must match lib/features/auth/legal_documents.dart; a newer
  * server version makes old app builds ask the parent to update.
  *
- * The texts are drafts until the lawyer signs them off (open question).
+ * What the documents cover is confirmed by the lawyer (docs/DECISIONS.md,
+ * 14 Nov 2026); a change to the final wording raises the version.
  */
 export const CONSENT_VERSIONS = {
   terms: "2026-11-13",
-  privacy: "2026-11-13",
+  // Prompt 12: new retention (photos kept while active + 1 year, route
+  // archive, analytics, chat history) needs the new privacy policy.
+  privacy: "2026-11-14",
   conduct: "2026-11-13",
   whatsapp: "2026-11-13",
 } as const;

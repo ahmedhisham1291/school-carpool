@@ -7,7 +7,8 @@
 /// are drafts until the lawyer approves them.
 abstract final class LegalDocuments {
   static const String terms = '2026-11-13';
-  static const String privacy = '2026-11-13';
+  // Prompt 12: the new retention schedule (DECISIONS.md, data retention).
+  static const String privacy = '2026-11-14';
   static const String conduct = '2026-11-13';
 
   /// Sent to acceptConsents as `documents`.
@@ -21,7 +22,7 @@ abstract final class LegalDocuments {
   /// submitted (spec section 9, consent types ID, face, child data). Must
   /// match VERIFICATION_CONSENT_VERSIONS in
   /// functions/src/verification/submission.ts.
-  static const String verificationConsent = '2026-11-13';
+  static const String verificationConsent = '2026-11-14';
 
   /// Sent to submitVerification as `consents`.
   static const Map<String, String> verification = <String, String>{

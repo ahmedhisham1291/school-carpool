@@ -155,6 +155,8 @@ export async function adminSetWalletFrozen(
   const frozen = raw.frozen;
   const w = await deps.store.wallet(uid);
   if (!w) throw new WalletError("no-wallet");
+  // A wallet closed (or being closed) by account deletion never opens again.
+  if (!frozen && w.frozenBy === "deletion") throw new WalletError("invalid-state");
   const nowMs = deps.now();
   const audit = (): Promise<void> =>
     deps.audit({ actorUid: caller.uid, action: frozen ? "wallet.freeze" : "wallet.unfreeze", target: `users/${uid}`, reasonCode: raw.reasonCode as string, ip });
@@ -203,7 +205,7 @@ export async function adminListWalletAlerts(deps: WalletAdminDeps, _caller: Admi
   return { alerts: await deps.store.alerts(status, 100) };
 }
 
-export const ALERT_OUTCOMES = ["noIssue", "frozen", "sentToPartner", "parentContacted"] as const;
+export const ALERT_OUTCOMES = ["noIssue", "frozen", "sentToPartner", "parentContacted", "settledWithPartner"] as const;
 
 /** { alertId, outcome } -> the alert, closed. Logged. */
 export async function adminResolveWalletAlert(deps: WalletAdminDeps, caller: AdminCaller, data: unknown, ip: string | null): Promise<AlertRecord> {

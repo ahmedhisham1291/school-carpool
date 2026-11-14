@@ -1,6 +1,6 @@
 import { randomBytes, randomInt } from "node:crypto";
 import * as logger from "firebase-functions/logger";
-import { HttpsError, onCall, onRequest, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { HttpsError, onRequest, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminDb, adminStorage } from "../admin";
@@ -31,8 +31,8 @@ import {
 import { CAIRO_TZ } from "../schedule/cairo";
 import { pauseDriverRuns } from "../schedule/pause";
 import { reportError } from "../sentry";
-import { createKycProvider, type FaceMatcher as KycFaceMatcher } from "../verification/kyc";
-import { CloudStorageFiles, readFakeKycSetting } from "../verification/store";
+import { faceMatcher } from "../verification/face_match";
+import { CloudStorageFiles } from "../verification/store";
 import { createWhatsAppSender } from "../whatsapp/sender";
 import {
   confirmHandover as confirmFlow,
@@ -57,6 +57,7 @@ import {
 import { TRIP_ERROR_CODES, TripError, tripSettings } from "./model";
 import { createRoutesProvider } from "./routes";
 import { FirestoreTripStore } from "./store";
+import { gatedCall, sessionCall } from "../privacy/device_gate";
 
 /**
  * Trip callables (Prompt 10). Every trip write happens here. Logs carry
@@ -64,15 +65,11 @@ import { FirestoreTripStore } from "./store";
  * No warm instances (COST MODE): MIN_INSTANCES, 0 by default.
  */
 
-function tripDeps(): TripDeps {
+export function tripDeps(): TripDeps {
   const db = adminDb();
   const appEnv = process.env.APP_ENV ?? "dev";
-  const kyc = createKycProvider({
-    provider: process.env.KYC_PROVIDER ?? "fake",
-    appEnv,
-    fakeSetting: () => readFakeKycSetting(db),
-    valify: { enabled: false, baseUrl: "", username: "", clientId: "", clientSecret: "", password: "", bundleKey: "" },
-  }) as unknown as KycFaceMatcher;
+  // The project's face match (Valify in prod), built per match.
+  const kyc = faceMatcher();
   const phoneNumberId = WHATSAPP_PHONE_NUMBER_ID.value();
   const carpools = carpoolDeps();
   return {
@@ -160,22 +157,22 @@ const opts = { enforceAppCheck: ENFORCE_APP_CHECK };
 const withSecrets = { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [WHATSAPP_ACCESS_TOKEN] };
 
 /** F38: { carpoolId, runId } -> { tripId, selfieRequired, selfieStatus, active } */
-export const prepareTrip = onCall(opts, (r) => run("prepareTrip", () => prepareFlow(tripDeps(), caller(r), r.data)));
+export const prepareTrip = gatedCall(opts, (r) => run("prepareTrip", () => prepareFlow(tripDeps(), caller(r), r.data)));
 
 /** F38: { carpoolId, runId } -> { status } (after uploading selfieChecks/{uid}/{tripId}.jpg) */
-export const submitSelfieCheck = onCall(opts, (r) => run("submitSelfieCheck", () => selfieFlow(tripDeps(), caller(r), r.data)));
+export const submitSelfieCheck = gatedCall(opts, (r) => run("submitSelfieCheck", () => selfieFlow(tripDeps(), caller(r), r.data)));
 
 /** F15: { carpoolId, runId } -> { tripId, token, expiresAtMs, staleSeconds } */
-export const startTrip = onCall(opts, (r) => run("startTrip", () => startFlow(tripDeps(), caller(r), r.data)));
+export const startTrip = gatedCall(opts, (r) => run("startTrip", () => startFlow(tripDeps(), caller(r), r.data)));
 
 /** F16, F41: { carpoolId, runId, childId, action, requestId? } -> { state, status, applied } */
-export const tripAction = onCall(opts, (r) => run("tripAction", () => actionFlow(tripDeps(), caller(r), r.data)));
+export const tripAction = gatedCall(opts, (r) => run("tripAction", () => actionFlow(tripDeps(), caller(r), r.data)));
 
 /** Review item 4: { carpoolId, runId } -> { status } (the driver ends the run; no child on board) */
-export const endTrip = onCall(opts, (r) => run("endTrip", () => endFlow(tripDeps(), caller(r), r.data)));
+export const endTrip = gatedCall(opts, (r) => run("endTrip", () => endFlow(tripDeps(), caller(r), r.data)));
 
 /** Review item 5: {} -> { ended } (the app calls it before signing out; signed in, any status) */
-export const stopMyTrips = onCall(opts, (r) => {
+export const stopMyTrips = sessionCall(opts, (r) => {
   const uid = r.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
   return run("stopMyTrips", () => stopMineFlow(tripDeps(), { uid, verifiedClaim: r.auth?.token?.verified === true }));
@@ -204,25 +201,25 @@ export const endTripsOnUserWrite = onDocumentWritten({ document: "users/{uid}", 
 });
 
 /** F34: { carpoolId, runId, childId } -> { status } (the receiving parent) */
-export const confirmHandover = onCall(opts, (r) => run("confirmHandover", () => confirmFlow(tripDeps(), caller(r), r.data)));
+export const confirmHandover = gatedCall(opts, (r) => run("confirmHandover", () => confirmFlow(tripDeps(), caller(r), r.data)));
 
 /** F35: { carpoolId, runId, kind, requestId? } -> { posted } */
-export const quickMessage = onCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [STREAM_API_SECRET] }, (r) => run("quickMessage", () => quickFlow(tripDeps(), caller(r), r.data)));
+export const quickMessage = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [STREAM_API_SECRET] }, (r) => run("quickMessage", () => quickFlow(tripDeps(), caller(r), r.data)));
 
 /** F20: { carpoolId, runId, point? } -> { emergencyId, contactSent, members } */
-export const tripEmergency = onCall(withSecrets, (r) => run("tripEmergency", () => emergencyFlow(tripDeps(), caller(r), r.data)));
+export const tripEmergency = gatedCall(withSecrets, (r) => run("tripEmergency", () => emergencyFlow(tripDeps(), caller(r), r.data)));
 
 /** F29: { childId, adults: [{ name, relation, phone? }] } -> { adults } */
-export const saveHandoverAdults = onCall(opts, (r) => run("saveHandoverAdults", () => saveHandoverFlow(tripDeps(), caller(r), r.data)));
+export const saveHandoverAdults = gatedCall(opts, (r) => run("saveHandoverAdults", () => saveHandoverFlow(tripDeps(), caller(r), r.data)));
 
 /** F29: { childId } -> { adults } (the parent's own list) */
-export const getHandoverAdults = onCall(opts, (r) => run("getHandoverAdults", () => getHandoverFlow(tripDeps(), caller(r), r.data)));
+export const getHandoverAdults = gatedCall(opts, (r) => run("getHandoverAdults", () => getHandoverFlow(tripDeps(), caller(r), r.data)));
 
 /** F20: { name, phone, relation } or { clear: true } -> { saved } */
-export const setEmergencyContact = onCall(opts, (r) => run("setEmergencyContact", () => contactFlow(tripDeps(), caller(r), r.data)));
+export const setEmergencyContact = gatedCall(opts, (r) => run("setEmergencyContact", () => contactFlow(tripDeps(), caller(r), r.data)));
 
 /** F33: { carpoolId } -> { date, cards } */
-export const getTodayDriverCards = onCall(opts, (r) => run("getTodayDriverCards", () => todayDriverCards(tripDeps(), caller(r), r.data)));
+export const getTodayDriverCards = gatedCall(opts, (r) => run("getTodayDriverCards", () => todayDriverCards(tripDeps(), caller(r), r.data)));
 
 /**
  * F15: live points from the driver's phone. The location plugin posts here

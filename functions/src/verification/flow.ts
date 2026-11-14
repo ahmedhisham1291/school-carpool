@@ -1,3 +1,4 @@
+import { accessReason, thumbPath } from "../privacy/photos";
 import type { KycImages, KycOutcome, KycProvider } from "./kyc";
 import { runKyc } from "./kyc";
 import { nationalIdHash } from "./national_id";
@@ -87,8 +88,13 @@ export interface DecisionWrite {
   /** Approve of a case with children: how the parent and child name check passed. */
   nameCheck: NameCheck | null;
   decidedAtMs: number;
-  /** When the scheduled job deletes the images (spec section 7: within 7 days). */
-  purgeAtMs: number;
+  /**
+   * When the scheduled job deletes the images. Prompt 12 (owner decision,
+   * DECISIONS.md "Data retention"): null, decided cases keep their photos
+   * while the account is active; account deletion purges them 1 year
+   * after closure. Only withdrawn cases are still deleted by the job.
+   */
+  purgeAtMs: number | null;
   /** New account status, for an identity case. */
   userStatus: AccountStatus | null;
   childIds: string[];
@@ -170,8 +176,10 @@ export interface VerificationStore {
   /** A school a child may be linked to (F4), or undefined. */
   getSchool(id: string): Promise<SchoolChoice | undefined>;
   removeChild(uid: string, childId: string): Promise<void>;
-  appendAudit(entry: { actorUid: string; action: string; target: string; ip: string | null }): Promise<void>;
-  casesDueForPurge(nowMs: number, limit: number): Promise<Array<{ id: string; uid: string }>>;
+  appendAudit(entry: { actorUid: string; action: string; target: string; ip: string | null; reasonCode?: string | null }): Promise<void>;
+  casesDueForPurge(nowMs: number, limit: number): Promise<Array<{ id: string; uid: string; status: string }>>;
+  /** Prompt 12: a decided case keeps its images (clears an old purge date). */
+  keepImages(caseId: string): Promise<void>;
   markPurged(caseId: string, nowMs: number): Promise<void>;
   caseExists(caseId: string): Promise<boolean>;
 }
@@ -212,7 +220,7 @@ export interface VerificationDeps {
 export const ROOT = "verification";
 export const DAY_MS = 24 * 60 * 60 * 1000;
 /** Images are deleted this long after the decision; the daily job adds at most one day. */
-export const IMAGE_RETENTION_MS = 5 * DAY_MS;
+export const IMAGE_RETENTION_MS = 5 * DAY_MS; // Withdrawn cases only (Prompt 12).
 /** Uploads never submitted are deleted after this long. */
 export const PENDING_MAX_AGE_MS = 3 * DAY_MS;
 /** Admin image links expire quickly (no download, spec section 7). */
@@ -368,7 +376,7 @@ export function planDecision(
     note: decision.note,
     nameCheck: decision.approve ? (decision.nameCheck ?? null) : null,
     decidedAtMs: nowMs,
-    purgeAtMs: nowMs + IMAGE_RETENTION_MS,
+    purgeAtMs: null,
     userStatus,
     childIds: record.children.map((c) => c.childId),
     vehicle: record.driver !== null,
@@ -448,6 +456,8 @@ export interface CaseView {
   submittedAtMs: number;
   /** Short-lived signed links, keyed by file name. */
   images: Record<string, string>;
+  /** Prompt 12: links to the server-made thumbnails (same keys), where one exists. */
+  thumbs: Record<string, string>;
 }
 
 /** Admin view of one case with short-lived image links. Every view is logged. */
@@ -457,17 +467,27 @@ export async function openVerificationCase(
   data: unknown,
   ip: string | null = null,
 ): Promise<CaseView> {
-  const caseId = typeof data === "object" && data !== null ? (data as { caseId?: unknown }).caseId : undefined;
+  const raw = typeof data === "object" && data !== null ? (data as { caseId?: unknown; reason?: unknown }) : {};
+  const caseId = raw.caseId;
   if (typeof caseId !== "string" || !/^[A-Za-z0-9]{1,40}$/.test(caseId)) throw new VerificationError("invalid-request");
   const record = await deps.store.getCase(caseId);
   if (!record) throw new VerificationError("not-found");
-  await deps.store.appendAudit({ actorUid: adminUid, action: "verification.view", target: `verifications/${caseId}`, ip });
+  // Prompt 12: photos are kept after the decision, so opening a decided
+  // case needs a stated reason (logged). Reviewing the queue is the reason
+  // for a case that waits for review.
+  const reason = accessReason(raw.reason) ?? (record.status === "awaiting_review" ? "review" : null);
+  if (!reason) throw new VerificationError("reason-required");
+  await deps.store.appendAudit({ actorUid: adminUid, action: "verification.view", target: `verifications/${caseId}`, ip, reasonCode: reason });
 
   const images: Record<string, string> = {};
+  const thumbs: Record<string, string> = {};
   if (!record.imagesDeleted) {
     const expires = deps.now() + SIGNED_URL_TTL_MS;
     for (const path of record.files) {
-      images[path.slice(path.lastIndexOf("/") + 1)] = await deps.files.signedReadUrl(path, expires);
+      const name = path.slice(path.lastIndexOf("/") + 1);
+      images[name] = await deps.files.signedReadUrl(path, expires);
+      const thumb = thumbPath(path);
+      if (thumb && (await deps.files.exists(thumb))) thumbs[name] = await deps.files.signedReadUrl(thumb, expires);
     }
   }
   return {
@@ -484,6 +504,7 @@ export async function openVerificationCase(
     kyc: record.kyc,
     submittedAtMs: record.submittedAtMs,
     images,
+    thumbs,
   };
 }
 
@@ -500,6 +521,13 @@ export async function purgeVerificationImages(
   let cases = 0;
   let files = 0;
   for (const due of await deps.store.casesDueForPurge(now, batchLimit)) {
+    // Prompt 12: decided cases are kept while the account is active (their
+    // purge date from before the owner's decision is cleared); only cases
+    // the parent withdrew are deleted.
+    if (due.status !== "withdrawn") {
+      await deps.store.keepImages(due.id);
+      continue;
+    }
     files += await deps.files.deletePrefix(casePrefix(due.uid, due.id));
     await deps.store.markPurged(due.id, now);
     cases += 1;

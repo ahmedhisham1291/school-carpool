@@ -70,7 +70,15 @@ String? _signedInTarget(Account account, String location) {
         AuthRoutes.onboarding.contains(location) ||
         location == AuthRoutes.verifyAccount ||
         location == AuthRoutes.verifySubmit;
-    return gate ? AppRoutes.initial : null;
+    if (gate) {
+      return AppRoutes.initial;
+    }
+    // Prompt 12: after a sign-in from a new phone, chats, the wallet and
+    // child data wait for the fresh selfie.
+    if (account.newDeviceCheck && deviceCheckClosed(location)) {
+      return PrivacyRoutes.newDevice;
+    }
+    return null;
   }
   if (location == AuthRoutes.verifySubmit) {
     final bool canSubmit =
@@ -85,3 +93,14 @@ String? _signedInTarget(Account account, String location) {
       location.startsWith('${AppTab.profile.path}/');
   return allowed ? null : AuthRoutes.verifyAccount;
 }
+
+/// Prompt 12: until the new-phone selfie matched, only the profile page
+/// (with its settings and the selfie banner), the selfie screen and About
+/// stay open. Everything else reads child, carpool, schedule, trip,
+/// location, chat or wallet data, which the server refuses meanwhile
+/// (firestore.rules deviceChecked, the gated callables).
+bool deviceCheckClosed(String location) => !<String>{
+  AppTab.profile.path,
+  PrivacyRoutes.newDevice,
+  ProfileRoutes.about,
+}.contains(location);

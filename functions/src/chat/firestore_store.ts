@@ -92,6 +92,7 @@ export function channelToDoc(c: ChannelRecord): DocumentData {
     frozen: c.frozen,
     createdAt: ts(c.createdAtMs),
     updatedAt: ts(c.updatedAtMs),
+    endedAt: c.endedAtMs ? ts(c.endedAtMs) : null,
   };
 }
 
@@ -110,6 +111,7 @@ export function channelFromDoc(cid: string, d: DocumentData): ChannelRecord | nu
     frozen: d.frozen === true,
     createdAtMs: ms(d.createdAt),
     updatedAtMs: ms(d.updatedAt),
+    endedAtMs: ms(d.endedAt) || null,
   };
 }
 

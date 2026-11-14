@@ -1,19 +1,26 @@
 import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/analytics/analytics.dart';
 import 'package:school_carpool/features/auth/auth_repository.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/privacy/privacy_models.dart';
+import 'package:school_carpool/features/privacy/privacy_repository.dart';
+import 'package:school_carpool/features/security/app_lock.dart';
+import 'package:school_carpool/features/wallet/device_auth.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/observability/sentry_setup.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/settings/app_settings.dart';
+import 'package:school_carpool/settings/settings_store.dart';
 
 /// Language and appearance settings, plus developer tools in the dev build.
 class SettingsSection extends ConsumerWidget {
@@ -59,6 +66,8 @@ class SettingsSection extends ConsumerWidget {
                 unawaited(ref.read(themeModeProvider.notifier).setThemeMode(selection.first)),
           ),
         ),
+        // Prompt 12: app lock and usage statistics.
+        const _PrivacySettings(),
         if (config.showDevTools) const _DevTools(),
       ],
     );
@@ -77,6 +86,85 @@ Future<void> _setLanguage(WidgetRef ref, Locale locale) async {
   } on Object {
     // Offline or not allowed: the phone keeps the choice; the account keeps
     // the previous language until the next change.
+  }
+}
+
+/// Prompt 12: the app lock (signed in, phone app only) and the usage
+/// statistics choice (on by default; owner decision).
+class _PrivacySettings extends ConsumerStatefulWidget {
+  const _PrivacySettings();
+
+  @override
+  ConsumerState<_PrivacySettings> createState() => _PrivacySettingsState();
+}
+
+class _PrivacySettingsState extends ConsumerState<_PrivacySettings> {
+  late bool _analytics = ref.read(analyticsProvider).enabled;
+  bool _busy = false;
+
+  Future<void> _setLock(bool enabled) async {
+    final AppLocalizations l10n = context.l10n;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    final DeviceAuthResult result = await ref.read(appLockProvider.notifier).setEnabled(enabled, l10n.appLockReason);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _busy = false);
+    switch (result) {
+      case DeviceAuthResult.ok:
+        ref.read(analyticsProvider).track(AnalyticsEvent.appLockChanged, <String, Object?>{'enabled': enabled});
+        showAppSnackBarOn(messenger, enabled ? l10n.appLockOn : l10n.appLockOff);
+      case DeviceAuthResult.unavailable:
+        showAppSnackBarOn(messenger, l10n.appLockNeedsPasscode);
+      case DeviceAuthResult.cancelled:
+        break;
+    }
+  }
+
+  Future<void> _setAnalytics(bool enabled) async {
+    final AppLocalizations l10n = context.l10n;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    setState(() => _analytics = enabled);
+    await saveAnalyticsChoice(ref.read(settingsStoreProvider), ref.read(analyticsProvider), enabled: enabled);
+    showAppSnackBarOn(messenger, enabled ? l10n.analyticsOn : l10n.analyticsOff);
+    // The consent record on the server (best effort; the phone decides).
+    if (ref.read(sessionProvider) is SessionSignedIn) {
+      try {
+        await ref.read(privacyRepositoryProvider).setConsent(ConsentKind.analytics, granted: enabled);
+      } on Object {
+        // Offline: recorded the next time the parent changes it.
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    final bool signedIn = ref.watch(sessionProvider) is SessionSignedIn;
+    final AppLockState lock = ref.watch(appLockProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (signedIn && !kIsWeb)
+          AppSwitchRow(
+            key: const Key('settings.appLock'),
+            title: l10n.appLockSetting,
+            subtitle: l10n.appLockSettingHelper,
+            leadingIcon: Icons.lock_outline_rounded,
+            value: lock.enabled,
+            onChanged: _busy ? null : (bool v) => unawaited(_setLock(v)),
+          ),
+        AppSwitchRow(
+          key: const Key('settings.analytics'),
+          title: l10n.analyticsSetting,
+          subtitle: l10n.analyticsSettingHelper,
+          leadingIcon: Icons.insights_outlined,
+          value: _analytics,
+          onChanged: (bool v) => unawaited(_setAnalytics(v)),
+        ),
+      ],
+    );
   }
 }
 

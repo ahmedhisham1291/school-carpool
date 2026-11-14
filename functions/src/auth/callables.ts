@@ -7,6 +7,7 @@ import {
   ENFORCE_APP_CHECK,
   MIN_INSTANCES_SIGNIN,
   OTP_HMAC_KEY,
+  OTP_MAX_FAILURES_PER_DAY,
   OTP_MAX_SENDS_PER_IP,
   WHATSAPP_ACCESS_TOKEN,
   WHATSAPP_API_VERSION,
@@ -20,7 +21,7 @@ import { reportError } from "../sentry";
 import { asLanguage, createWhatsAppSender, type WhatsAppSender } from "../whatsapp/sender";
 import { FirebaseAccountService, USERS, verifiedEmail } from "./accounts";
 import { clientIp } from "./client_ip";
-import { ConsentError, parseConsentRequest, recordConsents } from "./consents";
+import { CONSENT_VERSIONS, ConsentError, parseConsentRequest, recordConsents } from "./consents";
 import {
   DEFAULT_OTP_LIMITS,
   OtpError,
@@ -32,6 +33,7 @@ import {
 } from "./otp_flow";
 import { FirestoreOtpStore } from "./otp_store";
 import { emailConfirmationIsNew } from "./sign_in_policy";
+import { afterSignIn } from "../privacy/callables";
 
 /**
  * Callable functions for sign-up and sign-in (F1). App Check is enforced in
@@ -101,7 +103,7 @@ export function otpDeps(): OtpDeps {
     accounts: new FirebaseAccountService(adminAuth(), db),
     hmacKey: otpHmacKey(),
     now: () => Date.now(),
-    limits: { ...DEFAULT_OTP_LIMITS, maxSendsPerIp: OTP_MAX_SENDS_PER_IP.value() },
+    limits: { ...DEFAULT_OTP_LIMITS, maxSendsPerIp: OTP_MAX_SENDS_PER_IP.value(), maxFailuresPerPhonePerDay: OTP_MAX_FAILURES_PER_DAY.value() },
     reportError: (error) => {
       logger.error("WhatsApp send failed", { message: error instanceof Error ? error.message : "unknown" });
       void reportError(error);
@@ -139,8 +141,14 @@ const signInOptions = {
   secrets: [OTP_HMAC_KEY, WHATSAPP_ACCESS_TOKEN],
 };
 
-/** { phone, deviceId, language } -> { expiresInSeconds, resendAfterSeconds } */
-export const requestCode = onCall(signInOptions, (request) =>
+/**
+ * { phone, deviceId, language } -> { expiresInSeconds, resendAfterSeconds }
+ *
+ * Prompt 12 (review 2, item 5): App Check replay protection. The app sends
+ * a limited-use token that is consumed here, so one captured token cannot
+ * be replayed to send many paid WhatsApp codes.
+ */
+export const requestCode = onCall({ ...signInOptions, consumeAppCheckToken: true }, (request) =>
   run("requestCode", async () => {
     const deps = otpDeps();
     const ip = clientIp(request.rawRequest.headers, request.rawRequest.ip, CLIENT_IP_HOP.value());
@@ -158,7 +166,14 @@ export const requestCode = onCall(signInOptions, (request) =>
   }),
 );
 
-/** { phone, code, deviceId, language } -> { token } (a Firebase custom token) */
+/**
+ * { phone, code, deviceId, language, platform? } -> { token, newDevice, freshSelfieRequired }
+ *
+ * Prompt 12: every sign-in is recorded (users/{uid}/devices, logins). A
+ * sign-in from a new phone signs the other phones out, emails the parent
+ * and, for a verified parent, asks for a fresh selfie before chats, the
+ * wallet and child data open (privacy/devices.ts).
+ */
 export const verifyCode = onCall(signInOptions, (request) =>
   run("verifyCode", async () => {
     const result = await verifyCodeFlow(otpDeps(), {
@@ -167,7 +182,8 @@ export const verifyCode = onCall(signInOptions, (request) =>
       deviceId: field(request, "deviceId"),
       language: asLanguage(field(request, "language")),
     });
-    return { token: result.token };
+    const device = await afterSignIn(result.uid, field(request, "deviceId"), field(request, "platform"));
+    return { token: result.token, newDevice: device.newDevice, freshSelfieRequired: device.freshSelfieRequired };
   }),
 );
 
@@ -207,6 +223,11 @@ export const acceptConsents = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (re
     const parsed = parseConsentRequest(request.data);
     const snap = await adminDb().collection(USERS).doc(uid).get();
     if (!snap.exists) throw new HttpsError("failed-precondition", "No account record.");
+    // Prompt 12 (review 2, item 7): the email step comes first on the
+    // server too, and a repeated call for the same terms version records
+    // nothing again (consent changes later go through the privacy screen).
+    if (snap.get("emailVerified") !== true) throw new HttpsError("failed-precondition", "email-first", { reason: "email-first" });
+    if (snap.get("termsAcceptedAt") && snap.get("termsVersion") === CONSENT_VERSIONS.terms) return { ok: true };
     await recordConsents(adminDb(), uid, parsed);
     return { ok: true };
   }),

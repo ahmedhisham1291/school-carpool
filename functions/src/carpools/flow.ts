@@ -758,6 +758,58 @@ export async function leaveCarpool(deps: CarpoolDeps, caller: Caller, data: unkn
   });
 }
 
+/**
+ * Prompt 12: the parent's account is deleted (or the server must take the
+ * parent out). Like leaveCarpool, but never refused: a pending request is
+ * withdrawn; an approved admin hands the carpool to the longest-standing
+ * other member (closing it only when nobody is left). Idempotent.
+ */
+export async function removeFromCarpool(deps: CarpoolDeps, uid: string, carpoolId: string): Promise<"left" | "closed" | "none"> {
+  return deps.store.transact(async (tx) => {
+    const carpool = await tx.carpool(carpoolId);
+    const m = await tx.membership(carpoolId, uid);
+    const nowMs = deps.now();
+    if (!carpool || !m || (m.status !== "approved" && m.status !== "requested")) return "none" as const;
+    if (m.status === "requested") {
+      tx.putMembership({ ...m, status: "left", decidedAtMs: nowMs, decidedBy: uid, updatedAtMs: nowMs });
+      tx.deleteRequest(carpoolId, uid);
+      return "left" as const;
+    }
+    const consents = await tx.consents(carpoolId);
+    const members = await tx.members(carpoolId);
+    const others = members.filter((x) => x.uid !== uid).sort((a, b) => a.joinedAtMs - b.joinedAtMs);
+    const closing = others.length === 0;
+    const open = closing ? await tx.requests(carpoolId) : [];
+    const pending = await Promise.all(open.map((r) => tx.membership(carpoolId, r.uid)));
+    const heir = m.role === "admin" && !closing ? others[0] : null;
+    const heirMembership = heir ? await tx.membership(carpoolId, heir.uid) : null;
+    open.forEach((r, i) => {
+      const p = pending[i];
+      if (p && p.status === "requested") tx.putMembership({ ...p, status: "declined", decidedAtMs: nowMs, decidedBy: uid, updatedAtMs: nowMs });
+      tx.deleteRequest(carpoolId, r.uid);
+    });
+    await releaseAfterLeave(tx, carpoolId, uid, members, cairoDate(nowMs), nowMs, deps.deadlines ?? DEFAULT_DEADLINES);
+    if (heir) {
+      tx.putMember(carpoolId, { ...heir, role: "admin" });
+      if (heirMembership) tx.putMembership({ ...heirMembership, role: "admin", updatedAtMs: nowMs });
+    }
+    tx.putMembership({ ...m, status: "left", updatedAtMs: nowMs });
+    tx.deleteMember(carpoolId, uid);
+    tx.putPickupPoint(carpoolId, uid, null);
+    for (const c of consents) {
+      if (c.parentUid === uid || c.driverUid === uid) tx.deleteConsent(carpoolId, consentId(c.parentUid, c.driverUid));
+    }
+    tx.putCarpool({
+      ...carpool,
+      childrenCount: Math.max(0, carpool.childrenCount - m.children.length),
+      memberCount: Math.max(0, carpool.memberCount - 1),
+      status: closing ? "closed" : carpool.status,
+      updatedAtMs: nowMs,
+    });
+    return closing ? ("closed" as const) : ("left" as const);
+  });
+}
+
 // --------------------------------------------------------------------------
 // Driver consent (F26)
 // --------------------------------------------------------------------------

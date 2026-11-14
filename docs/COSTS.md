@@ -14,7 +14,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Firebase (3 projects) | Blaze (pay as you go, needed for Cloud Functions) inside the no-cost quotas | Firestore: 50,000 reads, 20,000 writes, 20,000 deletes per day and 1 GiB stored, per project. Cloud Functions: 2 million calls, 400,000 GB-seconds and 200,000 CPU-seconds per month. Cloud Storage: 5 GB stored (free only in some US regions; elsewhere billed per GB). Hosting: 10 GB stored, 360 MB a day transfer. Cloud Messaging and App Check (App Attest/DeviceCheck) are free | Budget alert on each project (SETUP.md step 4) at USD 1, 5 and 20; Firebase console > Usage and billing; Firestore "Usage" tab | Any project passes 80 percent of a daily Firestore quota for a week, or the monthly bill passes USD 10 |
 | Firebase Auth | Identity Platform, free tier | 50,000 monthly active users for email and custom-token sign-in (we never use SMS) | Identity Platform > Usage | Over 40,000 monthly active users |
 | Cloud Functions warm instances | `MIN_INSTANCES=0` (none) in `functions/.env.*` | A warm instance is billed all the time, so none by default | Cloud Monitoring latency of sign-in and alerts | Cold start delays sign-in or a critical alert by more than about 3 seconds in the pilot: set `MIN_INSTANCES=1` for those functions only |
-| Firestore point-in-time recovery | Off | PITR is billed as extra storage | n/a | Before the pilot opens to real families (owner decision); SETUP.md step 5 explains how |
+| Firestore point-in-time recovery | **On in prod** (owner decision 14 Nov 2026: best option, even if paid); off in dev and staging | Billed as extra storage (about the size of 7 days of changes, at the Firestore storage price) | Firestore > Disaster recovery; the monthly bill | Never switched off in prod |
 | Firestore daily backups | On in prod only | Billed per GB stored in backups | Firestore > Disaster recovery | Never removed from prod |
 | Sentry | Developer (free) | 5,000 errors a month, 1 user; no tracing, no replay | Sentry > Stats; spike protection on | Errors are dropped for quota two months in a row, or a second person needs access |
 | Codemagic | Free personal, iOS builds only | 500 macOS M2 minutes a month (Linux has no free minutes, so no Linux jobs run there) | Codemagic > Billing | macOS minutes run out before the 25th of a month |
@@ -56,8 +56,8 @@ Limits below are the public free allowances as understood in November 2026.
 ## Verification (Prompt 3)
 
 - Images are compressed on the phone (about 200 to 500 KB each, 5 to 9 per
-  parent) and deleted within 7 days of the decision, so stored volume
-  stays at a few hundred MB even with thousands of parents.
+  parent). Prompt 12 (owner decision): they are kept while the account is
+  open and 1 year after it closes; see "Privacy and security (Prompt 12)".
 - The deletion job is one Cloud Scheduler job (3 free per billing account)
   running once a day, minInstances 0. It lists the `verification/` prefix
   once per run (one Class A operation per 1,000 files).
@@ -81,8 +81,8 @@ Limits below are the public free allowances as understood in November 2026.
 - **Firestore:** user search reads at most about 25 documents per search
   and is capped at 30 searches per admin per 10 minutes
   (`ADMIN_SEARCH_LIMIT`). The audit log grows by one small document per
-  admin action or view; set a retention period with the lawyer (open
-  question).
+  admin action or view; entries are deleted after 2 years
+  (`AUDIT_LOG_DAYS`, retentionDaily, Prompt 12).
 - **App Check on the web:** reCAPTCHA Enterprise has a free monthly
   allowance (check the current number on Google's pricing page); admins
   make few calls.
@@ -333,12 +333,50 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
 - **Face check:** a phone change runs one face match (Valify, fake until the
   contract).
 
+## Privacy and security (Prompt 12)
+
+- **Photos are now kept** while the account is open and 1 year after it
+  closes (owner decision), compressed on the phone (long edge 1600, JPEG
+  about 80, chat photos WebP). At about 1 to 2 MB per parent, 10,000
+  parents are 10 to 20 GB. Lifecycle rules move them to **Nearline after 30
+  days** and **Coldline after 180 days** (europe-west1, Nov 2026: Standard
+  about USD 0.020, Nearline 0.010, Coldline 0.004 per GB-month; Coldline has
+  a 90-day minimum and a retrieval fee, fine for photos read only for a
+  review or an investigation). Admin lists load 320 px WebP thumbnails, not
+  the photos.
+- **Route archives:** one gzipped track per run (about 1 to 3 KB), Coldline
+  at once, deleted after 1 year. 1,000 runs a day are about 1 GB a year:
+  cents.
+- **Cloud KMS key** for the private bucket: about USD 0.06 a month per key
+  version plus USD 0.03 per 10,000 operations (each photo upload or read is
+  one). Pilot scale: well under USD 1 a month per project.
+- **Cloud Functions:** `makePhotoThumbnail` runs once per kept photo (1 GiB
+  memory, about a second); `archiveRouteOnTripWrite` once per run;
+  `retentionDaily` once a day; `touchDevice` about once per app start;
+  `exportMyData` at most 3 times a day per parent. All inside the free tier
+  at pilot scale.
+- **Cloud Scheduler:** `retentionDaily` replaces `purgeVerificationImagesDaily`
+  and `chatRetentionDaily`: one job fewer.
+- **Google Analytics for Firebase:** free; no cost and no quota that the app
+  can reach.
+- **Email** (new-phone alerts): needs an SMTP provider through the Trigger
+  Email extension; most have a free tier of a few thousand emails a month
+  (owner to choose; SETUP 23.4).
+- **Chat on Stream** is kept for the life of the chat + 1 year (was 180
+  days): message storage on Stream grows; watch Stream's usage page when
+  moving to a paid plan.
+- **Sign-in blocking functions** (`blockClientSignUps`, `blockNonCodeSignIn`,
+  `blockSignInEmails`) run with no warm instance. Identity Platform gives a
+  blocking function about 7 seconds; if a cold start ever makes sign-ins
+  time out, set `minInstances: 1` on them (about USD 3 to 6 a month each;
+  Prompt 2 review, note N2).
+
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub
    Actions.
 2. Cloud Storage outside the free US regions is billed from the first GB.
-   The bucket region is part of the hosting decision with the lawyer.
+   The bucket is in `europe-west1` (hosting abroad confirmed by the lawyer; docs/DECISIONS.md).
 3. Algolia's Build plan terms say it is "provided only for evaluation
    purposes" and not for production use. Before launch, either ask
    Algolia's non-profit programme (the app is free and non-profit) or

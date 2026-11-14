@@ -58,10 +58,14 @@ class FirebaseAuthRepository implements AuthRepository {
 
   /// Calls a function and returns its result map. Results arrive as
   /// `Map<Object?, Object?>` on iOS, so no typed call is used.
-  Future<Map<Object?, Object?>> _call(String name, Map<String, Object?> payload) async {
+  ///
+  /// [limitedUse]: a one-time App Check token that the function consumes
+  /// (replay protection on requestCode, which sends a paid WhatsApp
+  /// message; Prompt 12).
+  Future<Map<Object?, Object?>> _call(String name, Map<String, Object?> payload, {bool limitedUse = false}) async {
     try {
       final HttpsCallableResult<Object?> result = await _functions
-          .httpsCallable(name)
+          .httpsCallable(name, options: HttpsCallableOptions(limitedUseAppCheckToken: limitedUse))
           .call<Object?>(payload);
       final Object? data = result.data;
       return data is Map<Object?, Object?> ? data : const <Object?, Object?>{};
@@ -94,7 +98,7 @@ class FirebaseAuthRepository implements AuthRepository {
       'phone': phoneE164,
       'deviceId': _installId,
       'language': language,
-    });
+    }, limitedUse: true);
     return CodeRequest(
       resendAfter: Duration(seconds: _seconds(data['resendAfterSeconds'], 60)),
       expiresIn: Duration(seconds: _seconds(data['expiresInSeconds'], 300)),
@@ -112,6 +116,8 @@ class FirebaseAuthRepository implements AuthRepository {
       'code': code,
       'deviceId': _installId,
       'language': language,
+      // Prompt 12: shown in the parent's list of phones.
+      'platform': platformName(),
     });
     final Object? token = data['token'];
     if (token is! String || token.isEmpty) {

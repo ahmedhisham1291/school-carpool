@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { scrubEvent } from "./scrub";
+import { areaOf, scrubEvent } from "./scrub";
 
 let started = false;
 
@@ -20,11 +20,18 @@ export function startSentry(): boolean {
       environment: process.env.APP_ENV ?? "unknown",
       sampleRate: Number.isFinite(rate) ? Math.min(Math.max(rate, 0), 1) : 1,
       beforeSend: (event) => scrubEvent(event),
+      // Prompt 12: alert rules filter on these (function name and area only).
+      initialScope: { tags: { function: functionName(), area: areaOf(functionName()) } },
       beforeBreadcrumb: (breadcrumb) => scrubEvent(breadcrumb),
     });
     started = true;
   }
   return true;
+}
+
+/** The running function's name (set by Cloud Functions), never request data. */
+function functionName(): string {
+  return process.env.FUNCTION_TARGET ?? process.env.K_SERVICE ?? "unknown";
 }
 
 /** Reports an error and waits for delivery (functions can freeze after return). */

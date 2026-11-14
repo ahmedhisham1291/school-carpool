@@ -272,7 +272,7 @@ export class FirestoreVerificationStore implements VerificationStore {
         note: w.note,
         nameCheck: w.nameCheck,
         decidedAt,
-        purgeAt: Timestamp.fromMillis(w.purgeAtMs),
+        purgeAt: w.purgeAtMs === null ? null : Timestamp.fromMillis(w.purgeAtMs),
       });
 
       const userUpdate: DocumentData = {
@@ -377,17 +377,21 @@ export class FirestoreVerificationStore implements VerificationStore {
     });
   }
 
-  async appendAudit(entry: { actorUid: string; action: string; target: string; ip: string | null }): Promise<void> {
+  async appendAudit(entry: { actorUid: string; action: string; target: string; ip: string | null; reasonCode?: string | null }): Promise<void> {
     await this.db.collection(AUDIT_LOG).doc().create({ ...entry, time: FieldValue.serverTimestamp() });
   }
 
-  async casesDueForPurge(nowMs: number, limit: number): Promise<Array<{ id: string; uid: string }>> {
+  async casesDueForPurge(nowMs: number, limit: number): Promise<Array<{ id: string; uid: string; status: string }>> {
     const snap = await this.db
       .collection(VERIFICATIONS)
       .where("purgeAt", "<=", Timestamp.fromMillis(nowMs))
       .limit(limit)
       .get();
-    return snap.docs.map((doc) => ({ id: doc.id, uid: String(doc.get("uid")) }));
+    return snap.docs.map((doc) => ({ id: doc.id, uid: String(doc.get("uid")), status: String(doc.get("status") ?? "") }));
+  }
+
+  async keepImages(caseId: string): Promise<void> {
+    await this.db.collection(VERIFICATIONS).doc(caseId).update({ purgeAt: null });
   }
 
   async markPurged(caseId: string, nowMs: number): Promise<void> {

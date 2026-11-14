@@ -25,6 +25,7 @@ import {
 } from "./model";
 import type { FakeAccount, FakeLedger, FakeMode, FakeOp } from "./provider";
 import type { ConsentRecord, SettleResult, StartResult, WalletContact, WalletLimitKind, WalletStore } from "./store";
+import { DAY_MS, WALLET_DAILY_DAYS } from "../privacy/retention";
 
 /**
  * Wallet records in Firestore. Cloud Functions only: firestore.rules close
@@ -102,7 +103,8 @@ export function walletFromDoc(uid: string, d: DocumentData): WalletRecord {
   return {
     uid,
     walletRef: text(d.walletRef),
-    status: d.status === "frozen" ? "frozen" : "active",
+    // Anything but "active" (frozen, or closed by account deletion) moves no money.
+    status: d.status === "active" ? "active" : "frozen",
     balanceCopy: int(d.balanceCopy),
     balanceAtMs: ms(d.balanceAt),
     termsVersion: text(d.termsVersion),
@@ -182,7 +184,7 @@ function dailyFromDoc(d: DocumentData | undefined): DailyCounter {
   return { outAmount: int(d?.outAmount), outCount: int(d?.outCount), topUpAmount: int(d?.topUpAmount) };
 }
 
-const ALERT_KINDS: readonly AlertKind[] = ["new-receivers", "many-transfers", "report"];
+const ALERT_KINDS: readonly AlertKind[] = ["new-receivers", "many-transfers", "report", "stuck"];
 
 export function alertToDoc(a: AlertRecord): DocumentData {
   return {
@@ -308,12 +310,15 @@ export class FirestoreWalletStore implements WalletStore {
       tx.create(ref, transferToDoc(t));
       tx.create(this.db.collection(WALLET_PENDING).doc(t.id), {
         uid: t.uid,
+        // Both sides: account deletion checks incoming transfers too.
+        parties: t.parties,
         createdAt: ts(t.createdAtMs),
         resends: 0,
         checkedAt: ts(t.createdAtMs),
         leaseUntil: ts(0),
       });
-      tx.set(dailyRef, { uid: t.uid, day: t.day, ...next, updatedAt: ts(t.createdAtMs) });
+      // expiresAt: Firestore TTL (tool/setup_retention.sh); only today's counter is read.
+      tx.set(dailyRef, { uid: t.uid, day: t.day, ...next, updatedAt: ts(t.createdAtMs), expiresAt: ts(t.createdAtMs + WALLET_DAILY_DAYS * DAY_MS) });
       return { created: true, transfer: t, result: null };
     });
   }
@@ -353,7 +358,7 @@ export class FirestoreWalletStore implements WalletStore {
           t.kind === "topup"
             ? { topUpAmount: Math.max(0, d.topUpAmount - t.amount) }
             : { outAmount: Math.max(0, d.outAmount - t.amount), outCount: Math.max(0, d.outCount - 1) };
-        tx.set(dailyRef, { uid: t.uid, day: t.day, ...d, ...back, updatedAt: ts(r.settledAtMs) });
+        tx.set(dailyRef, { uid: t.uid, day: t.day, ...d, ...back, updatedAt: ts(r.settledAtMs), expiresAt: ts(t.createdAtMs + WALLET_DAILY_DAYS * DAY_MS) });
       }
       events.forEach((e, i) => {
         if (!eventSnaps[i].exists) tx.create(this.db.collection(NOTIFICATION_EVENTS).doc(e.id), outboxDoc(e));

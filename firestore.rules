@@ -16,6 +16,38 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    // Prompt 12 (spec section 7). Set and cleared only by Cloud Functions
+    // on users/{uid}:
+    // - sessionsValidAfter (seconds): written when phones are signed out
+    //   (signOutDevice, a sign-in from a new phone). A token from a sign-in
+    //   before it is refused at once, not when it expires (up to 1 hour).
+    // - newDeviceCheck.required: after a sign-in from a new phone, child,
+    //   carpool, schedule, trip and location data stay closed until the
+    //   fresh selfie matched (SIM swap: a stolen number alone opens none of
+    //   it). The callables check the same two fields (device_gate.ts).
+    // A signed-in parent always has the record (verifyCode creates it
+    // before the sign-in token); no record means nothing to check.
+    function userRecord() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function hasUserRecord() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function sessionValid() {
+      return signedIn()
+        && (!hasUserRecord()
+          || !('sessionsValidAfter' in userRecord())
+          || (request.auth.token.auth_time is int
+            && request.auth.token.auth_time >= userRecord().sessionsValidAfter));
+    }
+    function deviceChecked() {
+      return sessionValid()
+        && (!hasUserRecord()
+          || !('newDeviceCheck' in userRecord())
+          || userRecord().newDeviceCheck == null
+          || userRecord().newDeviceCheck.required != true);
+    }
+
     // Prompt 4 (F14): an admin of the panel. The "admin" custom claim is
     // set only by a super admin (createAdmin function) or the bootstrap
     // script; the sign-in used a second factor (TOTP); the sign-in is less
@@ -45,15 +77,15 @@ service cloud.firestore {
     // verifyCode function (status "unverified" and the parent ID). The
     // parent can read it and change only the app language.
     match /users/{uid} {
-      allow get: if isSelf(uid);
-      allow update: if isSelf(uid)
+      allow get: if isSelf(uid) && sessionValid();
+      allow update: if isSelf(uid) && sessionValid()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['language'])
         && request.resource.data.language in ['ar', 'en'];
 
       // Consent records: written only by the acceptConsents function,
       // readable by their owner (privacy screen later).
       match /consents/{consentId} {
-        allow read: if isSelf(uid);
+        allow read: if isSelf(uid) && sessionValid();
       }
 
       // Prompt 8 (F12, F23): the parent's in-app notifications, written
@@ -62,9 +94,10 @@ service cloud.firestore {
       // readAt, once, to the server time. Nothing else changes; nobody
       // creates or deletes one from the app.
       match /notifications/{notificationId} {
-        allow get: if isSelf(uid);
-        allow list: if isSelf(uid) && request.query.limit <= 100;
-        allow update: if isSelf(uid)
+        // Texts name children and runs: closed during a new-phone check.
+        allow get: if isSelf(uid) && deviceChecked();
+        allow list: if isSelf(uid) && deviceChecked() && request.query.limit <= 100;
+        allow update: if isSelf(uid) && deviceChecked()
           && resource.data.readAt == null
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
           && request.resource.data.readAt == request.time;
@@ -75,7 +108,7 @@ service cloud.firestore {
     // Prompt 8: WhatsApp on or off per group and quiet hours. The parent
     // reads their own; only updateNotificationSettings writes it.
     match /notificationSettings/{uid} {
-      allow get: if isSelf(uid);
+      allow get: if isSelf(uid) && sessionValid();
       allow list, create, update, delete: if false;
     }
     // Prompt 8: the notification outbox (every producer writes here, the
@@ -94,14 +127,15 @@ service cloud.firestore {
     // Functions (submitVerification, decideVerification, removeChild). A
     // parent reads only their own children; the app must query with
     // where('ownerUid', '==', uid).
+    // Prompt 12: closed during a new-phone check (deviceChecked above).
     match /children/{childId} {
-      allow get, list: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow get, list: if signedIn() && resource.data.ownerUid == request.auth.uid && deviceChecked();
     }
 
     // Prompt 3 (F2): the driver's car, one per parent for now. Written only
     // by Cloud Functions; readable by its owner.
     match /vehicles/{uid} {
-      allow get: if isSelf(uid);
+      allow get: if isSelf(uid) && sessionValid();
     }
 
     // Prompt 3 (F2, F18): verification cases, national ID hashes, the ban
@@ -178,7 +212,7 @@ service cloud.firestore {
     // only the setHomeLocation, updateMapSettings and setDrivingSchools
     // functions write it. Nobody else, verified or not, can read it.
     match /homes/{uid} {
-      allow get: if isSelf(uid);
+      allow get: if isSelf(uid) && deviceChecked();
       allow list, create, update, delete: if false;
     }
     // The public map record: rounded point (about 500 m), geohash of the
@@ -215,10 +249,10 @@ service cloud.firestore {
     // (a carpool they are not in): the ID must end in "_<their uid>", so
     // nobody learns whether another parent is a member.
     match /memberships/{id} {
-      allow get: if signedIn()
+      allow get: if sessionValid()
         && id.matches('.+_' + request.auth.uid)
         && (resource == null || resource.data.uid == request.auth.uid);
-      allow list: if signedIn() && resource.data.uid == request.auth.uid;
+      allow list: if signedIn() && resource.data.uid == request.auth.uid && sessionValid();
       allow create, update, delete: if false;
     }
     function approvedMember(carpoolId, uid) {
@@ -227,7 +261,7 @@ service cloud.firestore {
         && get(path).data.carpoolId == carpoolId && get(path).data.uid == uid;
     }
     function carpoolAdmin(carpoolId) {
-      return verifiedParent()
+      return verifiedParent() && deviceChecked()
         && approvedMember(carpoolId, request.auth.uid)
         && get(/databases/$(database)/documents/memberships/$(carpoolId + '_' + request.auth.uid)).data.role == 'admin';
     }
@@ -244,21 +278,21 @@ service cloud.firestore {
       // Approved members with their children's first names and grades
       // (spec section 6): approved members of the same carpool only.
       match /members/{uid} {
-        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow get, list: if verifiedParent() && deviceChecked() && approvedMember(carpoolId, request.auth.uid);
         allow create, update, delete: if false;
       }
 
       // Open join requests with the children's first names and grades:
       // the requester and the carpool admin only.
       match /requests/{uid} {
-        allow get: if (isSelf(uid) && verifiedParent()) || carpoolAdmin(carpoolId);
+        allow get: if (isSelf(uid) && verifiedParent() && deviceChecked()) || carpoolAdmin(carpoolId);
         allow list: if carpoolAdmin(carpoolId);
         allow create, update, delete: if false;
       }
 
       // F26: who accepted whom as a driver. Approved members only.
       match /driverConsents/{id} {
-        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow get, list: if verifiedParent() && deviceChecked() && approvedMember(carpoolId, request.auth.uid);
         allow create, update, delete: if false;
       }
 
@@ -267,8 +301,9 @@ service cloud.firestore {
       // who are approved members of the same carpool, while the owner is an
       // approved member too. Never by anyone else, never written by the app.
       match /pickupPoints/{uid} {
-        allow get: if isSelf(uid)
+        allow get: if (isSelf(uid) && deviceChecked())
           || (verifiedParent()
+            && deviceChecked()
             && approvedMember(carpoolId, request.auth.uid)
             && approvedMember(carpoolId, uid));
         allow list, create, update, delete: if false;
@@ -280,26 +315,26 @@ service cloud.firestore {
       // balance. Approved members of that carpool read them; only Cloud
       // Functions write them (the app never writes schedule ownership).
       match /schedule/{runId} {
-        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow get, list: if verifiedParent() && deviceChecked() && approvedMember(carpoolId, request.auth.uid);
         allow create, update, delete: if false;
       }
       match /swaps/{swapId} {
-        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow get, list: if verifiedParent() && deviceChecked() && approvedMember(carpoolId, request.auth.uid);
         allow create, update, delete: if false;
       }
       match /exceptions/{exceptionId} {
-        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow get, list: if verifiedParent() && deviceChecked() && approvedMember(carpoolId, request.auth.uid);
         allow create, update, delete: if false;
       }
       match /balances/{termId} {
-        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow get, list: if verifiedParent() && deviceChecked() && approvedMember(carpoolId, request.auth.uid);
         allow create, update, delete: if false;
       }
 
       // Prompt 10 (F20): emergency alerts with the driver's point, for every
       // approved member (the whole group is alerted). Deleted after 24 hours.
       match /emergencies/{emergencyId} {
-        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow get, list: if verifiedParent() && deviceChecked() && approvedMember(carpoolId, request.auth.uid);
         allow create, update, delete: if false;
       }
     }
@@ -315,13 +350,13 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/trips/$(tripId)).data;
     }
     function tripViewer(tripId) {
-      return verifiedParent()
+      return verifiedParent() && deviceChecked()
         && exists(/databases/$(database)/documents/trips/$(tripId))
         && request.auth.uid in tripData(tripId).viewerUids;
     }
     match /trips/{tripId} {
       // get and the app's query where('viewerUids', 'array-contains', uid).
-      allow get, list: if verifiedParent() && request.auth.uid in resource.data.viewerUids;
+      allow get, list: if verifiedParent() && deviceChecked() && request.auth.uid in resource.data.viewerUids;
       allow create, update, delete: if false;
 
       // Live points: the same people, and only while the run is tracked
@@ -345,7 +380,7 @@ service cloud.firestore {
     }
     // F38: the random selfie check of one run; its driver reads it.
     match /tripChecks/{tripId} {
-      allow get: if verifiedParent() && resource.data.driverUid == request.auth.uid;
+      allow get: if verifiedParent() && deviceChecked() && resource.data.driverUid == request.auth.uid;
       allow list, create, update, delete: if false;
     }
     match /tripLimits/{uid} {
@@ -355,12 +390,12 @@ service cloud.firestore {
     // list (with phone numbers); drivers get names and relations on the
     // trip. Written by saveHandoverAdults.
     match /handoverAdults/{childId} {
-      allow get: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow get: if signedIn() && deviceChecked() && resource.data.ownerUid == request.auth.uid;
       allow list, create, update, delete: if false;
     }
     // F20: the parent's own emergency contact. Written by setEmergencyContact.
     match /emergencyContacts/{uid} {
-      allow get: if isSelf(uid);
+      allow get: if isSelf(uid) && deviceChecked();
       allow list, create, update, delete: if false;
     }
 
@@ -381,7 +416,7 @@ service cloud.firestore {
     // parents see them only through listCarpoolWanted (same school, rate
     // limited, first names only).
     match /carpoolWanted/{uid} {
-      allow get: if isSelf(uid);
+      allow get: if isSelf(uid) && deviceChecked();
       allow list, create, update, delete: if false;
     }
 
@@ -393,24 +428,24 @@ service cloud.firestore {
     // (users/{uid}/chatPushes) stay closed. Reports stay closed (admins
     // read them through functions).
     match /chatRequests/{id} {
-      allow get: if verifiedParent()
+      allow get: if verifiedParent() && deviceChecked()
         && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
-      allow list: if verifiedParent() && request.query.limit <= 50
+      allow list: if verifiedParent() && deviceChecked() && request.query.limit <= 50
         && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
       allow create, update, delete: if false;
     }
     match /chatBlocks/{id} {
-      allow get: if verifiedParent() && resource.data.blockerUid == request.auth.uid;
-      allow list: if verifiedParent() && request.query.limit <= 200 && resource.data.blockerUid == request.auth.uid;
+      allow get: if verifiedParent() && deviceChecked() && resource.data.blockerUid == request.auth.uid;
+      allow list: if verifiedParent() && deviceChecked() && request.query.limit <= 200 && resource.data.blockerUid == request.auth.uid;
       allow create, update, delete: if false;
     }
     match /chatMutes/{id} {
-      allow get: if verifiedParent() && resource.data.uid == request.auth.uid;
-      allow list: if verifiedParent() && request.query.limit <= 500 && resource.data.uid == request.auth.uid;
+      allow get: if verifiedParent() && deviceChecked() && resource.data.uid == request.auth.uid;
+      allow list: if verifiedParent() && deviceChecked() && request.query.limit <= 500 && resource.data.uid == request.auth.uid;
       allow create, update, delete: if false;
     }
     match /chatSettings/{uid} {
-      allow get: if isSelf(uid) && verifiedParent();
+      allow get: if isSelf(uid) && verifiedParent() && deviceChecked();
       allow list, create, update, delete: if false;
     }
     match /chatChannels/{cid} {
