@@ -569,3 +569,10 @@ selfie as the face reference, while the account is active.
 
 The earlier non-blocking items 4, 6 and 9 to 12, and the new items 1 and 2
 from the first re-review, are still open.
+
+## Re-review 3 (coordinator)
+
+The only open item was CI: `tracker_guard_test.dart` missed the `Override` import
+(riverpod `misc.dart`). Fixed in 6d736fc. CI run 43574456842: Flutter analyze, all
+Flutter tests (incl. the new tracker guard tests) and Functions/rules tests green; the
+web/admin/Android build runs at the merge to main. **Verdict: PASS.**
