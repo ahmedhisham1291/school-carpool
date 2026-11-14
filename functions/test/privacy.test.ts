@@ -1,5 +1,8 @@
 // Privacy and security hardening (Prompt 12). Fake data only. Run: npm test.
 import { strict as assert } from "node:assert";
+import { isRetained, keepForClosedParent, participantsOf, planTripRetention, type AccountState } from "../src/privacy/trip_retention";
+import { adminDecideDeviceCheck } from "../src/privacy/devices";
+import { accessReason as accessReasonOf } from "../src/privacy/photos";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -610,7 +613,7 @@ describe("account deletion", () => {
     assert.ok(r.ran.includes("faceRefs/u1/"));
     assert.ok(r.ran.includes("selfieArchive/u1/"));
     assert.ok(r.ran.includes("verifications.uid"));
-    assert.ok(r.ran.includes("trips.driverUid"));
+    assert.ok(r.ran.includes("purge:trips"));
     assert.ok(r.ran.includes("users/u1/consents"));
     assert.ok(r.ran.includes("purge:stream"));
     assert.equal(r.closedMap.get("u1")?.purgedAtMs, later);
@@ -622,7 +625,7 @@ describe("account deletion", () => {
     assert.equal((await continueDeletion(r, c, NOW + 364 * DAY_MS, () => undefined)).purged, false);
     assert.deepEqual(r.ran, []);
     assert.equal(immediateSteps().length, IMMEDIATE_TARGETS.length + 8);
-    assert.equal(purgeSteps().length, PURGE_TARGETS.length + 2);
+    assert.equal(purgeSteps().length, PURGE_TARGETS.length + 3);
   });
 });
 
@@ -740,6 +743,9 @@ class MemoryRetention implements RetentionStore {
     this.purgedCarpoolsBefore.push(before);
     return 2;
   }
+  async deleteOrphanTrips() {
+    return 1;
+  }
   async endedChatsBefore() {
     return this.chats;
   }
@@ -796,6 +802,7 @@ describe("retention job", () => {
     assert.deepEqual(report.tasks.exports, { deleted: 4, failed: 0 });
     assert.deepEqual(store.frozen, ["cp_carpool:c-k9"], "a closed carpool's chat is frozen and its year starts");
     assert.deepEqual(report.tasks.closedCarpools, { deleted: 2, failed: 0 });
+    assert.deepEqual(report.tasks.orphanTrips, { deleted: 1, failed: 0 });
     assert.deepEqual(store.purgedCarpoolsBefore, [NOW - 365 * DAY_MS], "closed carpools go 1 year after they closed");
     assert.deepEqual(report.failures.sort(), ["chat:private:b", "routeArchives"]);
     assert.equal(store.runs.length, 1);
@@ -867,5 +874,152 @@ describe("kept photos", () => {
     files.delete(photo);
     assert.equal(await dropThumb(bucket, photo), true);
     assert.ok(!files.has(thumb));
+  });
+});
+
+// --------------------------------------------------------------------------
+// Trips per parent (owner answer 14 Nov 2026, 13:29)
+// --------------------------------------------------------------------------
+
+describe("privacy: trips kept per parent, active + 1 year", () => {
+  const YEAR = 365 * DAY_MS;
+  const trip = () => ({
+    driverUid: "d1",
+    driverFirstName: "Dina",
+    viewerUids: ["d1", "p1", "p2"],
+    childIds: ["c1", "c2"],
+    stops: [
+      { childId: "c1", firstName: "Adam", parentUid: "p1", handover: [{ name: "Gran" }] },
+      { childId: "c2", firstName: "Laila", parentUid: "p2", handover: [] },
+    ],
+  });
+  const active: AccountState = { active: true };
+  const closed = (ago: number): AccountState => ({ active: false, closedAtMs: NOW - ago });
+
+  it("participants are the driver and the parents on the trip, never 'deleted'", () => {
+    assert.deepEqual(participantsOf(trip()).sort(), ["d1", "p1", "p2"]);
+    assert.deepEqual(participantsOf({ driverUid: "deleted", stops: [{ parentUid: "deleted" }] }), []);
+  });
+
+  it("kept while anyone is active or closed less than a year ago", () => {
+    assert.equal(isRetained(active, NOW), true);
+    assert.equal(isRetained(closed(YEAR - 1), NOW), true);
+    assert.equal(isRetained(closed(YEAR + 1), NOW), false);
+    assert.equal(isRetained(undefined, NOW), false);
+    assert.equal(isRetained({ active: false, closedAtMs: null }, NOW), false);
+    const states = new Map<string, AccountState>([["d1", closed(2 * YEAR)], ["p1", closed(2 * YEAR)], ["p2", active]]);
+    const plan = planTripRetention(trip(), states, NOW);
+    assert.equal(plan.action, "keep");
+  });
+
+  it("a closed carpool's trip is not deleted while one parent is still active; the expired parts become initials", () => {
+    const states = new Map<string, AccountState>([["d1", closed(2 * YEAR)], ["p1", closed(YEAR + DAY_MS)], ["p2", active]]);
+    const plan = planTripRetention(trip(), states, NOW);
+    assert.equal(plan.action, "keep");
+    if (plan.action !== "keep" || !plan.change) throw new Error("expected a change");
+    assert.equal(plan.change.driverUid, "deleted");
+    assert.equal(plan.change.driverFirstName, "D.");
+    assert.deepEqual(plan.change.viewerUids, ["p2"]);
+    const stops = plan.change.stops as Array<Record<string, unknown>>;
+    assert.deepEqual(stops[0], { childId: "deleted", firstName: "A.", parentUid: "deleted", handover: [] });
+    assert.equal(stops[1].firstName, "Laila", "the active parent's child keeps the name");
+  });
+
+  it("everyone active: nothing changes", () => {
+    const states = new Map<string, AccountState>([["d1", active], ["p1", active], ["p2", active]]);
+    assert.deepEqual(planTripRetention(trip(), states, NOW), { action: "keep", change: null });
+  });
+
+  it("deleted when every participant's year is over (or there is no record)", () => {
+    const states = new Map<string, AccountState>([["d1", closed(YEAR + 1)], ["p1", closed(2 * YEAR)]]);
+    assert.deepEqual(planTripRetention(trip(), states, NOW), { action: "delete" });
+    assert.deepEqual(planTripRetention({ driverUid: "deleted", stops: [] }, new Map(), NOW), { action: "delete" });
+  });
+
+  it("a parent anonymised at deletion still counts until their closure + 1 year (review finding 2)", () => {
+    // p1 deleted the account 2 months ago: their stop became "deleted" and the trip got keptUntilMs.
+    const anonymised = { ...trip(), stops: [{ childId: "deleted", firstName: "A.", parentUid: "deleted", handover: [] }, trip().stops[1]] };
+    const change = keepForClosedParent(anonymised, { stops: anonymised.stops }, NOW - 60 * DAY_MS);
+    assert.equal(change?.keptUntilMs, NOW - 60 * DAY_MS + YEAR);
+    const withKeep = { ...anonymised, ...change };
+    // The driver's year is over and p2 closed long ago: still kept for p1's year.
+    const states = new Map<string, AccountState>([["d1", closed(YEAR + DAY_MS)], ["p2", closed(2 * YEAR)]]);
+    assert.equal(planTripRetention(withKeep, states, NOW).action, "keep");
+    assert.equal(planTripRetention(withKeep, states, NOW - 60 * DAY_MS + YEAR + 1).action, "delete");
+    // An orphan (nobody left by uid) waits for keptUntilMs too.
+    const orphan = { driverUid: "deleted", stops: [], keptUntilMs: NOW + DAY_MS };
+    assert.equal(planTripRetention(orphan, new Map(), NOW).action, "keep");
+    assert.deepEqual(planTripRetention(orphan, new Map(), NOW + 2 * DAY_MS), { action: "delete" });
+    // A later deletion never shortens the time.
+    assert.equal(keepForClosedParent({ keptUntilMs: NOW + 5 * YEAR }, { stops: [] }, NOW)?.keptUntilMs, NOW + 5 * YEAR);
+    assert.equal(keepForClosedParent({}, null, NOW), null);
+  });
+
+  it("a passed keptUntilMs is cleared on a trip kept for active parents", () => {
+    const states = new Map<string, AccountState>([["d1", active], ["p1", active], ["p2", active]]);
+    assert.deepEqual(planTripRetention({ ...trip(), keptUntilMs: NOW - 1 }, states, NOW), { action: "keep", change: { keptUntilMs: null } });
+  });
+
+  it("the account purge (exactly at the year): the driver's trips stay for active parents, go when nobody is left", () => {
+    const states = new Map<string, AccountState>([["d1", closed(YEAR)], ["p1", active]]);
+    const kept = planTripRetention(trip(), states, NOW, new Set(["d1"]));
+    assert.equal(kept.action, "keep");
+    const alone = { ...trip(), stops: [{ childId: "deleted", firstName: "A.", parentUid: "deleted", handover: [] }] };
+    assert.deepEqual(planTripRetention(alone, states, NOW, new Set(["d1"])), { action: "delete" });
+  });
+});
+
+// --------------------------------------------------------------------------
+// Admin: close an open new-phone check (Prompt 13)
+// --------------------------------------------------------------------------
+
+describe("privacy: an admin approves or clears a new-phone check, logged first", () => {
+  const isReason = (v: unknown) => accessReasonOf(v) !== null;
+  function world(open = true) {
+    const order: string[] = [];
+    let check: { required: boolean; sinceMs: number } | null = open ? { required: true, sinceMs: NOW } : null;
+    const audits: Array<Record<string, unknown>> = [];
+    const deps = {
+      store: {
+        async deviceCheck() {
+          return check;
+        },
+        async setDeviceCheck(_uid: string, c: { required: boolean; sinceMs: number } | null) {
+          order.push("set");
+          check = c;
+        },
+      },
+      async audit(e: Record<string, unknown>) {
+        order.push("audit");
+        audits.push(e);
+      },
+    };
+    return { deps, audits, order, check: () => check };
+  }
+
+  it("approved after comparing the photos: the data opens again; the audit entry comes first with the reason", async () => {
+    const w = world();
+    assert.deepEqual(await adminDecideDeviceCheck(w.deps, "admin1", { uid: "u1", reason: "review", outcome: "approved" }, "1.2.3.4", isReason), { cleared: true, outcome: "approved" });
+    assert.equal(w.check(), null);
+    assert.deepEqual(w.order, ["audit", "set"]);
+    assert.equal(w.audits[0].action, "device.check.approved");
+    assert.equal(w.audits[0].reasonCode, "review");
+    assert.equal(w.audits[0].target, "users/u1");
+  });
+
+  it("confirmed another way is logged as such", async () => {
+    const w = world();
+    await adminDecideDeviceCheck(w.deps, "admin1", { uid: "u1", reason: "parentRequest", outcome: "confirmedOtherWay" }, null, isReason);
+    assert.equal(w.audits[0].action, "device.check.confirmedOtherWay");
+  });
+
+  it("refused: no reason, an unknown outcome, a bad uid, the admin's own account, or no open check", async () => {
+    for (const bad of [{ uid: "u1" }, { uid: "u1", reason: "curious" }, { uid: "u1", reason: "review", outcome: "maybe" }, { uid: "../x", reason: "review" }, { uid: "admin1", reason: "review" }]) {
+      const w = world();
+      await assert.rejects(adminDecideDeviceCheck(w.deps, "admin1", bad, null, isReason), /invalid-request/, JSON.stringify(bad));
+      assert.deepEqual(w.order, [], "nothing changed or logged");
+    }
+    const none = world(false);
+    await assert.rejects(adminDecideDeviceCheck(none.deps, "admin1", { uid: "u1", reason: "review" }, null, isReason), /not-found/);
   });
 });

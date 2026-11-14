@@ -77,7 +77,7 @@ starting point. That test is **open** (owner: choose and pay a tester).
 | --- | --- | --- |
 | PRIVACY-1 Minimised data | done | Other parents see first names, the school, an area of about 500 m and the Verified badge; exact pickup points only inside a carpool. Rounded coordinates on the server. Analytics have no user ID and no advertising identifiers (Info.plist keys off). |
 | PRIVACY-2 No re-identification | done | Logs, Sentry and Algolia never receive phone numbers, ID numbers, coordinates, images or message text (scrubbers in the app and functions, with tests). Analytics accept only fixed event names and short fixed words (tests prove it). |
-| PRIVACY-3 Transparency | done / owner | Privacy screen: every data type with what it holds, who sees it and how long it is kept; the privacy policy and consents changed version for the new retention (2026-11-14). The lawyer confirmed the data types and periods (DECISIONS.md, 14 Nov 2026); transfer records use a 5-year placeholder until the owner records the confirmed period. |
+| PRIVACY-3 Transparency | done / owner | Privacy screen: every data type with what it holds, who sees it and how long it is kept; the privacy policy and consents changed version for the new retention (2026-11-14). The lawyer confirmed the data types and periods (DECISIONS.md, 14 Nov 2026); transfer records are kept 5 years (owner answer, 14 Nov 2026 13:29). |
 | PRIVACY-4 User control | done | See, correct (screens, and ID details through an admin), download (one JSON file, including chat and the wallet history), delete the account, withdraw each consent; every request is logged in `privacyRequests` (3 years). |
 
 ### Server and admin panel

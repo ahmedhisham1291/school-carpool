@@ -163,6 +163,7 @@ export {
   getTodayDriverCards,
   prepareTrip,
   quickMessage,
+  reportTrackingLost,
   saveHandoverAdults,
   setEmergencyContact,
   startTrip,

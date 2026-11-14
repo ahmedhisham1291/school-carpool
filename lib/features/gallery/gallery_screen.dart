@@ -132,6 +132,15 @@ class GalleryScreen extends ConsumerWidget {
             actionLabel: l10n.notifOpen,
             onAction: () => _done(context),
           ),
+          // Prompt 13: the calmer warning tone (home "Location is off").
+          AppAlertBanner(
+            tone: AppStateTone.warning,
+            icon: Icons.location_off_outlined,
+            title: l10n.locationBannerTitle,
+            body: l10n.locationBannerBody,
+            actionLabel: l10n.locationBannerAction,
+            onAction: () => _done(context),
+          ),
           AppListRow(
             title: l10n.notifSwapRequestedTitle,
             subtitle: l10n.notifSwapRequestedBody(l10n.notifWhenSoon),

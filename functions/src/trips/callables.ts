@@ -43,6 +43,7 @@ import {
   getHandoverAdults as getHandoverFlow,
   prepareTrip as prepareFlow,
   quickMessage as quickFlow,
+  reportTrackingLost as lostFlow,
   runTripTick,
   saveHandoverAdults as saveHandoverFlow,
   setEmergencyContact as contactFlow,
@@ -199,6 +200,9 @@ export const endTripsOnUserWrite = onDocumentWritten({ document: "users/{uid}", 
     throw error;
   }
 });
+
+/** Prompt 13: location went away mid-run (reason only, no coordinates). */
+export const reportTrackingLost = gatedCall(opts, (r) => run("reportTrackingLost", () => lostFlow(tripDeps(), caller(r), r.data)));
 
 /** F34: { carpoolId, runId, childId } -> { status } (the receiving parent) */
 export const confirmHandover = gatedCall(opts, (r) => run("confirmHandover", () => confirmFlow(tripDeps(), caller(r), r.data)));

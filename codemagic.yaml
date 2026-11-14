@@ -3,12 +3,14 @@
 # compile checks run on GitHub Actions (.github/workflows/checks.yml).
 # Web and Android release builds may move here in Stages 2 and 3.
 #
-# One-time setup in SETUP.md ("Codemagic"): App Store Connect API key
-# integration, environment groups and secrets.
+# One-time setup: docs/testflight.md (Prompt 13, step by step) and SETUP.md
+# sections 1, 2 and 8: App Store Connect API key integration, environment
+# groups and secrets. No secret is ever written in this file.
 #
 # COST MODE (free tier first, docs/COSTS.md): the free personal tier has 500
 # macOS M2 minutes a month; one iOS build takes about 15 to 25 minutes.
-#   - ios-staging: pushes to main, version tags (v*) and manual starts.
+#   - ios-staging: pushes to main, version tags (v*) and manual starts
+#     (Start new build). Never on other branches.
 #   - ios-dev: manual starts only.
 #
 # Placeholders to replace:
@@ -42,9 +44,8 @@ workflows:
       groups:
         # SENTRY_DSN_APP_STAGING, RECAPTCHA_SITE_KEY (web, later),
         # MAPS_API_KEY_IOS (Prompt 5; the staging project's iOS Maps key),
-        # BG_GEO_LICENSE (Prompt 10: flutter_background_geolocation 5 JWT
-        # licence; v5 checks it on iPhone release builds; read by
-        # tool/patch_native.py, never committed; SETUP.md 20.5)
+        # INVITE_LINK_DOMAIN (optional, Prompt 6). No location licence:
+        # Prompt 13 uses the free geolocator plugin (docs/testflight.md).
         - staging_defines
       vars:
         APP_STORE_APPLE_ID: "0000000000"
@@ -100,8 +101,7 @@ workflows:
         distribution_type: app_store
         bundle_identifier: org.schoolcarpool.app.dev
       groups:
-        # SENTRY_DSN_APP_DEV, MAPS_API_KEY_IOS (Prompt 5; the dev project's key),
-        # BG_GEO_LICENSE (Prompt 10, as above; App Store builds are release builds)
+        # SENTRY_DSN_APP_DEV, MAPS_API_KEY_IOS (Prompt 5; the dev project's key)
         - dev_defines
       vars:
         APP_STORE_APPLE_ID: "0000000000"

@@ -19,8 +19,11 @@ quality)
 - The WhatsApp Business Platform is called only from Cloud Functions.
 - Google Maps Platform for every map, with Places for address search and
   Routes for arrival times.
-- Live location on the phone: flutter_background_geolocation (paid
-  license), running only while a run is on.
+- Live location on the phone: the free geolocator plugin ("While Using
+  the App" + Precise Location, background location mode, blue indicator),
+  running only while a run is on (owner decision 14 Nov 2026). The paid
+  flutter_background_geolocation is deferred to the Android stage or the
+  pilot if tracking proves unreliable (docs/DECISIONS.md).
 - Chat: Stream Chat with its Flutter SDK. Cloud Functions issue the Stream
   tokens and decide who is a member of which channel.
 - School search: Algolia, fed from Firestore by a Cloud Function.
@@ -56,9 +59,10 @@ plan's limit. Code must not depend on any paid-only feature being on.
   critical alerts by default, everything else push-only unless the parent
   switches WhatsApp on.
 - Valify and the wallet partner: fake providers until the pilot.
-- flutter_background_geolocation (v5): no licence needed for debug builds;
-  iOS and Android RELEASE builds need it (BG_GEO_LICENSE, encrypted in
-  Codemagic). Buy it before the first TestFlight build with trips.
+- Live location: geolocator, free, no licence (owner decision 14 Nov
+  2026). flutter_background_geolocation (about USD 400) only if the Android
+  stage or the pilot shows tracking is unreliable; switching back is a
+  one-file change (docs/DECISIONS.md).
 - Add a docs/COSTS.md listing each service, its free limit, how we track
   usage, and the trigger to upgrade.
 

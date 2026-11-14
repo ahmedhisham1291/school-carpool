@@ -61,9 +61,9 @@ enum Keep {
   /// 90 days.
   ninetyDays,
 
-  /// As long as the law requires: transfer records, 5 years for now
-  /// (TRANSFER_RECORD_YEARS on the server; the owner gives the period the
-  /// lawyer confirmed).
+  /// As long as the law requires: transfer records, 5 years
+  /// (TRANSFER_RECORD_YEARS on the server; confirmed by the lawyer and the
+  /// owner, DECISIONS.md 14 Nov 2026 13:29).
   law,
 
   /// Open reports stay until handled; the message copy 1 year after.

@@ -8,7 +8,10 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/schedule/schedule_labels.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
+import 'package:school_carpool/features/trips/always_location_screen.dart';
+import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
+import 'package:school_carpool/features/trips/run_recovery.dart';
 import 'package:school_carpool/features/trips/trip_logic.dart';
 import 'package:school_carpool/features/trips/trip_models.dart';
 import 'package:school_carpool/features/trips/trip_repository.dart';
@@ -27,7 +30,7 @@ final _tripProvider = StreamProvider.autoDispose.family<Trip?, (String, String)>
   (Ref ref, (String, String) key) => ref.watch(tripRepositoryProvider).watchTrip(key.$1, key.$2),
 );
 
-enum _Phase { loading, permission, selfie, ready, running, done, paused, noPhoto, offline, failed }
+enum _Phase { loading, selfie, ready, running, done, paused, noPhoto, offline, failed }
 
 /// A tap that could not be sent (no connection): sent again with the same
 /// request ID, so the server applies it once (spec section 11).
@@ -43,12 +46,18 @@ class _Pending {
 /// The driver's run (F15, F16, F20, F35, F38, F41). Driver rule (DESIGN):
 /// large buttons, few words, no typing.
 ///
-/// Before the run, in order: an explanation of live location and the
-/// "Always" permission (the run cannot start without it), a quick live
-/// selfie when the server asks for one (F38), then Start run. During the
-/// run: one card per child with large buttons (Arrived, Picked up,
-/// Dropped), the three quick buttons and the emergency button. Tracking
-/// stops by itself at the last drop-off.
+/// Before the run: a quick live selfie when the server asks for one (F38),
+/// then Start run. Start run first passes the driving gate
+/// (location_gate.dart, Prompt 13): Location Services, "While Using the
+/// App", Precise Location and notifications, with blocking steps for what
+/// is missing ("Always" is never required; the optional run-recovery step
+/// may follow, always_location_screen.dart). During the run: one card per
+/// child with large buttons (Arrived, Picked up, Dropped), the three quick
+/// buttons and the emergency button, and a one-line hint to keep the app
+/// open. If location is lost mid-run (Location Services off, permission or
+/// Precise Location taken away), the steps show at once and the server is
+/// told, so the parents get "location stopped". Tracking stops by itself
+/// at the last drop-off.
 ///
 /// States: loading (skeleton), offline and error (retry), paused driving
 /// (after a failed selfie check), taps waiting for a connection (sent again
@@ -65,8 +74,6 @@ class DriverTripScreen extends ConsumerStatefulWidget {
 
 class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
   _Phase _phase = _Phase.loading;
-  TrackerPermission _permission = TrackerPermission.notAsked;
-  bool _asked = false;
   bool _busy = false;
   String? _error;
   final Map<String, StopAction> _sending = <String, StopAction>{};
@@ -75,11 +82,33 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
   Timer? _retry;
   bool _stopped = false;
 
+  /// Mid-run monitoring (Prompt 13).
+  late final AppLifecycleListener _lifecycle;
+  StreamSubscription<bool>? _serviceSub;
+  StreamSubscription<TrackerStatus>? _trackerSub;
+  bool _lostShown = false;
+
   (String, String) get _key => (widget.carpoolId, widget.runId);
 
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(onResume: () => unawaited(_recheckRunning()));
+    _serviceSub = ref.read(drivingReadinessProvider).serviceChanges().listen((bool on) {
+      if (!on && _phase == _Phase.running) {
+        unawaited(_lost(GateItem.service));
+      }
+    });
+    _trackerSub = ref.read(locationTrackerProvider).status.listen((TrackerStatus status) {
+      if (_phase != _Phase.running) {
+        return;
+      }
+      if (status.permission == TrackerPermission.serviceOff) {
+        unawaited(_lost(GateItem.service));
+      } else if (status.permission == TrackerPermission.denied || status.permission == TrackerPermission.notAsked) {
+        unawaited(_lost(GateItem.permission));
+      }
+    });
     unawaited(_load());
   }
 
@@ -88,7 +117,46 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     // Tracking goes on when the driver leaves this screen (phone locked,
     // another app); it stops at the last drop-off.
     _retry?.cancel();
+    _lifecycle.dispose();
+    unawaited(_serviceSub?.cancel());
+    unawaited(_trackerSub?.cancel());
     super.dispose();
+  }
+
+  /// Back in the app during the run: is location still all there?
+  Future<void> _recheckRunning() async {
+    if (_phase != _Phase.running || _lostShown) {
+      return;
+    }
+    final DrivingCheck check = await ref.read(drivingReadinessProvider).check();
+    if (!check.locationReady && mounted) {
+      await _lost(check.items(locationOnly: true).first);
+    }
+  }
+
+  /// Location went away mid-run: tell the server (the parents get
+  /// "location stopped", once per gap) and show the steps at once. When
+  /// all is back, tracking starts again with a fresh token.
+  Future<void> _lost(GateItem item) async {
+    if (_lostShown || !mounted) {
+      return;
+    }
+    _lostShown = true;
+    setState(() => _error = context.l10n.tripTrackingLost);
+    unawaited(
+      ref.read(tripRepositoryProvider).reportTrackingLost(widget.carpoolId, widget.runId, item.name).then((_) {}, onError: (Object _) {}),
+    );
+    // Location items only: notifications are required before a run starts,
+    // never to go on with one.
+    final DrivingReadiness readiness = ref.read(drivingReadinessProvider);
+    final bool back = await showLocationSteps(context, blocking: true, locationOnly: true);
+    _lostShown = false;
+    // Closed by hand after fixing it in Settings counts too.
+    final bool ready = back || (await readiness.check()).locationReady;
+    if (ready && mounted && _phase == _Phase.running) {
+      setState(() => _error = null);
+      await _begin(resume: true);
+    }
   }
 
   void _set(_Phase phase, {String? error}) {
@@ -102,19 +170,16 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
 
   Future<void> _load() async {
     _set(_Phase.loading);
-    final LocationTracker tracker = ref.read(locationTrackerProvider);
     final TripRepository repo = ref.read(tripRepositoryProvider);
+    final DrivingReadiness readiness = ref.read(drivingReadinessProvider);
     try {
-      _permission = await tracker.permission();
       final TripPreparation prep = await repo.prepare(widget.carpoolId, widget.runId);
-      if (prep.active && _permission == TrackerPermission.always) {
+      if (prep.active && (await readiness.check()).locationReady) {
         // The app was restarted during the run: resume with a new token.
         await _begin(resume: true);
         return;
       }
-      if (_permission != TrackerPermission.always) {
-        _set(_Phase.permission);
-      } else if (prep.selfieRequired) {
+      if (prep.selfieRequired) {
         _set(_Phase.selfie);
       } else {
         _set(_Phase.ready);
@@ -132,21 +197,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
       } else {
         _set(_Phase.failed, error: failure.message(context.l10n));
       }
-    }
-  }
-
-  Future<void> _askPermission() async {
-    final LocationTracker tracker = ref.read(locationTrackerProvider);
-    if (_asked && _permission != TrackerPermission.notAsked) {
-      await tracker.openSettings();
-    }
-    final TrackerPermission p = await tracker.requestAlways();
-    _asked = true;
-    _permission = p;
-    if (p == TrackerPermission.always) {
-      await _load();
-    } else {
-      _set(_Phase.permission);
     }
   }
 
@@ -187,6 +237,22 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final TripRepository repo = ref.read(tripRepositoryProvider);
     final LocationTracker tracker = ref.read(locationTrackerProvider);
+    final RunRecoveryService recovery = ref.read(runRecoveryProvider);
+    final SessionState signedIn = ref.read(sessionProvider);
+    if (!resume && !await ensureReadyToDrive(context, ref)) {
+      // The steps were closed: no run starts; the rest of the app stays open.
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    if (!resume) {
+      // Optional "Always" (run recovery), once per install, never required.
+      await offerAlwaysIfUseful(context, ref);
+      if (!mounted) {
+        return;
+      }
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -196,10 +262,15 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
       try {
         await tracker.start(TrackerSession(tripId: session.tripId, uploadUrl: repo.uploadUrl(session.tripId), token: session.token));
       } on StateError {
-        _set(_Phase.permission, error: l10n.tripErrorLocationOff);
+        _set(_Phase.ready, error: l10n.tripErrorLocationOff);
         return;
       }
       _stopped = false;
+      if (signedIn is SessionSignedIn) {
+        // The local marker (IDs only) lets the app resume this run after iOS
+        // closes it (run_recovery.dart).
+        await recovery.runStarted(uid: signedIn.uid, carpoolId: widget.carpoolId, runId: widget.runId);
+      }
       if (!resume) {
         showAppSnackBarOn(messenger, l10n.tripStarted);
       }
@@ -384,21 +455,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
         title: l10n.tripPausedTitle,
         body: l10n.tripErrorPaused,
       ),
-      _Phase.permission => _Step(
-        key: const Key('drive.permission'),
-        icon: Icons.my_location_rounded,
-        heading: l10n.tripLocationHeading,
-        body: switch (_permission) {
-          TrackerPermission.serviceOff => l10n.tripLocationServiceOff,
-          TrackerPermission.whileInUse || TrackerPermission.denied when _asked => l10n.tripLocationChooseAlways,
-          _ => l10n.tripLocationBody,
-        },
-        error: _error,
-        actionKey: const Key('drive.allowLocation'),
-        actionLabel: _asked && _permission != TrackerPermission.always ? l10n.locationOpenSettings : l10n.tripLocationTurnOn,
-        busy: _busy,
-        onAction: () => unawaited(_askPermission()),
-      ),
       _Phase.selfie => _Step(
         key: const Key('drive.selfie'),
         icon: Icons.face_retouching_natural_outlined,
@@ -458,6 +514,13 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
             const SizedBox(width: AppSpacing.s8),
             Expanded(child: OneLineText(l10n.tripProgress(done, riding.length), style: context.text.titleSmall)),
           ],
+        ),
+        const SizedBox(height: AppSpacing.s8),
+        OneLineText(
+          l10n.tripKeepOpenHint,
+          key: const Key('drive.keepOpen'),
+          scaleDown: true,
+          style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant),
         ),
         if (_queue.isNotEmpty) ...<Widget>[
           const SizedBox(height: AppSpacing.s16),

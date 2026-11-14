@@ -106,7 +106,6 @@ export const PURGE_TARGETS: ReadonlyArray<{ collection: string; target: Target }
   { collection: "storage:selfieArchive", target: { kind: "storage", prefix: "selfieArchive/{uid}/" } },
   { collection: "storage:thumbs", target: { kind: "storage", prefix: "thumbs/{uid}/" } },
   { collection: "verifications", target: { kind: "where", collection: "verifications", field: "uid" } },
-  { collection: "trips", target: { kind: "where", collection: "trips", field: "driverUid" } },
   { collection: "users/consents", target: { kind: "subcollection", path: "users/{uid}/consents" } },
 ];
 
@@ -120,7 +119,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   reports: "open reports are kept; handled ones lose their message copy after 1 year",
   moderations: "admin decisions (part of the audit trail)",
   auditLog: "admin actions, 2 years",
-  transfers: "transfer records, as long as the law requires (TRANSFER_RECORD_YEARS: 5, placeholder for the period the lawyer confirmed)",
+  transfers: "transfer records, as long as the law requires (TRANSFER_RECORD_YEARS: 5, confirmed by the lawyer and the owner)",
   transferResults: "transfer outcomes, with the transfers",
   walletPending: "empty: the wallet must be settled before deletion",
   walletDaily: "per-day amounts for the limits (no names); TTL expiresAt, 35 days",
@@ -142,7 +141,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   notificationEvents: "outbox, 30-day TTL",
   chatChannels: "the chat's record; a private chat ends and is deleted 1 year later",
   verifications: "purged 1 year after closure",
-  trips: "other drivers' trips keep an initial for the parent's children; trips the parent drove are purged 1 year after closure",
+  trips: "kept while any participant's account is active + 1 year (owner, 14 Nov 2026 13:29): the parent's children become initials at once; 1 year after closure the parent's part is anonymised (purge step trips), and a trip goes when every participant's year is over",
   tripStops: "exact stops of one run, deleted 1 day after the run",
   tripChecks: "selfie-check state of one run (no image)",
   ratingFlags: "open flags are like reports (kept until handled)",
@@ -184,7 +183,12 @@ export const SUBCOLLECTIONS: Readonly<Record<string, string>> = {
 export const FLOW_STEPS = ["trips", "carpools", "anonymise", "chat", "trust", "identity", "wallet", "records", "auth"] as const;
 export type FlowStep = (typeof FLOW_STEPS)[number];
 /** routes: the parent's archived routes (files and records); stream: the Stream user and messages. */
-export const PURGE_STEPS = ["routes", "stream"] as const;
+/**
+ * trips (owner answer 14 Nov 2026 13:29): the trips the parent drove are
+ * deleted only when no other participant's data is still kept; otherwise
+ * the parent's part is anonymised (trip_retention.ts).
+ */
+export const PURGE_STEPS = ["trips", "routes", "stream"] as const;
 export type PurgeStep = (typeof PURGE_STEPS)[number];
 
 export interface DeletionFacts {

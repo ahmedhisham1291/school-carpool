@@ -185,7 +185,8 @@ describe("firestore: users verification fields", () => {
 });
 
 describe("firestore: server-only collections", () => {
-  const paths = ["verifications/case1", "nationalIds/h", "bannedIds/b", "config/kyc", "auditLog/l1"];
+  // Prompt 13: config/reviewAccess (App Review sign-in) is server-only too.
+  const paths = ["verifications/case1", "nationalIds/h", "bannedIds/b", "config/kyc", "config/reviewAccess", "auditLog/l1"];
   for (const path of paths) {
     it(`nobody reads or writes ${path} (an admin claim without two-step sign-in included)`, async () => {
       for (const make of [asAlice, asBob, asAdmin, signedOut]) {

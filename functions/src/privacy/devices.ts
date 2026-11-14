@@ -296,6 +296,48 @@ export async function confirmNewDevice(deps: DeviceDeps, uid: string): Promise<{
   }
 }
 
+/**
+ * How an admin closed an open new-phone check (Prompt 13; needed while
+ * Valify's face match is a stub and the check fails closed):
+ * approved: the kept new-phone selfie matches the face reference (compared
+ * by hand in the panel); confirmedOtherWay: the parent was confirmed by
+ * other means (for example a call to the number on file).
+ */
+export const DEVICE_CHECK_OUTCOMES = ["approved", "confirmedOtherWay"] as const;
+export type DeviceCheckOutcome = (typeof DEVICE_CHECK_OUTCOMES)[number];
+
+export interface DeviceDecisionDeps {
+  store: Pick<DeviceStore, "deviceCheck" | "setDeviceCheck">;
+  /** The admin audit log (written first). */
+  audit(entry: { actorUid: string; action: string; target: string; reasonCode: string; ip: string | null; details: Record<string, string | number | boolean | null> }): Promise<void>;
+}
+
+export class DeviceDecisionError extends Error {
+  constructor(readonly reason: "invalid-request" | "not-found") {
+    super(reason);
+    this.name = "DeviceDecisionError";
+  }
+}
+
+/**
+ * { uid, reason, outcome } -> { cleared }: an admin opens the parent's
+ * data again. [reason] is an access reason code (photos.ts). Refused when
+ * no check is open. Logged before the change.
+ */
+export async function adminDecideDeviceCheck(deps: DeviceDecisionDeps, adminUid: string, data: unknown, ip: string | null, isReason: (v: unknown) => boolean): Promise<{ cleared: true; outcome: DeviceCheckOutcome }> {
+  const raw = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+  const uid = typeof raw.uid === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(raw.uid) ? raw.uid : null;
+  const outcome = raw.outcome === undefined ? "approved" : raw.outcome;
+  if (!uid || !isReason(raw.reason) || !(DEVICE_CHECK_OUTCOMES as readonly unknown[]).includes(outcome)) throw new DeviceDecisionError("invalid-request");
+  if (uid === adminUid) throw new DeviceDecisionError("invalid-request");
+  const check = await deps.store.deviceCheck(uid);
+  if (!check?.required) throw new DeviceDecisionError("not-found");
+  const decided = outcome as DeviceCheckOutcome;
+  await deps.audit({ actorUid: adminUid, action: `device.check.${decided}`, target: `users/${uid}`, reasonCode: String(raw.reason), ip, details: { outcome: decided } });
+  await deps.store.setDeviceCheck(uid, null);
+  return { cleared: true, outcome: decided };
+}
+
 /** Chats, the wallet and child data stay closed while this is true. */
 export function deviceCheckPending(user: Record<string, unknown> | undefined): boolean {
   const c = user?.newDeviceCheck as { required?: unknown } | null | undefined;

@@ -128,6 +128,9 @@ String auditActionLabel(AppLocalizations l10n, String action) => switch (action)
   'wallet.freeze' => l10n.adminWalletFreeze,
   'wallet.unfreeze' => l10n.adminWalletUnfreeze,
   'wallet.alert.resolve' => l10n.adminWalletResolve,
+  // Prompt 13.
+  'device.check.approved' => l10n.adminAuditDeviceApproved,
+  'device.check.confirmedOtherWay' => l10n.adminAuditDeviceOther,
   _ => action,
 };
 
@@ -162,3 +165,17 @@ String reportKindLabel(AppLocalizations l10n, String kind) => switch (kind) {
 
 String adminRoleLabel(AppLocalizations l10n, AdminRole role) =>
     role == AdminRole.superAdmin ? l10n.adminRoleSuper : l10n.adminRoleAdmin;
+
+String accessReasonLabel(AppLocalizations l10n, AccessReasonCode r) => switch (r) {
+  AccessReasonCode.review => l10n.adminAccessReview,
+  AccessReasonCode.investigation => l10n.adminAccessInvestigation,
+  AccessReasonCode.report => l10n.adminAccessReport,
+  AccessReasonCode.legalRequest => l10n.adminAccessLegal,
+  AccessReasonCode.parentRequest => l10n.adminAccessParent,
+  AccessReasonCode.appeal => l10n.adminAccessAppeal,
+};
+
+String deviceOutcomeLabel(AppLocalizations l10n, DeviceCheckOutcome o) => switch (o) {
+  DeviceCheckOutcome.approved => l10n.adminDeviceOutcomeApproved,
+  DeviceCheckOutcome.confirmedOtherWay => l10n.adminDeviceOutcomeOther,
+};

@@ -56,7 +56,9 @@ enum NotificationKind {
   guardianDeclined('guardian-declined', WhatsAppGroup.trust),
   phoneChanged('phone-changed', WhatsAppGroup.trust),
   // Prompt 12: a sign-in from a new phone.
-  newDevice('new-device', WhatsAppGroup.trust);
+  newDevice('new-device', WhatsAppGroup.trust),
+  // Prompt 13: to the driver when no location came for 2 minutes during a run.
+  runStillOn('run-still-on', WhatsAppGroup.tripAlerts);
 
   const NotificationKind(this.wire, this.group, {this.critical = false});
 
@@ -115,8 +117,9 @@ abstract final class NotificationRoutes {
   static const String fallback = '/notifications';
   static final RegExp _allowed = RegExp(
     // Prompt 9: a chat push opens that chat (/chats/<type>/<id>); Prompt 10:
-    // the live run and the group's emergencies.
-    r'^/(notifications|profile|profile/wallet|profile/driving|profile/school-year|profile/family|chats|chats/cp_(private|school|area|carpool)/[A-Za-z0-9_-]{1,64}|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule|/emergency|/trip/\d{4}-\d{2}-\d{2}_(am|pm))?)$',
+    // the live run and the group's emergencies; Prompt 13: the driver's run
+    // ("Run still on") and the phones list (new phone).
+    r'^/(notifications|profile|profile/wallet|profile/driving|profile/school-year|profile/family|profile/privacy/devices|chats|chats/cp_(private|school|area|carpool)/[A-Za-z0-9_-]{1,64}|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule|/emergency|/trip/\d{4}-\d{2}-\d{2}_(am|pm)(/drive)?)?)$',
   );
 
   static String safe(Object? route) => route is String && _allowed.hasMatch(route) ? route : fallback;

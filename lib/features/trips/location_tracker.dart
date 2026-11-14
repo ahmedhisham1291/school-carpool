@@ -5,13 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Live location during a run (F15), behind one interface so tests, CI,
 /// the website and the gallery use [FakeLocationTracker] and the phone uses
-/// flutter_background_geolocation (background_location_tracker.dart).
+/// the free geolocator plugin (geolocator_tracker.dart; owner decision
+/// 14 Nov 2026, docs/DECISIONS.md "Location tracking on iPhone").
 ///
 /// Rules (spec section 6, "Live location"): tracking starts with the run,
 /// sends a point every 5 to 10 seconds also with the phone locked, stops
 /// at the last drop-off and never runs outside a run. Points go from the
 /// phone's location plugin straight to the tripLocation function with the
-/// run's own token; the app never writes a point to Firestore.
+/// run's own token; the app never writes a point to Firestore. Before a
+/// run the driving gate (location_gate.dart) checks Location Services, the
+/// permission ("While Using the App" is enough; "Always" is never
+/// required, only offered once as an optional step for run recovery),
+/// Precise Location and notifications.
 
 /// Where the background location permission stands.
 enum TrackerPermission {
@@ -21,7 +26,8 @@ enum TrackerPermission {
   /// "Always" (iPhone) / "Allow all the time" (Android): a run may start.
   always,
 
-  /// Only while the app is open: not enough for a run.
+  /// "While Using the App": a run may start (background location mode and
+  /// the blue indicator keep it going with the phone locked).
   whileInUse,
 
   /// Refused: only the phone's Settings can change it.
@@ -63,19 +69,14 @@ class TrackerStatus {
 abstract interface class LocationTracker {
   Future<TrackerPermission> permission();
 
-  /// Shows the system prompt for "Always" (call after the explanation screen).
-  Future<TrackerPermission> requestAlways();
-
   Future<void> openSettings();
 
-  /// Starts sending points for [session]. Throws when the permission is
-  /// missing. Starting again for the same trip only renews the token.
+  /// Starts sending points for [session]. Throws [StateError] when the
+  /// permission is missing. Starting again for the same trip only renews the token.
   Future<void> start(TrackerSession session);
 
   /// Stops sending. Points not sent yet are cleared (the run is over),
-  /// unless [keepUnsent]: then the tracker tries to send them first and
-  /// keeps the rest on the phone (the server ignores points older than a
-  /// run's start, and the plugin drops them after a day).
+  /// unless [keepUnsent]: then the tracker tries to send them first.
   Future<void> stop({bool keepUnsent = false});
 
   /// The trip being tracked on this phone, or null (also after a restart).
@@ -86,12 +87,9 @@ abstract interface class LocationTracker {
 
 /// For tests, CI, the website (drivers use the phone app) and the gallery.
 class FakeLocationTracker implements LocationTracker {
-  FakeLocationTracker({this._permission = TrackerPermission.notAsked, this.grantOnRequest = TrackerPermission.always});
+  FakeLocationTracker({this._permission = TrackerPermission.whileInUse});
 
   TrackerPermission _permission;
-
-  /// What the "system prompt" answers.
-  final TrackerPermission grantOnRequest;
 
   final StreamController<TrackerStatus> _status = StreamController<TrackerStatus>.broadcast();
   TrackerSession? session;
@@ -108,20 +106,12 @@ class FakeLocationTracker implements LocationTracker {
   Future<TrackerPermission> permission() async => _permission;
 
   @override
-  Future<TrackerPermission> requestAlways() async {
-    if (_permission == TrackerPermission.notAsked || _permission == TrackerPermission.whileInUse) {
-      _permission = grantOnRequest;
-    }
-    return _permission;
-  }
-
-  @override
   Future<void> openSettings() async => settingsOpened++;
 
   @override
   Future<void> start(TrackerSession s) async {
-    if (_permission != TrackerPermission.always) {
-      throw StateError('background location permission missing');
+    if (_permission != TrackerPermission.always && _permission != TrackerPermission.whileInUse) {
+      throw StateError('location permission missing');
     }
     session = s;
     starts++;
@@ -144,13 +134,19 @@ class FakeLocationTracker implements LocationTracker {
   @override
   Stream<TrackerStatus> get status => _status.stream;
 
+  /// Tests: Location Services or the permission went away mid-run.
+  void lose(TrackerPermission permission) {
+    _permission = permission;
+    _status.add(TrackerStatus(tracking: session != null, tripId: session?.tripId, permission: permission));
+  }
+
   /// Tests: a location fix arrived.
   void fix(DateTime at) => _status.add(TrackerStatus(tracking: session != null, tripId: session?.tripId, lastFixAt: at));
 
   Future<void> dispose() => _status.close();
 }
 
-/// Replaced in main.dart builds for the phone (background_location_tracker.dart);
+/// Replaced in bootstrap.dart for the phone (geolocator_tracker.dart);
 /// the fake everywhere else, so nothing ever tracks outside a run.
 final Provider<LocationTracker> locationTrackerProvider = Provider<LocationTracker>((Ref ref) {
   final FakeLocationTracker tracker = FakeLocationTracker();

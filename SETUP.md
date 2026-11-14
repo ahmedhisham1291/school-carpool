@@ -1143,6 +1143,7 @@ done
 | `cp_driver_late` | The driver is running late: {{1}}. |
 | `cp_driver_at_gate` | The driver is at the school gate: {{1}}. |
 | `cp_all_children_in` | All children are in the car: {{1}}. |
+| `cp_run_still_on` | No location from you for 2 minutes on the {{1}} run. Open the app to continue. (Prompt 13, to the driver) |
 
 Arabic bodies: `functions/src/notifications/texts.ts` (the emergency
 contact one: "ضغط {{1}} زر الطوارئ أثناء مشوار المدرسة. الموقع: {{2}}").
@@ -1154,37 +1155,32 @@ asked to tell that person.
 
 ### 20.4 iPhone: background location (applied by tool/patch_native.py)
 
-- `UIBackgroundModes`: `location`, `fetch`, `processing` (plus
-  `remote-notification`), `BGTaskSchedulerPermittedIdentifiers`:
-  `com.transistorsoft.fetch`.
+Prompt 13 (owner decision, docs/DECISIONS.md "Location tracking on
+iPhone"): the free `geolocator` plugin, "While Using the App" with Precise
+Location to start a run. "Always" is only offered once to drivers as an
+optional step for run recovery (owner, 13:44; `packages/run_recovery`).
+The patch also makes the iOS app a classic app-delegate app (no UIScene)
+so a background relaunch for location runs Dart (Prompt 13 review).
+
+- `UIBackgroundModes`: `location` and `remote-notification` only.
 - Permission texts in Arabic and English (`tool/ios/<lang>.lproj/InfoPlist.strings`):
-  `NSLocationAlwaysAndWhenInUseUsageDescription`,
-  `NSLocationWhenInUseUsageDescription`, `NSMotionUsageDescription`.
-- App Store review: say in the review notes that location runs in the
-  background only while a parent drives a school run, for the parents of
-  the children in the car, and stops at the last drop-off.
-- flutter_background_geolocation 5: CocoaPods needs
-  `use_frameworks! :linkage => :static` in `ios/Podfile` (patched). Debug
-  builds run without a licence; **release builds (TestFlight, App Store)
-  need the v5 licence** in Info.plist `TSLocationManagerLicense`, which
-  the patch sets to `$(BG_GEO_LICENSE)` from `ios/Flutter/BgGeo.xcconfig`
-  (written from the `BG_GEO_LICENSE` environment variable; not committed).
+  `NSLocationWhenInUseUsageDescription` and
+  `NSLocationAlwaysAndWhenInUseUsageDescription` (the optional "Always"
+  step for run recovery).
+- The blue location indicator shows while a run tracks with the app in
+  the background. Swiping the app away stops tracking on iPhone; the server
+  pushes the driver "Run still on" after 2 minutes and tells the parents.
+  With "Always", the run usually resumes by itself within a few minutes
+  after the car moves (to be confirmed on a device: docs/test-iphone.md T6).
+- App Store review: docs/app-review-notes.md.
 
-### 20.5 Licence (before the first TestFlight build with trips)
+### 20.5 Licence: none needed
 
-flutter_background_geolocation **5** uses a new JWT licence (the "New" tab
-in Transistor's customer dashboard; v4 keys do not work) and checks it on
-**release builds on both iPhone and Android**; debug builds work without.
-Buy it for the bundle and application IDs (`org.schoolcarpool.app`,
-`.stg`, `.dev`). Never commit it. Give it to the build as the
-environment variable `BG_GEO_LICENSE`: in Codemagic add it as an
-encrypted variable to the `staging_defines` and `dev_defines` groups (the
-iOS workflows read them; `codemagic.yaml` names it). Android also reads it
-as a Gradle property.
-`tool/patch_native.py` writes it to `ios/Flutter/BgGeo.xcconfig` (Info.plist
-`TSLocationManagerLicense`) and to the Android manifest
-(`com.transistorsoft.locationmanager.license`). A value that is not
-key-shaped stops the patch. No extra Maven folders are needed in v5.
+No licence or build secret is needed for live location. The paid
+flutter_background_geolocation (and its `BG_GEO_LICENSE`) was removed in
+Prompt 13; DECISIONS.md says how to bring it back. If an old
+`BG_GEO_LICENSE` variable is still in Codemagic's `staging_defines` or
+`dev_defines` group, delete it.
 
 ### 20.6 Try it (the "Done when" check)
 
@@ -1198,11 +1194,12 @@ key-shaped stops the patch. No extra Maven folders are needed in v5.
    seed parent Hoda (`+201000000101`, code in the functions log), whose
    child rides your run.
 
-4. On your iPhone: Carpool > Week plan > today's run > **Start run**. Read
-   the location screen, tap **Turn on location** and choose **Always**
-   (iOS may first offer "While Using": allow it, then the app asks again
-   for "Change to Always Allow"). Tap **Start run**. Lock the phone and
-   walk or drive a little.
+4. On your iPhone: Carpool > Week plan > today's run > **Start run**. Allow
+   location **While Using the App** (Precise on) and notifications when
+   asked; if something is off, the "Before you drive" steps show what to
+   change. The first time, the optional "Resume runs by itself" screen
+   offers "Always" (either answer works). Lock the phone and walk or drive
+   a little.
 5. On the second device: Carpools > the carpool > **Today** > the driver
    card (or Week plan > the run > **Follow run**). The car moves on the
    map (the sketch map without a Maps key) and "Car in about N min" shows

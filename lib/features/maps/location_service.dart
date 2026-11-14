@@ -32,9 +32,9 @@ class LocationFailure implements Exception {
 }
 
 /// One-shot location for the home picker. "While using the app" only; the
-/// app never tracks a parent outside a run (runs come in Prompt 13 with
-/// flutter_background_geolocation). The position is used to move the pin
-/// and is sent nowhere until the parent saves.
+/// app never tracks a parent outside a run (live runs:
+/// geolocator_tracker.dart). The position is used to move the pin and is
+/// sent nowhere until the parent saves.
 abstract interface class LocationService {
   Future<LocationAccess> access();
 

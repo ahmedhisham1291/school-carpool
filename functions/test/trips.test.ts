@@ -19,6 +19,7 @@ import {
   prepareTrip,
   quickChatText,
   quickMessage,
+  reportTrackingLost,
   runTripTick,
   saveHandoverAdults,
   selfiePath,
@@ -504,22 +505,70 @@ describe("trips: location stopped (F15)", () => {
     assert.equal(isStale({ ...t, status: "handover" }, 999_999, 120_000), false);
   });
 
-  it("parents of the run and the driver are alerted once; a new point re-arms it", async () => {
+  it("parents get 'location stopped' and the driver 'run still on', once per gap; a new point re-arms it", async () => {
     const h = harness();
     const { token } = await startTrip(h.deps, driver, ids());
     await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now) });
-    h.clock.now += 2 * MIN + 1000;
+    h.clock.now += 2 * MIN - 1000;
+    await runTripTick(h.deps);
+    assert.equal(h.store.events.filter((e) => e.type === "run-still-on").length, 0, "under 2 minutes");
+    h.clock.now += 2000;
     await runTripTick(h.deps);
     await runTripTick(h.deps);
     let stops = h.store.events.filter((e) => e.type === "location-stopped");
+    let still = h.store.events.filter((e) => e.type === "run-still-on");
     assert.equal(stops.length, 1);
-    assert.deepEqual(stops[0].recipients, ["d1", "p1", "p2"]);
+    assert.deepEqual(stops[0].recipients, ["p1", "p2"]);
+    assert.equal(still.length, 1, "no spam: once per gap");
+    assert.deepEqual(still[0].recipients, ["d1"]);
     assert.equal(TYPES["location-stopped"].urgent, true);
+    assert.equal(TYPES["run-still-on"].urgent, true);
+    assert.equal(TYPES["run-still-on"].critical, false);
+    assert.equal(routeFor({ type: "run-still-on", carpoolId: "k1", runId: "2026-11-16_am" }), "/carpools/k1/trip/2026-11-16_am/drive");
     await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now) });
     h.clock.now += 2 * MIN + 1000;
     await runTripTick(h.deps);
     stops = h.store.events.filter((e) => e.type === "location-stopped");
+    still = h.store.events.filter((e) => e.type === "run-still-on");
     assert.equal(stops.length, 2);
+    assert.equal(still.length, 2);
+  });
+
+  it("no point at all after the start: alerted 2 minutes after the start", async () => {
+    const h = harness();
+    await startTrip(h.deps, driver, ids());
+    h.clock.now += 2 * MIN + 1000;
+    await runTripTick(h.deps);
+    assert.equal(h.store.events.filter((e) => e.type === "run-still-on").length, 1);
+  });
+
+  it("tracking lost (reported by the driver's app): parents told at once, once per gap, tracking goes on", async () => {
+    const h = harness();
+    const { token } = await startTrip(h.deps, driver, ids());
+    await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now) });
+    assert.deepEqual(await reportTrackingLost(h.deps, driver, { ...ids(), reason: "precise" }), { alerted: true });
+    assert.deepEqual(await reportTrackingLost(h.deps, driver, { ...ids(), reason: "service" }), { alerted: false });
+    let stops = h.store.events.filter((e) => e.type === "location-stopped");
+    assert.equal(stops.length, 1);
+    assert.deepEqual(stops[0].recipients, ["p1", "p2"]);
+    h.clock.now += 3 * MIN;
+    await runTripTick(h.deps);
+    assert.equal(h.store.events.filter((e) => e.type === "location-stopped").length, 1, "the tick does not repeat it");
+    assert.equal(h.store.trips.get(tripKey())?.status, "active");
+    // Fixed: the next point re-arms it.
+    await uploadPoints(h.deps, tripKey(), token, { location: pt(h.clock.now) });
+    assert.deepEqual(await reportTrackingLost(h.deps, driver, { ...ids(), reason: "permission" }), { alerted: true });
+    stops = h.store.events.filter((e) => e.type === "location-stopped");
+    assert.equal(stops.length, 2);
+  });
+
+  it("tracking lost: only the run's driver, a known reason, an active run", async () => {
+    const h = harness();
+    await startTrip(h.deps, driver, ids());
+    await assert.rejects(reportTrackingLost(h.deps, driver, { ...ids(), reason: "battery" }), /invalid-request/);
+    await assert.rejects(reportTrackingLost(h.deps, { uid: "p1", verifiedClaim: true }, { ...ids(), reason: "service" }), /not-driver|not-verified/);
+    await endTrip(h.deps, driver, ids());
+    assert.deepEqual(await reportTrackingLost(h.deps, driver, { ...ids(), reason: "service" }), { alerted: false });
   });
 
   it("a forgotten run stops tracking after 4 hours; live points are deleted within 24 hours", async () => {

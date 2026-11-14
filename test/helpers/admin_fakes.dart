@@ -170,7 +170,33 @@ class FakeAdminApi implements AdminApi {
   @override
   Future<UserDetail> user(String uid) async {
     await _maybeFail('user:$uid');
-    return UserDetail(summary: users.first, maskedEmail: 'm***@example.com', cases: const <CaseHistory>[], actions: const <ActionHistory>[]);
+    return UserDetail(
+      summary: users.first,
+      maskedEmail: 'm***@example.com',
+      cases: const <CaseHistory>[],
+      actions: const <ActionHistory>[],
+      deviceCheckSince: deviceCheckSince,
+    );
+  }
+
+  /// Prompt 13: an open new-phone check on the user page.
+  DateTime? deviceCheckSince;
+  final List<(String, DeviceCheckOutcome, AccessReasonCode)> deviceDecisions = <(String, DeviceCheckOutcome, AccessReasonCode)>[];
+
+  @override
+  Future<List<AdminPhoto>> userPhotos(String uid, AccessReasonCode reason) async {
+    await _maybeFail('photos:$uid:${reason.name}');
+    return const <AdminPhoto>[
+      AdminPhoto(kind: 'faceRef', url: 'https://example.test/face.webp', storedAt: null),
+      AdminPhoto(kind: 'selfie', url: 'https://example.test/selfie.webp', storedAt: null),
+    ];
+  }
+
+  @override
+  Future<void> decideDeviceCheck({required String uid, required DeviceCheckOutcome outcome, required AccessReasonCode reason}) async {
+    await _maybeFail('deviceCheck');
+    deviceDecisions.add((uid, outcome, reason));
+    deviceCheckSince = null;
   }
 
   @override

@@ -32,7 +32,9 @@ enum AnalyticsEvent {
   consentChanged('consent_changed', <String>{'kind', 'granted'}),
   accountDeleted('account_deleted', <String>{}),
   appLockChanged('app_lock_changed', <String>{'enabled'}),
-  deviceSignedOut('device_signed_out', <String>{'all'});
+  deviceSignedOut('device_signed_out', <String>{'all'}),
+  // Prompt 13: the driver's answer to the optional "Always" step.
+  alwaysLocation('always_location', <String>{'granted'});
 
   const AnalyticsEvent(this.wire, this.keys);
 

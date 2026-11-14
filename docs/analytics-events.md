@@ -39,6 +39,7 @@ listener on the go_router delegate (`routerProvider`), once per change.
 | `account_deleted` | Account deleted | none |
 | `app_lock_changed` | App lock switched | `enabled` (0/1) |
 | `device_signed_out` | A phone signed out from the list | `all` (0/1) |
+| `always_location` | A driver answers the optional "Always" step (Prompt 13) | `granted` (0/1); never a location |
 
 Prompt 12 sends `privacy_export`, `consent_changed`, `account_deleted`,
 `app_lock_changed` and `device_signed_out`; the other events are in the

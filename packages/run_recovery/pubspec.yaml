@@ -1,0 +1,23 @@
+name: run_recovery
+description: >-
+  School Carpool's own iPhone run recovery (significant location changes and
+  a background activity session during a run). Local plugin, not published.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.50.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    # iPhone only. Android and the web have no native side: the Dart API
+    # answers "unsupported" there without calling the channel, so they
+    # still compile and run (Android recovery comes with Stage 3).
+    platforms:
+      ios:
+        pluginClass: RunRecoveryPlugin

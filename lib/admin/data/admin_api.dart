@@ -22,6 +22,12 @@ abstract interface class AdminApi {
 
   Future<List<UserSummary>> searchUsers(String query);
   Future<UserDetail> user(String uid);
+
+  /// Prompt 13: the face reference and kept selfies (logged with [reason]).
+  Future<List<AdminPhoto>> userPhotos(String uid, AccessReasonCode reason);
+
+  /// Prompt 13: closes an open new-phone check (logged with [reason]).
+  Future<void> decideDeviceCheck({required String uid, required DeviceCheckOutcome outcome, required AccessReasonCode reason});
   Future<void> moderate({
     required String uid,
     required ModerationAction action,
@@ -120,6 +126,17 @@ class FirebaseAdminApi implements AdminApi {
   @override
   Future<UserDetail> user(String uid) async =>
       UserDetail.fromJson(await _call('adminGetUser', <String, Object?>{'uid': uid}));
+
+  @override
+  Future<List<AdminPhoto>> userPhotos(String uid, AccessReasonCode reason) async {
+    final Json j = await _call('adminOpenUserPhotos', <String, Object?>{'uid': uid, 'reason': reason.name});
+    return j.list('photos').map(AdminPhoto.fromJson).toList();
+  }
+
+  @override
+  Future<void> decideDeviceCheck({required String uid, required DeviceCheckOutcome outcome, required AccessReasonCode reason}) async {
+    await _call('adminClearDeviceCheck', <String, Object?>{'uid': uid, 'outcome': outcome.name, 'reason': reason.name});
+  }
 
   @override
   Future<void> moderate({

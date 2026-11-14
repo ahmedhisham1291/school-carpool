@@ -4,7 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
+import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
+import 'package:school_carpool/features/trips/run_recovery.dart';
 import 'package:school_carpool/features/trips/trip_models.dart';
 import 'package:school_carpool/features/trips/trip_repository.dart';
 
@@ -155,6 +157,9 @@ class FakeTripRepository implements TripRepository {
   Future<void> stopMyTrips() => _maybeFail('stopMine');
 
   @override
+  Future<void> reportTrackingLost(String carpoolId, String runId, String reason) => _maybeFail('lost:$reason');
+
+  @override
   Future<bool> emergency({required String carpoolId, required String runId, GeoPin? point}) async {
     await _maybeFail('emergency');
     return contactSent;
@@ -200,9 +205,13 @@ class FakeTripRepository implements TripRepository {
 }
 
 /// Keeps Firebase and the location plugin out of widget tests. Always the
-/// same three overrides (one ProviderScope shape per test).
-List<Override> tripOverrides({TripRepository? trips, LocationTracker? tracker}) => <Override>[
+/// same five overrides (one ProviderScope shape per test).
+List<Override> tripOverrides({TripRepository? trips, LocationTracker? tracker, DrivingReadiness? readiness, RecoveryNative? recovery}) => <Override>[
   tripRepositoryProvider.overrideWithValue(trips ?? FakeTripRepository()),
   locationTrackerProvider.overrideWithValue(tracker ?? FakeLocationTracker()),
+  // Prompt 13: the driving gate (everything on unless a test says otherwise).
+  drivingReadinessProvider.overrideWithValue(readiness ?? FakeDrivingReadiness()),
+  // Prompt 13: run recovery (not an iPhone unless a test says so).
+  recoveryNativeProvider.overrideWithValue(recovery ?? FakeRecoveryNative()),
   tripClockProvider.overrideWithValue(() => testNow),
 ];

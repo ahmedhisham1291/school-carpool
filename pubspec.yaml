@@ -60,9 +60,11 @@ dependencies:
   # Flutter plugin: Google Maps SDK on iPhone (CocoaPods) and Android, Maps
   # JavaScript on the web (google_maps_flutter_web, endorsed).
   google_maps_flutter: ^2.17.0
-  # One-shot "use my current location" for the home pin, while the app is
-  # in use only. Live location during runs stays with
-  # flutter_background_geolocation (Prompt 13).
+  # One-shot "use my current location" for the home pin, and (Prompt 13,
+  # owner decision 14 Nov 2026, DECISIONS.md "Location tracking on iPhone")
+  # live location during runs: position stream with AppleSettings
+  # (background updates, blue indicator), "While Using the App" only. Free.
+  # Replaces the paid flutter_background_geolocation.
   geolocator: ^14.0.2
 
   # Invite links (Prompt 6, F31; justified in docs/progress/prompt-06.md).
@@ -94,14 +96,6 @@ dependencies:
   # Official flutter.dev plugin: take or choose a photo for a private or
   # carpool chat (EXIF removed by flutter_image_compress before upload).
   image_picker: ^1.2.2
-  # Live location during runs (Prompt 10, F15; in the STACK list:
-  # "flutter_background_geolocation (paid license)"). Transistor Software.
-  # Keeps sending with the phone locked, uploads points itself (HTTP to the
-  # tripLocation function) and runs only while a run is on. Version 5
-  # (compound config). Debug builds need no licence; release builds need
-  # the v5 JWT licence on iPhone AND Android (BG_GEO_LICENSE, SETUP.md
-  # section 20.5; never committed).
-  flutter_background_geolocation: ^5.9.2
 
   # Wallet (Prompt 11B, MONEY rules; justified in docs/progress/prompt-11b.md):
   # a fresh Face ID, fingerprint or phone passcode check before every
@@ -109,6 +103,14 @@ dependencies:
   # on iPhone, AndroidX Biometric on Android); free. 3.x API: authenticate()
   # with named options, LocalAuthException on failure.
   local_auth: ^3.0.0
+
+  # Run recovery on iPhone (Prompt 13, owner request 14 Nov 2026 13:44):
+  # our own small plugin in this repository (no third-party code): a
+  # background activity session during a run and, with the optional
+  # "Always", significant location changes so iOS relaunches the app after
+  # it was closed mid-run. packages/run_recovery.
+  run_recovery:
+    path: packages/run_recovery
 
   # Persists the language, theme mode and dev design direction on the phone.
   # Official Flutter plugin; flagged to the owner in docs/progress/prompt-01.md.

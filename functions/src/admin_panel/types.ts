@@ -30,6 +30,8 @@ export interface StoredUser {
   banned: boolean;
   statusBeforeSuspension: AccountStatus | null;
   createdAtMs: number;
+  /** Prompt 13: a new-phone selfie check is open since then (ms), or none. */
+  deviceCheckSinceMs?: number | null;
 }
 
 export interface CaseHistoryItem {

@@ -6,7 +6,8 @@ import { outboxDoc } from "../notifications/outbox";
 import type { OutboxEvent } from "../notifications/model";
 import type { AbuseCounter, AbuseKind, AbuseStore, SecurityAlert } from "./abuse";
 import { alertFor } from "./abuse";
-import { anonymiseBalance, anonymiseCarpool, anonymiseRun, anonymiseSwap, anonymiseTrip } from "./anonymise";
+import { DELETED_ID, anonymiseBalance, anonymiseCarpool, anonymiseRun, anonymiseSwap, anonymiseTrip } from "./anonymise";
+import { keepForClosedParent, participantsOf, planTripRetention, type AccountState } from "./trip_retention";
 import { CLOSING_REASON, pathFor, type ClosedAccount, type DeletionFacts, type DeletionRunner, type FlowStep, type PurgeStep, type Target, type WalletLock } from "./account_deletion";
 import type { DeviceAccount, DeviceRecord, DeviceStore, Platform, SignInPlan, SignOutReason } from "./devices";
 import type { ExportSource } from "./export";
@@ -401,7 +402,7 @@ export class FirestoreDeletionRunner implements DeletionRunner {
         return;
       }
       case "anonymise":
-        return this.anonymise(uid);
+        return this.anonymise(uid, nowMs);
       case "chat": {
         await this.hooks.chat.revokeTokens(uid, nowMs + 1000);
         await this.hooks.chat.deactivateUser(uid);
@@ -446,7 +447,7 @@ export class FirestoreDeletionRunner implements DeletionRunner {
   }
 
   /** See anonymise.ts. Every page is read until empty (idempotent: a retry finds nothing left). */
-  private async anonymise(uid: string): Promise<void> {
+  private async anonymise(uid: string, nowMs: number): Promise<void> {
     const apply = async (docs: QueryDocumentSnapshot[], fn: (d: DocumentData, uid: string) => DocumentData | null) => {
       for (const d of docs) {
         const change = fn(d.data(), uid);
@@ -454,8 +455,10 @@ export class FirestoreDeletionRunner implements DeletionRunner {
       }
     };
     // Trips the parent's children rode in (other drivers' records) and trips the parent drove.
-    await apply((await this.db.collection("trips").where("viewerUids", "array-contains", uid).limit(2_000).get()).docs, anonymiseTrip);
-    await apply((await this.db.collection("trips").where("driverUid", "==", uid).limit(2_000).get()).docs, anonymiseTrip);
+    // Owner rule (13:29): the trip stays until this parent's closure + 1 year too.
+    const tripChange = (d: DocumentData, u: string) => keepForClosedParent(d, anonymiseTrip(d, u), nowMs);
+    await apply((await this.db.collection("trips").where("viewerUids", "array-contains", uid).limit(2_000).get()).docs, tripChange);
+    await apply((await this.db.collection("trips").where("driverUid", "==", uid).limit(2_000).get()).docs, tripChange);
     // The carpools the parent was ever in (memberships of any status).
     const carpoolIds = new Set<string>();
     for (const m of (await this.db.collection("memberships").where("uid", "==", uid).limit(500).get()).docs) {
@@ -509,12 +512,55 @@ export class FirestoreDeletionRunner implements DeletionRunner {
       await this.hooks.chat.deleteUser(uid);
       return;
     }
+    if (step === "trips") {
+      // Owner answer 14 Nov 13:29: the trips this parent drove stay while
+      // another participant's data is kept; this parent's part is anonymised.
+      const trips = await this.db.collection("trips").where("driverUid", "==", uid).limit(2_000).get();
+      if (trips.size === 2_000) throw new Error("trips page full; retried tomorrow");
+      await applyTripRetention(this.db, trips.docs, Date.now(), new Set([uid]));
+      return;
+    }
     const snap = await this.db.collection(ROUTE_ARCHIVES).where("driverUid", "==", uid).limit(2_000).get();
     for (const d of snap.docs) {
       await this.bucket.file(text(d.get("path"))).delete({ ignoreNotFound: true });
       await d.ref.delete();
     }
   }
+}
+
+/** Active (users/{uid} exists), closed (closedAccounts/{uid}), or no record. */
+async function accountStates(db: Firestore, uids: Iterable<string>): Promise<Map<string, AccountState>> {
+  const out = new Map<string, AccountState>();
+  for (const uid of uids) {
+    if (out.has(uid)) continue;
+    if ((await db.collection(USERS).doc(uid).get()).exists) {
+      out.set(uid, { active: true });
+      continue;
+    }
+    const closed = await db.collection(CLOSED_ACCOUNTS).doc(uid).get();
+    if (closed.exists) out.set(uid, { active: false, closedAtMs: closed.get("closedAt") ? millis(closed.get("closedAt")) : null });
+  }
+  return out;
+}
+
+/**
+ * Owner answer (14 Nov 2026, 13:29): each trip stays while any participant
+ * is active + 1 year; expired parts are anonymised; a trip with nobody
+ * left is deleted with its subcollections. Returns how many were deleted.
+ */
+async function applyTripRetention(db: Firestore, docs: QueryDocumentSnapshot[], nowMs: number, expired: ReadonlySet<string> = new Set()): Promise<number> {
+  const states = await accountStates(db, docs.flatMap((d) => participantsOf(d.data())));
+  let deleted = 0;
+  for (const d of docs) {
+    const plan = planTripRetention(d.data(), states, nowMs, expired);
+    if (plan.action === "delete") {
+      await db.recursiveDelete(d.ref);
+      deleted += 1;
+    } else if (plan.change) {
+      await d.ref.update({ ...plan.change, updatedAt: ts(nowMs) });
+    }
+  }
+  return deleted;
 }
 
 function closedFromDoc(uid: string, d: DocumentData): ClosedAccount {
@@ -576,13 +622,24 @@ export class FirestoreRetentionStore implements RetentionStore {
   async purgeClosedCarpoolsBefore(before: number, limit: number): Promise<number> {
     const closed = await this.db.collection("carpools").where("status", "==", "closed").where("updatedAt", "<=", ts(before)).limit(limit).get();
     for (const c of closed.docs) {
-      for (const t of (await this.db.collection("trips").where("carpoolId", "==", c.id).limit(2_000).get()).docs) await this.db.recursiveDelete(t.ref);
+      // Owner answer 14 Nov 13:29: trips are NOT deleted with the carpool;
+      // each stays while a participant is active + 1 year (trip_retention.ts).
+      const trips = await this.db.collection("trips").where("carpoolId", "==", c.id).limit(2_000).get();
+      if (trips.size === 2_000) throw new Error("trips page full; retried tomorrow");
+      await applyTripRetention(this.db, trips.docs, Date.now());
       await deleteQuery(this.db, this.db.collection("memberships").where("carpoolId", "==", c.id));
       await deleteQuery(this.db, this.db.collection("carpoolInvites").where("carpoolId", "==", c.id));
       // Last: the card with members, requests, pickupPoints, schedule, swaps, balances, emergencies.
       await this.db.recursiveDelete(c.ref);
     }
     return closed.size;
+  }
+
+  async deleteOrphanTrips(nowMs: number, limit: number): Promise<number> {
+    // Only trips whose last kept year is over (review finding 3: no
+    // re-reading the same kept trips every day).
+    const snap = await this.db.collection("trips").where("driverUid", "==", DELETED_ID).where("keptUntilMs", "<=", nowMs).limit(limit).get();
+    return applyTripRetention(this.db, snap.docs, nowMs);
   }
 
   async endedChatsBefore(before: number, limit: number): Promise<string[]> {

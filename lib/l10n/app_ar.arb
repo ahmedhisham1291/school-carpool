@@ -5924,26 +5924,6 @@
   "@tripDriveTitle": {
     "description": "Driver screen app bar title"
   },
-  "tripLocationHeading": "شارك موقعك",
-  "@tripLocationHeading": {
-    "description": "Step heading"
-  },
-  "tripLocationBody": "يراه أولياء أمور الأطفال في سيارتك على الخريطة أثناء المشوار فقط. يعمل والهاتف مقفل ويتوقف عند آخر توصيل. اختر دائمًا.",
-  "@tripLocationBody": {
-    "description": "Step body"
-  },
-  "tripLocationChooseAlways": "المشوار يحتاج الموقع على دائمًا. افتح الإعدادات، ثم الموقع، واختر دائمًا.",
-  "@tripLocationChooseAlways": {
-    "description": "Step body after refusal"
-  },
-  "tripLocationServiceOff": "خدمات الموقع متوقفة. شغّلها من الإعدادات.",
-  "@tripLocationServiceOff": {
-    "description": "Step body"
-  },
-  "tripLocationTurnOn": "تشغيل الموقع",
-  "@tripLocationTurnOn": {
-    "description": "Button"
-  },
   "tripSelfieHeading": "سيلفي سريع",
   "@tripSelfieHeading": {
     "description": "Step heading"
@@ -8311,7 +8291,7 @@
   "@keepNinetyDays": {
     "description": "Retention"
   },
-  "keepLaw": "المدة التي يطلبها القانون",
+  "keepLaw": "5 سنوات كما يطلب القانون",
   "@keepLaw": {
     "description": "Retention"
   },
@@ -8705,5 +8685,267 @@
   "privacyErrorUnchecked": "تعذّر فحص السيلفي الآن. سيراجعه فريقنا ويُخبرك.",
   "@privacyErrorUnchecked": {
     "description": "Error: the face check could not decide; an admin reviews the selfie"
+  },
+  "gateTitle": "قبل أن تقود",
+  "@gateTitle": {
+    "description": "Title of the full-screen location steps shown before a run"
+  },
+  "gateIntro": "يرى أولياء الأمور سيارتك أثناء المشوار فقط. أكمل هذه الخطوات ثم عد إلى التطبيق.",
+  "@gateIntro": {
+    "description": "Intro of the driving location steps"
+  },
+  "gateLocationTitle": "شغّل الموقع",
+  "@gateLocationTitle": {
+    "description": "Title of the non-blocking location steps (home banner)"
+  },
+  "gateLocationIntro": "يلزم الموقع في يوم قيادتك فقط. يمكنك استخدام باقي التطبيق الآن.",
+  "@gateLocationIntro": {
+    "description": "Intro of the non-blocking location steps"
+  },
+  "gateServiceTitle": "خدمات الموقع",
+  "@gateServiceTitle": {
+    "description": "Missing item: iOS Location Services are off"
+  },
+  "gateServiceStep1": "افتح تطبيق الإعدادات.",
+  "@gateServiceStep1": {
+    "description": "Step: Location Services"
+  },
+  "gateServiceStep2": "اضغط الخصوصية والأمن.",
+  "@gateServiceStep2": {
+    "description": "Step: Location Services (iOS label)"
+  },
+  "gateServiceStep3": "اضغط خدمات الموقع.",
+  "@gateServiceStep3": {
+    "description": "Step: Location Services (iOS label)"
+  },
+  "gateServiceStep4": "شغّل خدمات الموقع.",
+  "@gateServiceStep4": {
+    "description": "Step: Location Services"
+  },
+  "gatePermissionTitle": "إذن الموقع",
+  "@gatePermissionTitle": {
+    "description": "Missing item: the app has no location permission"
+  },
+  "gateOpenStep": "اضغط فتح الإعدادات بالأسفل.",
+  "@gateOpenStep": {
+    "description": "Step 1 of the app-settings steps"
+  },
+  "gateLocationStep": "اضغط الموقع.",
+  "@gateLocationStep": {
+    "description": "Step: app settings (iOS label)"
+  },
+  "gatePermissionStep": "اختر أثناء استخدام التطبيق.",
+  "@gatePermissionStep": {
+    "description": "Step: location permission (iOS label)"
+  },
+  "gatePreciseTitle": "الموقع الدقيق",
+  "@gatePreciseTitle": {
+    "description": "Missing item: Precise Location is off"
+  },
+  "gatePreciseStep": "شغّل الموقع الدقيق.",
+  "@gatePreciseStep": {
+    "description": "Step: Precise Location (iOS label)"
+  },
+  "gateNotificationsTitle": "الإشعارات",
+  "@gateNotificationsTitle": {
+    "description": "Missing item: notifications are off"
+  },
+  "gateNotificationsStep1": "اضغط الإشعارات.",
+  "@gateNotificationsStep1": {
+    "description": "Step: notifications (iOS label)"
+  },
+  "gateNotificationsStep2": "شغّل السماح بالإشعارات.",
+  "@gateNotificationsStep2": {
+    "description": "Step: notifications (iOS label)"
+  },
+  "gateRecheck": "تُغلق هذه الصفحة وحدها عند اكتمال الخطوات.",
+  "@gateRecheck": {
+    "description": "Hint under the steps"
+  },
+  "gateStepNumber": "الخطوة {number}",
+  "@gateStepNumber": {
+    "description": "Screen reader label of a step number",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "locationBannerTitle": "الموقع مغلق",
+  "@locationBannerTitle": {
+    "description": "Home banner title (one line)"
+  },
+  "locationBannerBody": "مطلوب في يوم قيادتك.",
+  "@locationBannerBody": {
+    "description": "Home banner body"
+  },
+  "locationBannerAction": "الخطوات",
+  "@locationBannerAction": {
+    "description": "Home banner button: show the steps"
+  },
+  "tripKeepOpenHint": "أبقِ التطبيق مفتوحًا، ويمكنك قفل الهاتف.",
+  "@tripKeepOpenHint": {
+    "description": "One-line hint on the driver's run screen"
+  },
+  "tripTrackingLost": "توقف الموقع. أكمل الخطوات للمتابعة.",
+  "@tripTrackingLost": {
+    "description": "Driver run screen: location was lost mid-run"
+  },
+  "notifRunStillOnTitle": "المشوار مستمر",
+  "@notifRunStillOnTitle": {
+    "description": "Notification title to the driver: no location for 2 minutes"
+  },
+  "notifRunStillOnBody": "افتح التطبيق للمتابعة: {run}.",
+  "@notifRunStillOnBody": {
+    "description": "Notification sentence to the driver",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "adminDeviceCheckTitle": "فحص هاتف جديد مفتوح",
+  "@adminDeviceCheckTitle": {
+    "description": "Admin user page: a new-phone selfie check is open (one line)"
+  },
+  "adminDeviceCheckBody": "المحادثات والمحفظة وبيانات الأطفال مغلقة لهذا الحساب حتى يُغلق الفحص. قارن السيلفي الجديد بالصورة المرجعية أولًا.",
+  "@adminDeviceCheckBody": {
+    "description": "Admin user page: what an open new-phone check means"
+  },
+  "adminDeviceCheckSince": "مفتوح منذ",
+  "@adminDeviceCheckSince": {
+    "description": "Admin fact label"
+  },
+  "adminDeviceCheckOpen": "قارن وقرر",
+  "@adminDeviceCheckOpen": {
+    "description": "Admin button: open the photos and decide (one line)"
+  },
+  "adminDeviceCheckSheet": "إغلاق فحص الهاتف الجديد",
+  "@adminDeviceCheckSheet": {
+    "description": "Admin sheet title (one line)"
+  },
+  "adminPhotoFaceRef": "الصورة المرجعية",
+  "@adminPhotoFaceRef": {
+    "description": "Admin photo label (one line)"
+  },
+  "adminPhotoSelfie": "السيلفي الأحدث",
+  "@adminPhotoSelfie": {
+    "description": "Admin photo label (one line)"
+  },
+  "adminPhotosNone": "لا توجد صور محفوظة.",
+  "@adminPhotosNone": {
+    "description": "Admin: the parent has no kept photos"
+  },
+  "adminDeviceOutcomeLabel": "كيف تم التأكد",
+  "@adminDeviceOutcomeLabel": {
+    "description": "Admin select label"
+  },
+  "adminDeviceOutcomeApproved": "السيلفي يطابق الصورة",
+  "@adminDeviceOutcomeApproved": {
+    "description": "Admin outcome option"
+  },
+  "adminDeviceOutcomeOther": "تأكدنا بطريقة أخرى",
+  "@adminDeviceOutcomeOther": {
+    "description": "Admin outcome option (for example a call)"
+  },
+  "adminAccessReasonLabel": "سبب الفتح",
+  "@adminAccessReasonLabel": {
+    "description": "Admin select label: why the photos are opened (logged)"
+  },
+  "adminAccessReview": "مراجعة",
+  "@adminAccessReview": {
+    "description": "Access reason"
+  },
+  "adminAccessInvestigation": "تحقيق",
+  "@adminAccessInvestigation": {
+    "description": "Access reason"
+  },
+  "adminAccessReport": "بلاغ",
+  "@adminAccessReport": {
+    "description": "Access reason"
+  },
+  "adminAccessLegal": "طلب قانوني",
+  "@adminAccessLegal": {
+    "description": "Access reason"
+  },
+  "adminAccessParent": "طلب ولي الأمر",
+  "@adminAccessParent": {
+    "description": "Access reason"
+  },
+  "adminAccessAppeal": "تظلّم",
+  "@adminAccessAppeal": {
+    "description": "Access reason"
+  },
+  "adminDeviceCheckClose": "أغلق الفحص",
+  "@adminDeviceCheckClose": {
+    "description": "Admin button: close the new-phone check (one line)"
+  },
+  "adminDeviceCheckConfirmTitle": "فتح بيانات الحساب؟",
+  "@adminDeviceCheckConfirmTitle": {
+    "description": "Admin confirm title (one line)"
+  },
+  "adminDeviceCheckConfirmBody": "سيستعيد ولي الأمر المحادثات والمحفظة وبيانات الأطفال على هاتفه الجديد. يُسجَّل قرارك والسبب.",
+  "@adminDeviceCheckConfirmBody": {
+    "description": "Admin confirm body"
+  },
+  "adminDeviceCheckDone": "أُغلق الفحص",
+  "@adminDeviceCheckDone": {
+    "description": "Admin snack bar"
+  },
+  "adminAuditDeviceApproved": "فحص هاتف جديد: مطابق",
+  "@adminAuditDeviceApproved": {
+    "description": "Audit action label"
+  },
+  "adminAuditDeviceOther": "فحص هاتف جديد: تأكيد آخر",
+  "@adminAuditDeviceOther": {
+    "description": "Audit action label"
+  },
+  "alwaysTitle": "استئناف المشوار تلقائيًا",
+  "@alwaysTitle": {
+    "description": "Title of the optional Always location screen (one line)"
+  },
+  "alwaysHeading": "اختياري: اسمح بالموقع «دائمًا»",
+  "@alwaysHeading": {
+    "description": "Heading of the optional Always screen"
+  },
+  "alwaysBody": "إذا أغلق الآيفون التطبيق أثناء مشوار تقوده، تعود عادةً مشاركة موقعك مع أولياء الأمور وحدها خلال دقائق بعد تحرك السيارة. يُستخدم ذلك فقط أثناء مشاوير المدرسة التي تبدؤها، مع ظهور المؤشر الأزرق، ويتوقف عند نهاية المشوار.",
+  "@alwaysBody": {
+    "description": "Body of the optional Always screen"
+  },
+  "alwaysWithout": "بدون ذلك يعمل كل شيء، فقط أبقِ التطبيق مفتوحًا أثناء المشوار.",
+  "@alwaysWithout": {
+    "description": "Optional Always screen: what happens if declined"
+  },
+  "alwaysAllow": "السماح دائمًا",
+  "@alwaysAllow": {
+    "description": "Primary button (one line)"
+  },
+  "alwaysNotNow": "ليس الآن",
+  "@alwaysNotNow": {
+    "description": "Secondary button (one line)"
+  },
+  "alwaysGranted": "سيُستأنف المشوار تلقائيًا",
+  "@alwaysGranted": {
+    "description": "Snack bar after Always was allowed"
+  },
+  "recoveryResumedTitle": "استُؤنف تتبع المشوار",
+  "@recoveryResumedTitle": {
+    "description": "Local notification after a run was recovered"
+  },
+  "recoveryResumedBody": "يُشارَك موقع سيارتك مع أولياء الأمور مرة أخرى.",
+  "@recoveryResumedBody": {
+    "description": "Local notification body after a run was recovered"
+  },
+  "homeRunsRow": "مشاوير اليوم",
+  "@homeRunsRow": {
+    "description": "Home row title (one line): opens the carpools"
+  },
+  "homeRunsHelper": "في صفحة كل مشوار جماعي",
+  "@homeRunsHelper": {
+    "description": "Home row subtitle"
+  },
+  "adminDeviceShowPhotos": "اعرض الصور",
+  "@adminDeviceShowPhotos": {
+    "description": "Admin button: open the photos after choosing a reason (one line)"
   }
 }
