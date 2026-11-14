@@ -291,7 +291,16 @@ if [ -z "${HAS_EDITOR}" ]; then
 fi
 # The photo trigger (Storage -> Eventarc) needs Storage's agent to publish to Pub/Sub.
 GCS_AGENT="$(gcloud storage service-agent --project="${PROJECT}" 2>/dev/null | tail -1 || true)"
-[ -n "${GCS_AGENT}" ] && grant "serviceAccount:${GCS_AGENT}" roles/pubsub.publisher
+# A new project's Storage agent can take a few minutes to exist after the
+# first lookup creates it: retry, and never stop the whole setup for it.
+if [ -n "${GCS_AGENT}" ]; then
+  GCS_OK=""
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    if grant "serviceAccount:${GCS_AGENT}" roles/pubsub.publisher 2>/dev/null; then GCS_OK=1; break; fi
+    echo "  waiting for the Storage service agent to appear..."; sleep 15
+  done
+  [ -n "${GCS_OK}" ] || todo "Storage agent not ready yet: run the same command again in 10 minutes (it grants ${GCS_AGENT} the Pub/Sub publisher role)."
+fi
 EXTRA_ROLE=""
 [ -n "${HAS_EDITOR}" ] || EXTRA_ROLE=", Cloud Build builder"
 ok "service account roles: Token Creator, Secret accessor, Eventarc receiver${EXTRA_ROLE}; Storage agent: Pub/Sub publisher"

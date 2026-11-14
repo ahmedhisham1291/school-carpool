@@ -41,7 +41,16 @@ gcloud kms keys describe "${key}" --keyring="${ring}" --location="${location}" -
 
 # Cloud Storage encrypts with the key on our behalf: give ITS service agent
 # (not the functions) the encrypter/decrypter role on this key only.
-gcloud storage service-agent --project="${project}" --authorize-cmek="${key_id}"
+# A new project's Storage agent may take a few minutes to exist: retry.
+authorized=""
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  if gcloud storage service-agent --project="${project}" --authorize-cmek="${key_id}"; then authorized=1; break; fi
+  echo "  waiting for the Storage service agent to appear..."; sleep 15
+done
+if [ -z "${authorized}" ]; then
+  echo "The Storage service agent is not ready yet. Run the same command again in 10 minutes." >&2
+  exit 1
+fi
 
 # Every NEW object in the bucket is encrypted with our key. Objects written
 # before keep Google's key until they are rewritten (see SETUP 23.2 step 4).
