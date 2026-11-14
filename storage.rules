@@ -21,7 +21,23 @@ service firebase.storage {
     match /verification/{uid}/pending/{name} {
       allow create, update: if request.auth != null
         && request.auth.uid == uid
-        && name.matches('(id_front|id_back|selfie|selfie_turn|license|car_license|school_id_c([1-9]|10))[.]jpg')
+        && name.matches('(id_front|id_back|selfie|selfie_turn|license|car_license|driver_photo|school_id_c([1-9]|10))[.]jpg')
+        && request.resource.size > 0
+        && request.resource.size < 3 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+    }
+
+    // Prompt 10 (F38): the driver's live selfie for one run's check
+    // ({tripId}.jpg). Upload only, by its owner; the submitSelfieCheck
+    // function reads it, matches it and deletes it at once. No reads.
+    // driverPhotos/{uid}/photo.jpg (the photo approved during verification)
+    // is written and read by Cloud Functions only (15-minute signed links
+    // for today's driver card).
+    match /selfieChecks/{uid}/{name} {
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.verified == true
+        && name.matches('[A-Za-z0-9_-]{1,160}[.]jpg')
         && request.resource.size > 0
         && request.resource.size < 3 * 1024 * 1024
         && request.resource.contentType == 'image/jpeg';

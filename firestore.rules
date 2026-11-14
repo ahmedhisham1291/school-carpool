@@ -295,6 +295,73 @@ service cloud.firestore {
         allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
         allow create, update, delete: if false;
       }
+
+      // Prompt 10 (F20): emergency alerts with the driver's point, for every
+      // approved member (the whole group is alerted). Deleted after 24 hours.
+      match /emergencies/{emergencyId} {
+        allow get, list: if verifiedParent() && approvedMember(carpoolId, request.auth.uid);
+        allow create, update, delete: if false;
+      }
+    }
+
+    // Prompt 10 (F15, F16, F33, F34, F41): trips. One per started run, with
+    // the driver, the car, the stops (children's first names, states,
+    // handover names) and `viewerUids`: the driver and the parents of the
+    // children on THAT run. Only they read it; parents of other children,
+    // other members and everyone else see nothing. The app never writes a
+    // trip, a stop state or a point: Cloud Functions do (startTrip,
+    // tripAction, tripLocation).
+    function tripData(tripId) {
+      return get(/databases/$(database)/documents/trips/$(tripId)).data;
+    }
+    function tripViewer(tripId) {
+      return verifiedParent()
+        && exists(/databases/$(database)/documents/trips/$(tripId))
+        && request.auth.uid in tripData(tripId).viewerUids;
+    }
+    match /trips/{tripId} {
+      // get and the app's query where('viewerUids', 'array-contains', uid).
+      allow get, list: if verifiedParent() && request.auth.uid in resource.data.viewerUids;
+      allow create, update, delete: if false;
+
+      // Live points: the same people, and only while the run is tracked
+      // (spec section 6: off outside runs). Deleted within 24 hours.
+      match /points/{pointId} {
+        allow get, list: if tripViewer(tripId) && tripData(tripId).status == 'active';
+        allow create, update, delete: if false;
+      }
+
+      // Arrival time at one parent's stop: that parent and the driver.
+      match /eta/{parentUid} {
+        allow get: if tripViewer(tripId)
+          && (isSelf(parentUid) || tripData(tripId).driverUid == request.auth.uid);
+        allow list, create, update, delete: if false;
+      }
+    }
+
+    // Exact stop points for the arrival times: Cloud Functions only.
+    match /tripStops/{tripId} {
+      allow read, write: if false;
+    }
+    // F38: the random selfie check of one run; its driver reads it.
+    match /tripChecks/{tripId} {
+      allow get: if verifiedParent() && resource.data.driverUid == request.auth.uid;
+      allow list, create, update, delete: if false;
+    }
+    match /tripLimits/{uid} {
+      allow read, write: if false;
+    }
+    // F29: adults allowed to receive a child; the child's parent reads the
+    // list (with phone numbers); drivers get names and relations on the
+    // trip. Written by saveHandoverAdults.
+    match /handoverAdults/{childId} {
+      allow get: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow list, create, update, delete: if false;
+    }
+    // F20: the parent's own emergency contact. Written by setEmergencyContact.
+    match /emergencyContacts/{uid} {
+      allow get: if isSelf(uid);
+      allow list, create, update, delete: if false;
     }
 
     // Prompt 7's alert events. Since Prompt 8 they go to notificationEvents;
