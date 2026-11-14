@@ -50,7 +50,8 @@ class _Pending {
 /// then Start run. Start run first passes the driving gate
 /// (location_gate.dart, Prompt 13): Location Services, "While Using the
 /// App", Precise Location and notifications, with blocking steps for what
-/// is missing ("Always" is never asked). During the run: one card per
+/// is missing ("Always" is never required; the optional run-recovery step
+/// may follow, always_location_screen.dart). During the run: one card per
 /// child with large buttons (Arrived, Picked up, Dropped), the three quick
 /// buttons and the emergency button, and a one-line hint to keep the app
 /// open. If location is lost mid-run (Location Services off, permission or

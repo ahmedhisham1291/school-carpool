@@ -46,7 +46,7 @@ shared with data brokers.
 | User Content | Customer Support | Reports and privacy requests | Us | Yes | No | App Functionality |
 | Browsing History | — | Not collected | | | | |
 | Search History | Search History | School names typed in the school search; addresses typed in the home search (not stored with the account) | Algolia (school search, no user identity); Google Places | No | No | App Functionality |
-| Identifiers | User ID | Parent ID and account ID | Us; Stream (parent ID); Sentry (opaque account ID) | Yes | No | App Functionality |
+| Identifiers | User ID | Parent ID and account ID | Us; Stream (the account ID is the Stream user ID, plus the parent ID); Sentry (opaque account ID) | Yes | No | App Functionality |
 | Identifiers | Device ID | Random install ID (keyed hash on the server, phones list); push token; Analytics app instance ID (not linked) | Us; Firebase Messaging/APNs; Google Analytics | Yes (install ID, push token) | No | App Functionality; Analytics (instance ID) |
 | Purchases | — | Not collected (no in-app purchases) | | | | |
 | Usage Data | Product Interaction | Screens (route patterns) and features used, fixed words only; switch in Settings | Google Analytics | No | No | Analytics |
@@ -62,7 +62,7 @@ shared with data brokers.
 | --- | --- | --- | --- |
 | Firebase (Auth, Firestore, Storage, Functions, Messaging, App Check) | Both | Everything the app stores (our processor, europe-west1) | n/a |
 | Google Analytics for Firebase | App | Route patterns, fixed event names and words, app instance ID, IP (city) | User ID, names, numbers, IDs, coordinates, message text |
-| Stream Chat | App (token from our server) | Messages, chat photos, first name, parent ID, language | Phone, national ID, children's records |
+| Stream Chat | App (token from our server) | Messages, chat photos, account ID (used as the Stream user ID), first name, parent ID, language | Phone, national ID, children's records |
 | Algolia | App (search-only key) and server (index) | Typed school searches; the index holds school names and places | Anything about parents or children |
 | Sentry | App and server | Scrubbed error and crash reports, opaque account ID, feature tag | Phone, ID numbers, coordinates, images, message text |
 | WhatsApp (Meta) | Server only | Phone numbers, sign-in codes, alert texts (date and direction only) | Names of children, amounts, message text |

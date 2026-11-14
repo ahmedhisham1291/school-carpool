@@ -197,13 +197,13 @@ export function ipKey(hmacKey: string, ip: string): string {
   return `i_${hmacHex(hmacKey, `ip:${ip}`)}`;
 }
 
-/** Bound to the number's key, so a hash is useless for another number. */
 /** What config/reviewAccess holds for [phoneE164] and [code] (scripts/review_access.ts). */
 export function reviewAccessFor(hmacKey: string, phoneE164: string, code: string, expiresAtMs: number): ReviewAccess {
   const pKey = phoneKey(hmacKey, phoneE164);
   return { enabled: true, phoneKey: pKey, codeHash: codeHash(hmacKey, pKey, code), expiresAtMs };
 }
 
+/** Bound to the number's key, so a hash is useless for another number. */
 export function codeHash(hmacKey: string, phoneKeyValue: string, code: string): string {
   return hmacHex(hmacKey, `code:${phoneKeyValue}:${code}`);
 }

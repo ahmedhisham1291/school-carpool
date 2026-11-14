@@ -205,7 +205,7 @@ class FakeTripRepository implements TripRepository {
 }
 
 /// Keeps Firebase and the location plugin out of widget tests. Always the
-/// same three overrides (one ProviderScope shape per test).
+/// same five overrides (one ProviderScope shape per test).
 List<Override> tripOverrides({TripRepository? trips, LocationTracker? tracker, DrivingReadiness? readiness, RecoveryNative? recovery}) => <Override>[
   tripRepositoryProvider.overrideWithValue(trips ?? FakeTripRepository()),
   locationTrackerProvider.overrideWithValue(tracker ?? FakeLocationTracker()),
