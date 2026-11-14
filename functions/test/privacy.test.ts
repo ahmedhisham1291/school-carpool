@@ -1,5 +1,6 @@
 // Privacy and security hardening (Prompt 12). Fake data only. Run: npm test.
 import { strict as assert } from "node:assert";
+import { isRetained, participantsOf, planTripRetention, type AccountState } from "../src/privacy/trip_retention";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -610,7 +611,7 @@ describe("account deletion", () => {
     assert.ok(r.ran.includes("faceRefs/u1/"));
     assert.ok(r.ran.includes("selfieArchive/u1/"));
     assert.ok(r.ran.includes("verifications.uid"));
-    assert.ok(r.ran.includes("trips.driverUid"));
+    assert.ok(r.ran.includes("purge:trips"));
     assert.ok(r.ran.includes("users/u1/consents"));
     assert.ok(r.ran.includes("purge:stream"));
     assert.equal(r.closedMap.get("u1")?.purgedAtMs, later);
@@ -622,7 +623,7 @@ describe("account deletion", () => {
     assert.equal((await continueDeletion(r, c, NOW + 364 * DAY_MS, () => undefined)).purged, false);
     assert.deepEqual(r.ran, []);
     assert.equal(immediateSteps().length, IMMEDIATE_TARGETS.length + 8);
-    assert.equal(purgeSteps().length, PURGE_TARGETS.length + 2);
+    assert.equal(purgeSteps().length, PURGE_TARGETS.length + 3);
   });
 });
 
@@ -740,6 +741,9 @@ class MemoryRetention implements RetentionStore {
     this.purgedCarpoolsBefore.push(before);
     return 2;
   }
+  async deleteOrphanTrips() {
+    return 1;
+  }
   async endedChatsBefore() {
     return this.chats;
   }
@@ -796,6 +800,7 @@ describe("retention job", () => {
     assert.deepEqual(report.tasks.exports, { deleted: 4, failed: 0 });
     assert.deepEqual(store.frozen, ["cp_carpool:c-k9"], "a closed carpool's chat is frozen and its year starts");
     assert.deepEqual(report.tasks.closedCarpools, { deleted: 2, failed: 0 });
+    assert.deepEqual(report.tasks.orphanTrips, { deleted: 1, failed: 0 });
     assert.deepEqual(store.purgedCarpoolsBefore, [NOW - 365 * DAY_MS], "closed carpools go 1 year after they closed");
     assert.deepEqual(report.failures.sort(), ["chat:private:b", "routeArchives"]);
     assert.equal(store.runs.length, 1);
@@ -867,5 +872,73 @@ describe("kept photos", () => {
     files.delete(photo);
     assert.equal(await dropThumb(bucket, photo), true);
     assert.ok(!files.has(thumb));
+  });
+});
+
+// --------------------------------------------------------------------------
+// Trips per parent (owner answer 14 Nov 2026, 13:29)
+// --------------------------------------------------------------------------
+
+describe("privacy: trips kept per parent, active + 1 year", () => {
+  const YEAR = 365 * DAY_MS;
+  const trip = () => ({
+    driverUid: "d1",
+    driverFirstName: "Dina",
+    viewerUids: ["d1", "p1", "p2"],
+    childIds: ["c1", "c2"],
+    stops: [
+      { childId: "c1", firstName: "Adam", parentUid: "p1", handover: [{ name: "Gran" }] },
+      { childId: "c2", firstName: "Laila", parentUid: "p2", handover: [] },
+    ],
+  });
+  const active: AccountState = { active: true };
+  const closed = (ago: number): AccountState => ({ active: false, closedAtMs: NOW - ago });
+
+  it("participants are the driver and the parents on the trip, never 'deleted'", () => {
+    assert.deepEqual(participantsOf(trip()).sort(), ["d1", "p1", "p2"]);
+    assert.deepEqual(participantsOf({ driverUid: "deleted", stops: [{ parentUid: "deleted" }] }), []);
+  });
+
+  it("kept while anyone is active or closed less than a year ago", () => {
+    assert.equal(isRetained(active, NOW), true);
+    assert.equal(isRetained(closed(YEAR - 1), NOW), true);
+    assert.equal(isRetained(closed(YEAR + 1), NOW), false);
+    assert.equal(isRetained(undefined, NOW), false);
+    assert.equal(isRetained({ active: false, closedAtMs: null }, NOW), false);
+    const states = new Map<string, AccountState>([["d1", closed(2 * YEAR)], ["p1", closed(2 * YEAR)], ["p2", active]]);
+    const plan = planTripRetention(trip(), states, NOW);
+    assert.equal(plan.action, "keep");
+  });
+
+  it("a closed carpool's trip is not deleted while one parent is still active; the expired parts become initials", () => {
+    const states = new Map<string, AccountState>([["d1", closed(2 * YEAR)], ["p1", closed(YEAR + DAY_MS)], ["p2", active]]);
+    const plan = planTripRetention(trip(), states, NOW);
+    assert.equal(plan.action, "keep");
+    if (plan.action !== "keep" || !plan.change) throw new Error("expected a change");
+    assert.equal(plan.change.driverUid, "deleted");
+    assert.equal(plan.change.driverFirstName, "D.");
+    assert.deepEqual(plan.change.viewerUids, ["p2"]);
+    const stops = plan.change.stops as Array<Record<string, unknown>>;
+    assert.deepEqual(stops[0], { childId: "deleted", firstName: "A.", parentUid: "deleted", handover: [] });
+    assert.equal(stops[1].firstName, "Laila", "the active parent's child keeps the name");
+  });
+
+  it("everyone active: nothing changes", () => {
+    const states = new Map<string, AccountState>([["d1", active], ["p1", active], ["p2", active]]);
+    assert.deepEqual(planTripRetention(trip(), states, NOW), { action: "keep", change: null });
+  });
+
+  it("deleted when every participant's year is over (or there is no record)", () => {
+    const states = new Map<string, AccountState>([["d1", closed(YEAR + 1)], ["p1", closed(2 * YEAR)]]);
+    assert.deepEqual(planTripRetention(trip(), states, NOW), { action: "delete" });
+    assert.deepEqual(planTripRetention({ driverUid: "deleted", stops: [] }, new Map(), NOW), { action: "delete" });
+  });
+
+  it("the account purge (exactly at the year): the driver's trips stay for active parents, go when nobody is left", () => {
+    const states = new Map<string, AccountState>([["d1", closed(YEAR)], ["p1", active]]);
+    const kept = planTripRetention(trip(), states, NOW, new Set(["d1"]));
+    assert.equal(kept.action, "keep");
+    const alone = { ...trip(), stops: [{ childId: "deleted", firstName: "A.", parentUid: "deleted", handover: [] }] };
+    assert.deepEqual(planTripRetention(alone, states, NOW, new Set(["d1"])), { action: "delete" });
   });
 });

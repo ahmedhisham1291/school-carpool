@@ -24,9 +24,16 @@ export interface RetentionStore {
   /**
    * Carpools closed before [before]: the card with every subcollection
    * (members, requests, pickup points, runs, swaps, balances,
-   * emergencies), its memberships, invites and trips. Returns how many.
+   * emergencies), its memberships and invites. Its trips are NOT deleted
+   * as a whole (owner answer 14 Nov 2026 13:29): each stays while a
+   * participant is active + 1 year (trip_retention.ts). Returns how many.
    */
   purgeClosedCarpoolsBefore(before: number, limit: number): Promise<number>;
+  /**
+   * Trips whose driver's part was anonymised and that have no
+   * participant left (every parent deleted): deleted. Returns how many.
+   */
+  deleteOrphanTrips(nowMs: number, limit: number): Promise<number>;
   /** Chats that ended before [before]: IDs ("type:id"). */
   endedChatsBefore(before: number, limit: number): Promise<string[]>;
   deleteChatRecord(cid: string): Promise<void>;
@@ -102,6 +109,7 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
   await task("closedCarpoolChats", async () => ({ deleted: await deps.store.endClosedCarpoolChats(nowMs, PAGE, (cid) => deps.freezeChannel(cid)), failed: 0 }));
 
   await task("closedCarpools", async () => ({ deleted: await deps.store.purgeClosedCarpoolsBefore(cutoff(nowMs, CLOSED_CARPOOL_DAYS), 50), failed: 0 }));
+  await task("orphanTrips", async () => ({ deleted: await deps.store.deleteOrphanTrips(nowMs, PAGE), failed: 0 }));
 
   // Chat: life of the chat + 1 year (owner decision; was 180 days).
   await task("chats", async () => {
