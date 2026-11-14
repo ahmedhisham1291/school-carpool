@@ -11,7 +11,10 @@ import { DAY_MS, YEAR_DAYS } from "./retention";
  * - the part of a participant whose year is over is anonymised (their
  *   children's stops were already reduced to initials at deletion; the
  *   driver's uid becomes "deleted" and the name an initial);
- * - it is deleted when every participant's year is over.
+ * - it is deleted when every participant's year is over. A parent whose
+ *   part was anonymised at deletion (uid "deleted") still counts: the
+ *   deletion stores `keptUntilMs` (closure + 1 year) on the trip, and the
+ *   trip is not deleted before it (review finding 2).
  * Used by the closed-carpool purge and the account purge (1 year after
  * closure). Plain data in, plain data out.
  */
@@ -52,7 +55,8 @@ export type TripPlan = { action: "keep"; change: Data | null } | { action: "dele
 export function planTripRetention(trip: Data, states: ReadonlyMap<string, AccountState>, nowMs: number, expired: ReadonlySet<string> = new Set()): TripPlan {
   const people = participantsOf(trip);
   const over = people.filter((u) => expired.has(u) || !isRetained(states.get(u), nowMs));
-  if (over.length === people.length) return { action: "delete" };
+  const keptUntil = typeof trip.keptUntilMs === "number" ? trip.keptUntilMs : 0;
+  if (over.length === people.length && keptUntil <= nowMs) return { action: "delete" };
   let current: Data = { ...trip };
   const change: Data = {};
   for (const uid of over) {
@@ -65,5 +69,19 @@ export function planTripRetention(trip: Data, states: ReadonlyMap<string, Accoun
     Object.assign(change, c);
     current = { ...current, ...c };
   }
+  // A closed parent's year that is over no longer holds the trip: cleared,
+  // so the daily orphan query (keptUntilMs <= now) does not read it again.
+  if (keptUntil > 0 && keptUntil <= nowMs) change.keptUntilMs = null;
   return { action: "keep", change: Object.keys(change).length > 0 ? change : null };
+}
+
+/**
+ * At account deletion: the change anonymiseTrip made for [uid] also
+ * records that this parent's year runs until [closedAtMs] + 1 year, so the
+ * trip is not deleted before (null when nothing changed).
+ */
+export function keepForClosedParent(trip: Data, change: Data | null, closedAtMs: number): Data | null {
+  if (!change) return null;
+  const before = typeof trip.keptUntilMs === "number" ? trip.keptUntilMs : 0;
+  return { ...change, keptUntilMs: Math.max(before, closedAtMs + TRIP_KEEP_AFTER_CLOSE_MS) };
 }

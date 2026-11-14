@@ -1,6 +1,6 @@
 // Privacy and security hardening (Prompt 12). Fake data only. Run: npm test.
 import { strict as assert } from "node:assert";
-import { isRetained, participantsOf, planTripRetention, type AccountState } from "../src/privacy/trip_retention";
+import { isRetained, keepForClosedParent, participantsOf, planTripRetention, type AccountState } from "../src/privacy/trip_retention";
 import { adminDecideDeviceCheck } from "../src/privacy/devices";
 import { accessReason as accessReasonOf } from "../src/privacy/photos";
 import { readFileSync } from "node:fs";
@@ -934,6 +934,30 @@ describe("privacy: trips kept per parent, active + 1 year", () => {
     const states = new Map<string, AccountState>([["d1", closed(YEAR + 1)], ["p1", closed(2 * YEAR)]]);
     assert.deepEqual(planTripRetention(trip(), states, NOW), { action: "delete" });
     assert.deepEqual(planTripRetention({ driverUid: "deleted", stops: [] }, new Map(), NOW), { action: "delete" });
+  });
+
+  it("a parent anonymised at deletion still counts until their closure + 1 year (review finding 2)", () => {
+    // p1 deleted the account 2 months ago: their stop became "deleted" and the trip got keptUntilMs.
+    const anonymised = { ...trip(), stops: [{ childId: "deleted", firstName: "A.", parentUid: "deleted", handover: [] }, trip().stops[1]] };
+    const change = keepForClosedParent(anonymised, { stops: anonymised.stops }, NOW - 60 * DAY_MS);
+    assert.equal(change?.keptUntilMs, NOW - 60 * DAY_MS + YEAR);
+    const withKeep = { ...anonymised, ...change };
+    // The driver's year is over and p2 closed long ago: still kept for p1's year.
+    const states = new Map<string, AccountState>([["d1", closed(YEAR + DAY_MS)], ["p2", closed(2 * YEAR)]]);
+    assert.equal(planTripRetention(withKeep, states, NOW).action, "keep");
+    assert.equal(planTripRetention(withKeep, states, NOW - 60 * DAY_MS + YEAR + 1).action, "delete");
+    // An orphan (nobody left by uid) waits for keptUntilMs too.
+    const orphan = { driverUid: "deleted", stops: [], keptUntilMs: NOW + DAY_MS };
+    assert.equal(planTripRetention(orphan, new Map(), NOW).action, "keep");
+    assert.deepEqual(planTripRetention(orphan, new Map(), NOW + 2 * DAY_MS), { action: "delete" });
+    // A later deletion never shortens the time.
+    assert.equal(keepForClosedParent({ keptUntilMs: NOW + 5 * YEAR }, { stops: [] }, NOW)?.keptUntilMs, NOW + 5 * YEAR);
+    assert.equal(keepForClosedParent({}, null, NOW), null);
+  });
+
+  it("a passed keptUntilMs is cleared on a trip kept for active parents", () => {
+    const states = new Map<string, AccountState>([["d1", active], ["p1", active], ["p2", active]]);
+    assert.deepEqual(planTripRetention({ ...trip(), keptUntilMs: NOW - 1 }, states, NOW), { action: "keep", change: { keptUntilMs: null } });
   });
 
   it("the account purge (exactly at the year): the driver's trips stay for active parents, go when nobody is left", () => {
