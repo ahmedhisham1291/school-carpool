@@ -4,8 +4,9 @@ Branch: `prompt-07-schedule` (from `prompt-06-carpools`, which is under
 review, on top of `main` with Prompts 1 to 5). Date: 14 Nov 2026. The
 coordinator gave "go" on the owner's behalf.
 
-**Status: code complete. Functions unit tests were run here (320 pass, 46
-of them new; Prompt 6 fixes merged). The Flutter code, the widget, logic, one-line and screenshot
+**Status: code complete, review fixes done (see "Review fixes" below).
+Functions unit tests were run here (328 pass, 54 of them new; Prompt 6
+fixes merged). The Flutter code, the widget, logic, one-line and screenshot
 tests and the rules tests were written, not run here** (no Flutter SDK or
 npm registry in this workspace). Expect small analyzer fixes on the first
 CI run.
@@ -62,11 +63,12 @@ Indexes: collection group `schedule` (status, confirmBy) and (status, startAt).
   `checkArrangement`: valid approved car, enough passenger seats, every
   parent's consent). Members who chose that weekday come first; a day
   nobody chose goes to every eligible member (Flow B, "the app proposes the
-  remaining days"; marked `fallback`). The family furthest behind its fair
-  share wins: fair share = runs driven (term balance plus this week) in
-  proportion to the number of children each family brings, so uneven
-  numbers of children are fair (1 and 2 children share 10 runs about 3 and
-  7). Ties: fewer runs that day, then uid. Confirmed runs are kept;
+  remaining days"; marked `fallback`). The family with the largest deficit
+  (fair share - runs driven) wins. Shares are built run by run for the
+  families eligible for each run, in proportion to their children (see
+  "Review fixes"), so uneven numbers of children are fair (1 and 2
+  children: about 1:2), late joiners owe nothing for the past and families
+  that cannot drive take no share. Ties: fewer runs that day, then uid. Confirmed runs are kept;
   planning again fills open runs and refreshes riders.
 - **Driving days (F7):** carpool days only; choosing any needs
   `driverStatus().canDrive` (car, seats, every parent's consent), so a
@@ -125,9 +127,10 @@ Indexes: collection group `schedule` (status, confirmBy) and (status, startAt).
 1. **Cut-off: 21:00 the evening before** (one setting per project), so
    "no driver for tomorrow" is known the night before. Late plans and
    morning swaps get one hour before the run.
-2. **A confirmed driver stays confirmed when only the time changes**
-   (Ramadan, early dismissal); the group gets a `schedule-changed` event and
-   the driver can ask for a swap.
+2. **A time change asks a confirmed driver to confirm again** (Ramadan,
+   early dismissal), with the confirm-by time moved before the new start;
+   with less than an hour left the driver stays confirmed and gets a
+   critical notice. (Changed after review.)
 3. **New members ride from the next plan:** riders are refreshed when the
    admin plans again (confirmed runs keep their list), because each driver
    needs the new parent's consent first.
@@ -180,11 +183,65 @@ Indexes: collection group `schedule` (status, confirmBy) and (status, startAt).
 | Test | Status |
 | --- | --- |
 | `functions/test/schedule.test.ts` (43): Cairo offsets and conversions across the April and October 2026 changes, deadlines on the evening before (DST), late deadlines, weeks and terms; exceptions (no school beats times, Ramadan range with a later early dismissal, no new runs); rotation (one proposed driver per run, never confirmed; 5/5; **uneven children 1 and 2**; **odd 4/3/3**; term balance; driving days and fallback; consent, seats and car; open runs; exceptions; kept confirmed runs; past runs); flows: driving days need consent, admin-only and plannable weeks, plan with riders and deadlines, re-plan keeps confirmed, confirm only by the driver and before the cut-off, consent withdrawal releases runs, missed runs alert everyone and assign nobody (idempotent), balance counted once, swap request and accept (events, suggested order), **two accepts at once**, seats and consent re-checked on take, take back, swap expiry, late swap deadline, child absent and back, started runs locked, holiday cancel and reopen, Ramadan times keep drivers, exception input checks, leaving releases runs, the Done-when flow | **Run here: pass** |
-| All Functions unit tests | **Run here: 320 pass** (Node 22, `tsc` against stand-in type stubs as in earlier prompts; only the known stub gaps remain) |
+| All Functions unit tests | **Run here: 328 pass** (Node 22, `tsc` against stand-in type stubs as in earlier prompts; only the known stub gaps remain) |
 | `tests/rules/schedule.test.ts`; `deny_all.test.ts` paths | Written, not run here (CI); type-checked against a stub |
 | `test/schedule/schedule_logic_test.dart`: dates, run actions, grouping, own children, balance with uneven children, exception checks, parsing, server refusals | Written, not run here |
 | `test/schedule/schedule_screens_test.dart`: week plan (statuses, to confirm, next week empty, admin plans), confirm, can't drive (asks first), take a swap (asks first), refusal inline, take back, no action on others' runs, missed run; child absent and back; driving days with refusal; offline and error; days off (member read-only, holiday in two steps, Ramadan times need a time, remove asks first); balance (badge, zero state); detail link; **one line at 320 dp in AR and EN at x1 and x2** for titles, buttons, chips, sections, badges, run rows and the absent switch, and every schedule label | Written, not run here |
 | Screenshots `schedule_week`, `schedule_exceptions`, `schedule_balance` (AR/EN, light/dark) | Written, not run here (CI artifact) |
+
+## Review fixes (docs/reviews/prompt-07-review.md)
+
+- **Blocking 1 (Android CI timeout):** handled by the coordinator on `main`.
+- **Blocking 2 (time changes and confirm-by):** `retimeRun`
+  (`schedule/model.ts`), used by `reconcile`. Planned or open runs: the
+  confirm-by time becomes min(old, new start - 60 min); when that has
+  passed, the run is missed at once with the critical `no-driver` alert to
+  every member (and its open swap expires). A new start in the past: missed
+  at once, never counted as completed (non-blocking 7). A confirmed driver
+  is asked to confirm again (status planned, driver kept, new confirm-by;
+  `time-changed` event to the driver); with less than 60 minutes left the
+  driver stays confirmed and gets a critical `time-changed` notice
+  (non-blocking 1). Tests: early dismissal on the day (missed and
+  alerted), deadline moved before the new start, re-confirm.
+- **Blocking 3 (fairness):** `balances/{term}.families[uid].share` is
+  built run by run: each completed run adds children / children of the
+  eligible families to every family eligible for it (approved member then,
+  a child on the run, able to drive it: car on the run date, seats,
+  consent, account). The rotation proposes by deficit = share - driven
+  (accrued the same way for this week's runs and for the other plannable
+  weeks' planned and confirmed runs), ties by runs that day, then uid.
+  Tests (simulated weeks with real `proposeWeek` and balance updates): a
+  family joining in week 5 drives 3 or 4 of 10 runs a week and a third
+  overall from then on; 1 child vs 2 children with a 3-child family that
+  cannot drive gives 67:133 over 20 weeks (1:2); planning three weeks
+  ahead on one day gives 10/10/10. The app orders the balance by driven -
+  share and gives "Drove least" only to a driving family.
+- **Non-blocking done:** 1 (re-confirm and per-run notice), 2 (other
+  weeks count), 4 (car validity on the run date in plan, confirm, take,
+  take back, swap suggestions, child back, balance), 6 (plan uses
+  `termOf(weekStart)`), 7 (moved into the past = missed), 9 (the tick
+  logs a warning when a page of 200 is full).
+- **Non-blocking still open (later prompts or the owner):**
+  - 3: a new member's children block runs until their parent accepts the
+    drivers (safe, harsh). Option: leave them off the pickup list with
+    "Waiting for consent", or tell the admin why runs are open. Owner
+    question 6 below.
+  - 5: confirmed runs are not released when a car expires or an account
+    is suspended (confirm and take re-check; the plan drops them). Belongs
+    with the urgent-report pause (Prompt 11 or 12).
+  - 8: one leave or consent withdrawal can write many events; Prompt 8's
+    sender should group them by carpool and recipient.
+  - 10: the data model moved from spec section 9's top-level "Schedule
+    entry" (planned, swapped, completed, missed) to
+    `carpools/{id}/schedule` with `confirmed`, `open`, `cancelled` and a
+    `swapped` flag. Owner question 7 below (record in DECISIONS.md or
+    update section 9). `deny_all.test.ts` keeps `scheduleEntries/e1` as a
+    closed path.
+  - 11: from the Prompt 6 review, `carpool.seats` is never lowered when a
+    car loses seats (runs always check the current car); `searchCarpools`
+    with `parentUid` and membership limits outside the transaction remain.
+  - 12: times use the phone's time zone; label "Cairo time" if parents
+    travel.
 
 ## Learned from earlier reviews
 
@@ -205,14 +262,19 @@ Indexes: collection group `schedule` (status, confirmBy) and (status, startAt).
 
 1. **Cut-off:** 21:00 the evening before, and one hour before the run for
    late changes. OK?
-2. **Time changes keep the confirmed driver** (with a notice). Or should
-   the driver confirm again?
+2. **Time changes ask the driver to confirm again** (review fix; with
+   less than an hour left the driver stays confirmed and is told). OK?
 3. **Who plans:** only the group admin plans the week. Should the plan
    happen automatically each Thursday instead (or as well)?
 4. **Fair share by number of children** (a family with two children drives
    twice as often). OK, or one share per family?
 5. **Terms:** September to January and February to August. Do your
    schools use other dates?
+6. **New members before consent:** keep their children on every run
+   (runs stay open until they accept the drivers), or leave them off the
+   pickup list with "Waiting for consent"?
+7. **Data model:** OK to record the schedule's per-carpool records and
+   statuses (above) as a decision and update spec section 9?
 
 ## Not done / known gaps
 
