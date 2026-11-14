@@ -172,6 +172,20 @@ focused and hovered controls get a veil of their label color at
   pill, "99+" at most). The Chats tab reuses `AppListRow`; requests use
   `AppCard` with a secondary Accept and a text Decline (several can wait,
   so no filled button); report reasons are `AppChip`s.
+- **Wallet** (Prompt 11B, in the gallery under "Wallet"):
+  `AppInitialAvatar` (a round letter avatar on the accent wash, 48 in rows
+  and 64 on confirmation cards; parents have no profile photo yet) and
+  `AppAmount` (an amount with its currency on one line: large for the
+  balance and the review, regular in rows; money in has a plus sign and
+  the success color, a failed amount is quiet and struck through; color is
+  never the only signal). Wallet pieces in
+  `lib/features/wallet/wallet_widgets.dart`: `BalanceCard`, `TransferRow`
+  (who or what, when and the note, the amount, a status badge unless done),
+  `ReceiverCard` (avatar, first name, Verified badge) and
+  `MoneyOutcomeView` (done, pending with Check again, failed with "nothing
+  left your wallet"). Amounts are typed in a field with the currency as a
+  prefix, digits left to right. Send money is the one primary action of the
+  wallet; Add money and Withdraw are outlined.
 - New component: add it to the gallery first, then use it.
 
 ## One-line wording

@@ -157,16 +157,24 @@ export async function adminSetWalletFrozen(
   if (!w) throw new WalletError("no-wallet");
   const nowMs = deps.now();
   if (frozen) {
+    // Our side first: from now on no money leaves or arrives through us,
+    // whatever the partner answers.
     await deps.store.updateWallet(uid, { status: "frozen", frozenReason: raw.reasonCode, frozenAtMs: nowMs, frozenBy: caller.uid, updatedAtMs: nowMs }, note);
-  }
-  if (!deps.provider) throw new WalletError("wallet-off");
-  try {
-    await withTimeout(deps.provider.freeze(w.walletRef, frozen), PARTNER_TIMEOUT_MS);
-  } catch {
-    // Frozen on our side already; unfreezing waits for the partner.
-    if (!frozen) throw new WalletError("wallet-unavailable");
-  }
-  if (!frozen) {
+    if (deps.provider) {
+      try {
+        await withTimeout(deps.provider.freeze(w.walletRef, true), PARTNER_TIMEOUT_MS);
+      } catch {
+        // Frozen on our side; the partner is asked again on the next freeze.
+      }
+    }
+  } else {
+    // Unfreezing needs the partner's answer first.
+    if (!deps.provider) throw new WalletError("wallet-off");
+    try {
+      await withTimeout(deps.provider.freeze(w.walletRef, false), PARTNER_TIMEOUT_MS);
+    } catch {
+      throw new WalletError("wallet-unavailable");
+    }
     await deps.store.updateWallet(uid, { status: "active", frozenReason: null, frozenAtMs: null, frozenBy: null, updatedAtMs: nowMs }, note);
   }
   await deps.audit({

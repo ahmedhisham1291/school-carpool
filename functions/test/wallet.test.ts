@@ -612,6 +612,18 @@ describe("admin panel", () => {
     assert.deepEqual(exported.sort(), ["adminGetWallet", "adminListTransfers", "adminListWalletAlerts", "adminResolveWalletAlert", "adminSetWalletFrozen"]);
   });
 
+  it("freezing works even when the partner is off (our side is enough); unfreezing needs the partner", async () => {
+    const w = world();
+    await twoParents(w);
+    const { deps, audit } = adminWorld(w);
+    const off = { ...deps, provider: null };
+    await adminSetWalletFrozen(off, admin, { uid: "ali", frozen: true, reasonCode: "stolenPhone" }, null);
+    assert.equal((await w.store.wallet("ali"))?.status, "frozen");
+    assert.equal(audit.at(-1)?.action, "wallet.freeze");
+    await assert.rejects(adminSetWalletFrozen(off, admin, { uid: "ali", frozen: false, reasonCode: "other" }, null), (e: unknown) => e instanceof WalletError && e.reason === "wallet-off");
+    assert.equal((await w.store.wallet("ali"))?.status, "frozen");
+  });
+
   it("resolves an alert, logged", async () => {
     const w = world();
     await twoParents(w);
