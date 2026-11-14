@@ -78,7 +78,8 @@ periods with the lawyer** (as the legal section above requires for longer retent
   flutter_background_geolocation licence (USD 400) is deferred to the Android stage or to the
   pilot if tracking proves unreliable. Switching back is a one-file change.
 - **Permission:** "While Using the App" + Precise Location, background location mode on, blue
-  indicator shown. We do not ask for "Always".
+  indicator shown. We do not ask for "Always". (Updated 13:44: "Always" is offered once to drivers as an
+  OPTIONAL step for run recovery; the gate never requires it. See below.)
 - **Gate (owner chose option 1):** a driver cannot start a run without Location Services on,
   app permission granted and Precise Location on (plus notifications). A full-screen blocking
   sheet shows the steps (Arabic and English) and an "Open Settings" button, and re-checks on
@@ -118,3 +119,30 @@ periods with the lawyer** (as the legal section above requires for longer retent
    account has been closed for more than 1 year.
 3. **Chat connection up to 60 minutes after sign-out** (Stream token lifetime): accepted for
    now, not a bug (docs/open-items.md).
+
+## Owner answers (14 Nov 2026, 13:44): run recovery on iPhone
+
+The driver's location must keep reaching parents when the driver switches
+apps, takes a phone call, or iOS closes the app (memory, swipe away). No
+paid plugin, no new third-party dependency.
+
+- **Switching apps, calls, lock screen:** covered by the geolocator settings
+  (background updates, `location` background mode, no auto pause, blue
+  indicator); nothing in the app stops tracking on inactive/hidden/paused.
+- **App closed by iOS:** our own small plugin `packages/run_recovery` (Swift,
+  path dependency): during a run a background activity session (iOS 17+),
+  a service session (iOS 18+) and, with "Always", significant location
+  change monitoring so iOS relaunches the app in the background. At start
+  the app reads a local run marker (IDs and start time only), checks the
+  run on the server, resumes tracking if it is still on and younger than
+  3 hours, sends the points waiting on the phone and shows "Tracking
+  resumed". The marker is cleared at the end of the run and on sign-out.
+- **Permission (updates the 13:05 decision):** the gate still requires only
+  "While Using the App" + Precise Location (+ notifications). Drivers get
+  ONE optional screen, once per install, offering "Always" so runs resume
+  by themselves; declining changes nothing else (the "keep the app open"
+  hint stays). Analytics record only whether Always was granted.
+- **Fallback:** the server's 2-minute "Run still on" push to the driver and
+  the parents' "location stopped" alert stay.
+- **Verification:** relaunch behaviour can only be checked on a real iPhone
+  (docs/test-iphone.md section 7).
