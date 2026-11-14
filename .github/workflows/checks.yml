@@ -14,6 +14,8 @@ name: checks
 # - feature branches run analyze, tests and the backend tests only;
 # - screenshots and the web/admin/Android builds run on main, on tags,
 #   or when started by hand (Actions > checks > Run workflow, full=true).
+# - update_locks=true (by hand, on a work branch) runs only the "locks" job,
+#   which writes and commits the package lock files; no checks run then.
 on:
   # Owner (14 Nov 2026): no paid Actions minutes. Pushes run checks only on
   # main; feature branches run only when started by hand
@@ -29,6 +31,17 @@ on:
         description: "Also run screenshots and the web/admin/Android builds"
         type: boolean
         default: false
+      # Package versions are locked (docs/WORKFLOW.md "Package versions").
+      # update_locks=true runs ONLY the "locks" job: it writes the lock files
+      # and commits them to the branch the run was started on. Never on main.
+      update_locks:
+        description: "Only write and commit the lock files to this branch (no checks)"
+        type: boolean
+        default: false
+      upgrade_packages:
+        description: "With update_locks: also move every package to the newest version the manifests allow"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -39,11 +52,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # Keep equal to `flutter:` in codemagic.yaml: pubspec.lock is made with this
+  # version (docs/WORKFLOW.md, "Package versions").
   FLUTTER_VERSION: "3.50.0"
 
 jobs:
   flutter:
     name: Flutter analyze, tests and screenshots
+    if: ${{ !inputs.update_locks }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -80,7 +96,7 @@ jobs:
 
   builds:
     name: Web, admin panel and Android compile (staging)
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.full
+    if: ${{ !inputs.update_locks && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.full) }}
     runs-on: ubuntu-latest
     # Android release builds take 15-25 minutes on a cold runner.
     timeout-minutes: 45
@@ -94,6 +110,7 @@ jobs:
           cache: gradle
           cache-dependency-path: |
             pubspec.yaml
+            pubspec.lock
             tool/patch_native.py
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
@@ -120,6 +137,7 @@ jobs:
 
   backend:
     name: Cloud Functions tests and rules tests (emulators)
+    if: ${{ !inputs.update_locks }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -141,7 +159,14 @@ jobs:
           restore-keys: npm-${{ runner.os }}-
       - name: Cloud Functions build and unit tests
         run: |
-          npm install --prefix functions --no-audit --no-fund
+          # Exactly the locked versions once functions/package-lock.json is
+          # committed (the "locks" job); plain install until then.
+          if [ -f functions/package-lock.json ]; then
+            npm ci --prefix functions --no-audit --no-fund
+          else
+            echo "::warning::functions/package-lock.json is not committed yet: versions are not locked (run the locks job)."
+            npm install --prefix functions --no-audit --no-fund
+          fi
           npm test --prefix functions
       - name: Cloud Functions tests on the emulators (user record, parent ID)
         run: |
@@ -160,7 +185,12 @@ jobs:
           grep -q "new: 0, changed: 0" /tmp/second_load.txt
       - name: Firestore and Storage rules tests on the emulators
         run: |
-          npm install --prefix tests/rules --no-audit --no-fund
+          if [ -f tests/rules/package-lock.json ]; then
+            npm ci --prefix tests/rules --no-audit --no-fund
+          else
+            echo "::warning::tests/rules/package-lock.json is not committed yet: versions are not locked (run the locks job)."
+            npm install --prefix tests/rules --no-audit --no-fund
+          fi
           npx --yes firebase-tools@15 emulators:exec --only firestore,storage \
             --project demo-school-carpool "npm --prefix tests/rules test"
 
@@ -170,3 +200,73 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+
+  # Manual only: writes the lock files and commits them to the branch the
+  # run was started on (docs/WORKFLOW.md "Package versions"). This cloud
+  # workspace has no pub.dev or npm access, so the files are made here.
+  #   gh workflow run checks.yml --ref <branch> -f update_locks=true
+  # A push made with the workflow token starts no other workflow, so start
+  # the checks on the branch by hand afterwards.
+  locks:
+    name: Write and commit the package lock files (manual)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_locks }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      BRANCH: ${{ github.ref_name }}
+      REF_TYPE: ${{ github.ref_type }}
+      UPGRADE: ${{ inputs.upgrade_packages }}
+    steps:
+      - name: Only on a work branch
+        run: |
+          if [ "$REF_TYPE" != "branch" ] || [ "$BRANCH" = "main" ]; then
+            echo "::error::Start this job on a work branch (not main, not a tag); review the lock file diff, then merge."
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "22"
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Start from scratch (upgrade_packages only)
+        if: ${{ inputs.upgrade_packages }}
+        run: |
+          rm -f pubspec.lock packages/run_recovery/pubspec.lock \
+            functions/package-lock.json tests/rules/package-lock.json
+      - name: Dart and Flutter packages (pubspec.lock)
+        run: |
+          # Keeps the versions already in a lock file; adds what is missing.
+          # Native folders are not needed to resolve packages.
+          flutter pub get
+          (cd packages/run_recovery && flutter pub get)
+      - name: Node packages (package-lock.json)
+        run: |
+          # No node_modules here, so the lock lists the optional packages of
+          # every platform (sharp: Linux for Cloud Functions, macOS for a Mac).
+          (cd functions && npm install --package-lock-only --no-audit --no-fund)
+          (cd tests/rules && npm install --package-lock-only --no-audit --no-fund)
+      - name: Commit and push the lock files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pubspec.lock packages/run_recovery/pubspec.lock \
+            functions/package-lock.json tests/rules/package-lock.json
+          if git diff --cached --quiet; then
+            echo "The lock files already match the manifests. Nothing to commit."
+            exit 0
+          fi
+          git diff --cached --stat
+          if [ "$UPGRADE" = "true" ]; then
+            MESSAGE="Packages: upgrade to the newest allowed versions (lock files)"
+          else
+            MESSAGE="Packages: write the lock files (pubspec.lock, package-lock.json)"
+          fi
+          git commit -m "$MESSAGE" \
+            -m "Made by the locks job of checks.yml with Flutter ${FLUTTER_VERSION} and Node 22. Review the diff, then run the checks on this branch."
+          git push origin "HEAD:refs/heads/${BRANCH}"

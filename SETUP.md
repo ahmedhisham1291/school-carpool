@@ -139,7 +139,7 @@ left. Guide: [docs/owner-cloud-shell.md](docs/owner-cloud-shell.md).
 10. **Deploy rules and functions** (dev first):
 
     ```sh
-    npm install --prefix functions
+    npm ci --prefix functions   # locked versions; `npm install` if there is no package-lock.json yet
     # put the functions Sentry DSN (step 6) in functions/.env.dev
     firebase deploy --only firestore:rules,firestore:indexes,storage,functions --project dev
     ```
@@ -221,12 +221,21 @@ daily backups **on in prod only**. Install the Google Cloud CLI (`gcloud`) and l
 
 1. The repository already has `.github/workflows/checks.yml`. On GitHub >
    the repository > **Actions**, allow workflows if GitHub asks.
-2. Every push runs three jobs: Flutter (analyze, tests, screenshots),
+2. A push to `main` runs three jobs: Flutter (analyze, tests, screenshots),
    web/Android compile, and backend (Functions tests, rules tests on the
    emulators). A green check mark next to the commit means all passed.
+   Other branches are checked only when started by hand (Actions > checks >
+   **Run workflow**), to save minutes.
 3. **Screenshots without a Mac:** open a run > scroll to **Artifacts** >
    download **screenshots** (a zip of PNGs: tab shell and gallery in Arabic
    and English, light and dark, design A and B).
+4. **Package versions are locked.** The lock files (`pubspec.lock`,
+   `functions/package-lock.json`) are committed and every build installs
+   exactly those versions. They change only when someone starts the
+   workflow by hand with **update_locks** ticked on a work branch; the
+   steps are in docs/WORKFLOW.md, "Package versions".
+5. **Before the public launch the repository goes private again**, and
+   GitHub then counts the minutes: docs/launch-private-repo.md.
 
 ## 8. Codemagic (iPhone builds)
 

@@ -21,6 +21,10 @@
 #                         (Prompt 6, universal links), e.g. <project>-links.web.app.
 #                         Adds the Associated Domains entitlement; leave empty
 #                         until the App ID has that capability (SETUP.md 16).
+#   UPDATE_LOCK=1         Let `flutter pub get` change pubspec.lock. Only for a
+#                         developer who edited pubspec.yaml on purpose; CI and
+#                         release builds never set it (docs/WORKFLOW.md,
+#                         "Package versions").
 #
 # Native folders (ios/, android/, web/) are NOT committed: this script
 # recreates them, so every change we need in them lives in tool/ and is
@@ -84,10 +88,31 @@ EOF
 fi
 
 # 3. Packages and generated code -------------------------------------------
-"$FLUTTER" pub get
+# Package versions are locked (docs/WORKFLOW.md, "Package versions"). When
+# pubspec.lock is committed, install exactly what it lists and fail if
+# pubspec.yaml asks for something else; until the first lock commit (or with
+# UPDATE_LOCK=1) a plain pub get resolves the versions.
+pub_get() {
+  if [[ "${UPDATE_LOCK:-}" != "1" ]] && git ls-files --error-unmatch pubspec.lock >/dev/null 2>&1; then
+    echo "bootstrap: $(pwd): locked versions (pubspec.lock)"
+    "$FLUTTER" pub get --enforce-lockfile
+    # `flutter create` above runs its own pub get (it also writes the
+    # Podfile that patch_native.py needs), so check nothing rewrote the file.
+    if ! git diff --quiet -- pubspec.lock; then
+      echo "bootstrap: ERROR $(pwd)/pubspec.lock no longer matches the committed one." >&2
+      echo "bootstrap: pubspec.yaml and pubspec.lock disagree, or this Flutter differs from the one that made the lock." >&2
+      echo "bootstrap: see docs/WORKFLOW.md, \"Package versions\"." >&2
+      exit 1
+    fi
+  else
+    echo "bootstrap: WARNING $(pwd): versions are NOT locked (pubspec.lock not committed, or UPDATE_LOCK=1)"
+    "$FLUTTER" pub get
+  fi
+}
+pub_get
 # Prompt 13: our local plugin (packages/run_recovery) gets its own package
 # config, so `flutter analyze` at the root can resolve it too.
-(cd packages/run_recovery && "$FLUTTER" pub get)
+(cd packages/run_recovery && pub_get)
 "$FLUTTER" gen-l10n
 
 echo "bootstrap: done. Next: flutter run -t lib/main_${FLAVOR}.dart"
