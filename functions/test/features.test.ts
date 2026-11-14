@@ -1,4 +1,7 @@
 // Pilot feature switches (owner decision 14 Nov 2026). Fake data only. Run: npm test.
+// Loading the callable modules registers Storage triggers, which need a
+// bucket name; outside Firebase none is set.
+process.env.FIREBASE_CONFIG ??= JSON.stringify({ projectId: "demo-school-carpool", storageBucket: "demo-school-carpool.firebasestorage.app" });
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
