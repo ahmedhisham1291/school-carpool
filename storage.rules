@@ -61,6 +61,23 @@ service firebase.storage {
         && request.resource.contentType == 'image/jpeg';
     }
 
+    // Prompt 12: the fresh selfie after a sign-in from a new phone.
+    // Upload only, by its verified owner, one fixed name; the
+    // confirmNewDevice function matches it to the face reference and moves
+    // it to the selfie archive (Cloud Functions only). No reads.
+    // Everything else Prompt 12 adds is Cloud Functions only:
+    // selfieArchive/{uid}, thumbs/{uid}, exports/{uid} (the app gets a
+    // 1-hour signed link) and routeArchive/{year} (Coldline).
+    match /deviceChecks/{uid}/{name} {
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.verified == true
+        && name == 'selfie.jpg'
+        && request.resource.size > 0
+        && request.resource.size < 3 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

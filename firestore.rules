@@ -94,8 +94,20 @@ service cloud.firestore {
     // Functions (submitVerification, decideVerification, removeChild). A
     // parent reads only their own children; the app must query with
     // where('ownerUid', '==', uid).
+    //
+    // Prompt 12 (spec section 7): after a sign-in from a new phone, child
+    // data stays closed until the fresh selfie matched (newDeviceCheck on
+    // the parent's record, set and cleared only by Cloud Functions).
+    function deviceChecked() {
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return !exists(path)
+        || !get(path).data.keys().hasAny(['newDeviceCheck'])
+        || get(path).data.newDeviceCheck == null
+        || get(path).data.newDeviceCheck.required != true;
+    }
+
     match /children/{childId} {
-      allow get, list: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow get, list: if signedIn() && resource.data.ownerUid == request.auth.uid && deviceChecked();
     }
 
     // Prompt 3 (F2): the driver's car, one per parent for now. Written only
