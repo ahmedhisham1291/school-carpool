@@ -337,7 +337,7 @@ void main() {
     });
   });
 
-  group('chat list', () {
+  group('chat list', timeout: const Timeout(Duration(seconds: 60)), () {
     test('one listener on the rows, one head per school or area group, none on messages', () async {
       backend.rows[_carpool] = _row(unread: 1, extra: <String, Object?>{'lastAt': _t0});
       backend.rows[_school] = _row(kind: 'school', readSeq: 2);
@@ -398,7 +398,7 @@ void main() {
     });
   });
 
-  group('conversation', () {
+  group('conversation', timeout: const Timeout(Duration(seconds: 60)), () {
     const ChatRef carpool = ChatRef(ChatKind.carpool, 'c-k1');
     const ChatRef school = ChatRef(ChatKind.school, 's-nile');
 
@@ -562,32 +562,34 @@ void main() {
       expect(backend.calls.where((String x) => x.startsWith('markRead:')), hasLength(2));
     });
 
-    // testWidgets: its clock is fake, so the few-seconds timer runs at once.
-    testWidgets('school group: read up to the head\'s counter, without read marks, at most every few seconds', (WidgetTester tester) async {
-      DateTime now = _t0;
+    // Real, short timings (ChatTimings): no test here waits on seconds, and
+    // none runs under testWidgets' fake clock (awaiting a subscription's
+    // cancel there never completes).
+    test('school group: read up to the head\'s counter, without read marks, at most once per interval', () async {
       backend.rows[_school] = _row(kind: 'school', readSeq: 2);
       backend.heads[_school] = <String, Object?>{'nameAr': 'مدرسة', 'nameEn': 'School', 'memberCount': 80, 'seq': 5};
-      final FirestoreChatProvider p = FirestoreChatProvider(backend, clock: () => now);
+      final FirestoreChatProvider p = FirestoreChatProvider(backend, timings: const ChatTimings(groupMarkEvery: Duration(milliseconds: 600)));
+      addTearDown(p.disconnect);
       await p.connect(const ChatCredentials(provider: 'firestore', userId: 'me'), () async => '');
       final ChatConversation c = p.open(school);
       final StreamSubscription<List<ChatMessage>> sub = c.messages.listen((List<ChatMessage> _) {});
-      await tester.pump();
+      addTearDown(() async {
+        await sub.cancel();
+      });
+      await _settle();
       expect(backend.calls.where((String x) => x.startsWith('markRead:')), <String>['markRead:$_school:5:false']);
       expect(backend.calls.where((String x) => x.startsWith('listen:reads')), isEmpty);
-      // Three more messages in two seconds: one more write, later.
+      // Three more messages at once: one more write, after the interval.
       for (int seq = 6; seq <= 8; seq++) {
         backend.heads[_school] = <String, Object?>{...backend.heads[_school]!, 'seq': seq};
         backend.changed();
-        await tester.pump();
       }
+      await _settle();
       expect(backend.calls.where((String x) => x.startsWith('markRead:')), hasLength(1));
-      now = now.add(const Duration(seconds: 6));
-      await tester.pump(const Duration(seconds: 6));
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
       expect(backend.calls.where((String x) => x.startsWith('markRead:')).last, 'markRead:$_school:8:false');
       expect(backend.calls.where((String x) => x.startsWith('markRead:')), hasLength(2));
-      await sub.cancel();
-      await p.disconnect();
-    });
+    }, timeout: const Timeout(Duration(seconds: 30)));
 
     test('typing: at most one write every few seconds, cleared on send, never in a school group', () async {
       DateTime now = _t0;
@@ -610,40 +612,45 @@ void main() {
       expect(backend.calls.where((String x) => x == 'typing:true'), hasLength(2));
     });
 
-    testWidgets('the typing line shows another member\'s new typing time and goes away by itself', (WidgetTester tester) async {
-      DateTime now = _t0;
+    test('the typing line shows another member\'s new typing time and goes away by itself', () async {
       backend.rows[_carpool] = _row();
       backend.names['hoda'] = 'Hoda';
       // An old typing time from before we opened the chat is not "typing now".
       backend.reads[_carpool] = <String, Map<String, Object?>>{
         'hoda': <String, Object?>{'typingAt': _t0.subtract(const Duration(hours: 1))},
       };
-      final FirestoreChatProvider p = FirestoreChatProvider(backend, clock: () => now);
+      final FirestoreChatProvider p = FirestoreChatProvider(backend, timings: const ChatTimings(typingShown: Duration(milliseconds: 600)));
+      addTearDown(p.disconnect);
       await p.connect(const ChatCredentials(provider: 'firestore', userId: 'me'), () async => '');
       final ChatConversation c = p.open(carpool);
       final List<List<String>> typing = <List<String>>[];
       final StreamSubscription<List<String>> sub = c.typing.listen(typing.add);
-      await tester.pump();
+      addTearDown(() async {
+        await sub.cancel();
+      });
+      await _settle();
       expect(typing.last, isEmpty);
       backend.reads[_carpool]!['hoda'] = <String, Object?>{'typingAt': _t0.add(const Duration(seconds: 1))};
       backend.reads[_carpool]!['me'] = <String, Object?>{'typingAt': _t0.add(const Duration(seconds: 1))};
       backend.changed();
-      await tester.pump();
+      await _settle();
       expect(typing.last, <String>['Hoda']);
-      now = now.add(const Duration(seconds: 7));
-      await tester.pump(const Duration(seconds: 7));
+      // Twice the interval and more: a timer that fires a moment early looks once more.
+      await Future<void>.delayed(const Duration(milliseconds: 2000));
       expect(typing.last, isEmpty);
-      await sub.cancel();
-      await p.disconnect();
-    });
+    }, timeout: const Timeout(Duration(seconds: 30)));
 
-    testWidgets('info: name, members and frozen; a chat the parent is not in says so after a moment', (WidgetTester tester) async {
+    test('info: name, members and frozen; a chat the parent is not in says so after a moment', () async {
       backend.rows[_private] = _row(kind: 'private', frozen: true, extra: <String, Object?>{'otherUid': 'uid-hoda', 'otherName': 'Hoda', 'memberCount': 2});
-      final FirestoreChatProvider p = FirestoreChatProvider(backend, clock: () => _t0);
+      final FirestoreChatProvider p = FirestoreChatProvider(backend, timings: const ChatTimings(rowGrace: Duration(milliseconds: 600)));
+      addTearDown(p.disconnect);
       await p.connect(const ChatCredentials(provider: 'firestore', userId: 'me'), () async => '');
       final List<ChatInfo> infos = <ChatInfo>[];
       final StreamSubscription<ChatInfo> sub = p.open(const ChatRef(ChatKind.private, 'dm-abc')).info.listen(infos.add);
-      await tester.pump();
+      addTearDown(() async {
+        await sub.cancel();
+      });
+      await _settle();
       expect(infos.last.title('ar'), 'Hoda');
       expect(infos.last.otherUserId, 'uid-hoda');
       expect(infos.last.memberCount, 2);
@@ -652,14 +659,14 @@ void main() {
 
       final List<Object> errors = <Object>[];
       final StreamSubscription<ChatInfo> other = p.open(carpool).info.listen((ChatInfo _) {}, onError: errors.add);
-      await tester.pump();
+      addTearDown(() async {
+        await other.cancel();
+      });
+      await _settle();
       expect(errors, isEmpty, reason: 'a chat opened a moment ago gets its row a moment later');
-      await tester.pump(const Duration(seconds: 4));
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
       expect(errors.single, isA<ChatFailure>().having((ChatFailure f) => f.kind, 'kind', ChatFailureKind.notMember));
-      await sub.cancel();
-      await other.cancel();
-      await p.disconnect();
-    });
+    }, timeout: const Timeout(Duration(seconds: 30)));
 
     test('disposing a conversation stops its listeners; the chat list listener stays', () async {
       backend.rows[_carpool] = _row();

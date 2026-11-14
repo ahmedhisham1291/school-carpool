@@ -99,6 +99,32 @@ Analyze clean, functions 641 pass, rules 541 pass / 1 fail, Flutter tests:
 
 Not run here: rules tests and Flutter tests.
 
+## After the fourth CI run (43633558482)
+
+Functions and rules tests all green, analyze clean. Three tests in
+`test/chat/firestore_chat_provider_test.dart` hung (school group mark,
+typing line, info "not a member").
+
+- **Cause (by reading, not reproduced here):** those three ran under
+  `testWidgets` for its fake clock, and awaited a stream subscription's
+  `cancel()` there. That future belongs to the real event loop and its
+  continuation lands in the fake one, which nobody runs any more: the test
+  waits forever. The provider itself has no path that waits forever.
+- **Fix:** the provider takes its waiting times as `ChatTimings` (defaults
+  unchanged: typing line 6 s, typing write every 4 s, group "read" write
+  every 5 s, "not a member" after 3 s). The three tests are plain tests
+  again with 600 ms timings and real short waits; no fake clock, no new
+  package (`fake_async` is only a transitive dependency). Each has a
+  30-second timeout and the two stream groups a 60-second one, so a hang
+  fails fast.
+- **Mark-read re-check:** read again after the last fix. A mark always
+  happens for a new state (first head, a newer counter, a new row); a
+  failed mark is tried again on the next change. One real weakness fixed:
+  when the group timer fired a moment early by the clock it waited a whole
+  second interval; the timer's own call now skips the clock check.
+
+Not run here: Flutter tests.
+
 ## Plan that was followed
 
 1. **Server** (`functions/src/chat/`): a `firestore` provider behind the

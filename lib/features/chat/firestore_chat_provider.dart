@@ -6,6 +6,29 @@ import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/chat/chat_provider.dart';
 import 'package:school_carpool/features/chat/firestore_chat_mapping.dart';
 
+/// How long chat waits for things. Fixed in the app; tests pass short ones
+/// so nothing waits on the clock.
+class ChatTimings {
+  const ChatTimings({
+    this.typingShown = const Duration(seconds: 6),
+    this.typingEvery = const Duration(seconds: 4),
+    this.groupMarkEvery = const Duration(seconds: 5),
+    this.rowGrace = const Duration(seconds: 3),
+  });
+
+  /// The typing line stays this long after another member's last typing time.
+  final Duration typingShown;
+
+  /// At most one typing write per this long.
+  final Duration typingEvery;
+
+  /// School and area groups: at most one "read" write per this long.
+  final Duration groupMarkEvery;
+
+  /// A chat with no row yet is "not a member" only after this long.
+  final Duration rowGrace;
+}
+
 /// Our own chat on Firestore (owner decision 14 Nov 2026; it replaced
 /// Stream). Messages stay in our database; no outside account.
 ///
@@ -20,9 +43,10 @@ import 'package:school_carpool/features/chat/firestore_chat_mapping.dart';
 ///
 /// Message text, names and coordinates are never logged here.
 class FirestoreChatProvider implements ChatProvider, ChatPhotoSource {
-  FirestoreChatProvider(this._backend, {DateTime Function()? clock}) : _clock = clock ?? DateTime.now;
+  FirestoreChatProvider(this._backend, {DateTime Function()? clock, this.timings = const ChatTimings()}) : _clock = clock ?? DateTime.now;
 
   final ChatBackend _backend;
+  final ChatTimings timings;
   final DateTime Function() _clock;
 
   String _me = '';
@@ -212,10 +236,7 @@ class _FirestoreConversation implements ChatConversation {
   final ChatRef _ref;
   final String _me;
 
-  static const Duration _typingShown = Duration(seconds: 6);
-  static const Duration _typingEvery = Duration(seconds: 4);
-  static const Duration _groupMarkEvery = Duration(seconds: 5);
-  static const Duration _rowGrace = Duration(seconds: 3);
+  ChatTimings get _t => _p.timings;
 
   ChatBackend get _backend => _p._backend;
   String get _cid => _ref.cid;
@@ -369,7 +390,7 @@ class _FirestoreConversation implements ChatConversation {
     if (_rowsFromCache || _missingTimer != null || _disposed) {
       return;
     }
-    _missingTimer = Timer(_rowGrace, () {
+    _missingTimer = Timer(_t.rowGrace, () {
       _missingTimer = null;
       if (_row == null && !_disposed) {
         _infoError = const ChatFailure(ChatFailureKind.notMember);
@@ -593,7 +614,7 @@ class _FirestoreConversation implements ChatConversation {
     }
     final DateTime now = _clock();
     final DateTime? last = _lastKeyStroke;
-    if (last != null && now.difference(last) < _typingEvery) {
+    if (last != null && now.difference(last) < _t.typingEvery) {
       return;
     }
     _lastKeyStroke = now;
@@ -622,7 +643,7 @@ class _FirestoreConversation implements ChatConversation {
         _typingUntil.remove(d.id);
       } else if (_readsLoaded && typing != _typingSeen[d.id]) {
         // A new typing time since we opened the chat: typing now.
-        _typingUntil[d.id] = now.add(_typingShown);
+        _typingUntil[d.id] = now.add(_t.typingShown);
       }
       _typingSeen[d.id] = typing;
     }
@@ -646,7 +667,7 @@ class _FirestoreConversation implements ChatConversation {
     _typingTimer = null;
     if (_typingUntil.isNotEmpty && !_disposed) {
       // The line goes away by itself when no new typing time comes.
-      _typingTimer = Timer(_typingShown, _emitTyping);
+      _typingTimer = Timer(_t.typingShown, _emitTyping);
     }
   }
 
@@ -659,7 +680,7 @@ class _FirestoreConversation implements ChatConversation {
   /// Marks the chat read while it is open and something is unread. Small
   /// chats: at once (the others see "read"). School and area groups: at
   /// most every few seconds (one write, however many messages came).
-  void _maybeMarkRead() {
+  void _maybeMarkRead({bool waited = false}) {
     final ChatDoc? row = _row;
     if (row == null || _disposed || _marking || !_started) {
       return;
@@ -676,10 +697,12 @@ class _FirestoreConversation implements ChatConversation {
     }
     final DateTime now = _clock();
     final DateTime? last = _lastMark;
-    if (!_small && last != null && now.difference(last) < _groupMarkEvery) {
-      _markTimer ??= Timer(_groupMarkEvery, () {
+    // [waited]: the timer below already waited its turn (never ask the
+    // clock again then, or a timer that fires a moment early waits twice).
+    if (!_small && !waited && last != null && now.difference(last) < _t.groupMarkEvery) {
+      _markTimer ??= Timer(_t.groupMarkEvery, () {
         _markTimer = null;
-        _maybeMarkRead();
+        _maybeMarkRead(waited: true);
       });
       return;
     }
