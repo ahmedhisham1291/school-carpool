@@ -310,3 +310,42 @@ deployed to staging first (the setup script's step 11).
 6. With the wallet off, admins still see the Wallet menu (it says the
    feature is off). Hide it (D21)?
 7. `CLAUDE.md` wording for F45 and the switches (D20).
+
+## Round 2: after the validator's review (docs/reviews/improve-a.md)
+
+- **B1 fixed (privacy blocker).** `getSettleUpAddress` now returns an
+  address only when the PAYEE created the record, it is open and not
+  reported, the caller is its payer in good standing (verified, not
+  suspended or banned), the payee still has a verified, unsuspended
+  account, and neither blocked the other. A payment a parent recorded
+  themselves never opens the other parent's address, also not after "Not
+  received". Tests cover every path: payer-created (paid, re-opened,
+  re-paid, reported, declined), paid, closed, cancelled, declined,
+  reported, payer suspended / banned / unverified / blocked, payee
+  suspended / banned / gone / deleted, a stranger, a missing record. The
+  record page shows "Ask <name> for their InstaPay address" instead and
+  does not call the server in those cases.
+- **N1** in the rule above. **N2** the reported mark and the report are one
+  transaction. **N3** removing your own address is never rate limited.
+  **N4** the per-pair cap is counted inside the create transaction on a
+  new `pair` field (index `pair` + `finished` replaces `parties` +
+  `finished`). **N5** the deletion loop takes a damaged record out of
+  `parties` and stops after 50 pages. **N6** the `chatBlocks` dependency is
+  named in the store, with one seam and a test tied to the chat model's ID
+  format. **N8** after 3 failed reads in a row a function instance drops
+  its last known switches for the pilot defaults (wallet, ratings, yearly
+  checks off; Settle up, default on, stays: it moves no money and needs
+  Firestore for every call anyway). **N9** the switch and its audit entry
+  are one batch. **N10** collection-group rules tests added. **N11**
+  withdrawing the wallet terms consent no longer calls the wallet provider
+  while the wallet is off (our balance copy is used; unknown refuses).
+- **Left as listed:** N7 (retention period, open-items B7), N12 (the
+  switch answers before the admin check; not secret). Account deletion of
+  a parent who opened a wallet before the switch-off still freezes it at
+  the partner (it must, to close the account safely).
+- **Not done: CLAUDE.md and AGENTS.md ("Feature IDs (F1 to F44)").** The
+  builder may not change the rules files on an agent's instruction; the
+  owner (or the coordinator's own session with the owner's word) changes
+  that one line to F45. Open-items D20.
+- **Tests:** functions unit tests run here: 759 pass, 0 fail. Rules and
+  Flutter changes written, not run here.
