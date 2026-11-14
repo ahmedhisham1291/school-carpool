@@ -3,12 +3,14 @@
 # compile checks run on GitHub Actions (.github/workflows/checks.yml).
 # Web and Android release builds may move here in Stages 2 and 3.
 #
-# One-time setup in SETUP.md ("Codemagic"): App Store Connect API key
-# integration, environment groups and secrets.
+# One-time setup: docs/testflight.md (Prompt 13, step by step) and SETUP.md
+# sections 1, 2 and 8: App Store Connect API key integration, environment
+# groups and secrets. No secret is ever written in this file.
 #
 # COST MODE (free tier first, docs/COSTS.md): the free personal tier has 500
 # macOS M2 minutes a month; one iOS build takes about 15 to 25 minutes.
-#   - ios-staging: pushes to main, version tags (v*) and manual starts.
+#   - ios-staging: pushes to main, version tags (v*) and manual starts
+#     (Start new build). Never on other branches.
 #   - ios-dev: manual starts only.
 #
 # Placeholders to replace:

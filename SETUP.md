@@ -1143,6 +1143,7 @@ done
 | `cp_driver_late` | The driver is running late: {{1}}. |
 | `cp_driver_at_gate` | The driver is at the school gate: {{1}}. |
 | `cp_all_children_in` | All children are in the car: {{1}}. |
+| `cp_run_still_on` | No location from you for 2 minutes on the {{1}} run. Open the app to continue. (Prompt 13, to the driver) |
 
 Arabic bodies: `functions/src/notifications/texts.ts` (the emergency
 contact one: "ضغط {{1}} زر الطوارئ أثناء مشوار المدرسة. الموقع: {{2}}").
