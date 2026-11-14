@@ -207,6 +207,13 @@ void main() {
     });
   });
 
+  test('no retry when the parent may not chat; a few retries otherwise', () {
+    expect(chatClientRetry(0, const ChatFailure(ChatFailureKind.notVerified)), isNull);
+    expect(chatClientRetry(0, const ChatFailure(ChatFailureKind.suspended)), isNull);
+    expect(chatClientRetry(0, const ChatFailure(ChatFailureKind.offline)), isNotNull);
+    expect(chatClientRetry(3, const ChatFailure(ChatFailureKind.offline)), isNull);
+  });
+
   group('photos carry no EXIF', () {
     test('a JPEG with an EXIF (APP1) segment is detected; a clean one is not', () {
       // SOI, APP1 "Exif\0\0" with a tiny body, then SOS.

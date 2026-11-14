@@ -39,7 +39,17 @@ String? _verifiedUid(Ref ref) => ref.watch(chatUidProvider);
 /// short-lived token from Cloud Functions and refreshes it when it runs
 /// out; joins the parent's chats once. Signing out (or losing verification)
 /// disconnects and clears the chat kept on the phone.
-final FutureProvider<ChatProvider> chatClientProvider = FutureProvider<ChatProvider>((Ref ref) async {
+/// Riverpod 3 retries a failed provider by itself. A parent who may not chat
+/// (not verified, suspended) must get the error at once, not a screen that
+/// keeps loading; other failures (offline, Stream down) retry a few times.
+Duration? chatClientRetry(int retryCount, Object error) {
+  if (error is ChatFailure && (error.kind == ChatFailureKind.notVerified || error.kind == ChatFailureKind.suspended)) {
+    return null;
+  }
+  return retryCount < 3 ? Duration(milliseconds: 500 * (1 << retryCount)) : null;
+}
+
+final FutureProvider<ChatProvider> chatClientProvider = FutureProvider<ChatProvider>(retry: chatClientRetry, (Ref ref) async {
   final String? uid = _verifiedUid(ref);
   if (uid == null) {
     throw const ChatFailure(ChatFailureKind.notVerified);
