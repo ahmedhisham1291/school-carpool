@@ -32,7 +32,7 @@ export interface CarpoolInfo {
   active: boolean;
 }
 
-export type ChatLimitKind = "tokens" | "requests" | "reports" | "changes" | "syncs";
+export type ChatLimitKind = "messages" | "requests" | "reports" | "changes" | "syncs";
 
 export interface ChatStore {
   account(uid: string): Promise<ChatAccount | null>;

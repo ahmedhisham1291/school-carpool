@@ -4,7 +4,7 @@ import { purgeAfterClosure } from "./retention";
  * Account deletion (spec section 7, Prompt 12; owner decision 14 Nov 2026).
  *
  * At once: the parent leaves every carpool (an admin hands the carpool to
- * the next member), live runs stop, the Stream user is cut off, and every
+ * the next member), live runs stop, chat closes for the parent, and every
  * record about the parent is deleted (targets below), then the user record
  * and the Firebase Auth user.
  *
@@ -12,7 +12,8 @@ import { purgeAfterClosure } from "./retention";
  * purged by retentionDaily: the photos (ID, selfies, school IDs, licences,
  * driver photo; private bucket, KMS key), the verification case records,
  * the run summaries the parent drove and their archived routes, the
- * consent records, and the parent's chat messages on Stream.
+ * consent records, and the parent's chat messages and chat photos (shown
+ * with an initial instead of the first name).
  *
  * Kept after that: the keyed national-ID hash on the ban list (banned
  * parents only), open reports, the transfer records (as long as the law
@@ -55,7 +56,9 @@ export const IMMEDIATE_TARGETS: ReadonlyArray<{ collection: string; target: Targ
   { collection: "notificationLimits", target: { kind: "doc", path: "notificationLimits/{uid}" } },
   { collection: "users/notifications", target: { kind: "subcollection", path: "users/{uid}/notifications" } },
   { collection: "users/chatPushes", target: { kind: "subcollection", path: "users/{uid}/chatPushes" } },
-  // Chat (Prompt 9): the Stream user is cut off by the chat step.
+  // Chat: access is cut and the name becomes an initial in the chat step;
+  // the parent's chat list (other parents' last messages) goes at once.
+  { collection: "userChats", target: { kind: "subcollection", path: "userChats/{uid}/summaries" } },
   { collection: "chatRequests", target: { kind: "where", collection: "chatRequests", field: "fromUid" } },
   { collection: "chatRequests", target: { kind: "where", collection: "chatRequests", field: "toUid" } },
   { collection: "chatBlocks", target: { kind: "where", collection: "chatBlocks", field: "blockerUid" } },
@@ -140,6 +143,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   scheduleEvents: "events, 30-day TTL",
   notificationEvents: "outbox, 30-day TTL",
   chatChannels: "the chat's record; a private chat ends and is deleted 1 year later",
+  chats: "the chat stays for the other members; the parent's messages and photos are purged 1 year after closure (purge step chatMessages); an ended chat is deleted 1 year after it ended",
   verifications: "purged 1 year after closure",
   trips: "kept while any participant's account is active + 1 year (owner, 14 Nov 2026 13:29): the parent's children become initials at once; 1 year after closure the parent's part is anonymised (purge step trips), and a trip goes when every participant's year is over",
   tripStops: "exact stops of one run, deleted 1 day after the run",
@@ -168,6 +172,10 @@ export const SUBCOLLECTIONS: Readonly<Record<string, string>> = {
   "carpools/exceptions": "no-school days (creator uid, no names); deleted with the closed carpool",
   "carpools/balances": "counts with an initial (anonymise step); deleted with the closed carpool",
   "carpools/emergencies": "24-hour TTL",
+  "chats/chatMembers": "access cut and the first name replaced by an initial at once (chat step); deleted with the chat",
+  "chats/messages": "the parent's messages and photos are purged 1 year after closure (purge step chatMessages); the rest with the chat",
+  "chats/reads": "read and typing times; deleted with the parent's messages (purge step chatMessages) and with the chat",
+  "userChats/summaries": "the parent's chat list: deleted at once (records step)",
   "trips/points": "1-day TTL (live location)",
   "trips/eta": "1-day TTL",
 };
@@ -182,13 +190,13 @@ export const SUBCOLLECTIONS: Readonly<Record<string, string>> = {
  */
 export const FLOW_STEPS = ["trips", "carpools", "anonymise", "chat", "trust", "identity", "wallet", "records", "auth"] as const;
 export type FlowStep = (typeof FLOW_STEPS)[number];
-/** routes: the parent's archived routes (files and records); stream: the Stream user and messages. */
+/** routes: the parent's archived routes (files and records); chatMessages: the parent's chat messages and photos. */
 /**
  * trips (owner answer 14 Nov 2026 13:29): the trips the parent drove are
  * deleted only when no other participant's data is still kept; otherwise
  * the parent's part is anonymised (trip_retention.ts).
  */
-export const PURGE_STEPS = ["trips", "routes", "stream"] as const;
+export const PURGE_STEPS = ["trips", "routes", "chatMessages"] as const;
 export type PurgeStep = (typeof PURGE_STEPS)[number];
 
 export interface DeletionFacts {

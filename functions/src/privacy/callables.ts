@@ -14,7 +14,7 @@ import { CONSENT_VERSIONS } from "../auth/consents";
 import { removeFromCarpool } from "../carpools/flow";
 import { deps as carpoolDeps } from "../carpools/callables";
 import { server as chatServer } from "../chat/callables";
-import { ENFORCE_APP_CHECK, MIN_INSTANCES, OTP_HMAC_KEY, REGION, STREAM_API_SECRET } from "../config";
+import { ENFORCE_APP_CHECK, MIN_INSTANCES, OTP_HMAC_KEY, REGION } from "../config";
 import { mapDeps } from "../maps/callables";
 import { updateMapSettings } from "../maps/parent_map";
 import { CAIRO_TZ } from "../schedule/cairo";
@@ -331,7 +331,7 @@ export const requestPhotoCopy = gatedCall(opts, (r) =>
 );
 
 /** {} -> { url, expiresAtMs, requestId }: a JSON file with every data type, link valid 1 hour. */
-export const exportMyData = gatedCall({ ...opts, secrets: [STREAM_API_SECRET], timeoutSeconds: 120, memory: "512MiB" }, (r) =>
+export const exportMyData = gatedCall({ ...opts, timeoutSeconds: 120, memory: "512MiB" }, (r) =>
   run("exportMyData", async () => {
     const uid = uidOf(r);
     const db = adminDb();
@@ -368,7 +368,7 @@ export const exportMyData = gatedCall({ ...opts, secrets: [STREAM_API_SECRET], t
  * confirmation and a fresh Face ID check). Refused with money in the
  * wallet, a pending transfer, or a run being driven.
  */
-export const deleteMyAccount = gatedCall({ ...opts, secrets: [STREAM_API_SECRET], timeoutSeconds: 300, memory: "512MiB" }, (r) =>
+export const deleteMyAccount = gatedCall({ ...opts, timeoutSeconds: 300, memory: "512MiB" }, (r) =>
   run("deleteMyAccount", async () => {
     const uid = uidOf(r);
     const store = new FirestorePrivacyStore(adminDb());
@@ -429,7 +429,7 @@ export function deletionRunner(): FirestoreDeletionRunner {
  * alerts.
  */
 export const retentionDaily = onSchedule(
-  { schedule: "10 3 * * *", timeZone: CAIRO_TZ, retryCount: 1, timeoutSeconds: 540, memory: "512MiB", secrets: [STREAM_API_SECRET] },
+  { schedule: "10 3 * * *", timeZone: CAIRO_TZ, retryCount: 1, timeoutSeconds: 540, memory: "512MiB" },
   async () => {
     const db = adminDb();
     const chat = chatServer();

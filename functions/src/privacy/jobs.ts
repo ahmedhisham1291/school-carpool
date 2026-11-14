@@ -17,7 +17,7 @@ export interface RetentionStore {
   /** Archived routes past their date: deletes the file and its record; returns how many. */
   deleteRouteArchivesDue(nowMs: number, limit: number): Promise<number>;
   /**
-   * Marks the chats of carpools that closed as ended (frozen on Stream by
+   * Marks the chats of carpools that closed as ended (frozen by
    * [freeze]); Prompt 9 review item 13. Returns how many.
    */
   endClosedCarpoolChats(nowMs: number, limit: number, freeze: (cid: string) => Promise<void>): Promise<number>;
@@ -52,9 +52,9 @@ export interface RetentionStore {
 export interface RetentionDeps {
   store: RetentionStore;
   runner: DeletionRunner;
-  /** Hard-deletes a Stream channel (chat ended a year ago). */
+  /** Deletes a chat with its messages and photos (it ended a year ago). */
   deleteChannel(cid: string): Promise<void>;
-  /** Freezes a Stream channel (no new messages; the history stays). */
+  /** Freezes a chat (no new messages; the history stays). */
   freezeChannel(cid: string): Promise<void>;
   now: () => number;
   /** Sentry (scrubbed); never the data itself. */

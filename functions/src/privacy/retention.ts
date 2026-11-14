@@ -129,7 +129,7 @@ export const RETENTION: readonly RetentionRule[] = [
   { id: "trips", where: "trips/{id} run summaries (who drove, date, times, on time, children counted)", days: AFTER_CLOSURE_DAYS, from: "accountClosed", enforcedBy: ["retentionDaily"] },
   { id: "liveLocation", where: "trips/{id}/points, carpools/{id}/emergencies, tripStops/{id}", days: 1, from: "runEnd", enforcedBy: ["tripTick", "firestoreTtl", "retentionDaily"] },
   { id: "routeArchive", where: "Storage routeArchive/{yyyy}/{tripId}.json.gz (Coldline), routeArchives/{tripId}", days: ROUTE_ARCHIVE_DAYS, from: "runEnd", enforcedBy: ["retentionDaily", "storageLifecycle"] },
-  { id: "chat", where: "Stream Chat (messages, first names, parent IDs), chatChannels", days: CHAT_AFTER_END_DAYS, from: "chatEnd", enforcedBy: ["retentionDaily"] },
+  { id: "chat", where: "chats/{cid} (messages, members with first names, reads), userChats/{uid}/summaries, Storage chatPhotos/{cid}, chatChannels", days: CHAT_AFTER_END_DAYS, from: "chatEnd", enforcedBy: ["retentionDaily"] },
   { id: "ratings", where: "ratings, trustSummaries, ratingFlags", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "familyLinks", where: "guardianLinks, guardianRequests", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "handover", where: "handoverAdults/{childId}", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },

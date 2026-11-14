@@ -6,7 +6,7 @@ import { outboxDoc } from "../notifications/outbox";
 import type { OutboxEvent } from "../notifications/model";
 import type { AbuseCounter, AbuseKind, AbuseStore, SecurityAlert } from "./abuse";
 import { alertFor } from "./abuse";
-import { DELETED_ID, anonymiseBalance, anonymiseCarpool, anonymiseRun, anonymiseSwap, anonymiseTrip } from "./anonymise";
+import { DELETED_ID, anonymiseBalance, anonymiseCarpool, anonymiseRun, anonymiseSwap, anonymiseTrip, initialOf } from "./anonymise";
 import { keepForClosedParent, participantsOf, planTripRetention, type AccountState } from "./trip_retention";
 import { CLOSING_REASON, pathFor, type ClosedAccount, type DeletionFacts, type DeletionRunner, type FlowStep, type PurgeStep, type Target, type WalletLock } from "./account_deletion";
 import type { DeviceAccount, DeviceRecord, DeviceStore, Platform, SignInPlan, SignOutReason } from "./devices";
@@ -404,8 +404,11 @@ export class FirestoreDeletionRunner implements DeletionRunner {
       case "anonymise":
         return this.anonymise(uid, nowMs);
       case "chat": {
-        await this.hooks.chat.revokeTokens(uid, nowMs + 1000);
+        // Out of every chat in the rules at once; the messages stay for the
+        // other members with an initial instead of the first name.
         await this.hooks.chat.deactivateUser(uid);
+        const user = await this.db.collection("users").doc(uid).get();
+        await this.hooks.chat.upsertUser({ id: uid, name: initialOf(user.get("firstName")) });
         // Private chats end now (frozen; deleted 1 year later). Group chats
         // drop the parent through the chat sync when the record goes.
         const snap = await this.db.collection("chatChannels").where("members", "array-contains", uid).limit(500).get();
@@ -508,7 +511,7 @@ export class FirestoreDeletionRunner implements DeletionRunner {
   }
 
   async runPurgeStep(uid: string, step: PurgeStep): Promise<void> {
-    if (step === "stream") {
+    if (step === "chatMessages") {
       await this.hooks.chat.deleteUser(uid);
       return;
     }

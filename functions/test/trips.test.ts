@@ -624,7 +624,7 @@ describe("trips: quick buttons (F35) and emergency (F20)", () => {
 
   it("a chat failure never fails the quick message (the push went out)", async () => {
     const h = harness();
-    h.deps.chat = { post: async () => { throw new Error("stream down"); } };
+    h.deps.chat = { post: async () => { throw new Error("chat down"); } };
     await startTrip(h.deps, driver, ids());
     assert.equal((await quickMessage(h.deps, driver, { ...ids(), kind: "gate" })).posted, true);
     assert.equal(h.store.events.filter((e) => e.type === "driver-at-gate").length, 1);

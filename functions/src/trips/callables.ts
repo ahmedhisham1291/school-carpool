@@ -5,18 +5,15 @@ import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminDb, adminStorage } from "../admin";
 import { deps as carpoolDeps } from "../carpools/callables";
-import { createChatServer } from "../chat/server";
+import { server as chatServer } from "../chat/callables";
 import { channelRef, groupChannelId } from "../chat/model";
 import {
-  CHAT_PROVIDER,
   ENFORCE_APP_CHECK,
   MAPS_SERVER_KEY,
   MIN_INSTANCES,
   REGION,
   ROUTES_PROVIDER,
   ROUTES_TRAFFIC,
-  STREAM_API_KEY,
-  STREAM_API_SECRET,
   TRIP_HANDOVER_MIN,
   TRIP_SELFIE_PERCENT,
   TRIP_STALE_SEC,
@@ -108,30 +105,14 @@ export function tripDeps(): TripDeps {
     roll: () => randomInt(0, 100),
     settings: tripSettings(TRIP_STALE_SEC.value(), TRIP_SELFIE_PERCENT.value(), TRIP_HANDOVER_MIN.value()),
     log: (message, data) => logger.info(message, data ?? {}),
-    // F35: quick messages also go into the carpool chat (Prompt 9's Stream
-    // server client; the secret is bound to quickMessage only).
+    // F35: quick messages also go into the carpool chat as a system message.
     chat: {
       post: (carpoolId, messageId, text, extra) => {
         const ref = channelRef("carpool", groupChannelId("carpool", carpoolId));
-        return createChatServer(CHAT_PROVIDER.value(), appEnv, STREAM_API_KEY.value(), streamSecret(), (m) => logger.info(m)).postSystemMessage(
-          ref.type,
-          ref.id,
-          messageId,
-          text,
-          extra,
-        );
+        return chatServer().postSystemMessage(ref.type, ref.id, messageId, text, extra);
       },
     },
   };
-}
-
-function streamSecret(): string {
-  try {
-    return STREAM_API_SECRET.value();
-  } catch {
-    // Emulators without functions/.secret.local: the fake chat server needs none.
-    return "";
-  }
 }
 
 function caller(request: CallableRequest): Caller {
@@ -208,7 +189,7 @@ export const reportTrackingLost = gatedCall(opts, (r) => run("reportTrackingLost
 export const confirmHandover = gatedCall(opts, (r) => run("confirmHandover", () => confirmFlow(tripDeps(), caller(r), r.data)));
 
 /** F35: { carpoolId, runId, kind, requestId? } -> { posted } */
-export const quickMessage = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [STREAM_API_SECRET] }, (r) => run("quickMessage", () => quickFlow(tripDeps(), caller(r), r.data)));
+export const quickMessage = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (r) => run("quickMessage", () => quickFlow(tripDeps(), caller(r), r.data)));
 
 /** F20: { carpoolId, runId, point? } -> { emergencyId, contactSent, members } */
 export const tripEmergency = gatedCall(withSecrets, (r) => run("tripEmergency", () => emergencyFlow(tripDeps(), caller(r), r.data)));

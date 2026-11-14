@@ -3,7 +3,7 @@ import { DATA_TYPES, type DataTypeId } from "./retention";
 /**
  * "Export my data" (spec section 7, Prompt 12): one JSON file with a
  * section for every data type the app keeps (DATA_TYPES), including the
- * parent's own chat messages held by Stream and the wallet history. The
+ * parent's own chat messages and the wallet history. The
  * file is written to exports/{uid}/{requestId}.json (Cloud Functions only,
  * deleted after a day) and the app gets a link that works for 1 hour.
  *

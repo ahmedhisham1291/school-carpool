@@ -179,24 +179,16 @@ export const NOTIFY_DEVICE_CHANGES_PER_DAY = defineInt("NOTIFY_DEVICE_CHANGES_PE
 export const NOTIFY_SETTINGS_CHANGES_PER_DAY = defineInt("NOTIFY_SETTINGS_CHANGES_PER_DAY", { default: 100 });
 
 /**
- * Chat (Prompt 9: F8, F9, F10, F13) on Stream Chat. "fake" (dev without a
- * Stream app, and CI: nothing leaves Cloud Functions; the app uses its
- * on-phone fake chat; refused in prod) or "stream". COST MODE: Stream's
- * free Build plan, then Maker (docs/COSTS.md). One Stream app for dev and
- * staging with fake users only, a separate one for prod (SETUP.md 19).
+ * Chat (F8, F9, F10, F13): our own chat on Firestore (owner decision 14 Nov
+ * 2026; it replaced Stream). "firestore" everywhere, the emulators
+ * included; "fake" only records calls (unit tests) and is refused in prod.
+ * No outside service, no key and no secret.
  */
-export const CHAT_PROVIDER = defineString("CHAT_PROVIDER", { default: "fake" });
-/** Stream app key (public: the app needs it to connect). */
-export const STREAM_API_KEY = defineString("STREAM_API_KEY", { default: "" });
-/**
- * Stream app secret (Secret Manager). Signs chat tokens and server calls
- * and verifies the webhook. Never sent to the app.
- */
-export const STREAM_API_SECRET = defineSecret("STREAM_API_SECRET");
-/** Chat token lifetime. Short, so a suspended parent's phone is cut off soon even offline. */
-export const CHAT_TOKEN_TTL_MIN = defineInt("CHAT_TOKEN_TTL_MIN", { default: 60 });
-/** Chat token requests per parent per hour (the app refreshes about once an hour). */
-export const CHAT_TOKENS_PER_HOUR = defineInt("CHAT_TOKENS_PER_HOUR", { default: 30 });
+export const CHAT_PROVIDER = defineString("CHAT_PROVIDER", { default: "firestore" });
+/** Messages a parent may send per minute, all chats together; over it they cannot write for CHAT_MUTE_MINUTES. */
+export const CHAT_MESSAGES_PER_MINUTE = defineInt("CHAT_MESSAGES_PER_MINUTE", { default: 30 });
+/** How long a parent who sent too fast cannot write (the rules read mutedUntil). */
+export const CHAT_MUTE_MINUTES = defineInt("CHAT_MUTE_MINUTES", { default: 10 });
 /** New private chat requests per parent per day (spec section 5). */
 export const CHAT_REQUESTS_PER_DAY = defineInt("CHAT_REQUESTS_PER_DAY", { default: 10 });
 /** Reports per parent per day. */

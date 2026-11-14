@@ -1,29 +1,27 @@
 import * as logger from "firebase-functions/logger";
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { HttpsError, onRequest, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
-import { adminDb } from "../admin";
+import { onDocumentCreated, onDocumentWritten } from "firebase-functions/v2/firestore";
+import { HttpsError, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { adminDb, adminStorage } from "../admin";
 import { deps as carpoolDeps } from "../carpools/callables";
 import {
   CHAT_CHANGES_PER_DAY,
+  CHAT_MESSAGES_PER_MINUTE,
+  CHAT_MUTE_MINUTES,
   CHAT_PROVIDER,
   CHAT_REPORTS_PER_DAY,
   CHAT_REQUESTS_PER_DAY,
-  CHAT_TOKEN_TTL_MIN,
-  CHAT_TOKENS_PER_HOUR,
   ENFORCE_APP_CHECK,
-  MIN_INSTANCES,
   REGION,
-  STREAM_API_KEY,
-  STREAM_API_SECRET,
 } from "../config";
 import { reportError } from "../sentry";
+import { onMessageCreated } from "./fanout";
+import { FirestoreChatData } from "./firestore_data";
 import { FirestoreChatStore, FirestoreDrivingPauser } from "./firestore_store";
 import {
   answerChatRequest as answerFlow,
   blockChatUser as blockFlow,
   cancelChatRequest as cancelFlow,
   DEFAULT_CHAT_LIMITS,
-  getChatToken as tokenFlow,
   reportChat as reportFlow,
   sendChatRequest as sendFlow,
   setChatMute as muteFlow,
@@ -34,31 +32,22 @@ import {
   type ChatDeps,
 } from "./flow";
 import { CHAT_ERROR_CODES, ChatError } from "./model";
-import { createChatServer, verifyWebhookSignature, type ChatServer } from "./server";
+import { createChatServer, type ChatServer } from "./server";
 import { accountFromDoc, syncAccess, syncCarpoolMember, syncParentGroups, type SyncDeps } from "./sync";
-import { handleWebhook } from "./webhook";
 import { noteAbuse } from "../privacy/abuse_hook";
 import { gatedCall } from "../privacy/device_gate";
 
 /**
- * Chat functions (Prompt 9: F8, F9, F10, F13). The Stream secret is bound
- * only to these functions (Secret Manager) and never leaves them.
- * Logs: kinds, counts and error messages only.
+ * Chat functions (F8, F9, F10, F13): our own chat on Firestore. No outside
+ * service and no secret. Logs: kinds, counts and error messages only.
  */
 
-const secrets = [STREAM_API_SECRET];
-
-function secretValue(): string {
-  try {
-    return STREAM_API_SECRET.value();
-  } catch {
-    // The emulators without functions/.secret.local: the fake server needs none.
-    return "";
-  }
+export function chatData(): FirestoreChatData {
+  return new FirestoreChatData(adminDb(), () => adminStorage().bucket());
 }
 
 export function server(): ChatServer {
-  return createChatServer(CHAT_PROVIDER.value(), process.env.APP_ENV ?? "dev", STREAM_API_KEY.value(), secretValue(), (m) => logger.info(m));
+  return createChatServer(CHAT_PROVIDER.value(), process.env.APP_ENV ?? "dev", chatData, (m) => logger.info(m));
 }
 
 const log = (message: string, data?: Record<string, unknown>) => logger.info(message, data ?? {});
@@ -68,18 +57,14 @@ function syncDeps(): SyncDeps {
 }
 
 export function chatDeps(): ChatDeps {
-  const ttlMin = CHAT_TOKEN_TTL_MIN.value();
   return {
     ...syncDeps(),
     limits: {
       ...DEFAULT_CHAT_LIMITS,
-      tokensPerHour: CHAT_TOKENS_PER_HOUR.value(),
       requestsPerDay: CHAT_REQUESTS_PER_DAY.value(),
       reportsPerDay: CHAT_REPORTS_PER_DAY.value(),
       changesPerDay: CHAT_CHANGES_PER_DAY.value(),
     },
-    // 15 minutes to 24 hours; one hour by default.
-    tokenTtlSec: (Number.isInteger(ttlMin) && ttlMin >= 15 && ttlMin <= 1440 ? ttlMin : 60) * 60,
     pauser: new FirestoreDrivingPauser(adminDb(), carpoolDeps),
   };
 }
@@ -107,14 +92,7 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
   }
 }
 
-const opts = { enforceAppCheck: ENFORCE_APP_CHECK, secrets };
-
-/** {} -> { provider, apiKey, userId, token, expiresAtMs }: verified, non-suspended parents only. */
-export const getChatToken = gatedCall(opts, (r) =>
-  run("getChatToken", async () => {
-    return tokenFlow(chatDeps(), caller(r));
-  }),
-);
+const opts = { enforceAppCheck: ENFORCE_APP_CHECK };
 
 /** {} -> { groups, carpools }: joins the caller's school, area and carpool chats. */
 export const syncMyChats = gatedCall(opts, (r) => run("syncMyChats", () => syncMineFlow(chatDeps(), caller(r))));
@@ -164,11 +142,11 @@ function tooOld(time: string | undefined): boolean {
 
 /**
  * Suspend, ban, delete or lost verification: chat access ends at once
- * (Stream user deactivated, tokens revoked). Verified again: restored.
+ * (the rules read the member documents this marks). Verified again: restored.
  * Retried on failure: being cut off must not depend on one call.
  */
 export const syncChatOnUserWrite = onDocumentWritten(
-  { document: "users/{uid}", region: REGION, retry: true, secrets },
+  { document: "users/{uid}", region: REGION, retry: true },
   async (event) => {
     if (tooOld((event as { time?: string }).time)) {
       logger.error("chat access sync gave up after retries");
@@ -192,7 +170,7 @@ export const syncChatOnUserWrite = onDocumentWritten(
 
 /** Children's schools and the rounded home decide the school and area groups (F9). */
 export const syncChatOnLocationWrite = onDocumentWritten(
-  { document: "parentLocations/{uid}", region: REGION, retry: false, secrets },
+  { document: "parentLocations/{uid}", region: REGION, retry: false },
   async (event) => {
     const before = event.data?.before?.data();
     const after = event.data?.after?.data();
@@ -210,7 +188,7 @@ export const syncChatOnLocationWrite = onDocumentWritten(
 
 /** Carpool chat (F10): follows the carpool's approved members (Prompt 6). */
 export const syncChatOnCarpoolMemberWrite = onDocumentWritten(
-  { document: "carpools/{carpoolId}/members/{uid}", region: REGION, retry: true, secrets },
+  { document: "carpools/{carpoolId}/members/{uid}", region: REGION, retry: true },
   async (event) => {
     if (tooOld((event as { time?: string }).time)) return;
     const params = event.params as Record<string, string>;
@@ -226,46 +204,48 @@ export const syncChatOnCarpoolMemberWrite = onDocumentWritten(
 );
 
 // --------------------------------------------------------------------------
-// Webhook and retention
+// New messages
 // --------------------------------------------------------------------------
 
+function limitOr(value: number, fallback: number, min: number, max: number): number {
+  return Number.isInteger(value) && value >= min && value <= max ? value : fallback;
+}
+
 /**
- * Stream's webhook (SETUP.md 19.5): new messages become push-only
- * "chat-message" events for OUR sender. Anything without a valid
- * X-Signature is refused with 401 and nothing is read.
+ * A parent's phone wrote a message (firestore.rules let only a current
+ * member do that). Limits, blocked terms, the chat list (last message,
+ * unread counters) and the push through OUR sender: fanout.ts. Not
+ * retried: a failed run costs one push or one counter, never a message.
  */
-export const chatWebhook = onRequest(
-  { region: REGION, secrets, invoker: "public", minInstances: MIN_INSTANCES, maxInstances: 10, timeoutSeconds: 30 },
-  async (req, res) => {
-    if (req.method !== "POST") {
-      res.status(405).send("");
-      return;
-    }
-    const raw: Buffer = req.rawBody ?? Buffer.from("");
-    if (!verifyWebhookSignature(raw, req.get("X-Signature") ?? undefined, secretValue())) {
-      logger.warn("chat webhook with a bad signature refused");
-      res.status(401).send("");
-      return;
-    }
-    let body: unknown;
+export const onChatMessageCreated = onDocumentCreated(
+  { document: "chats/{cid}/messages/{messageId}", region: REGION, retry: false, maxInstances: 20 },
+  async (event) => {
+    const params = event.params as Record<string, string>;
     try {
-      body = JSON.parse(raw.toString("utf8"));
-    } catch {
-      res.status(400).send("");
-      return;
-    }
-    try {
-      await handleWebhook({ store: new FirestoreChatStore(adminDb()), now: () => Date.now(), log }, body);
-      res.status(200).send("");
+      await onMessageCreated(
+        {
+          store: new FirestoreChatStore(adminDb()),
+          data: chatData(),
+          server: server(),
+          limits: {
+            messagesPerMinute: limitOr(CHAT_MESSAGES_PER_MINUTE.value(), 30, 1, 600),
+            muteMinutes: limitOr(CHAT_MUTE_MINUTES.value(), 10, 1, 1440),
+          },
+          now: () => Date.now(),
+          log,
+        },
+        params.cid,
+        params.messageId,
+        event.data?.data(),
+      );
     } catch (error) {
-      logger.error("chat webhook failed", { message: error instanceof Error ? error.message : "unknown" });
+      // Never the message: the error text of our own code and Firestore only.
+      logger.error("chat message fan-out failed", { message: error instanceof Error ? error.message : "unknown" });
       await reportError(error);
-      // Stream retries on 5xx.
-      res.status(500).send("");
     }
   },
 );
 
-// Prompt 12: chat retention moved to retentionDaily (privacy/jobs.ts): a
-// chat is kept for its life + 1 year (owner decision), so nothing is
-// truncated nightly any more (Prompt 9 review item 3).
+// Chat retention is in retentionDaily (privacy/jobs.ts): a chat is kept for
+// its life + 1 year (owner decision), then deleted with its messages and
+// photos.

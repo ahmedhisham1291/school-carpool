@@ -1,6 +1,7 @@
 import type { OutboxEvent } from "../../src/notifications/model";
 import { takeFromWindow, type WindowCounter } from "../../src/maps/limits";
 import { blockId, muteId, type BlockRecord, type ChannelRecord, type ChatAccount, type ChatSettings, type MuteRecord, type ReportRecord, type RequestRecord } from "../../src/chat/model";
+import type { ChatData, ChatHead, ChatMember, ChatProfile, ChatSummary, LastMessage, MemberPatch, StoredMessage, SummaryPatch } from "../../src/chat/data";
 import type { AreaInfo, CarpoolInfo, ChatLimitKind, ChatStore, DrivingPauser, LatLng, SchoolName } from "../../src/chat/store";
 
 const clone = <T>(v: T): T => structuredClone(v);
@@ -147,5 +148,131 @@ export class FakePauser implements DrivingPauser {
   }
   async lift(uid: string) {
     this.lifted.push(uid);
+  }
+}
+
+/** In-memory ChatData (the documents the phone reads) for unit tests. */
+export class MemoryChatData implements ChatData {
+  profiles = new Map<string, ChatProfile>();
+  heads = new Map<string, ChatHead>();
+  /** "cid|uid" -> member */
+  memberDocs = new Map<string, ChatMember>();
+  /** "uid|cid" -> summary */
+  summaries = new Map<string, ChatSummary>();
+  /** cid -> messages, oldest first */
+  messageDocs = new Map<string, StoredMessage[]>();
+  deletedPhotos: string[] = [];
+  /** Every write, for "nothing changed" checks. */
+  writes = 0;
+
+  async profile(uid: string) {
+    return clone(this.profiles.get(uid) ?? null);
+  }
+  async head(cid: string) {
+    return clone(this.heads.get(cid) ?? null);
+  }
+  async updateHead(cid: string, change: (c: ChatHead | null) => ChatHead | null) {
+    const next = change(clone(this.heads.get(cid) ?? null));
+    if (next) {
+      this.heads.set(cid, clone(next));
+      this.writes += 1;
+    }
+    return clone(next);
+  }
+  async member(cid: string, uid: string) {
+    return clone(this.memberDocs.get(`${cid}|${uid}`) ?? null);
+  }
+  async putMember(cid: string, m: ChatMember) {
+    this.memberDocs.set(`${cid}|${m.uid}`, clone(m));
+    this.writes += 1;
+  }
+  async patchMember(cid: string, uid: string, patch: MemberPatch, nowMs: number) {
+    const m = this.memberDocs.get(`${cid}|${uid}`);
+    if (!m) return;
+    this.memberDocs.set(`${cid}|${uid}`, { ...m, ...clone(patch), updatedAtMs: nowMs });
+    this.writes += 1;
+  }
+  async members(cid: string, limit: number) {
+    return clone([...this.memberDocs.entries()].filter(([k]) => k.startsWith(`${cid}|`)).map(([, m]) => m).slice(0, limit));
+  }
+  async chatsOf(uid: string, limit: number) {
+    return [...this.memberDocs.keys()].filter((k) => k.endsWith(`|${uid}`)).map((k) => k.slice(0, k.length - uid.length - 1)).slice(0, limit);
+  }
+  async summary(uid: string, cid: string) {
+    return clone(this.summaries.get(`${uid}|${cid}`) ?? null);
+  }
+  async putSummary(uid: string, s: ChatSummary) {
+    this.summaries.set(`${uid}|${s.cid}`, clone(s));
+    this.writes += 1;
+  }
+  async patchSummary(uid: string, cid: string, patch: SummaryPatch, nowMs: number) {
+    const s = this.summaries.get(`${uid}|${cid}`);
+    if (!s) return;
+    this.summaries.set(`${uid}|${cid}`, { ...s, ...clone(patch), updatedAtMs: nowMs });
+    this.writes += 1;
+  }
+  async deleteSummary(uid: string, cid: string) {
+    this.summaries.delete(`${uid}|${cid}`);
+  }
+  async noteMessage(cid: string, uids: string[], senderUid: string, last: LastMessage, lastAtMs: number) {
+    for (const uid of uids) {
+      const s = this.summaries.get(`${uid}|${cid}`);
+      if (!s) continue;
+      this.summaries.set(`${uid}|${cid}`, { ...s, last: clone(last), lastAtMs, unread: s.unread + (uid === senderUid ? 0 : 1) });
+      this.writes += 1;
+    }
+  }
+  private list(cid: string): StoredMessage[] {
+    return this.messageDocs.get(cid) ?? [];
+  }
+  async message(cid: string, id: string) {
+    return clone(this.list(cid).find((m) => m.id === id) ?? null);
+  }
+  async messagesAround(cid: string, id: string, before: number, after: number) {
+    const all = this.list(cid);
+    const i = all.findIndex((m) => m.id === id);
+    return i < 0 ? [] : clone(all.slice(Math.max(0, i - before), i + after + 1));
+  }
+  async latestMessage(cid: string) {
+    const all = this.list(cid);
+    return clone(all[all.length - 1] ?? null);
+  }
+  async createMessage(cid: string, m: StoredMessage) {
+    if (this.list(cid).some((x) => x.id === m.id)) return false;
+    this.messageDocs.set(cid, [...this.list(cid), clone(m)]);
+    return true;
+  }
+  async deleteMessage(cid: string, id: string) {
+    const found = this.list(cid).find((m) => m.id === id) ?? null;
+    if (!found) return null;
+    this.messageDocs.set(cid, this.list(cid).filter((m) => m.id !== id));
+    if (found.photoPath) this.deletedPhotos.push(found.photoPath);
+    return clone(found);
+  }
+  async messagesBy(uid: string, limit: number) {
+    const out: Array<StoredMessage & { cid: string }> = [];
+    for (const [cid, list] of this.messageDocs) for (const m of list) if (m.senderUid === uid) out.push({ ...clone(m), cid });
+    return out.sort((a, b) => b.createdAtMs - a.createdAtMs).slice(0, limit);
+  }
+  async deleteMessagesBy(uid: string, limit: number) {
+    let n = 0;
+    for (const [cid, list] of this.messageDocs) {
+      for (const m of list) {
+        if (m.senderUid !== uid || n >= limit) continue;
+        await this.deleteMessage(cid, m.id);
+        n += 1;
+      }
+    }
+    return n;
+  }
+  async deleteChat(cid: string) {
+    for (const m of this.list(cid)) if (m.photoPath) this.deletedPhotos.push(m.photoPath);
+    this.messageDocs.delete(cid);
+    this.heads.delete(cid);
+    for (const k of [...this.memberDocs.keys()]) {
+      if (!k.startsWith(`${cid}|`)) continue;
+      this.summaries.delete(`${k.slice(cid.length + 1)}|${cid}`);
+      this.memberDocs.delete(k);
+    }
   }
 }

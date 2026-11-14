@@ -92,11 +92,13 @@ async function close(deps: ChatAdminDeps, caller: AdminCaller, report: ReportRec
   return toView(next);
 }
 
-/** { reportId } -> the report, closed. Hard-deletes the reported message on Stream. */
+/** { reportId } -> the report, closed. Deletes the reported message (and its photo) for everyone. */
 export async function removeReportedMessage(deps: ChatAdminDeps, caller: AdminCaller, data: unknown, ip: string | null): Promise<ReportView> {
   const report = await loadReport(deps, data);
   if (report.targetType !== "message") throw new AdminError("invalid-state");
-  await deps.server.deleteMessage(report.targetId);
+  const ref = parseCid(report.cid);
+  if (!ref) throw new AdminError("invalid-state");
+  await deps.server.deleteMessage(ref.type, ref.id, report.targetId);
   await deps.audit({ actorUid: caller.uid, action: "chat.removeMessage", target: `reports/${report.id}`, details: { kind: report.kind }, ip });
   return close(deps, caller, report, "message-removed");
 }

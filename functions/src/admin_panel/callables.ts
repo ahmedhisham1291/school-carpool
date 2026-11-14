@@ -18,7 +18,6 @@ import {
   type ChatAdminDeps,
 } from "../chat/admin";
 import { chatDeps } from "../chat/callables";
-import { STREAM_API_SECRET } from "../config";
 import {
   approveSchool as approveSchoolFlow,
   getSchool as getSchoolFlow,
@@ -205,9 +204,9 @@ function chatAdminDeps(): ChatAdminDeps {
   return { ...chatDeps(), audit: (entry) => lists.audit(entry) };
 }
 
-/** Wraps an admin-only callable that calls Stream (needs the Stream secret). */
+/** Wraps an admin-only callable of the chat reports queue. */
 function chatAdminCall<T>(name: string, body: (caller: AdminCaller, request: CallableRequest) => Promise<T>) {
-  return onCall({ ...options, secrets: [STREAM_API_SECRET] }, (request) =>
+  return onCall(options, (request) =>
     run(name, async () => body(await requireAdminCaller(request), request)),
   );
 }
@@ -217,7 +216,7 @@ export const adminGetReport = chatAdminCall("adminGetReport", (caller, request) 
   getReportFlow(chatAdminDeps(), caller, request.data, ipOf(request)),
 );
 
-/** { reportId } -> the report, closed: the reported message is deleted on Stream. */
+/** { reportId } -> the report, closed: the reported message is deleted for everyone. */
 export const adminRemoveChatMessage = chatAdminCall("adminRemoveChatMessage", (caller, request) =>
   removeMessageFlow(chatAdminDeps(), caller, request.data, ipOf(request)),
 );

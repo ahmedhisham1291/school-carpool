@@ -16,8 +16,8 @@ import {
 /**
  * Channel membership (F9, F10), kept in step by Cloud Functions only:
  * - access: a parent who stops being verified, is suspended, banned or
- *   deleted is cut off at once (Stream user deactivated, tokens revoked);
- *   a parent verified again is reactivated;
+ *   deleted is cut off at once (every member document marked `cut`, which
+ *   the rules read on each request); a parent verified again is restored;
  * - school and area groups: every verified parent is in the school group of
  *   each child's school, and in the area group of that school whose center
  *   is nearest their rounded home point (within AREA_MAX_KM);
@@ -57,7 +57,7 @@ export function newChannel(ref: ChannelRef, refId: string | null, schoolId: stri
   };
 }
 
-/** Creates the channel on Stream when it is new and records [uid] as a member (or not). */
+/** Creates the chat when it is new and records [uid] as a member (or not). */
 export type MemberOutcome = "added" | "removed" | "unchanged" | "excluded";
 
 export async function setMember(
@@ -88,7 +88,7 @@ export async function setMember(
   if (!saved) return state.outcome;
   const data = { nameAr: saved.nameAr, nameEn: saved.nameEn, kind: ref.kind, refId: saved.refId };
   if (state.created) {
-    // New channel: created on Stream with its members in one call.
+    // New chat: created with its members in one call.
     await deps.server.ensureChannel(ref.type, ref.id, data, saved.members);
     return state.outcome;
   }
@@ -222,23 +222,21 @@ export function chatRelevant(change: AccessChange): boolean {
   if (!b || !a) return b !== a;
   return (
     chatEligible(b) !== chatEligible(a) ||
-    (chatEligible(a) && (b.firstName !== a.firstName || b.parentId !== a.parentId || b.language !== a.language))
+    (chatEligible(a) && b.firstName !== a.firstName)
   );
 }
 
 /**
  * A users/{uid} write. Lost eligibility (suspended, banned, unverified,
- * deleted): Stream user deactivated and every token revoked AT ONCE, then
- * the groups are left. Became eligible again: reactivated, profile saved
- * (first name and parent ID only) and the groups and carpool chats synced.
+ * deleted): cut off in every chat AT ONCE, then the groups are left. Became
+ * eligible again: restored, first name saved and the groups and carpool
+ * chats synced.
  */
 export async function syncAccess(deps: SyncDeps, uid: string, change: AccessChange): Promise<"cut-off" | "restored" | "profile" | "none"> {
   if (!chatRelevant(change)) return "none";
   const wasIn = chatEligible(change.before);
   const isIn = chatEligible(change.after);
   if (wasIn && !isIn) {
-    const nowMs = deps.now();
-    await deps.server.revokeTokens(uid, nowMs + 1000);
     await deps.server.deactivateUser(uid);
     await syncParentGroups(deps, uid);
     deps.log("chat access removed", { reason: change.after ? (change.after.banned ? "banned" : change.after.status) : "deleted" });
@@ -246,12 +244,13 @@ export async function syncAccess(deps: SyncDeps, uid: string, change: AccessChan
   }
   if (!isIn || !change.after) return "none";
   const a = change.after;
-  await deps.server.upsertUser({ id: uid, name: a.firstName, parentId: a.parentId, language: a.language });
   if (!wasIn) {
     await deps.server.reactivateUser(uid);
+    await deps.server.upsertUser({ id: uid, name: a.firstName });
     await syncParentGroups(deps, uid);
     await syncCarpoolsOf(deps, uid);
     return "restored";
   }
+  await deps.server.upsertUser({ id: uid, name: a.firstName });
   return "profile";
 }

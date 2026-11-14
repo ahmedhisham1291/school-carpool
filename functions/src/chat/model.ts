@@ -1,26 +1,28 @@
 import { createHash } from "node:crypto";
 
 /**
- * Chat (Prompt 9: F8, F9, F10, F13) on Stream Chat.
+ * Chat (F8, F9, F10, F13): our own chat on Firestore (owner decision 14 Nov
+ * 2026, DECISIONS.md "Improvements, revised" item 3; it replaced Stream).
  *
- * Cloud Functions decide everything about chat: who gets a token, which
- * channels exist and who is in them. The app can read and write messages
- * only in channels it was added to (Stream channel-type permissions, set by
- * scripts/stream_setup.ts): it cannot create a channel or add a member.
+ * Cloud Functions decide everything about membership: which chats exist and
+ * who is in them. The app writes only its own messages and its own read
+ * marks, under firestore.rules, which read the CURRENT member document on
+ * every request (never a token claim): a removed, suspended or blocked
+ * parent is out at once.
  *
- * Four Stream channel types, one per kind of chat (spec section 5). Each
- * type carries the switches of its kind, so the rules hold on Stream's side
- * too: photos only in private and carpool chats, read receipts only in
- * small chats.
+ * Four kinds of chat (spec section 5). The kind is part of the chat's ID
+ * ("type:id"), so the rules can tell small chats (private, carpool: photos,
+ * location pin, read marks) from school and area groups (text only)
+ * without another read.
  *
- * Stream gets first names and parent IDs only (spec section 7): never a
- * phone number, an address or a child.
+ * Other parents see first names only (spec section 6): never a phone
+ * number, an address or a child.
  */
 
 export const CHAT_KINDS = ["private", "school", "area", "carpool"] as const;
 export type ChatKind = (typeof CHAT_KINDS)[number];
 
-/** Stream channel type of each kind (created by scripts/stream_setup.ts). */
+/** Chat type of each kind: the first part of the chat ID and of the app's route. */
 export const CHANNEL_TYPES: Readonly<Record<ChatKind, string>> = {
   private: "cp_private",
   school: "cp_school",
@@ -28,21 +30,25 @@ export const CHANNEL_TYPES: Readonly<Record<ChatKind, string>> = {
   carpool: "cp_carpool",
 };
 
-export interface ChannelTypeConfig {
-  /** Photos (spec section 5: private and carpool chats only). */
-  uploads: boolean;
-  /** Read receipts (small chats only). */
-  readEvents: boolean;
+/**
+ * Small chats (private and carpool): photos, the location pin, read marks
+ * and typing, and one summary per member updated on every message (unread
+ * counter, last message). School and area groups can have thousands of
+ * members: text only, no per-member write per message (firestore.rules
+ * `smallChat` and lib/features/chat/chat_models.dart say the same).
+ */
+export function isSmallChat(kind: ChatKind): boolean {
+  return kind === "private" || kind === "carpool";
 }
 
-export const CHANNEL_TYPE_CONFIG: Readonly<Record<ChatKind, ChannelTypeConfig>> = {
-  private: { uploads: true, readEvents: true },
-  school: { uploads: false, readEvents: false },
-  area: { uploads: false, readEvents: false },
-  carpool: { uploads: true, readEvents: true },
-};
+/** Longest message text (firestore.rules checks the same number). */
+export const MESSAGE_TEXT_MAX = 2000;
+/** The chat list shows this much of the last message. */
+export const PREVIEW_TEXT_MAX = 80;
+/** Members of a small chat who get a summary update per message (a carpool has far fewer). */
+export const SMALL_CHAT_MAX = 50;
 
-/** The Stream user that creates every channel (role admin, no person). */
+/** Sender of system messages (the driver's quick messages, F35). Not a person. */
 export const SYSTEM_USER_ID = "carpool-system";
 
 /**
@@ -129,7 +135,7 @@ export class ChatError extends Error {
 
 const REF_ID = /^[A-Za-z0-9_-]{1,40}$/;
 const UID = /^[A-Za-z0-9_-]{1,128}$/;
-/** Stream channel IDs: letters, digits, "-" and "_", at most 64. */
+/** Chat IDs: letters, digits, "-" and "_", at most 64. */
 const CHANNEL_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 export function isUid(v: unknown): v is string {
@@ -156,7 +162,7 @@ export interface ChannelRef {
   kind: ChatKind;
   type: string;
   id: string;
-  /** "type:id", Stream's channel key; also our registry document ID. */
+  /** "type:id": the document ID in chatChannels and in chats. */
   cid: string;
 }
 
@@ -165,7 +171,7 @@ export function channelRef(kind: ChatKind, id: string): ChannelRef {
   return { kind, type, id, cid: `${type}:${id}` };
 }
 
-/** A cid from the app or a webhook, or null when it is not one of ours. */
+/** A cid from the app or a trigger, or null when it is not one of ours. */
 export function parseCid(cid: unknown): ChannelRef | null {
   if (typeof cid !== "string") return null;
   const at = cid.indexOf(":");
@@ -200,8 +206,8 @@ export interface ChannelRecord {
   updatedAtMs: number;
   /**
    * Prompt 12: when the chat ended (carpool closed, a private chat whose
-   * parent deleted the account). retentionDaily deletes it on Stream one
-   * year later (owner decision: life of the chat + 1 year).
+   * parent deleted the account). retentionDaily deletes it with its
+   * messages and photos one year later (owner decision: life of the chat + 1 year).
    */
   endedAtMs?: number | null;
 }
@@ -343,7 +349,7 @@ export function boolField(v: unknown): boolean {
   return v;
 }
 
-/** Stream message IDs: the SDK's UUIDs or our own, no slashes. */
+/** Message IDs: Firestore auto IDs or our own, no slashes. */
 export function messageIdField(v: unknown): string {
   if (typeof v !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(v)) throw new ChatError("invalid-request");
   return v;

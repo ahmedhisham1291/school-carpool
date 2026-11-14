@@ -615,7 +615,7 @@ describe("account deletion", () => {
     assert.ok(r.ran.includes("verifications.uid"));
     assert.ok(r.ran.includes("purge:trips"));
     assert.ok(r.ran.includes("users/u1/consents"));
-    assert.ok(r.ran.includes("purge:stream"));
+    assert.ok(r.ran.includes("purge:chatMessages"));
     assert.equal(r.closedMap.get("u1")?.purgedAtMs, later);
   });
 
@@ -638,7 +638,7 @@ describe("data export", () => {
     const file = await buildExport(
       {
         section: async (_uid, id) => {
-          if (id === "chat") throw new Error("stream down");
+          if (id === "chat") throw new Error("chat down");
           if (id === "account") return { parentId: "ABCD2345", phone: "+201000000000", nationalIdHash: "abc", deviceKey: "s_x", membership: { relationship: "mother" } };
           if (id === "wallet") return { transfers: [{ id: "t1", amount: 100, walletRef: "w1", partnerRef: "p1" }] };
           return { id };
@@ -787,7 +787,7 @@ describe("retention job", () => {
       store,
       runner,
       deleteChannel: async (cid) => {
-        if (cid === "private:b") throw new Error("stream 500");
+        if (cid === "private:b") throw new Error("chat 500");
         deletedChannels.push(cid);
       },
       freezeChannel: async (cid) => void store.frozen.push(cid),
@@ -798,7 +798,7 @@ describe("retention job", () => {
     assert.ok(runner.ran.includes("faceRefs/u1/"));
     assert.deepEqual(report.tasks.routeArchives, { deleted: 0, failed: 1 });
     assert.deepEqual(report.tasks.chats, { deleted: 1, failed: 1 });
-    assert.deepEqual(store.deletedChats, ["private:a"], "a chat whose Stream delete failed keeps its record (retried)");
+    assert.deepEqual(store.deletedChats, ["private:a"], "a chat whose delete failed keeps its record (retried)");
     assert.deepEqual(report.tasks.exports, { deleted: 4, failed: 0 });
     assert.deepEqual(store.frozen, ["cp_carpool:c-k9"], "a closed carpool's chat is frozen and its year starts");
     assert.deepEqual(report.tasks.closedCarpools, { deleted: 2, failed: 0 });

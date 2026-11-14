@@ -1,23 +1,22 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { cutText, SYSTEM_USER_ID, type MessageSnapshot } from "./model";
+import type { ChatData, ChatHead, ChatMember, ChatSummary, LastMessage, StoredMessage } from "./data";
+import { cutText, isSmallChat, MAX_GROUP_MEMBERS, parseCid, PREVIEW_TEXT_MAX, SMALL_CHAT_MAX, SYSTEM_USER_ID, type ChatKind, type MessageSnapshot } from "./model";
 
 /**
  * The chat service as Cloud Functions use it. Two implementations:
- * - StreamChatServer: Stream's server REST API, signed with the app secret
- *   (never leaves Cloud Functions). No npm package: plain HTTPS with a
- *   server JWT, so nothing new to install and every call is visible here.
- * - FakeChatServer: dev without a Stream app, and CI. Records calls in
- *   memory; refused in prod (createChatServer).
+ * - FirestoreChatServer: our own chat. It keeps the documents the phone
+ *   reads (data.ts) in step with the channel registry: members, the
+ *   parent's chat list, frozen and muted states, names.
+ * - FakeChatServer: records calls in memory (unit tests; refused in prod).
  *
- * Logs from here carry IDs and counts only: never message text or names.
+ * Membership is decided by the callers (sync.ts, flow.ts, admin.ts); this
+ * only writes it where the rules and the phone read it. Logs from here
+ * carry IDs and counts only: never message text or names.
  */
 
-export interface StreamUser {
+export interface ChatUser {
   id: string;
-  /** First name only (spec section 7). */
+  /** First name only (spec section 6). */
   name: string;
-  parentId: string;
-  language: "ar" | "en";
 }
 
 /** One of the parent's own messages, for the data export. */
@@ -26,9 +25,11 @@ export interface ExportedMessage {
   cid: string;
   text: string;
   createdAt: string;
-  attachment: "image" | "location" | "other" | null;
-  /** The parent's own image: Stream's link (it may expire; ask the privacy team for a copy). */
-  imageUrl: string | null;
+  attachment: "image" | "location" | null;
+  /** The parent's own photo: its path in our private bucket (ask the privacy team for a copy). */
+  photoPath: string | null;
+  /** The parent's own location pin. */
+  location: { lat: number; lng: number } | null;
 }
 
 export interface ChannelData {
@@ -39,18 +40,13 @@ export interface ChannelData {
 }
 
 export interface ChatServer {
-  readonly kind: "fake" | "stream";
-  /** Public key the app connects with ("" for the fake). */
-  readonly apiKey: string;
-  upsertUser(user: StreamUser): Promise<void>;
-  /** A user token: HS256 JWT with user_id, iat and exp. */
-  createToken(uid: string, issuedAtSec: number, expiresAtSec: number): string;
-  /** Cuts the parent off at once: open connections close and every token stops working. */
+  readonly kind: "fake" | "firestore";
+  /** The parent's first name wherever chat shows it (member documents, private chat rows). */
+  upsertUser(user: ChatUser): Promise<void>;
+  /** Cuts the parent off at once: every chat closes for them in the rules. */
   deactivateUser(uid: string): Promise<void>;
   reactivateUser(uid: string): Promise<void>;
-  /** Tokens issued before [beforeMs] stop working. */
-  revokeTokens(uid: string, beforeMs: number): Promise<void>;
-  /** Creates the channel with [members] when missing (created by the system user). */
+  /** Creates the chat with [members] when missing. */
   ensureChannel(type: string, id: string, data: ChannelData, members: string[]): Promise<void>;
   addMembers(type: string, id: string, uids: string[]): Promise<void>;
   removeMembers(type: string, id: string, uids: string[]): Promise<void>;
@@ -58,324 +54,296 @@ export interface ChatServer {
   setMuted(uid: string, cid: string, muted: boolean): Promise<void>;
   /** The message and its neighbours ([before] older, [after] newer); empty when gone. */
   messageWithContext(type: string, id: string, messageId: string, before: number, after: number): Promise<MessageSnapshot[]>;
-  deleteMessage(messageId: string): Promise<void>;
+  deleteMessage(type: string, id: string, messageId: string): Promise<void>;
   /**
-   * Prompt 12 (owner decision: chat kept for the life of the chat + 1
-   * year): hard-deletes an ended chat with all its messages.
+   * Owner decision: chat kept for the life of the chat + 1 year. Deletes an
+   * ended chat with all its messages and photos.
    */
   deleteChannel(type: string, id: string): Promise<void>;
-  /** Prompt 12: hard-deletes the Stream user and their messages (1 year after the account closed). */
+  /** Deletes the parent's messages, photos and chat list (1 year after the account closed). */
   deleteUser(uid: string): Promise<void>;
-  /** Prompt 12 (export): the parent's own messages, newest first, at most [limit]. */
+  /** Export: the parent's own messages, newest first, at most [limit]. */
   userMessages(uid: string, limit: number): Promise<ExportedMessage[]>;
   /**
-   * Prompt 10 (F35): a message from the system user into a group channel
-   * (the driver's quick messages in the carpool chat). [messageId] is
-   * fixed by the caller, so a retry never posts twice. No push from Stream
-   * (our notification sender already told the parents).
+   * F35: a message from the system sender into a group chat (the driver's
+   * quick messages in the carpool chat). [messageId] is fixed by the
+   * caller, so a retry never posts twice. No push (our notification
+   * sender already told the parents).
    */
   postSystemMessage(type: string, id: string, messageId: string, text: string, extra: Record<string, string>): Promise<void>;
 }
 
 // --------------------------------------------------------------------------
-// JWT and webhook signature
+// Firestore
 // --------------------------------------------------------------------------
 
-const b64url = (data: Buffer | string): string => Buffer.from(data).toString("base64url");
+const CHATS_PER_PARENT = 500;
+const PURGE_PAGE = 300;
+const PURGE_ROUNDS = 100;
 
-/** HS256 JWT, as Stream expects for server and user tokens. */
-export function signJwt(payload: Record<string, unknown>, secret: string): string {
-  const head = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const body = b64url(JSON.stringify(payload));
-  const sig = createHmac("sha256", secret).update(`${head}.${body}`).digest("base64url");
-  return `${head}.${body}.${sig}`;
+function isKind(v: string): v is ChatKind {
+  return v === "private" || v === "school" || v === "area" || v === "carpool";
 }
 
-/**
- * Stream signs every webhook: X-Signature is the hex HMAC-SHA256 of the raw
- * body with the app secret. Compared in constant time; anything else
- * (missing, wrong length, not hex) is refused.
- */
-export function verifyWebhookSignature(rawBody: Buffer, signature: string | undefined, secret: string): boolean {
-  if (!secret || typeof signature !== "string" || !/^[0-9a-f]{64}$/i.test(signature)) return false;
-  const expected = createHmac("sha256", secret).update(rawBody).digest();
-  const given = Buffer.from(signature, "hex");
-  return given.length === expected.length && timingSafeEqual(given, expected);
+export function previewOf(m: StoredMessage): LastMessage {
+  return { kind: m.kind, senderUid: m.senderUid, text: m.kind === "text" ? cutText(m.text, PREVIEW_TEXT_MAX) : "" };
 }
 
-// --------------------------------------------------------------------------
-// Stream (REST)
-// --------------------------------------------------------------------------
-
-export type FetchLike = (url: string, init: { method: string; headers: Record<string, string>; body?: string }) => Promise<{
-  ok: boolean;
-  status: number;
-  json(): Promise<unknown>;
-}>;
-
-export class ChatServiceError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: number | null,
-  ) {
-    super(`stream request failed: ${status}${code === null ? "" : ` (code ${code})`}`);
-  }
-}
-
-const BASE_URL = "https://chat.stream-io-api.com";
-
-interface RawMessage {
-  id?: unknown;
-  text?: unknown;
-  type?: unknown;
-  created_at?: unknown;
-  user?: { id?: unknown; name?: unknown; parent_id?: unknown };
-  attachments?: Array<{ type?: unknown; image_url?: unknown; asset_url?: unknown }>;
-}
-
-function imageUrlOf(a: { image_url?: unknown; asset_url?: unknown } | undefined): string | null {
-  const url = a?.image_url ?? a?.asset_url;
-  return typeof url === "string" && url.startsWith("https://") ? url : null;
-}
-
-export function snapshotOf(m: RawMessage, reportedId: string): MessageSnapshot | null {
-  if (typeof m.id !== "string") return null;
-  const att = Array.isArray(m.attachments) && m.attachments.length > 0 ? m.attachments[0]?.type : null;
-  return {
-    id: m.id,
-    authorUid: typeof m.user?.id === "string" ? m.user.id : "",
-    authorName: typeof m.user?.name === "string" ? m.user.name : "",
-    authorParentId: typeof m.user?.parent_id === "string" ? m.user.parent_id : "",
-    text: cutText(typeof m.text === "string" ? m.text : ""),
-    attachment: att === "image" || att === "location" ? att : att ? "other" : null,
-    createdAtMs: typeof m.created_at === "string" ? Date.parse(m.created_at) || 0 : 0,
-    reported: m.id === reportedId,
-  };
-}
-
-export class StreamChatServer implements ChatServer {
-  readonly kind = "stream" as const;
+export class FirestoreChatServer implements ChatServer {
+  readonly kind = "firestore" as const;
 
   constructor(
-    readonly apiKey: string,
-    private readonly secret: string,
-    private readonly fetchFn: FetchLike = fetch as unknown as FetchLike,
-    private readonly baseUrl = BASE_URL,
-  ) {
-    if (!apiKey || !secret) throw new Error("Stream key and secret are required");
-  }
+    private readonly data: ChatData,
+    private readonly now: () => number = () => Date.now(),
+  ) {}
 
-  private serverToken(): string {
-    return signJwt({ server: true }, this.secret);
-  }
-
-  private async call(method: string, path: string, body?: unknown): Promise<Record<string, unknown>> {
-    const sep = path.includes("?") ? "&" : "?";
-    const response = await this.fetchFn(`${this.baseUrl}${path}${sep}api_key=${encodeURIComponent(this.apiKey)}`, {
-      method,
-      headers: {
-        Authorization: this.serverToken(),
-        "stream-auth-type": "jwt",
-        "Content-Type": "application/json",
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    const json = ((await response.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
-    if (!response.ok) throw new ChatServiceError(response.status, typeof json.code === "number" ? json.code : null);
-    return json;
-  }
-
-  private static path(type: string, id: string): string {
-    return `/channels/${encodeURIComponent(type)}/${encodeURIComponent(id)}`;
-  }
-
-  async upsertUser(user: StreamUser): Promise<void> {
-    await this.call("POST", "/users", {
-      users: { [user.id]: { id: user.id, name: user.name, parent_id: user.parentId, language: user.language, role: "user" } },
-    });
-  }
-
-  createToken(uid: string, issuedAtSec: number, expiresAtSec: number): string {
-    return signJwt({ user_id: uid, iat: issuedAtSec, exp: expiresAtSec }, this.secret);
-  }
-
-  async deactivateUser(uid: string): Promise<void> {
-    try {
-      await this.call("POST", `/users/${encodeURIComponent(uid)}/deactivate`, { mark_messages_deleted: false, created_by_id: SYSTEM_USER_ID });
-    } catch (error) {
-      // Never connected (Stream answers 404 or 400 "user does not exist"): nothing to cut off.
-      if (error instanceof ChatServiceError && (error.status === 404 || error.status === 400)) return;
-      throw error;
-    }
-  }
-
-  async reactivateUser(uid: string): Promise<void> {
-    try {
-      await this.call("POST", `/users/${encodeURIComponent(uid)}/reactivate`, { restore_messages: false, created_by_id: SYSTEM_USER_ID });
-    } catch (error) {
-      // Not deactivated (or never created): already fine.
-      if (error instanceof ChatServiceError && (error.status === 404 || error.status === 400)) return;
-      throw error;
-    }
-  }
-
-  async revokeTokens(uid: string, beforeMs: number): Promise<void> {
-    try {
-      await this.call("PATCH", "/users", { users: [{ id: uid, set: { revoke_tokens_issued_before: new Date(beforeMs).toISOString() } }] });
-    } catch (error) {
-      // A parent who never opened chat has no Stream user, so no token to revoke.
-      if (error instanceof ChatServiceError && (error.status === 404 || error.status === 400)) return;
-      throw error;
-    }
+  private static cid(type: string, id: string): string {
+    return `${type}:${id}`;
   }
 
   async ensureChannel(type: string, id: string, data: ChannelData, members: string[]): Promise<void> {
-    await this.call("POST", `${StreamChatServer.path(type, id)}/query`, {
-      data: {
-        created_by_id: SYSTEM_USER_ID,
-        members,
-        name_ar: data.nameAr,
-        name_en: data.nameEn,
-        kind: data.kind,
-        ref_id: data.refId,
-      },
-      state: false,
-      watch: false,
-      presence: false,
+    const cid = FirestoreChatServer.cid(type, id);
+    const nowMs = this.now();
+    const kind: ChatKind = isKind(data.kind) ? data.kind : (parseCid(cid)?.kind ?? "private");
+    await this.data.updateHead(cid, (current) => {
+      if (current === null) {
+        return {
+          cid,
+          kind,
+          nameAr: data.nameAr,
+          nameEn: data.nameEn,
+          refId: data.refId,
+          memberCount: 0,
+          frozen: false,
+          seq: 0,
+          lastAtMs: null,
+          last: null,
+          lastMessageId: null,
+          createdAtMs: nowMs,
+          updatedAtMs: nowMs,
+        };
+      }
+      if (current.nameAr === data.nameAr && current.nameEn === data.nameEn) return null;
+      return { ...current, nameAr: data.nameAr, nameEn: data.nameEn, updatedAtMs: nowMs };
     });
+    if (members.length > 0) await this.addMembers(type, id, members);
+  }
+
+  private newSummary(head: ChatHead, nowMs: number): ChatSummary {
+    return {
+      cid: head.cid,
+      kind: head.kind,
+      nameAr: head.nameAr,
+      nameEn: head.nameEn,
+      otherUid: null,
+      otherName: "",
+      muted: null,
+      frozen: head.frozen,
+      open: true,
+      memberCount: head.memberCount,
+      unread: 0,
+      // Joined now: nothing before this counts as unread.
+      readSeq: head.seq,
+      lastAtMs: null,
+      last: null,
+      joinedAtMs: nowMs,
+      updatedAtMs: nowMs,
+    };
   }
 
   async addMembers(type: string, id: string, uids: string[]): Promise<void> {
-    if (uids.length === 0) return;
-    for (let i = 0; i < uids.length; i += 100) {
-      await this.call("POST", StreamChatServer.path(type, id), { add_members: uids.slice(i, i + 100), hide_history: false });
+    const cid = FirestoreChatServer.cid(type, id);
+    const nowMs = this.now();
+    const head = await this.data.head(cid);
+    if (!head) throw new Error("chat not found");
+    let added = 0;
+    for (const uid of uids) {
+      const [existing, profile] = await Promise.all([this.data.member(cid, uid), this.data.profile(uid)]);
+      if (!existing?.active) added += 1;
+      const member: ChatMember = {
+        uid,
+        firstName: profile?.firstName ?? existing?.firstName ?? "",
+        active: true,
+        cut: false,
+        frozen: head.frozen,
+        mutedUntilMs: existing?.mutedUntilMs ?? null,
+        joinedAtMs: existing?.active ? existing.joinedAtMs : nowMs,
+        updatedAtMs: nowMs,
+      };
+      await this.data.putMember(cid, member);
+      const summary = await this.data.summary(uid, cid);
+      if (!summary || !summary.open) {
+        // Back in the chat: the mute choice stays, the counters start again.
+        await this.data.putSummary(uid, { ...this.newSummary(head, nowMs), muted: summary?.muted ?? null });
+      }
+    }
+    const saved = added === 0 ? head : await this.count(cid, added);
+    if (isSmallChat(head.kind)) await this.refreshSmall(saved ?? head);
+  }
+
+  private count(cid: string, delta: number): Promise<ChatHead | null> {
+    return this.data.updateHead(cid, (c) => (c ? { ...c, memberCount: Math.max(0, c.memberCount + delta), updatedAtMs: this.now() } : null));
+  }
+
+  /** Small chats: every member's row gets the member count and, in a private chat, the other parent. */
+  private async refreshSmall(head: ChatHead): Promise<void> {
+    const nowMs = this.now();
+    const all = await this.data.members(head.cid, SMALL_CHAT_MAX * 2);
+    for (const m of all) {
+      if (!m.active) continue;
+      const other = head.kind === "private" ? all.find((o) => o.uid !== m.uid) : undefined;
+      await this.data.patchSummary(
+        m.uid,
+        head.cid,
+        { nameAr: head.nameAr, nameEn: head.nameEn, memberCount: head.memberCount, frozen: head.frozen, otherUid: other?.uid ?? null, otherName: other?.firstName ?? "" },
+        nowMs,
+      );
     }
   }
 
   async removeMembers(type: string, id: string, uids: string[]): Promise<void> {
-    if (uids.length === 0) return;
-    for (let i = 0; i < uids.length; i += 100) {
-      await this.call("POST", StreamChatServer.path(type, id), { remove_members: uids.slice(i, i + 100) });
+    const cid = FirestoreChatServer.cid(type, id);
+    const nowMs = this.now();
+    let removed = 0;
+    for (const uid of uids) {
+      const existing = await this.data.member(cid, uid);
+      if (existing?.active) removed += 1;
+      // The member document stays (inactive): the rules refuse them from now
+      // on, and their old messages still show a first name.
+      await this.data.patchMember(cid, uid, { active: false }, nowMs);
+      await this.data.patchSummary(uid, cid, { open: false, last: null }, nowMs);
     }
+    if (removed === 0) return;
+    const head = await this.count(cid, -removed);
+    if (head && isSmallChat(head.kind)) await this.refreshSmall(head);
   }
 
   async setFrozen(type: string, id: string, frozen: boolean): Promise<void> {
-    await this.call("PATCH", StreamChatServer.path(type, id), { set: { frozen } });
+    const cid = FirestoreChatServer.cid(type, id);
+    const nowMs = this.now();
+    await this.data.updateHead(cid, (c) => (c && c.frozen !== frozen ? { ...c, frozen, updatedAtMs: nowMs } : null));
+    // The rules read `frozen` on the member document (one read per message).
+    for (const m of await this.data.members(cid, MAX_GROUP_MEMBERS)) {
+      if (m.frozen !== frozen) await this.data.patchMember(cid, m.uid, { frozen }, nowMs);
+      await this.data.patchSummary(m.uid, cid, { frozen }, nowMs);
+    }
   }
 
   async setMuted(uid: string, cid: string, muted: boolean): Promise<void> {
-    if (muted) {
-      await this.call("POST", "/moderation/mute/channel", { channel_cids: [cid], user_id: uid });
-    } else {
-      await this.call("POST", "/moderation/unmute/channel", { channel_cids: [cid], user_id: uid });
+    await this.data.patchSummary(uid, cid, { muted }, this.now());
+  }
+
+  async upsertUser(user: ChatUser): Promise<void> {
+    const nowMs = this.now();
+    for (const cid of await this.data.chatsOf(user.id, CHATS_PER_PARENT)) {
+      const member = await this.data.member(cid, user.id);
+      if (!member || member.firstName === user.name) continue;
+      await this.data.patchMember(cid, user.id, { firstName: user.name }, nowMs);
+      if (parseCid(cid)?.kind !== "private") continue;
+      for (const other of await this.data.members(cid, 4)) {
+        if (other.uid !== user.id) await this.data.patchSummary(other.uid, cid, { otherName: user.name }, nowMs);
+      }
+    }
+  }
+
+  async deactivateUser(uid: string): Promise<void> {
+    const nowMs = this.now();
+    for (const cid of await this.data.chatsOf(uid, CHATS_PER_PARENT)) {
+      await this.data.patchMember(cid, uid, { cut: true }, nowMs);
+      await this.data.patchSummary(uid, cid, { open: false }, nowMs);
+    }
+  }
+
+  async reactivateUser(uid: string): Promise<void> {
+    const nowMs = this.now();
+    for (const cid of await this.data.chatsOf(uid, CHATS_PER_PARENT)) {
+      const member = await this.data.member(cid, uid);
+      if (!member) continue;
+      await this.data.patchMember(cid, uid, { cut: false }, nowMs);
+      if (member.active) await this.data.patchSummary(uid, cid, { open: true }, nowMs);
     }
   }
 
   async messageWithContext(type: string, id: string, messageId: string, before: number, after: number): Promise<MessageSnapshot[]> {
-    let json: Record<string, unknown>;
-    try {
-      json = await this.call("POST", `${StreamChatServer.path(type, id)}/query`, {
-        state: true,
-        watch: false,
-        presence: false,
-        messages: { limit: before + after + 1, id_around: messageId },
-      });
-    } catch (error) {
-      if (error instanceof ChatServiceError && error.status === 404) return [];
-      throw error;
+    const cid = FirestoreChatServer.cid(type, id);
+    const messages = await this.data.messagesAround(cid, messageId, before, after);
+    const authors = new Map<string, { name: string; parentId: string }>();
+    for (const m of messages) {
+      if (authors.has(m.senderUid) || m.senderUid === SYSTEM_USER_ID) continue;
+      // Names come from our records, never from the message: nobody can forge one.
+      const profile = await this.data.profile(m.senderUid);
+      const member = profile ? null : await this.data.member(cid, m.senderUid);
+      authors.set(m.senderUid, { name: profile?.firstName ?? member?.firstName ?? "", parentId: profile?.parentId ?? "" });
     }
-    const all = (Array.isArray(json.messages) ? json.messages : []) as RawMessage[];
-    const index = all.findIndex((m) => m.id === messageId);
-    if (index < 0) return [];
-    return all
-      .slice(Math.max(0, index - before), index + after + 1)
-      .filter((m) => m.type !== "deleted" && m.type !== "system")
-      .map((m) => snapshotOf(m, messageId))
-      .filter((m): m is MessageSnapshot => m !== null);
+    return messages.map((m) => ({
+      id: m.id,
+      authorUid: m.senderUid,
+      authorName: authors.get(m.senderUid)?.name ?? "",
+      authorParentId: authors.get(m.senderUid)?.parentId ?? "",
+      text: cutText(m.text),
+      // The photo itself is never copied into a report.
+      attachment: m.kind === "photo" ? "image" : m.kind === "location" ? "location" : null,
+      createdAtMs: m.createdAtMs,
+      reported: m.id === messageId,
+    }));
   }
 
-  async deleteMessage(messageId: string): Promise<void> {
-    try {
-      await this.call("DELETE", `/messages/${encodeURIComponent(messageId)}?hard=true`);
-    } catch (error) {
-      if (error instanceof ChatServiceError && error.status === 404) return;
-      throw error;
+  async deleteMessage(type: string, id: string, messageId: string): Promise<void> {
+    const cid = FirestoreChatServer.cid(type, id);
+    const deleted = await this.data.deleteMessage(cid, messageId);
+    if (!deleted) return;
+    const nowMs = this.now();
+    const last: LastMessage = { kind: "deleted", senderUid: deleted.senderUid, text: "" };
+    // The chat list must not keep showing the removed text.
+    const head = await this.data.updateHead(cid, (c) => (c && c.lastMessageId === messageId ? { ...c, last, updatedAtMs: nowMs } : null));
+    if (!head || !isSmallChat(head.kind)) return;
+    for (const m of await this.data.members(cid, SMALL_CHAT_MAX * 2)) {
+      if (m.active) await this.data.patchSummary(m.uid, cid, { last }, nowMs);
     }
   }
 
   async deleteChannel(type: string, id: string): Promise<void> {
-    try {
-      await this.call("DELETE", `${StreamChatServer.path(type, id)}?hard_delete=true`);
-    } catch (error) {
-      if (error instanceof ChatServiceError && error.status === 404) return;
-      throw error;
-    }
+    await this.data.deleteChat(FirestoreChatServer.cid(type, id));
   }
 
   async deleteUser(uid: string): Promise<void> {
-    try {
-      await this.call("DELETE", `/users/${encodeURIComponent(uid)}?mark_messages_deleted=true&hard_delete=true`);
-    } catch (error) {
-      // Never connected: nothing to delete.
-      if (error instanceof ChatServiceError && (error.status === 404 || error.status === 400)) return;
-      throw error;
+    for (let round = 0; round < PURGE_ROUNDS; round += 1) {
+      if ((await this.data.deleteMessagesBy(uid, PURGE_PAGE)) < PURGE_PAGE) break;
+      if (round === PURGE_ROUNDS - 1) throw new Error("messages left; retried tomorrow");
     }
+    for (const cid of await this.data.chatsOf(uid, CHATS_PER_PARENT)) await this.data.deleteSummary(uid, cid);
   }
 
   async userMessages(uid: string, limit: number): Promise<ExportedMessage[]> {
-    const out: ExportedMessage[] = [];
-    let next: string | null = null;
-    while (out.length < limit) {
-      const payload: Record<string, unknown> = {
-        filter_conditions: { members: { $in: [uid] } },
-        message_filter_conditions: { "user.id": uid },
-        sort: [{ field: "created_at", direction: -1 }],
-        limit: Math.min(100, limit - out.length),
-      };
-      if (next) payload.next = next;
-      let json: Record<string, unknown>;
-      try {
-        json = await this.call("GET", `/search?payload=${encodeURIComponent(JSON.stringify(payload))}`);
-      } catch (error) {
-        if (error instanceof ChatServiceError && (error.status === 404 || error.status === 400)) return out;
-        throw error;
-      }
-      const results = Array.isArray(json.results) ? (json.results as Array<{ message?: RawMessage & { cid?: unknown } }>) : [];
-      for (const r of results) {
-        const m = r.message;
-        if (!m || typeof m.id !== "string") continue;
-        const att = Array.isArray(m.attachments) && m.attachments.length > 0 ? m.attachments[0]?.type : null;
-        out.push({
-          id: m.id,
-          cid: typeof m.cid === "string" ? m.cid : "",
-          text: typeof m.text === "string" ? m.text : "",
-          createdAt: typeof m.created_at === "string" ? m.created_at : "",
-          attachment: att === "image" || att === "location" ? att : att ? "other" : null,
-          imageUrl: att === "image" ? imageUrlOf(m.attachments?.[0]) : null,
-        });
-      }
-      next = typeof json.next === "string" && json.next ? json.next : null;
-      if (!next || results.length === 0) break;
-    }
-    return out;
+    return (await this.data.messagesBy(uid, limit)).map((m) => ({
+      id: m.id,
+      cid: m.cid,
+      text: m.text,
+      createdAt: new Date(m.createdAtMs).toISOString(),
+      attachment: m.kind === "photo" ? "image" : m.kind === "location" ? "location" : null,
+      photoPath: m.photoPath,
+      location: m.kind === "location" && m.lat !== null && m.lng !== null ? { lat: m.lat, lng: m.lng } : null,
+    }));
   }
 
-  async postSystemMessage(type: string, id: string, messageId: string, text: string, extra: Record<string, string>): Promise<void> {
-    try {
-      await this.call("POST", `${StreamChatServer.path(type, id)}/message`, {
-        message: { ...extra, id: messageId, text, user_id: SYSTEM_USER_ID },
-        skip_push: true,
-      });
-    } catch (error) {
-      // 409 / code 4 with "already exists": the same message was posted before.
-      if (error instanceof ChatServiceError && error.status === 409) return;
-      throw error;
-    }
+  async postSystemMessage(type: string, id: string, messageId: string, text: string, _extra: Record<string, string>): Promise<void> {
+    // The message trigger (fanout.ts) updates the chat list; it sends no push
+    // for the system sender.
+    await this.data.createMessage(FirestoreChatServer.cid(type, id), {
+      id: messageId,
+      senderUid: SYSTEM_USER_ID,
+      kind: "text",
+      text,
+      photoPath: null,
+      lat: null,
+      lng: null,
+      createdAtMs: this.now(),
+    });
   }
 }
 
 // --------------------------------------------------------------------------
-// Fake (dev and CI)
+// Fake (unit tests)
 // --------------------------------------------------------------------------
 
 export interface FakeChannel {
@@ -384,17 +352,25 @@ export interface FakeChannel {
   data: ChannelData;
 }
 
+export interface FakeMessage {
+  id: string;
+  uid: string;
+  name?: string;
+  parentId?: string;
+  text?: string;
+  attachment?: "image" | "location";
+  createdAtMs?: number;
+}
+
 /** Records every call; tests read its state. Messages are added by tests. */
 export class FakeChatServer implements ChatServer {
   readonly kind = "fake" as const;
-  readonly apiKey = "";
-  users = new Map<string, StreamUser>();
+  users = new Map<string, ChatUser>();
   deactivated = new Set<string>();
-  revokedBefore = new Map<string, number>();
   channels = new Map<string, FakeChannel>();
   mutes = new Map<string, boolean>();
   /** cid -> messages, oldest first (test data). */
-  messages = new Map<string, RawMessage[]>();
+  messages = new Map<string, FakeMessage[]>();
   deleted: string[] = [];
   deletedChannels: string[] = [];
   calls: string[] = [];
@@ -404,18 +380,14 @@ export class FakeChatServer implements ChatServer {
   constructor(private readonly log: (message: string) => void = () => undefined) {}
 
   private note(call: string): void {
-    if (this.failing) throw new ChatServiceError(503, null);
+    if (this.failing) throw new Error("chat service down");
     this.calls.push(call);
     this.log(`[fake chat] ${call}`);
   }
 
-  async upsertUser(user: StreamUser): Promise<void> {
+  async upsertUser(user: ChatUser): Promise<void> {
     this.note(`upsertUser ${user.id}`);
     this.users.set(user.id, { ...user });
-  }
-
-  createToken(uid: string, issuedAtSec: number, expiresAtSec: number): string {
-    return `fake.${uid}.${issuedAtSec}.${expiresAtSec}`;
   }
 
   async deactivateUser(uid: string): Promise<void> {
@@ -426,11 +398,6 @@ export class FakeChatServer implements ChatServer {
   async reactivateUser(uid: string): Promise<void> {
     this.note(`reactivate ${uid}`);
     this.deactivated.delete(uid);
-  }
-
-  async revokeTokens(uid: string, beforeMs: number): Promise<void> {
-    this.note(`revoke ${uid}`);
-    this.revokedBefore.set(uid, beforeMs);
   }
 
   async ensureChannel(type: string, id: string, data: ChannelData, members: string[]): Promise<void> {
@@ -446,7 +413,7 @@ export class FakeChatServer implements ChatServer {
 
   private channel(type: string, id: string): FakeChannel {
     const c = this.channels.get(`${type}:${id}`);
-    if (!c) throw new ChatServiceError(404, 16);
+    if (!c) throw new Error("chat not found");
     return c;
   }
 
@@ -474,17 +441,23 @@ export class FakeChatServer implements ChatServer {
 
   async messageWithContext(type: string, id: string, messageId: string, before: number, after: number): Promise<MessageSnapshot[]> {
     this.note(`context ${type}:${id}`);
-    const all = (this.messages.get(`${type}:${id}`) ?? []).filter((m) => !this.deleted.includes(String(m.id)));
+    const all = (this.messages.get(`${type}:${id}`) ?? []).filter((m) => !this.deleted.includes(m.id));
     const index = all.findIndex((m) => m.id === messageId);
     if (index < 0) return [];
-    return all
-      .slice(Math.max(0, index - before), index + after + 1)
-      .map((m) => snapshotOf(m, messageId))
-      .filter((m): m is MessageSnapshot => m !== null);
+    return all.slice(Math.max(0, index - before), index + after + 1).map((m) => ({
+      id: m.id,
+      authorUid: m.uid,
+      authorName: m.name ?? "",
+      authorParentId: m.parentId ?? "",
+      text: cutText(m.text ?? ""),
+      attachment: m.attachment ?? null,
+      createdAtMs: m.createdAtMs ?? 0,
+      reported: m.id === messageId,
+    }));
   }
 
-  async deleteMessage(messageId: string): Promise<void> {
-    this.note(`deleteMessage ${messageId}`);
+  async deleteMessage(type: string, id: string, messageId: string): Promise<void> {
+    this.note(`deleteMessage ${type}:${id} ${messageId}`);
     this.deleted.push(messageId);
   }
 
@@ -498,7 +471,7 @@ export class FakeChatServer implements ChatServer {
   async deleteUser(uid: string): Promise<void> {
     this.note(`deleteUser ${uid}`);
     this.users.delete(uid);
-    for (const [cid, list] of this.messages) this.messages.set(cid, list.filter((m) => m.user?.id !== uid));
+    for (const [cid, list] of this.messages) this.messages.set(cid, list.filter((m) => m.uid !== uid));
   }
 
   async userMessages(uid: string, limit: number): Promise<ExportedMessage[]> {
@@ -506,14 +479,14 @@ export class FakeChatServer implements ChatServer {
     const out: ExportedMessage[] = [];
     for (const [cid, list] of this.messages) {
       for (const m of list) {
-        if (m.user?.id !== uid || typeof m.id !== "string") continue;
-        out.push({ id: m.id, cid, text: typeof m.text === "string" ? m.text : "", createdAt: typeof m.created_at === "string" ? m.created_at : "", attachment: null, imageUrl: null });
+        if (m.uid !== uid) continue;
+        out.push({ id: m.id, cid, text: m.text ?? "", createdAt: new Date(m.createdAtMs ?? 0).toISOString(), attachment: m.attachment ?? null, photoPath: null, location: null });
       }
     }
     return out.slice(0, limit);
   }
 
-  /** Prompt 10: system messages posted (cid, id, text, extra); one per ID. */
+  /** System messages posted (cid, id, text, extra); one per ID. */
   systemMessages: Array<{ cid: string; id: string; text: string; extra: Record<string, string> }> = [];
 
   async postSystemMessage(type: string, id: string, messageId: string, text: string, extra: Record<string, string>): Promise<void> {
@@ -524,11 +497,11 @@ export class FakeChatServer implements ChatServer {
 }
 
 /**
- * The configured server. The fake is refused in prod; Stream needs its key
- * and secret.
+ * The configured server: "firestore" (dev on the emulators, staging and
+ * prod) or "fake" (unit tests; refused in prod).
  */
-export function createChatServer(provider: string, appEnv: string, apiKey: string, secret: string, log: (m: string) => void): ChatServer {
-  if (provider === "stream") return new StreamChatServer(apiKey, secret);
+export function createChatServer(provider: string, appEnv: string, data: () => ChatData, log: (m: string) => void): ChatServer {
+  if (provider === "firestore") return new FirestoreChatServer(data());
   if (provider === "fake") {
     if (appEnv === "prod") throw new Error("The fake chat server is not allowed in prod");
     return new FakeChatServer(log);

@@ -31,7 +31,6 @@ import {
  */
 
 export interface ChatLimits {
-  tokensPerHour: number;
   requestsPerDay: number;
   reportsPerDay: number;
   changesPerDay: number;
@@ -39,7 +38,6 @@ export interface ChatLimits {
 }
 
 export const DEFAULT_CHAT_LIMITS: ChatLimits = {
-  tokensPerHour: 30,
   requestsPerDay: 10,
   reportsPerDay: 20,
   changesPerDay: 100,
@@ -50,8 +48,6 @@ export interface ChatDeps extends SyncDeps {
   store: ChatStore;
   server: ChatServer;
   limits: ChatLimits;
-  /** Token lifetime in seconds. */
-  tokenTtlSec: number;
   pauser: DrivingPauser;
 }
 
@@ -86,37 +82,8 @@ async function requireMember(deps: ChatDeps, uid: string, cid: string): Promise<
 }
 
 // --------------------------------------------------------------------------
-// Token (F8 to F10)
+// Joining (F8 to F10)
 // --------------------------------------------------------------------------
-
-export interface TokenResult {
-  provider: "fake" | "stream";
-  apiKey: string;
-  userId: string;
-  token: string;
-  expiresAtMs: number;
-}
-
-/**
- * A short-lived Stream token for a verified, non-suspended parent only. The
- * Stream user is saved first with the first name and parent ID only.
- */
-export async function getChatToken(deps: ChatDeps, caller: Caller): Promise<TokenResult> {
-  const account = await requireChatAccount(deps, caller);
-  await take(deps, caller.uid, "tokens", HOUR, deps.limits.tokensPerHour);
-  await deps.server.upsertUser({ id: caller.uid, name: account.firstName, parentId: account.parentId, language: account.language });
-  const nowSec = Math.floor(deps.now() / 1000);
-  // iat a little in the past: phone clocks run a few seconds off.
-  const iat = nowSec - 5;
-  const exp = nowSec + deps.tokenTtlSec;
-  return {
-    provider: deps.server.kind,
-    apiKey: deps.server.apiKey,
-    userId: caller.uid,
-    token: deps.server.createToken(caller.uid, iat, exp),
-    expiresAtMs: exp * 1000,
-  };
-}
 
 /** Puts the caller in every chat they belong to (first visit, and after changes the triggers missed). */
 export async function syncMyChats(deps: ChatDeps, caller: Caller): Promise<{ groups: number; carpools: number }> {
@@ -265,7 +232,7 @@ export async function updateChatSettings(deps: ChatDeps, caller: Caller, data: u
   return { requestsOff };
 }
 
-/** { cid, muted } -> { muted }. Mute per chat: no push from it (the webhook reads this). */
+/** { cid, muted } -> { muted }. Mute per chat: no push from it (the message trigger reads this). */
 export async function setChatMute(deps: ChatDeps, caller: Caller, data: unknown): Promise<{ muted: boolean }> {
   await requireChatAccount(deps, caller);
   const raw = record(data);
@@ -274,7 +241,7 @@ export async function setChatMute(deps: ChatDeps, caller: Caller, data: unknown)
   await requireMember(deps, caller.uid, ref.cid);
   await take(deps, caller.uid, "changes", DAY, deps.limits.changesPerDay);
   await deps.store.putMute({ uid: caller.uid, cid: ref.cid, muted, updatedAtMs: deps.now() });
-  // Also on Stream, so the app's chat list shows it on every phone.
+  // Also on the parent's chat list row, so every phone shows it.
   await deps.server.setMuted(caller.uid, ref.cid, muted);
   return { muted };
 }
@@ -290,8 +257,8 @@ async function freezePrivate(deps: ChatDeps, a: string, b: string, frozen: boole
 
 /**
  * { uid } -> { blocked: true }. F13: the blocked parent cannot message the
- * blocker: their private chat is frozen on Stream (nobody can write in
- * it), pending requests both ways are cancelled, no new request is
+ * blocker: their private chat is frozen (the rules refuse every new
+ * message in it), pending requests both ways are cancelled, no new request is
  * accepted, and the blocker gets no push for the blocked parent's
  * messages in groups (the app hides them too).
  */

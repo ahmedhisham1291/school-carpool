@@ -130,16 +130,15 @@ export {
   updateNotificationSettings,
 } from "./notifications/callables";
 
-// Chat (Prompt 9: F8, F9, F10, F13) on Stream Chat: tokens for verified,
-// non-suspended parents only; every channel and member decided here;
-// requests, blocks, mutes and reports; the Stream webhook feeds chat push
-// into the one notification sender; daily retention.
+// Chat (F8, F9, F10, F13): our own chat on Firestore. Every chat and member
+// is decided here; requests, blocks, mutes and reports; the trigger on new
+// messages keeps the chat list and feeds chat push into the one
+// notification sender.
 export {
   answerChatRequest,
   blockChatUser,
   cancelChatRequest,
-  chatWebhook,
-  getChatToken,
+  onChatMessageCreated,
   reportChat,
   sendChatRequest,
   setChatMute,

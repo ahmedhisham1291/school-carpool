@@ -234,7 +234,7 @@ export interface RouteInput {
  * Chat pushes (Prompt 9) are push only: their delivery record lives in
  * users/{uid}/chatPushes (never shown in the Notifications tab; TTL two
  * days), so chat never floods the tab or its unread dot. Their event IDs
- * start with this prefix ("chat_" + the Stream message ID).
+ * start with this prefix ("chat_" + a hash of the chat and message IDs).
  */
 export const PUSH_ONLY_PREFIX = "chat_";
 

@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
 import { describe, it } from "node:test";
 import { liftDrivingPause, removeReportedMember, removeReportedMessage, resolveReport, getReport, type ChatAdminDeps } from "../src/chat/admin";
 import {
@@ -7,7 +6,6 @@ import {
   blockChatUser,
   cancelChatRequest,
   DEFAULT_CHAT_LIMITS,
-  getChatToken,
   reportChat,
   sendChatRequest,
   setChatMute,
@@ -24,19 +22,21 @@ import {
   groupChannelId,
   isMuted,
   LARGE_GROUP_SIZE,
+  MESSAGE_TEXT_MAX,
   parseCid,
   privateChannelId,
   type ChannelRecord,
 } from "../src/chat/model";
-import { allChannelTypeSettings, APP_GRANTS, appGrantProblems, BLOCKED_TERMS_AR, BLOCKED_TERMS_EN, FORBIDDEN_APP_GRANTS, FORBIDDEN_FOR_PARENTS, moderationPolicy } from "../src/chat/setup_plan";
-import { createChatServer, FakeChatServer, signJwt, StreamChatServer, verifyWebhookSignature, type FetchLike } from "../src/chat/server";
+import { photoPathOk } from "../src/chat/data";
+import { chatEventId, DEFAULT_FANOUT_LIMITS, messageFromDoc, onMessageCreated, type FanoutDeps } from "../src/chat/fanout";
+import { BLOCKED_TERMS_AR, BLOCKED_TERMS_EN, hasBlockedTerm } from "../src/chat/moderation";
+import { createChatServer, FakeChatServer, FirestoreChatServer } from "../src/chat/server";
 import { accountFromDoc, chatRelevant, nearestArea, syncAccess, syncCarpoolMember, syncParentGroups } from "../src/chat/sync";
-import { handleWebhook } from "../src/chat/webhook";
 import { routeFor } from "../src/notifications/catalog";
 import { buildPush, buildRecord, eventFromDoc } from "../src/notifications/model";
 import { outboxDoc } from "../src/notifications/outbox";
 import type { AuditEntry } from "../src/admin_panel/types";
-import { FakePauser, MemoryChatStore } from "./helpers/memory_chat";
+import { FakePauser, MemoryChatData, MemoryChatStore } from "./helpers/memory_chat";
 
 const T0 = Date.UTC(2026, 10, 16, 8);
 
@@ -52,7 +52,6 @@ function setup() {
     now: () => clock.now,
     log: (message, data) => logs.push({ message, data }),
     limits: { ...DEFAULT_CHAT_LIMITS },
-    tokenTtlSec: 3600,
     pauser,
   };
   return { store, server, pauser, clock, deps, logs };
@@ -73,6 +72,41 @@ function twoParents() {
   s.store.childSchools.set("bob", ["sch1"]);
   s.store.schools.set("sch1", { id: "sch1", nameAr: "مدرسة", nameEn: "School" });
   return s;
+}
+
+const CP = "cp_carpool:c-k1";
+
+/** Two verified parents on the Firestore provider (in-memory documents). */
+function fsSetup() {
+  const s = twoParents();
+  const data = new MemoryChatData();
+  for (const a of s.store.accounts.values()) data.profiles.set(a.uid, { firstName: a.firstName, parentId: a.parentId });
+  const add = s.store.addParent.bind(s.store);
+  s.store.addParent = (uid, extra) => {
+    const a = add(uid, extra);
+    data.profiles.set(uid, { firstName: a.firstName, parentId: a.parentId });
+    return a;
+  };
+  const fs = new FirestoreChatServer(data, () => s.clock.now);
+  s.deps.server = fs;
+  const fan: FanoutDeps = { store: s.store, data, server: fs, limits: { ...DEFAULT_FANOUT_LIMITS }, now: () => s.clock.now, log: s.deps.log };
+  return { ...s, data, fs, fan };
+}
+
+/** Alice and Bob in the chat of carpool k1. */
+async function fsCarpool() {
+  const s = fsSetup();
+  s.store.carpools.set("k1", { id: "k1", nameAr: "مدرسة · 07:30", nameEn: "School · 07:30", active: true });
+  await syncCarpoolMember(s.deps, "k1", "alice", true);
+  await syncCarpoolMember(s.deps, "k1", "bob", true);
+  return s;
+}
+
+/** What the phone does (the rules allowed it), then the trigger. */
+async function send(s: ReturnType<typeof fsSetup>, cid: string, id: string, from: string, m: { kind?: string; text?: string; photoPath?: string; lat?: number; lng?: number }) {
+  const kind = m.kind ?? "text";
+  await s.data.createMessage(cid, { id, senderUid: from, kind: kind as "text", text: m.text ?? "", photoPath: m.photoPath ?? null, lat: m.lat ?? null, lng: m.lng ?? null, createdAtMs: s.clock.now });
+  return onMessageCreated(s.fan, cid, id, { senderUid: from, kind, text: m.text, photoPath: m.photoPath, lat: m.lat, lng: m.lng, createdAt: s.clock.now });
 }
 
 describe("channel IDs", () => {
@@ -104,127 +138,131 @@ describe("channel IDs", () => {
   });
 });
 
-describe("token issuance (only verified, non-suspended parents)", () => {
-  it("a verified parent gets a short-lived token; Stream gets first name and parent ID only", async () => {
-    const s = twoParents();
-    const t = await getChatToken(s.deps, me("alice"));
-    assert.equal(t.userId, "alice");
-    assert.equal(t.expiresAtMs, T0 + 3600_000);
-    assert.equal(t.provider, "fake");
-    assert.deepEqual(s.server.users.get("alice"), { id: "alice", name: "Alia", parentId: s.store.accounts.get("alice")?.parentId, language: "ar" });
-    assert.deepEqual(Object.keys(s.server.users.get("alice") ?? {}).sort(), ["id", "language", "name", "parentId"]);
+describe("chat provider (CHAT_PROVIDER: fake | firestore)", () => {
+  it("the fake is refused in prod; an unknown provider (the old 'stream' too) is refused", () => {
+    const data = () => new MemoryChatData();
+    assert.throws(() => createChatServer("fake", "prod", data, () => undefined));
+    assert.throws(() => createChatServer("stream", "dev", data, () => undefined));
+    assert.throws(() => createChatServer("other", "dev", data, () => undefined));
+    assert.equal(createChatServer("fake", "dev", data, () => undefined).kind, "fake");
+    assert.equal(createChatServer("firestore", "prod", data, () => undefined).kind, "firestore");
   });
-  it("an unverified account gets no chat token", async () => {
-    const s = setup();
+  it("an unverified, suspended or banned account joins no chat (the rules need a member document)", async () => {
+    const s = fsSetup();
     s.store.addParent("u1", { status: "unverified" });
-    await rejects(getChatToken(s.deps, me("u1", false)), "not-verified");
-    await rejects(getChatToken(s.deps, me("u1", true)), "not-verified");
-    s.store.addParent("u2", { status: "pending" });
-    await rejects(getChatToken(s.deps, me("u2")), "not-verified");
-    assert.equal(s.server.users.size, 0);
-  });
-  it("suspended and banned parents get none, even with an old verified claim", async () => {
-    const s = setup();
     s.store.addParent("s1", { status: "suspended" });
     s.store.addParent("b1", { banned: true });
-    await rejects(getChatToken(s.deps, me("s1")), "suspended");
-    await rejects(getChatToken(s.deps, me("b1")), "suspended");
-    await rejects(getChatToken(s.deps, me("nobody")), "not-verified");
-  });
-  it("is rate limited per hour", async () => {
-    const s = twoParents();
-    s.deps.limits.tokensPerHour = 2;
-    await getChatToken(s.deps, me("alice"));
-    await getChatToken(s.deps, me("alice"));
-    await rejects(getChatToken(s.deps, me("alice")), "rate-limited");
-  });
-  it("Stream user tokens are HS256 JWTs with user_id, iat and exp", () => {
-    const server = new StreamChatServer("key", "secret", (async () => ({ ok: true, status: 200, json: async () => ({}) })) as FetchLike);
-    const token = server.createToken("alice", 100, 200);
-    const [head, body, sig] = token.split(".");
-    assert.deepEqual(JSON.parse(Buffer.from(head, "base64url").toString()), { alg: "HS256", typ: "JWT" });
-    assert.deepEqual(JSON.parse(Buffer.from(body, "base64url").toString()), { user_id: "alice", iat: 100, exp: 200 });
-    assert.equal(sig, createHmac("sha256", "secret").update(`${head}.${body}`).digest("base64url"));
-  });
-  it("the fake server is refused in prod; Stream needs key and secret", () => {
-    assert.throws(() => createChatServer("fake", "prod", "", "", () => undefined));
-    assert.throws(() => createChatServer("stream", "dev", "", "x", () => undefined));
-    assert.throws(() => createChatServer("other", "dev", "k", "s", () => undefined));
-    assert.equal(createChatServer("fake", "dev", "", "", () => undefined).kind, "fake");
+    await rejects(syncMyChats(s.deps, me("u1", false)), "not-verified");
+    await rejects(syncMyChats(s.deps, me("u1", true)), "not-verified");
+    await rejects(syncMyChats(s.deps, me("s1")), "suspended");
+    await rejects(syncMyChats(s.deps, me("b1")), "suspended");
+    await rejects(syncMyChats(s.deps, me("nobody")), "not-verified");
+    assert.equal(s.data.memberDocs.size, 0);
+    assert.equal(s.data.summaries.size, 0);
   });
 });
 
-describe("Stream REST calls", () => {
-  function recording() {
-    const calls: Array<{ url: string; method: string; headers: Record<string, string>; body: unknown }> = [];
-    const fetchFn: FetchLike = async (url, init) => {
-      calls.push({ url, method: init.method, headers: init.headers, body: init.body ? JSON.parse(init.body) : undefined });
-      return { ok: true, status: 201, json: async () => ({ messages: [] }) };
-    };
-    return { calls, server: new StreamChatServer("KEY", "SECRET", fetchFn, "https://stream.test") };
-  }
-  it("server calls are signed with a server JWT and carry the api key; the secret is never sent", async () => {
-    const { calls, server } = recording();
-    await server.upsertUser({ id: "alice", name: "Alia", parentId: "ABCD2345", language: "ar" });
-    const c = calls[0];
-    assert.equal(c.url, "https://stream.test/users?api_key=KEY");
-    assert.equal(c.headers["stream-auth-type"], "jwt");
-    assert.equal(c.headers.Authorization, signJwt({ server: true }, "SECRET"));
-    assert.ok(!JSON.stringify(c).includes("SECRET"));
-    assert.deepEqual(c.body, { users: { alice: { id: "alice", name: "Alia", parent_id: "ABCD2345", language: "ar", role: "user" } } });
+describe("Firestore chat: the documents the phone reads", () => {
+  it("a carpool chat: head, member documents with first names only, one chat list row each", async () => {
+    const s = await fsCarpool();
+    const head = s.data.heads.get(CP);
+    assert.equal(head?.kind, "carpool");
+    assert.equal(head?.memberCount, 2);
+    assert.equal(head?.nameEn, "School · 07:30");
+    const alice = s.data.memberDocs.get(`${CP}|alice`);
+    assert.deepEqual(alice, { uid: "alice", firstName: "Alia", active: true, cut: false, frozen: false, mutedUntilMs: null, joinedAtMs: T0, updatedAtMs: T0 });
+    assert.deepEqual(Object.keys(alice ?? {}).sort(), ["active", "cut", "firstName", "frozen", "joinedAtMs", "mutedUntilMs", "uid", "updatedAtMs"]);
+    const row = s.data.summaries.get(`bob|${CP}`);
+    assert.equal(row?.open, true);
+    assert.equal(row?.memberCount, 2);
+    assert.equal(row?.unread, 0);
+    assert.equal(row?.muted, null);
+    assert.equal(row?.otherUid, null, "no other parent on a group row");
   });
-  it("cut-off: revoke tokens and deactivate; channels created by the system user", async () => {
-    const { calls, server } = recording();
-    await server.revokeTokens("alice", T0);
-    await server.deactivateUser("alice");
-    await server.ensureChannel("cp_carpool", "c-k1", { nameAr: "أ", nameEn: "A", kind: "carpool", refId: "k1" }, ["alice"]);
-    await server.addMembers("cp_carpool", "c-k1", ["bob"]);
-    await server.setFrozen("cp_private", "dm-1", true);
-    await server.deleteChannel("cp_school", "s-1");
-    await server.deleteUser("alice");
-    assert.deepEqual(
-      calls.map((c) => `${c.method} ${c.url.replace("https://stream.test", "").split("?")[0]}`),
-      [
-        "PATCH /users",
-        "POST /users/alice/deactivate",
-        "POST /channels/cp_carpool/c-k1/query",
-        "POST /channels/cp_carpool/c-k1",
-        "PATCH /channels/cp_private/dm-1",
-        "DELETE /channels/cp_school/s-1",
-        "DELETE /users/alice",
-      ],
-    );
-    assert.deepEqual(calls[0].body, { users: [{ id: "alice", set: { revoke_tokens_issued_before: new Date(T0).toISOString() } }] });
-    assert.equal((calls[2].body as { data: { created_by_id: string } }).data.created_by_id, "carpool-system");
-    assert.ok(calls[5].url.includes("hard_delete=true"));
-    assert.ok(calls[6].url.includes("hard_delete=true") && calls[6].url.includes("mark_messages_deleted=true"));
+  it("a private chat row names the other parent", async () => {
+    const s = fsSetup();
+    await sendChatRequest(s.deps, me("alice"), { toUid: "bob" });
+    const { cid } = await answerChatRequest(s.deps, me("bob"), { requestId: "alice_bob", accept: true });
+    assert.equal(s.data.summaries.get(`alice|${cid}`)?.otherUid, "bob");
+    assert.equal(s.data.summaries.get(`alice|${cid}`)?.otherName, "Badr");
+    assert.equal(s.data.summaries.get(`bob|${cid}`)?.otherName, "Alia");
+    assert.equal(s.data.heads.get(cid as string)?.memberCount, 2);
   });
-  it("cutting off a parent who never opened chat (no Stream user) is done, not an error", async () => {
-    const server = new StreamChatServer("K", "S", (async () => ({ ok: false, status: 400, json: async () => ({ code: 4 }) })) as FetchLike);
-    await server.revokeTokens("old", T0);
-    await server.deactivateUser("old");
+  it("a removed member loses access at once: inactive member document, closed row, the name stays for old messages", async () => {
+    const s = await fsCarpool();
+    assert.equal(await syncCarpoolMember(s.deps, "k1", "bob", false), "removed");
+    const bob = s.data.memberDocs.get(`${CP}|bob`);
+    assert.equal(bob?.active, false);
+    assert.equal(bob?.firstName, "Badr");
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.open, false);
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.last, null);
+    assert.equal(s.data.heads.get(CP)?.memberCount, 1);
+    assert.equal(s.data.summaries.get(`alice|${CP}`)?.memberCount, 1);
+    // Back in: the row opens with fresh counters.
+    assert.equal(await syncCarpoolMember(s.deps, "k1", "bob", true), "added");
+    assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.active, true);
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.open, true);
+    assert.equal(s.data.heads.get(CP)?.memberCount, 2);
   });
-  it("a failed call throws with the status (never the body)", async () => {
-    const server = new StreamChatServer("K", "S", (async () => ({ ok: false, status: 500, json: async () => ({ code: 4, message: "secret text" }) })) as FetchLike);
-    await assert.rejects(server.upsertUser({ id: "a", name: "A", parentId: "P", language: "en" }), (e: Error) => e.message.includes("500") && !e.message.includes("secret text"));
+  it("suspending cuts every chat off at once and verifying again restores them", async () => {
+    const s = await fsCarpool();
+    const before = accountFromDoc("bob", { status: "verified", firstName: "Badr", parentId: "P2" });
+    const suspended = accountFromDoc("bob", { status: "suspended", firstName: "Badr", parentId: "P2" });
+    s.store.accounts.set("bob", suspended!);
+    assert.equal(await syncAccess(s.deps, "bob", { before, after: suspended }), "cut-off");
+    assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.cut, true);
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.open, false);
+    s.store.accounts.set("bob", before!);
+    s.store.carpoolMembers.set("k1", ["alice", "bob"]);
+    assert.equal(await syncAccess(s.deps, "bob", { before: suspended, after: before }), "restored");
+    assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.cut, false);
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.open, true);
+  });
+  it("blocking freezes the private chat where the rules read it (both member documents)", async () => {
+    const s = fsSetup();
+    await sendChatRequest(s.deps, me("alice"), { toUid: "bob" });
+    const { cid } = await answerChatRequest(s.deps, me("bob"), { requestId: "alice_bob", accept: true });
+    await blockChatUser(s.deps, me("bob"), { uid: "alice" });
+    assert.equal(s.data.heads.get(cid as string)?.frozen, true);
+    assert.equal(s.data.memberDocs.get(`${cid}|alice`)?.frozen, true);
+    assert.equal(s.data.memberDocs.get(`${cid}|bob`)?.frozen, true);
+    assert.equal(s.data.summaries.get(`alice|${cid}`)?.frozen, true);
+    await unblockChatUser(s.deps, me("bob"), { uid: "alice" });
+    assert.equal(s.data.memberDocs.get(`${cid}|alice`)?.frozen, false);
+    assert.equal(s.data.heads.get(cid as string)?.frozen, false);
+  });
+  it("a new first name reaches member documents and the other parent's private row; nothing is written when it is the same", async () => {
+    const s = fsSetup();
+    await sendChatRequest(s.deps, me("alice"), { toUid: "bob" });
+    const { cid } = await answerChatRequest(s.deps, me("bob"), { requestId: "alice_bob", accept: true });
+    const writes = s.data.writes;
+    await s.fs.upsertUser({ id: "alice", name: "Alia" });
+    assert.equal(s.data.writes, writes);
+    await s.fs.upsertUser({ id: "alice", name: "A." });
+    assert.equal(s.data.memberDocs.get(`${cid}|alice`)?.firstName, "A.");
+    assert.equal(s.data.summaries.get(`bob|${cid}`)?.otherName, "A.");
+  });
+  it("mute is the parent's own choice on their row", async () => {
+    const s = await fsCarpool();
+    await setChatMute(s.deps, me("bob"), { cid: CP, muted: true });
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.muted, true);
+    assert.equal(s.data.summaries.get(`alice|${CP}`)?.muted, null);
+  });
+  it("is idempotent: syncing again writes nothing", async () => {
+    const s = await fsCarpool();
+    const writes = s.data.writes;
+    assert.equal(await syncCarpoolMember(s.deps, "k1", "alice", true), "unchanged");
+    assert.equal(s.data.writes, writes);
+  });
+  it("system messages (F35) are posted once per ID", async () => {
+    const s = await fsCarpool();
+    await s.fs.postSystemMessage("cp_carpool", "c-k1", "quick-1", "Badr: running late", { kind: "late" });
+    await s.fs.postSystemMessage("cp_carpool", "c-k1", "quick-1", "Badr: running late", { kind: "late" });
+    assert.equal(s.data.messageDocs.get(CP)?.length, 1);
+    assert.equal(s.data.messageDocs.get(CP)?.[0].senderUid, "carpool-system");
   });
 });
 
-describe("webhook verification", () => {
-  const body = Buffer.from(JSON.stringify({ type: "message.new" }));
-  const sign = (b: Buffer, secret: string) => createHmac("sha256", secret).update(b).digest("hex");
-  it("accepts Stream's signature of the raw body", () => {
-    assert.equal(verifyWebhookSignature(body, sign(body, "s3cret"), "s3cret"), true);
-  });
-  it("refuses a wrong, missing, malformed or other-secret signature, and an unset secret", () => {
-    assert.equal(verifyWebhookSignature(body, sign(body, "other"), "s3cret"), false);
-    assert.equal(verifyWebhookSignature(body, undefined, "s3cret"), false);
-    assert.equal(verifyWebhookSignature(body, "zz", "s3cret"), false);
-    assert.equal(verifyWebhookSignature(body, sign(body, ""), ""), false);
-    const changed = Buffer.from(JSON.stringify({ type: "message.new", x: 1 }));
-    assert.equal(verifyWebhookSignature(changed, sign(body, "s3cret"), "s3cret"), false);
-  });
-});
 
 describe("channel membership sync", () => {
   function groupSetup() {
@@ -246,7 +284,7 @@ describe("channel membership sync", () => {
     assert.deepEqual(s.store.groups.get("bob"), ["cp_school:s-sch1"]);
     assert.deepEqual(s.store.channels.get("cp_school:s-sch1")?.members, ["alice", "bob"]);
   });
-  it("is idempotent: a second run changes nothing on Stream", async () => {
+  it("is idempotent: a second run changes nothing", async () => {
     const s = groupSetup();
     await syncParentGroups(s.deps, "alice");
     const before = s.server.calls.length;
@@ -306,10 +344,9 @@ describe("channel membership sync", () => {
       const r = await syncAccess(s.deps, "alice", { before, after: changed });
       assert.equal(r, "cut-off");
       assert.ok(s.server.deactivated.has("alice"));
-      assert.equal(s.server.revokedBefore.get("alice"), T0 + 1000);
       assert.deepEqual(s.store.channels.get("cp_school:s-sch1")?.members, []);
-      // Revoked before deactivated: no new token works even if deactivation lags.
-      assert.ok(s.server.calls.indexOf("revoke alice") < s.server.calls.indexOf("deactivate alice"));
+      // Cut off first, then the groups: access never waits for the group sync.
+      assert.ok(s.server.calls.indexOf("deactivate alice") < s.server.calls.findIndex((c) => c.startsWith("removeMembers")));
     }
   });
   it("verified again: reactivated and put back in groups and carpool chats", async () => {
@@ -432,17 +469,14 @@ describe("blocking (F13)", () => {
     await rejects(sendChatRequest(s.deps, me("alice"), { toUid: "bob" }), "blocked");
     await rejects(sendChatRequest(s.deps, me("bob"), { toUid: "alice" }), "blocked");
   });
-  it("the blocker gets no push for the blocked parent's group messages", async () => {
-    const s = twoParents();
-    s.store.carpools.set("k1", { id: "k1", nameAr: "", nameEn: "", active: true });
-    await syncCarpoolMember(s.deps, "k1", "alice", true);
-    await syncCarpoolMember(s.deps, "k1", "bob", true);
+  it("the blocker gets no push for the blocked parent's group messages; the others do", async () => {
+    const s = await fsCarpool();
     s.store.addParent("cara");
     await syncCarpoolMember(s.deps, "k1", "cara", true);
     await blockChatUser(s.deps, me("bob"), { uid: "alice" });
-    const r = await handleWebhook(s.deps, { type: "message.new", cid: "cp_carpool:c-k1", message: { id: "m1", type: "regular", text: "hi", user: { id: "alice" } } });
+    const r = await send(s, CP, "m1", "alice", { text: "hi" });
     assert.equal(r.recipients, 1);
-    assert.deepEqual(s.store.events.get("chat_m1")?.recipients, ["cara"]);
+    assert.deepEqual(s.store.events.get(chatEventId(CP, "m1"))?.recipients, ["cara"]);
   });
   it("unblock opens the chat again unless the other parent blocked too", async () => {
     const s = twoParents();
@@ -462,54 +496,140 @@ describe("blocking (F13)", () => {
   });
 });
 
-describe("mute and chat push via the webhook", () => {
-  async function carpool() {
-    const s = twoParents();
-    s.store.carpools.set("k1", { id: "k1", nameAr: "", nameEn: "", active: true });
-    await syncCarpoolMember(s.deps, "k1", "alice", true);
-    await syncCarpoolMember(s.deps, "k1", "bob", true);
-    return s;
-  }
-  const msg = (id: string, from: string, extra: Record<string, unknown> = {}) => ({
-    type: "message.new",
-    cid: "cp_carpool:c-k1",
-    message: { id, type: "regular", text: "secret words", user: { id: from }, ...extra },
-  });
-  it("a new message becomes one push-only event for the other members, without the text", async () => {
-    const s = await carpool();
-    await handleWebhook(s.deps, msg("m1", "alice"));
-    const e = s.store.events.get("chat_m1");
+describe("new message fan-out (the trigger on chats/{cid}/messages/{id})", () => {
+  it("small chat: head, unread counters, last message, and one push-only event without the text", async () => {
+    const s = await fsCarpool();
+    const r = await send(s, CP, "m1", "alice", { text: "secret words" });
+    assert.deepEqual(r, { handled: true, recipients: 1, reason: null, removed: false });
+    const head = s.data.heads.get(CP);
+    assert.equal(head?.seq, 1);
+    assert.equal(head?.lastAtMs, T0);
+    assert.deepEqual(head?.last, { kind: "text", senderUid: "alice", text: "secret words" });
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.unread, 1);
+    assert.equal(s.data.summaries.get(`alice|${CP}`)?.unread, 0, "never your own message");
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.last?.text, "secret words");
+    const e = s.store.events.get(chatEventId(CP, "m1"));
     assert.ok(e);
     assert.equal(e.type, "chat-message");
     assert.deepEqual(e.recipients, ["bob"]);
     assert.equal(e.carpoolId, "k1");
-    assert.equal(e.chatCid, "cp_carpool:c-k1");
+    assert.equal(e.chatCid, CP);
+    assert.equal(e.actorUid, "alice");
+    assert.ok(e.id.startsWith("chat_"));
     assert.ok(!JSON.stringify(outboxDoc(e)).includes("secret words"));
     assert.ok(!JSON.stringify(s.logs).includes("secret words"));
   });
-  it("the same webhook twice makes one event", async () => {
-    const s = await carpool();
-    assert.equal((await handleWebhook(s.deps, msg("m1", "alice"))).handled, true);
-    assert.equal((await handleWebhook(s.deps, msg("m1", "alice"))).reason, "duplicate");
+  it("the same trigger twice counts once and makes one event", async () => {
+    const s = await fsCarpool();
+    await send(s, CP, "m1", "alice", { text: "hi" });
+    const again = await onMessageCreated(s.fan, CP, "m1", { senderUid: "alice", kind: "text", text: "hi", createdAt: T0 });
+    assert.equal(again.reason, "duplicate");
+    assert.equal(s.data.heads.get(CP)?.seq, 1);
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.unread, 1);
     assert.equal(s.store.events.size, 1);
   });
+  it("the preview is cut short; photos and pins show no text and no coordinates", async () => {
+    const s = await fsCarpool();
+    await send(s, CP, "m1", "alice", { text: "x".repeat(500) });
+    assert.equal(s.data.heads.get(CP)?.last?.text.length, 80);
+    await send(s, CP, "m2", "alice", { kind: "location", lat: 30.0444, lng: 31.2357 });
+    assert.deepEqual(s.data.heads.get(CP)?.last, { kind: "location", senderUid: "alice", text: "" });
+    assert.ok(!JSON.stringify([...s.data.summaries.values()]).includes("31.2357"));
+    assert.ok(!JSON.stringify(s.logs).includes("30.0444"));
+    await send(s, CP, "m3", "bob", { kind: "photo", photoPath: `chatPhotos/${CP}/bob/m3.webp` });
+    assert.equal(s.data.heads.get(CP)?.last?.kind, "photo");
+    assert.equal(s.data.heads.get(CP)?.seq, 3);
+  });
+  it("school groups: one head write, no row per member; the app counts unread from seq", async () => {
+    const s = fsSetup();
+    await syncParentGroups(s.deps, "alice");
+    await syncParentGroups(s.deps, "bob");
+    const cid = "cp_school:s-sch1";
+    const writes = s.data.writes;
+    await send(s, cid, "g1", "alice", { text: "hello" });
+    assert.equal(s.data.writes, writes + 1, "the head only");
+    assert.equal(s.data.heads.get(cid)?.seq, 1);
+    assert.equal(s.data.summaries.get(`bob|${cid}`)?.unread, 0);
+    assert.equal(s.data.summaries.get(`bob|${cid}`)?.readSeq, 0);
+    assert.deepEqual(s.store.events.get(chatEventId(cid, "g1"))?.recipients, ["bob"]);
+  });
+  it("photos and the location pin are refused in school and area groups (removed)", async () => {
+    const s = fsSetup();
+    await syncParentGroups(s.deps, "alice");
+    const cid = "cp_school:s-sch1";
+    assert.equal((await send(s, cid, "g1", "alice", { kind: "location", lat: 30, lng: 31 })).reason, "bad-location");
+    assert.equal((await send(s, cid, "g2", "alice", { kind: "photo", photoPath: `chatPhotos/${cid}/alice/g2.jpg` })).reason, "bad-photo");
+    assert.equal(s.data.messageDocs.get(cid)?.length, 0);
+    assert.equal(s.data.heads.get(cid)?.seq, 0);
+  });
+  it("a photo must sit in the sender's own folder of that chat under the message's ID", async () => {
+    const s = await fsCarpool();
+    assert.equal((await send(s, CP, "m1", "alice", { kind: "photo", photoPath: `chatPhotos/${CP}/bob/m1.jpg` })).reason, "bad-photo");
+    assert.equal((await send(s, CP, "m2", "alice", { kind: "photo", photoPath: "verification/bob/cases/c1/id_front.jpg" })).reason, "bad-photo");
+    assert.equal((await send(s, CP, "m3", "alice", { kind: "photo", photoPath: `chatPhotos/${CP}/alice/m3.webp` })).removed, false);
+    assert.equal(photoPathOk(CP, "alice", "m3", `chatPhotos/${CP}/alice/m3.gif`), false);
+  });
+  it("too long, empty or malformed messages and messages from non-members are removed", async () => {
+    const s = await fsCarpool();
+    s.store.addParent("out");
+    assert.equal((await send(s, CP, "m1", "out", { text: "hi" })).reason, "not-member");
+    assert.equal((await send(s, CP, "m2", "alice", { text: "x".repeat(MESSAGE_TEXT_MAX + 1) })).reason, "bad-text");
+    assert.equal((await send(s, CP, "m3", "alice", { text: "" })).reason, "bad-text");
+    assert.equal((await send(s, CP, "m4", "alice", { kind: "voice" })).reason, "invalid");
+    assert.equal((await onMessageCreated(s.fan, "messaging:x", "m5", { senderUid: "alice", kind: "text", text: "a" })).reason, "unknown-chat");
+    assert.equal(s.data.messageDocs.get(CP)?.length, 0);
+    assert.equal(s.store.events.size, 0);
+    assert.equal(messageFromDoc("bad/id", { senderUid: "a", kind: "text", text: "a" }), null);
+  });
+  it("sending too fast: the message is removed and the sender cannot write for a while, in every chat", async () => {
+    const s = await fsCarpool();
+    await syncParentGroups(s.deps, "alice");
+    s.fan.limits = { messagesPerMinute: 3, muteMinutes: 10 };
+    for (let i = 0; i < 3; i += 1) assert.equal((await send(s, CP, `m${i}`, "alice", { text: "a" })).removed, false);
+    const r = await send(s, CP, "m3", "alice", { text: "a" });
+    assert.deepEqual(r, { handled: false, recipients: 0, reason: "too-fast", removed: true });
+    assert.equal(s.data.memberDocs.get(`${CP}|alice`)?.mutedUntilMs, T0 + 10 * 60_000);
+    assert.equal(s.data.memberDocs.get("cp_school:s-sch1|alice")?.mutedUntilMs, T0 + 10 * 60_000);
+    assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.mutedUntilMs, null);
+    assert.equal(s.data.messageDocs.get(CP)?.length, 3);
+    assert.equal(s.data.heads.get(CP)?.seq, 3);
+    // A minute later the window is new.
+    s.clock.now = T0 + 61_000;
+    assert.equal((await send(s, CP, "m9", "alice", { text: "a" })).removed, false);
+  });
+  it("blocked terms: the message is removed and nobody is told; never logged", async () => {
+    const s = await fsCarpool();
+    const r = await send(s, CP, "m1", "alice", { text: "you BITCH!" });
+    assert.equal(r.reason, "blocked-term");
+    assert.equal(s.data.messageDocs.get(CP)?.length, 0);
+    assert.equal(s.store.events.size, 0);
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.unread, 0);
+    assert.ok(!JSON.stringify(s.logs).toLowerCase().includes("bitch"));
+  });
   it("muted parents get no push; unmuting brings it back", async () => {
-    const s = await carpool();
-    assert.deepEqual(await setChatMute(s.deps, me("bob"), { cid: "cp_carpool:c-k1", muted: true }), { muted: true });
-    assert.equal(s.server.mutes.get("bob|cp_carpool:c-k1"), true);
-    assert.equal((await handleWebhook(s.deps, msg("m1", "alice"))).reason, "nobody");
-    await setChatMute(s.deps, me("bob"), { cid: "cp_carpool:c-k1", muted: false });
-    await handleWebhook(s.deps, msg("m2", "alice"));
-    assert.deepEqual(s.store.events.get("chat_m2")?.recipients, ["bob"]);
+    const s = await fsCarpool();
+    assert.deepEqual(await setChatMute(s.deps, me("bob"), { cid: CP, muted: true }), { muted: true });
+    assert.equal((await send(s, CP, "m1", "alice", { text: "a" })).reason, "nobody");
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.unread, 1, "still counted as unread");
+    await setChatMute(s.deps, me("bob"), { cid: CP, muted: false });
+    await send(s, CP, "m2", "alice", { text: "a" });
+    assert.deepEqual(s.store.events.get(chatEventId(CP, "m2"))?.recipients, ["bob"]);
   });
   it("only members can mute a chat", async () => {
-    const s = await carpool();
+    const s = await fsCarpool();
     s.store.addParent("out");
-    await rejects(setChatMute(s.deps, me("out"), { cid: "cp_carpool:c-k1", muted: true }), "not-member");
+    await rejects(setChatMute(s.deps, me("out"), { cid: CP, muted: true }), "not-member");
     await rejects(setChatMute(s.deps, me("bob"), { cid: "messaging:x", muted: true }), "invalid-request");
   });
+  it("the blocker gets no push for the blocked parent's group messages", async () => {
+    const s = await fsCarpool();
+    await blockChatUser(s.deps, me("bob"), { uid: "alice" });
+    assert.equal((await send(s, CP, "m1", "alice", { text: "a" })).reason, "nobody");
+    await send(s, CP, "m2", "bob", { text: "a" });
+    assert.deepEqual(s.store.events.get(chatEventId(CP, "m2"))?.recipients, ["alice"]);
+  });
   it("large school groups push only to parents who unmuted them", async () => {
-    const s = setup();
+    const s = fsSetup();
     s.store.schools.set("s1", { id: "s1", nameAr: "", nameEn: "" });
     for (let i = 0; i <= LARGE_GROUP_SIZE + 1; i += 1) {
       s.store.addParent(`p${i}`);
@@ -517,25 +637,22 @@ describe("mute and chat push via the webhook", () => {
       await syncParentGroups(s.deps, `p${i}`);
     }
     await setChatMute(s.deps, me("p5"), { cid: "cp_school:s-s1", muted: false });
-    await handleWebhook(s.deps, { type: "message.new", cid: "cp_school:s-s1", message: { id: "g1", type: "regular", user: { id: "p1" } } });
-    assert.deepEqual(s.store.events.get("chat_g1")?.recipients, ["p5"]);
+    await send(s, "cp_school:s-s1", "g1", "p1", { text: "a" });
+    assert.deepEqual(s.store.events.get(chatEventId("cp_school:s-s1", "g1"))?.recipients, ["p5"]);
+    assert.equal(s.data.heads.get("cp_school:s-s1")?.memberCount, LARGE_GROUP_SIZE + 2);
   });
-  it("ignores other events, system and silent messages, non-members, unknown channels and thread replies", async () => {
-    const s = await carpool();
-    assert.equal((await handleWebhook(s.deps, { type: "message.read" })).reason, "ignored-type");
-    assert.equal((await handleWebhook(s.deps, msg("m1", "alice", { type: "system" }))).reason, "not-a-parent-message");
-    assert.equal((await handleWebhook(s.deps, msg("m2", "alice", { silent: true }))).reason, "not-a-parent-message");
-    assert.equal((await handleWebhook(s.deps, msg("m3", "carpool-system"))).reason, "not-a-parent-message");
-    assert.equal((await handleWebhook(s.deps, msg("m4", "stranger"))).reason, "not-member");
-    assert.equal((await handleWebhook(s.deps, { ...msg("m5", "alice"), cid: "messaging:x" })).reason, "unknown-channel");
-    assert.equal((await handleWebhook(s.deps, msg("m6", "alice", { parent_id: "m0" }))).reason, "thread-reply");
-    assert.equal((await handleWebhook(s.deps, msg("bad/id", "alice"))).reason, "bad-message");
+  it("a system message updates the chat list and sends no push", async () => {
+    const s = await fsCarpool();
+    await s.fs.postSystemMessage("cp_carpool", "c-k1", "quick-1", "Badr: at the gate", {});
+    const m = s.data.messageDocs.get(CP)?.[0];
+    const r = await onMessageCreated(s.fan, CP, "quick-1", { senderUid: m?.senderUid, kind: "text", text: m?.text, createdAt: T0 });
+    assert.equal(r.reason, "system");
+    assert.equal(s.data.summaries.get(`alice|${CP}`)?.unread, 1);
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.unread, 1);
     assert.equal(s.store.events.size, 0);
   });
   it("the chat push opens that chat and says only 'new message'", () => {
-    const s = setup();
-    void s;
-    const event = eventFromDoc("chat_m1", { type: "chat-message", recipients: ["bob"], chatCid: "cp_private:dm-abc", actorUid: "alice" }, T0);
+    const event = eventFromDoc(chatEventId("cp_private:dm-abc", "m1"), { type: "chat-message", recipients: ["bob"], chatCid: "cp_private:dm-abc", actorUid: "alice" }, T0);
     assert.ok(event);
     const record = buildRecord(event, "bob", T0, 0);
     assert.equal(record.route, "/chats/cp_private/dm-abc");
@@ -545,6 +662,8 @@ describe("mute and chat push via the webhook", () => {
     assert.deepEqual(Object.keys(push.data).sort(), ["alarm", "alarmAt", "critical", "notificationId", "route", "type"]);
     assert.equal(routeFor({ type: "chat-message", carpoolId: null, chatCid: "bad:../x" }), "/chats");
     assert.equal(routeFor({ type: "chat-message", carpoolId: null }), "/chats");
+    // Two chats, the same message ID: two events.
+    assert.notEqual(chatEventId("cp_private:dm-a", "m1"), chatEventId("cp_private:dm-b", "m1"));
   });
 });
 
@@ -554,7 +673,7 @@ describe("reports (F13)", () => {
     s.store.carpools.set("k1", { id: "k1", nameAr: "", nameEn: "", active: true });
     await syncCarpoolMember(s.deps, "k1", "alice", true);
     await syncCarpoolMember(s.deps, "k1", "bob", true);
-    const m = (id: string, from: string, text: string, created: string) => ({ id, text, type: "regular", created_at: created, user: { id: from, name: from === "alice" ? "Alia" : "Badr", parent_id: "PID" + from } });
+    const m = (id: string, from: string, text: string, created: string) => ({ id, text, uid: from, name: from === "alice" ? "Alia" : "Badr", parentId: "PID" + from, createdAtMs: Date.parse(created) });
     s.server.messages.set("cp_carpool:c-k1", [
       m("m1", "alice", "one", "2026-11-16T07:00:00Z"),
       m("m2", "bob", "two", "2026-11-16T07:01:00Z"),
@@ -617,7 +736,7 @@ describe("admin: reports queue actions", () => {
     s.store.carpools.set("k1", { id: "k1", nameAr: "", nameEn: "", active: true });
     await syncCarpoolMember(s.deps, "k1", "alice", true);
     await syncCarpoolMember(s.deps, "k1", "bob", true);
-    s.server.messages.set("cp_carpool:c-k1", [{ id: "m1", text: "bad", type: "regular", user: { id: "bob", name: "Badr", parent_id: "P" } }]);
+    s.server.messages.set("cp_carpool:c-k1", [{ id: "m1", text: "bad", uid: "bob", name: "Badr", parentId: "P" }]);
     const audit: AuditEntry[] = [];
     const deps: ChatAdminDeps = { ...s.deps, audit: async (e) => void audit.push(e) };
     const { reportId } = await reportChat(s.deps, me("alice"), { targetType: "message", cid: "cp_carpool:c-k1", messageId: "m1", reason: "childSafety" });
@@ -632,7 +751,7 @@ describe("admin: reports queue actions", () => {
     assert.equal(s.audit[0].action, "report.view");
     assert.ok(!JSON.stringify(s.audit).includes("bad"));
   });
-  it("remove the message: deleted on Stream, report closed, audited", async () => {
+  it("remove the message: deleted, report closed, audited", async () => {
     const s = await adminSetup();
     const v = await removeReportedMessage(s.adminDeps, admin, { reportId: s.reportId }, null);
     assert.deepEqual(s.server.deleted, ["m1"]);
@@ -659,68 +778,123 @@ describe("admin: reports queue actions", () => {
   });
 });
 
-describe("retention (Prompt 12: life of the chat + 1 year, run by retentionDaily)", () => {
-  it("an ended chat is hard-deleted with its messages; the export reads the parent's own messages", async () => {
-    const s = twoParents();
-    await syncParentGroups(s.deps, "alice");
-    s.server.messages.set("cp_school:s-sch1", [
-      { id: "m1", text: "hello", user: { id: "alice" }, created_at: "2026-11-01T08:00:00Z" },
-      { id: "m2", text: "hi", user: { id: "bob" }, created_at: "2026-11-01T08:01:00Z" },
-    ]);
-    assert.deepEqual((await s.server.userMessages("alice", 10)).map((m) => m.id), ["m1"]);
-    await s.server.deleteUser("alice");
-    assert.deepEqual((await s.server.userMessages("alice", 10)).length, 0);
-    await s.server.deleteChannel("cp_school", "s-sch1");
-    assert.deepEqual(s.server.deletedChannels, ["cp_school:s-sch1"]);
-    assert.equal(s.server.channels.has("cp_school:s-sch1"), false);
+describe("reports and admin removal on Firestore data", () => {
+  async function chatWithMessages() {
+    const s = await fsCarpool();
+    const texts = ["one", "two", "three", "x".repeat(900), "five", "six"];
+    for (let i = 0; i < texts.length; i += 1) {
+      s.clock.now = T0 + i * 61_000;
+      await send(s, CP, `m${i + 1}`, i % 2 === 0 ? "alice" : "bob", { text: texts[i] });
+    }
+    return s;
+  }
+  it("a message report reads the message with a little context from Firestore; names come from our records", async () => {
+    const s = await chatWithMessages();
+    await send(s, CP, "p1", "bob", { kind: "photo", photoPath: `chatPhotos/${CP}/bob/p1.webp` });
+    const r = await reportChat(s.deps, me("alice"), { targetType: "message", cid: CP, messageId: "m4", reason: "harassment" });
+    const rec = s.store.reports.get(r.reportId);
+    assert.ok(rec);
+    assert.deepEqual(rec.context.map((c) => c.id), ["m2", "m3", "m4", "m5"]);
+    assert.equal(rec.context[2].reported, true);
+    assert.equal(rec.context[2].text.length, 500);
+    assert.equal(rec.context[2].authorName, "Badr");
+    assert.equal(rec.context[2].authorParentId, s.store.accounts.get("bob")?.parentId);
+    assert.equal(rec.subjectUid, "bob");
+    // A photo report keeps the kind, never the photo or its path.
+    const p = await reportChat(s.deps, me("alice"), { targetType: "message", cid: CP, messageId: "p1", reason: "inappropriate" });
+    const photo = s.store.reports.get(p.reportId)?.context.find((c) => c.reported);
+    assert.equal(photo?.attachment, "image");
+    assert.ok(!JSON.stringify(s.store.reports.get(p.reportId)).includes("chatPhotos/"));
+  });
+  it("admin removes the reported message: gone for everyone, its photo too, and the chat list stops showing it", async () => {
+    const s = await chatWithMessages();
+    await send(s, CP, "p1", "bob", { kind: "photo", photoPath: `chatPhotos/${CP}/bob/p1.webp` });
+    const audit: AuditEntry[] = [];
+    const adminDeps: ChatAdminDeps = { ...s.deps, audit: async (e) => void audit.push(e) };
+    const { reportId } = await reportChat(s.deps, me("alice"), { targetType: "message", cid: CP, messageId: "p1", reason: "inappropriate" });
+    const v = await removeReportedMessage(adminDeps, { uid: "adm1", role: "admin" }, { reportId }, null);
+    assert.equal(v.outcome, "message-removed");
+    assert.equal(await s.data.message(CP, "p1"), null);
+    assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CP}/bob/p1.webp`]);
+    assert.deepEqual(s.data.heads.get(CP)?.last, { kind: "deleted", senderUid: "bob", text: "" });
+    assert.equal(s.data.summaries.get(`alice|${CP}`)?.last?.kind, "deleted");
+    assert.equal(audit.at(-1)?.action, "chat.removeMessage");
+    // Removing an older message leaves the last message alone.
+    const older = await reportChat(s.deps, me("alice"), { targetType: "message", cid: CP, messageId: "m2", reason: "spam" });
+    await removeReportedMessage(adminDeps, { uid: "adm1", role: "admin" }, { reportId: older.reportId }, null);
+    assert.equal(s.data.heads.get(CP)?.last?.kind, "deleted");
+    assert.equal(s.data.messageDocs.get(CP)?.some((m) => m.id === "m2"), false);
+  });
+  it("admin removes the member: inactive in the rules at once and never added back", async () => {
+    const s = await chatWithMessages();
+    const adminDeps: ChatAdminDeps = { ...s.deps, audit: async () => undefined };
+    const { reportId } = await reportChat(s.deps, me("alice"), { targetType: "user", cid: CP, uid: "bob", reason: "harassment" });
+    await removeReportedMember(adminDeps, { uid: "adm1", role: "admin" }, { reportId }, null);
+    assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.active, false);
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.open, false);
+    assert.equal(await syncCarpoolMember(s.deps, "k1", "bob", true), "excluded");
+    assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.active, false);
   });
 });
 
-describe("Stream app setup plan (scripts/stream_setup.ts)", () => {
-  it("parents can create no channel and add no member in any of our types", () => {
-    for (const t of allChannelTypeSettings()) {
-      for (const role of ["user", "channel_member", "guest", "anonymous"]) {
-        for (const id of t.grants[role] ?? []) assert.ok(!FORBIDDEN_FOR_PARENTS.includes(id), `${t.name} ${role} ${id}`);
-      }
-      assert.deepEqual(t.grants.guest, []);
-      assert.deepEqual(t.grants.anonymous, []);
-      assert.equal(t.push_notifications, false);
-      assert.deepEqual(t.commands, []);
-      assert.equal(t.blocklist_behavior, "block");
-    }
+describe("retention, deletion and export (life of the chat + 1 year, run by retentionDaily)", () => {
+  it("the export holds the parent's own messages only, newest first, with their own pin and photo path", async () => {
+    const s = await fsCarpool();
+    await send(s, CP, "m1", "alice", { text: "hello" });
+    s.clock.now = T0 + 1000;
+    await send(s, CP, "m2", "bob", { text: "hi" });
+    s.clock.now = T0 + 2000;
+    await send(s, CP, "m3", "alice", { kind: "location", lat: 30.01, lng: 31.02 });
+    const mine = await s.fs.userMessages("alice", 10);
+    assert.deepEqual(mine.map((m) => m.id), ["m3", "m1"]);
+    assert.deepEqual(mine[0].location, { lat: 30.01, lng: 31.02 });
+    assert.equal(mine[1].text, "hello");
+    assert.equal(mine[1].cid, CP);
+    assert.equal(mine[1].createdAt, new Date(T0).toISOString());
+    assert.ok(!JSON.stringify(mine).includes("hi"));
   });
-  it("photos only in private and carpool chats; read receipts only in small chats", () => {
-    const byName = new Map(allChannelTypeSettings().map((t) => [t.name, t]));
-    for (const [type, uploads] of [["cp_private", true], ["cp_carpool", true], ["cp_school", false], ["cp_area", false]] as const) {
-      const t = byName.get(type);
-      assert.ok(t);
-      assert.equal(t.uploads, uploads);
-      assert.equal(t.read_events, uploads);
-      assert.equal(t.grants.channel_member.includes("upload-attachment"), uploads);
-    }
+  it("a deleted parent shows as an initial; a year later their messages, photos and chat list go, the others stay", async () => {
+    const s = await fsCarpool();
+    await send(s, CP, "m1", "alice", { text: "hello" });
+    await send(s, CP, "m2", "bob", { text: "hi" });
+    await send(s, CP, "m3", "alice", { kind: "photo", photoPath: `chatPhotos/${CP}/alice/m3.webp` });
+    // Account deletion, chat step: cut off, name becomes an initial.
+    await s.fs.deactivateUser("alice");
+    await s.fs.upsertUser({ id: "alice", name: "A." });
+    assert.equal(s.data.memberDocs.get(`${CP}|alice`)?.cut, true);
+    assert.equal(s.data.memberDocs.get(`${CP}|alice`)?.firstName, "A.");
+    assert.equal(s.data.messageDocs.get(CP)?.length, 3, "kept for the year");
+    // Purge step, 1 year after closure.
+    await s.fs.deleteUser("alice");
+    assert.deepEqual(s.data.messageDocs.get(CP)?.map((m) => m.id), ["m2"]);
+    assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CP}/alice/m3.webp`]);
+    assert.equal(s.data.summaries.has(`alice|${CP}`), false);
+    assert.equal(s.data.summaries.has(`bob|${CP}`), true);
   });
-  it("app level: parents cannot update their own profile or list users", () => {
-    for (const role of ["user", "guest", "anonymous"]) {
-      const list = APP_GRANTS[role];
-      assert.ok(list, role);
-      for (const id of list) assert.ok(!FORBIDDEN_APP_GRANTS.includes(id), `${role} ${id}`);
-    }
-    assert.ok(FORBIDDEN_APP_GRANTS.includes("update-user-owner"));
-    assert.ok(FORBIDDEN_APP_GRANTS.includes("search-user"));
-    assert.deepEqual(appGrantProblems(APP_GRANTS), []);
-    // What Stream answers with its defaults is refused by the script.
-    assert.deepEqual(appGrantProblems({ user: ["update-user-owner", "search-user", "flag-user", "mute-user"], guest: ["search-user"] }), [
-      "user: update-user-owner",
-      "user: search-user",
-      "guest: search-user",
-    ]);
-    assert.deepEqual(appGrantProblems(undefined), []);
+  it("an ended chat is deleted with its messages, photos, members and chat list rows", async () => {
+    const s = await fsCarpool();
+    await send(s, CP, "m1", "alice", { kind: "photo", photoPath: `chatPhotos/${CP}/alice/m1.jpg` });
+    await s.fs.setFrozen("cp_carpool", "c-k1", true);
+    assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.frozen, true);
+    await s.fs.deleteChannel("cp_carpool", "c-k1");
+    assert.equal(s.data.heads.has(CP), false);
+    assert.equal(s.data.messageDocs.has(CP), false);
+    assert.equal([...s.data.memberDocs.keys()].length, 0);
+    assert.equal([...s.data.summaries.keys()].length, 0);
+    assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CP}/alice/m1.jpg`]);
   });
-  it("blocked terms in Arabic and English; moderation covers text and images", () => {
+});
+
+describe("blocked terms", () => {
+  it("Arabic and English lists; whole words and phrases, any case, Arabic letter forms", () => {
     assert.ok(BLOCKED_TERMS_AR.length >= 10 && BLOCKED_TERMS_AR.every((w) => /[؀-ۿ]/.test(w)));
     assert.ok(BLOCKED_TERMS_EN.length >= 10 && BLOCKED_TERMS_EN.every((w) => /^[a-z ]+$/.test(w)));
-    const policy = moderationPolicy() as { ai_text_config: { enabled: boolean }; ai_image_config: { enabled: boolean } };
-    assert.equal(policy.ai_text_config.enabled, true);
-    assert.equal(policy.ai_image_config.enabled, true);
+    assert.equal(hasBlockedTerm("Go KILL   yourself now"), true);
+    assert.equal(hasBlockedTerm("what a Bitch."), true);
+    assert.equal(hasBlockedTerm("the class starts at 8"), false);
+    assert.equal(hasBlockedTerm("Dickens wrote it"), false);
+    assert.equal(hasBlockedTerm(`يا ${BLOCKED_TERMS_AR[1]} يا`), true);
+    assert.equal(hasBlockedTerm("صباح الخير"), false);
+    assert.equal(hasBlockedTerm(""), false);
   });
 });
