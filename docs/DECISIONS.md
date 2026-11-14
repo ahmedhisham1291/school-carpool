@@ -211,3 +211,9 @@ revised list ("implement all your suggestions"):
    received), shows the payee's InstaPay address to the payer, and never
    moves, holds or sees money, so no payment partner is needed. The lawyer
    should confirm that no Central Bank licence is needed for this.
+
+## Owner update (14 Nov 2026, 17:28)
+
+- **Lawyer:** confirmed that "Settle up" (recording payment requests between
+  parents and showing the payee's InstaPay address, with the app never moving
+  or holding money) needs no Central Bank of Egypt licence.
