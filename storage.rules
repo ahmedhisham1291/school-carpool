@@ -47,6 +47,20 @@ service firebase.storage {
         && request.resource.contentType == 'image/jpeg';
     }
 
+    // Prompt 11: the live selfie of a phone-number change (re-verification).
+    // Upload only, by its verified owner, one fixed name; the
+    // confirmPhoneChange function reads it, matches it to the face reference
+    // and deletes it on every path. No reads.
+    match /phoneChecks/{uid}/{name} {
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.verified == true
+        && name == 'selfie.jpg'
+        && request.resource.size > 0
+        && request.resource.size < 3 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

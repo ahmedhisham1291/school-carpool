@@ -119,6 +119,14 @@ const paths = [
   "walletAlerts/a1",
   "fakeWalletAccounts/fw_1",
   "fakeWalletOps/t1",
+  // Prompt 11 (trust.test.ts): ratings, summaries, flags, guardian
+  // requests and links are Functions only, also for the parents involved.
+  "ratings/2026-11_alice_bob",
+  "trustSummaries/alice",
+  "ratingFlags/2026-11_alice_bob",
+  "guardianRequests/alice_bob",
+  "guardianLinks/c1_alice",
+  "trustLimits/alice",
   "auditLog/l1",
   "anything/else",
 ];
@@ -166,6 +174,8 @@ describe("storage.rules deny everything", () => {
       await assertFails(storage.ref("driverPhotos/alice/photo.jpg").putString("x").then(() => undefined));
       await assertFails(storage.ref("selfieChecks/alice/k1_2026-11-16_am.jpg").getDownloadURL());
       await assertFails(storage.ref("verification/alice/id-front.jpg").delete());
+      // Prompt 11: phone-change selfies are never read by the app.
+      await assertFails(storage.ref("phoneChecks/alice/selfie.jpg").getDownloadURL());
     });
   }
 });

@@ -458,6 +458,30 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Prompt 11 (F17): trust. Ratings (one per pair per month), their
+    // summaries and flags, guardian link requests and links, and limits
+    // are Cloud Functions only: the app reads and changes them through the
+    // trust functions (trust/callables.ts), admins through the admin trust
+    // functions. A linked parent does not read the child record directly.
+    match /ratings/{id} {
+      allow read, write: if false;
+    }
+    match /trustSummaries/{uid} {
+      allow read, write: if false;
+    }
+    match /ratingFlags/{id} {
+      allow read, write: if false;
+    }
+    match /guardianRequests/{id} {
+      allow read, write: if false;
+    }
+    match /guardianLinks/{id} {
+      allow read, write: if false;
+    }
+    match /trustLimits/{uid} {
+      allow read, write: if false;
+    }
+
     // Reserved parent IDs, sign-in codes and sign-in limits: Cloud
     // Functions only. Parent ID lookups (F44) go through the rate-limited
     // lookupParentId function (Prompt 11B), never a direct read.
