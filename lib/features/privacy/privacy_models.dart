@@ -286,6 +286,7 @@ enum PrivacyFailureKind {
   noSelfie,
   noReference,
   selfieMismatch,
+  selfieUnchecked,
   ownDevice,
   exportFailed,
   offline,
@@ -313,6 +314,7 @@ class PrivacyFailure implements Exception {
         'no-selfie' => PrivacyFailureKind.noSelfie,
         'no-reference' => PrivacyFailureKind.noReference,
         'selfie-mismatch' => PrivacyFailureKind.selfieMismatch,
+        'selfie-unchecked' => PrivacyFailureKind.selfieUnchecked,
         'own-device' => PrivacyFailureKind.ownDevice,
         'export-failed' => PrivacyFailureKind.exportFailed,
         _ => switch (error.code) {
@@ -341,6 +343,7 @@ class PrivacyFailure implements Exception {
     PrivacyFailureKind.noSelfie => l10n.phoneChangeErrorSelfie,
     PrivacyFailureKind.noReference => l10n.phoneChangeErrorNoReference,
     PrivacyFailureKind.selfieMismatch => l10n.privacyErrorMismatch,
+    PrivacyFailureKind.selfieUnchecked => l10n.privacyErrorUnchecked,
     PrivacyFailureKind.ownDevice => l10n.privacyErrorOwnDevice,
     PrivacyFailureKind.exportFailed => l10n.privacyErrorExport,
     PrivacyFailureKind.offline => l10n.errorOfflineShort,

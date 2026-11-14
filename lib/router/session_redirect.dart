@@ -94,21 +94,13 @@ String? _signedInTarget(Account account, String location) {
   return allowed ? null : AuthRoutes.verifyAccount;
 }
 
-/// Prompt 12: places that stay closed until the new-phone selfie matched
-/// (chats, the wallet, children, handover lists, family links and the
-/// carpool pages with children's names).
-bool deviceCheckClosed(String location) {
-  if (location == AppTab.chats.path || location.startsWith('${AppTab.chats.path}/')) {
-    return true;
-  }
-  if (location.startsWith('${AppTab.carpools.path}/')) {
-    // Invite links stay open: the screen only shows the carpool.
-    return !location.startsWith('${AppTab.carpools.path}/invite/');
-  }
-  return <String>[
-    ProfileRoutes.wallet,
-    ProfileRoutes.children,
-    ProfileRoutes.handover,
-    ProfileRoutes.family,
-  ].any(location.startsWith);
-}
+/// Prompt 12: until the new-phone selfie matched, only the profile page
+/// (with its settings and the selfie banner), the selfie screen and About
+/// stay open. Everything else reads child, carpool, schedule, trip,
+/// location, chat or wallet data, which the server refuses meanwhile
+/// (firestore.rules deviceChecked, the gated callables).
+bool deviceCheckClosed(String location) => !<String>{
+  AppTab.profile.path,
+  PrivacyRoutes.newDevice,
+  ProfileRoutes.about,
+}.contains(location);

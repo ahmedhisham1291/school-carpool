@@ -1,6 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { HttpsError, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
 import {
   ENFORCE_APP_CHECK,
@@ -31,6 +31,7 @@ import { autocomplete, FakePlacesProvider, GooglePlacesProvider, placeDetails as
 import { mapRefreshNeeded } from "./sync";
 import { FirestoreMapStore, FirestorePlaceCache } from "./store";
 import { noteAbuse } from "../privacy/abuse_hook";
+import { gatedCall, sessionCall } from "../privacy/device_gate";
 
 /**
  * Maps functions (Prompt 5: F21 to F24). The app sends the exact home only
@@ -85,22 +86,22 @@ function placesProvider(): PlacesProvider {
 }
 
 /** { location: { lat, lng }, label? } -> { approximate: { lat, lng } } */
-export const setHomeLocation = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const setHomeLocation = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("setHomeLocation", () => setHome(mapDeps(), requireUid(request), request.data)),
 );
 
 /** { showOnMap?, notifyNewParents?, radiusKm? } -> the settings */
-export const updateMapSettings = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const updateMapSettings = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("updateMapSettings", () => updateMapSettingsFlow(mapDeps(), requireUid(request), request.data)),
 );
 
 /** { schoolIds: string[] } -> { schools: [{ id, nameAr, nameEn }] } */
-export const setDrivingSchools = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const setDrivingSchools = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("setDrivingSchools", () => setDrivingSchoolsFlow(mapDeps(), requireUid(request), request.data)),
 );
 
 /** { schoolId, radiusKm } -> { schoolId, radiusKm, parents: [{ id, firstName, schoolId, point }] } */
-export const searchNearbyParents = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const searchNearbyParents = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("searchNearbyParents", async () => {
     const uid = requireUid(request);
     // Prompt 12: searching many areas in an hour alerts the admins.
@@ -111,7 +112,7 @@ export const searchNearbyParents = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }
 );
 
 /** { input, sessionToken, language, near? } -> { suggestions: [{ placeId, primary, secondary }] } */
-export const placesAutocomplete = onCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [MAPS_SERVER_KEY] }, (request) =>
+export const placesAutocomplete = sessionCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [MAPS_SERVER_KEY] }, (request) =>
   run("placesAutocomplete", async () => {
     const d = mapDeps();
     await takePlaceSearch(d, requireUid(request));
@@ -125,7 +126,7 @@ export const placesAutocomplete = onCall({ enforceAppCheck: ENFORCE_APP_CHECK, s
  * parent per hour (MAP_PLACE_DETAILS_PER_HOUR) on top of the project's
  * daily Places cap (SETUP 15.4).
  */
-export const placeDetails = onCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [MAPS_SERVER_KEY] }, (request) =>
+export const placeDetails = sessionCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [MAPS_SERVER_KEY] }, (request) =>
   run("placeDetails", async () => {
     const uid = requireUid(request);
     const d = mapDeps();

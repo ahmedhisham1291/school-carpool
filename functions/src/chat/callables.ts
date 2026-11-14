@@ -1,6 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { HttpsError, onCall, onRequest, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { HttpsError, onRequest, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
 import { deps as carpoolDeps } from "../carpools/callables";
 import {
@@ -38,7 +38,7 @@ import { createChatServer, verifyWebhookSignature, type ChatServer } from "./ser
 import { accountFromDoc, syncAccess, syncCarpoolMember, syncParentGroups, type SyncDeps } from "./sync";
 import { handleWebhook } from "./webhook";
 import { noteAbuse } from "../privacy/abuse_hook";
-import { requireNoDeviceCheck } from "../privacy/device_gate";
+import { gatedCall } from "../privacy/device_gate";
 
 /**
  * Chat functions (Prompt 9: F8, F9, F10, F13). The Stream secret is bound
@@ -110,18 +110,17 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK, secrets };
 
 /** {} -> { provider, apiKey, userId, token, expiresAtMs }: verified, non-suspended parents only. */
-export const getChatToken = onCall(opts, (r) =>
+export const getChatToken = gatedCall(opts, (r) =>
   run("getChatToken", async () => {
-    await requireNoDeviceCheck(r.auth?.uid);
     return tokenFlow(chatDeps(), caller(r));
   }),
 );
 
 /** {} -> { groups, carpools }: joins the caller's school, area and carpool chats. */
-export const syncMyChats = onCall(opts, (r) => run("syncMyChats", () => syncMineFlow(chatDeps(), caller(r))));
+export const syncMyChats = gatedCall(opts, (r) => run("syncMyChats", () => syncMineFlow(chatDeps(), caller(r))));
 
 /** { toUid } -> { id, status, cid } */
-export const sendChatRequest = onCall(opts, (r) =>
+export const sendChatRequest = gatedCall(opts, (r) =>
   run("sendChatRequest", async () => {
     // Prompt 12: many chat requests in an hour alert the admins.
     const to = typeof r.data === "object" && r.data !== null ? (r.data as { toUid?: unknown; uid?: unknown }) : {};
@@ -131,25 +130,25 @@ export const sendChatRequest = onCall(opts, (r) =>
 );
 
 /** { requestId, accept } -> { id, status, cid } */
-export const answerChatRequest = onCall(opts, (r) => run("answerChatRequest", () => answerFlow(chatDeps(), caller(r), r.data)));
+export const answerChatRequest = gatedCall(opts, (r) => run("answerChatRequest", () => answerFlow(chatDeps(), caller(r), r.data)));
 
 /** { requestId } -> { id, status, cid } */
-export const cancelChatRequest = onCall(opts, (r) => run("cancelChatRequest", () => cancelFlow(chatDeps(), caller(r), r.data)));
+export const cancelChatRequest = gatedCall(opts, (r) => run("cancelChatRequest", () => cancelFlow(chatDeps(), caller(r), r.data)));
 
 /** { requestsOff } -> { requestsOff } */
-export const updateChatSettings = onCall(opts, (r) => run("updateChatSettings", () => settingsFlow(chatDeps(), caller(r), r.data)));
+export const updateChatSettings = gatedCall(opts, (r) => run("updateChatSettings", () => settingsFlow(chatDeps(), caller(r), r.data)));
 
 /** { cid, muted } -> { muted } */
-export const setChatMute = onCall(opts, (r) => run("setChatMute", () => muteFlow(chatDeps(), caller(r), r.data)));
+export const setChatMute = gatedCall(opts, (r) => run("setChatMute", () => muteFlow(chatDeps(), caller(r), r.data)));
 
 /** { uid } -> { blocked: true } */
-export const blockChatUser = onCall(opts, (r) => run("blockChatUser", () => blockFlow(chatDeps(), caller(r), r.data)));
+export const blockChatUser = gatedCall(opts, (r) => run("blockChatUser", () => blockFlow(chatDeps(), caller(r), r.data)));
 
 /** { uid } -> { blocked: false } */
-export const unblockChatUser = onCall(opts, (r) => run("unblockChatUser", () => unblockFlow(chatDeps(), caller(r), r.data)));
+export const unblockChatUser = gatedCall(opts, (r) => run("unblockChatUser", () => unblockFlow(chatDeps(), caller(r), r.data)));
 
 /** { targetType, cid, messageId?, uid?, reason, note? } -> { reportId, urgent } */
-export const reportChat = onCall(opts, (r) => run("reportChat", () => reportFlow(chatDeps(), caller(r), r.data)));
+export const reportChat = gatedCall(opts, (r) => run("reportChat", () => reportFlow(chatDeps(), caller(r), r.data)));
 
 // --------------------------------------------------------------------------
 // Triggers: access and membership follow the records at once

@@ -234,6 +234,7 @@ export {
 // chatRetentionDaily), the archived route of each run, server-made
 // thumbnails, and admin access to photos and routes with a logged reason.
 export {
+  adminClearDeviceCheck,
   adminClosePrivacyRequest,
   adminListPrivacyRequests,
   adminListSecurityAlerts,

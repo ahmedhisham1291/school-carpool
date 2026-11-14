@@ -1950,5 +1950,6 @@
   "requestRefused": "Not done",
   "requestFailed": "Failed",
   "scheduleConfirmQueued": "Saved. It sends when you're back online.",
-  "devicesTapToSignOut": "tap to sign out"
+  "devicesTapToSignOut": "tap to sign out",
+  "privacyErrorUnchecked": "We couldn't check the selfie. Our team will review it and tell you."
 }

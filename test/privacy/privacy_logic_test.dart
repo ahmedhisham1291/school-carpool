@@ -229,12 +229,24 @@ void main() {
   });
 
   group('new phone', () {
-    test('chats, the wallet and child data wait for the selfie; the rest stays open', () {
+    test('everything but the profile page and the selfie screen waits for the selfie', () {
       final SessionState session = SessionSignedIn(uid: 'uid-1', account: _account(newDevice: true));
-      for (final String closed in <String>['/chats', '/chats/cp_private/x', '/carpools/k1', ProfileRoutes.wallet, ProfileRoutes.children, ProfileRoutes.family]) {
+      for (final String closed in <String>[
+        '/home',
+        '/carpools',
+        '/notifications',
+        '/chats',
+        '/chats/cp_private/x',
+        '/carpools/k1',
+        ProfileRoutes.wallet,
+        ProfileRoutes.children,
+        ProfileRoutes.family,
+        ProfileRoutes.homeLocation,
+        PrivacyRoutes.privacy,
+      ]) {
         expect(sessionRedirect(session, closed), PrivacyRoutes.newDevice, reason: closed);
       }
-      for (final String open in <String>['/home', '/carpools', '/profile', PrivacyRoutes.privacy, PrivacyRoutes.newDevice, '/carpools/invite/ABC']) {
+      for (final String open in <String>['/profile', PrivacyRoutes.newDevice, ProfileRoutes.about]) {
         expect(sessionRedirect(session, open), isNull, reason: open);
       }
       expect(sessionRedirect(SessionSignedIn(uid: 'uid-1', account: _account()), '/chats'), isNull);

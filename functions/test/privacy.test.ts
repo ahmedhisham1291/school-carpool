@@ -28,6 +28,7 @@ import {
   DeviceError,
   deviceCheckPending,
   deviceSelfiePath,
+  gateRefusal,
   planSignIn,
   recordSignIn,
   sessionKey,
@@ -357,10 +358,50 @@ describe("devices and the new-phone rule", () => {
     await assert.rejects(confirmNewDevice(w.deps, "u1"), (e: unknown) => e instanceof DeviceError && e.reason === "selfie-mismatch");
     assert.deepEqual(w.store.reports, [["u1", "new-device-mismatch", true]]);
     assert.equal(w.store.checks.get("u1")?.required, true);
+    // FAIL CLOSED: the face check cannot decide (or throws): nothing opens,
+    // the admins get a report and compare the kept selfie by hand.
     w.files.set(deviceSelfiePath("u1"), { createdMs: w.clock.now, data: Buffer.from("live") });
     w.face.result = "error";
-    assert.deepEqual(await confirmNewDevice(w.deps, "u1"), { cleared: true, reviewed: true });
-    assert.deepEqual(w.store.reports[1], ["u1", "new-device-unchecked", false]);
+    await assert.rejects(confirmNewDevice(w.deps, "u1"), (e: unknown) => e instanceof DeviceError && e.reason === "selfie-unchecked");
+    assert.deepEqual(w.store.reports[1], ["u1", "new-device-unchecked", true]);
+    assert.equal(w.store.checks.get("u1")?.required, true);
+    w.files.set(deviceSelfiePath("u1"), { createdMs: w.clock.now, data: Buffer.from("live") });
+    w.deps.faces = { matchFace: async () => Promise.reject(new Error("partner down")) };
+    await assert.rejects(confirmNewDevice(w.deps, "u1"), (e: unknown) => e instanceof DeviceError && e.reason === "selfie-unchecked");
+    assert.equal(w.store.checks.get("u1")?.required, true);
+  });
+
+  it("SIM swap: the old phone loses access at once; the new phone opens nothing until the selfie matches", async () => {
+    const w = deviceWorld();
+    const revokedAt: number[] = [];
+    w.deps.sessions = { ...w.deps.sessions, revokeAll: async () => void revokedAt.push(Math.floor(w.clock.now / 1000)) };
+    await recordSignIn(w.deps, "u1", ID_A, "ios");
+    const oldAuth = Math.floor(w.clock.now / 1000);
+    // Someone takes over the number and signs in on another phone a day later.
+    w.clock.now += DAY_MS;
+    const r = await recordSignIn(w.deps, "u1", ID_B, "android");
+    assert.equal(r.freshSelfieRequired, true);
+    const newAuth = Math.floor(w.clock.now / 1000) + 1;
+    const user = () => ({ newDeviceCheck: w.store.checks.get("u1") ?? null, sessionsValidAfter: revokedAt.at(-1) });
+    // The owner's phone: signed out everywhere at once (rules and callables).
+    assert.equal(gateRefusal(user(), oldAuth, true), "signed-out");
+    assert.equal(gateRefusal(user(), oldAuth, false), "signed-out");
+    assert.equal(gateRefusal(user(), null, false), "signed-out", "no sign-in time: refused");
+    // The new phone: valid session, but children, carpools, trips, chats, the
+    // wallet, export and deletion stay closed.
+    assert.equal(gateRefusal(user(), newAuth, true), "device-check");
+    assert.equal(gateRefusal(user(), newAuth, false), null, "the selfie screen itself works");
+    // A wrong face keeps it closed; the owner's face opens it.
+    w.files.set(deviceSelfiePath("u1"), { createdMs: w.clock.now, data: Buffer.from("live") });
+    w.face.result = "no_match";
+    await assert.rejects(confirmNewDevice(w.deps, "u1"), DeviceError);
+    assert.equal(gateRefusal(user(), newAuth, true), "device-check");
+    w.files.set(deviceSelfiePath("u1"), { createdMs: w.clock.now, data: Buffer.from("live") });
+    w.face.result = "match";
+    assert.deepEqual(await confirmNewDevice(w.deps, "u1"), { cleared: true, reviewed: false });
+    assert.equal(gateRefusal(user(), newAuth, true), null);
+    // A record without the fields (before Prompt 12) refuses nothing.
+    assert.equal(gateRefusal({}, null, true), null);
   });
 });
 

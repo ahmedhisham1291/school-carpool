@@ -22,9 +22,9 @@ import { reportError } from "../sentry";
 import { endDriverTrips } from "../trips/flow";
 import { tripDeps } from "../trips/callables";
 import { leaveEmptyCarpools, removeChildFromCarpools } from "../trust/carpools";
-import { createKycProvider } from "../verification/kyc";
+import { faceMatcher } from "../verification/face_match";
 import { purgeVerificationImages } from "../verification/flow";
-import { CloudStorageFiles, FirestoreVerificationStore, readFakeKycSetting } from "../verification/store";
+import { CloudStorageFiles, FirestoreVerificationStore } from "../verification/store";
 import { faceRefPath } from "../verification/submission";
 import { walletProvider } from "../wallet/callables";
 import { DeletionError, deleteAccount } from "./account_deletion";
@@ -54,6 +54,7 @@ import { accessReason, selfieArchivePath, thumbOwner, thumbPath, THUMB_EDGE, THU
 import { consentKind, consentViews, correctionField, needsAdmin, newRequest, withdrawEffect, type PrivacyRequest } from "./requests";
 import { routeArchivePurgeAt } from "./retention";
 import { archivePath, packArchive, unpackArchive, type TrackPoint } from "./route_archive";
+import { gatedCall, sessionCall } from "./device_gate";
 
 /**
  * Privacy and security callables (Prompt 12, spec section 7). The app
@@ -120,14 +121,18 @@ function hmacKey(): string {
   throw new HttpsError("internal", "Sign-in is not configured.");
 }
 
-function faceMatcher() {
-  const db = adminDb();
-  return createKycProvider({
-    provider: process.env.KYC_PROVIDER ?? "fake",
-    appEnv: process.env.APP_ENV ?? "dev",
-    fakeSetting: () => readFakeKycSetting(db),
-    valify: { enabled: false, baseUrl: "", username: "", clientId: "", clientSecret: "", password: "", bundleKey: "" },
-  }) as unknown as { matchFace(reference: () => Promise<Buffer>, live: () => Promise<Buffer>): Promise<"match" | "no_match" | "error"> };
+/**
+ * Signs every phone of [uid] out: refresh tokens revoked, and
+ * users/{uid}.sessionsValidAfter set to the revocation time (seconds) so
+ * firestore.rules and the gated callables refuse the old ID tokens at
+ * once instead of when they expire (up to 1 hour).
+ */
+export async function revokeSessions(uid: string): Promise<void> {
+  await adminAuth().revokeRefreshTokens(uid);
+  const user = await adminAuth().getUser(uid);
+  const validAfterMs = Date.parse(user.tokensValidAfterTime ?? "");
+  const seconds = Math.floor((Number.isFinite(validAfterMs) ? validAfterMs : Date.now()) / 1000);
+  await adminDb().collection("users").doc(uid).update({ sessionsValidAfter: seconds });
 }
 
 export function deviceDeps(): DeviceDeps {
@@ -135,7 +140,7 @@ export function deviceDeps(): DeviceDeps {
   const files = new CloudStorageFiles(bucket());
   return {
     store: new FirestoreDeviceStore(db, bucket()),
-    sessions: { revokeAll: (uid) => adminAuth().revokeRefreshTokens(uid), createToken: (uid) => adminAuth().createCustomToken(uid) },
+    sessions: { revokeAll: revokeSessions, createToken: (uid) => adminAuth().createCustomToken(uid) },
     mailer: new FirestoreMailOutbox(db),
     files: {
       createdMs: async (path) => {
@@ -169,6 +174,20 @@ export async function afterSignIn(uid: string, installId: unknown, platform: unk
   } catch (error) {
     logger.error("sign-in record failed", { message: error instanceof Error ? error.message : "unknown" });
     await reportError(error);
+    // FAIL CLOSED: we cannot tell whether this phone is new. A verified
+    // parent (who has a face reference) is treated as on a new phone: the
+    // other phones are signed out and a fresh selfie is asked for.
+    try {
+      const user = await adminDb().collection("users").doc(uid).get();
+      if (user.get("status") === "verified") {
+        await revokeSessions(uid);
+        await adminDb().collection("users").doc(uid).update({ newDeviceCheck: { required: true, since: Timestamp.now() } });
+        return { deviceKey: null, newDevice: true, freshSelfieRequired: true };
+      }
+    } catch (inner) {
+      await reportError(inner);
+      throw new HttpsError("unavailable", "Sign-in could not be recorded.");
+    }
     return { deviceKey: null, newDevice: false, freshSelfieRequired: false };
   }
 }
@@ -181,7 +200,7 @@ export async function afterSignIn(uid: string, installId: unknown, platform: unk
 export const touchDevice = onCall({ ...opts, secrets: [OTP_HMAC_KEY] }, (r) => run("touchDevice", () => touchDeviceFlow(deviceDeps(), uidOf(r), r.data)));
 
 /** { deviceId } -> { current: deviceKey, devices: [...], logins: [...] } */
-export const listDevices = onCall({ ...opts, secrets: [OTP_HMAC_KEY] }, (r) =>
+export const listDevices = gatedCall({ ...opts, secrets: [OTP_HMAC_KEY] }, (r) =>
   run("listDevices", async () => {
     const uid = uidOf(r);
     const deps = deviceDeps();
@@ -193,7 +212,7 @@ export const listDevices = onCall({ ...opts, secrets: [OTP_HMAC_KEY] }, (r) =>
 );
 
 /** { deviceId, deviceKey } or { deviceId, all: true } -> { token } (the calling phone signs in again with it) */
-export const signOutDevice = onCall({ ...opts, secrets: [OTP_HMAC_KEY] }, (r) =>
+export const signOutDevice = gatedCall({ ...opts, secrets: [OTP_HMAC_KEY] }, (r) =>
   run("signOutDevice", async () => {
     const uid = uidOf(r);
     const result = await signOutDeviceFlow(deviceDeps(), uid, r.data);
@@ -203,7 +222,7 @@ export const signOutDevice = onCall({ ...opts, secrets: [OTP_HMAC_KEY] }, (r) =>
 );
 
 /** {} after uploading deviceChecks/{uid}/selfie.jpg -> { cleared, reviewed } */
-export const confirmNewDevice = onCall({ ...opts, secrets: [OTP_HMAC_KEY] }, (r) => run("confirmNewDevice", () => confirmNewDeviceFlow(deviceDeps(), uidOf(r))));
+export const confirmNewDevice = sessionCall({ ...opts, secrets: [OTP_HMAC_KEY] }, (r) => run("confirmNewDevice", () => confirmNewDeviceFlow(deviceDeps(), uidOf(r))));
 
 // --------------------------------------------------------------------------
 // The privacy screen
@@ -220,7 +239,7 @@ async function logRequest(uid: string, kind: PrivacyRequest["kind"], subject: st
 const viewRequest = (r: PrivacyRequest) => ({ id: r.id, kind: r.kind, subject: r.subject, status: r.status, reason: r.reason, createdAtMs: r.createdAtMs, doneAtMs: r.doneAtMs });
 
 /** {} -> { consents: [...], requests: [...] } */
-export const getPrivacyOverview = onCall(opts, (r) =>
+export const getPrivacyOverview = gatedCall(opts, (r) =>
   run("getPrivacyOverview", async () => {
     const uid = uidOf(r);
     const store = new FirestorePrivacyStore(adminDb());
@@ -235,7 +254,7 @@ export const getPrivacyOverview = onCall(opts, (r) =>
 );
 
 /** { kind, granted } -> { effect } ; every change is logged as a privacy request. */
-export const setConsent = onCall(opts, (r) =>
+export const setConsent = gatedCall(opts, (r) =>
   run("setConsent", async () => {
     const uid = uidOf(r);
     const raw = data(r);
@@ -293,7 +312,7 @@ export const setConsent = onCall(opts, (r) =>
 );
 
 /** { field } -> { request }: fields the app edits itself are done there; ID details go to an admin. */
-export const requestCorrection = onCall(opts, (r) =>
+export const requestCorrection = gatedCall(opts, (r) =>
   run("requestCorrection", async () => {
     const uid = uidOf(r);
     const field = correctionField(data(r).field);
@@ -304,12 +323,12 @@ export const requestCorrection = onCall(opts, (r) =>
 );
 
 /** {} -> { request }: a copy of the parent's photos is sent by the privacy team (never a download link to ID images). */
-export const requestPhotoCopy = onCall(opts, (r) =>
+export const requestPhotoCopy = gatedCall(opts, (r) =>
   run("requestPhotoCopy", async () => ({ request: viewRequest(await logRequest(uidOf(r), "photoCopy", null, "open", null)) })),
 );
 
 /** {} -> { url, expiresAtMs, requestId }: a JSON file with every data type, link valid 1 hour. */
-export const exportMyData = onCall({ ...opts, secrets: [STREAM_API_SECRET], timeoutSeconds: 120, memory: "512MiB" }, (r) =>
+export const exportMyData = gatedCall({ ...opts, secrets: [STREAM_API_SECRET], timeoutSeconds: 120, memory: "512MiB" }, (r) =>
   run("exportMyData", async () => {
     const uid = uidOf(r);
     const db = adminDb();
@@ -345,7 +364,7 @@ export const exportMyData = onCall({ ...opts, secrets: [STREAM_API_SECRET], time
  * confirmation and a fresh Face ID check). Refused with money in the
  * wallet, a pending transfer, or a run being driven.
  */
-export const deleteMyAccount = onCall({ ...opts, secrets: [STREAM_API_SECRET], timeoutSeconds: 300, memory: "512MiB" }, (r) =>
+export const deleteMyAccount = gatedCall({ ...opts, secrets: [STREAM_API_SECRET], timeoutSeconds: 300, memory: "512MiB" }, (r) =>
   run("deleteMyAccount", async () => {
     const uid = uidOf(r);
     const store = new FirestorePrivacyStore(adminDb());
@@ -554,6 +573,27 @@ export const adminOpenRouteArchive = onCall(opts, (r) =>
     await audit(caller.uid, "route.view", `routeArchives/${tripId}`, reason, ipOf(r));
     const [file] = await bucket().file(String(rec.get("path"))).download();
     return unpackArchive(file);
+  }),
+);
+
+/**
+ * { uid, reason } -> { cleared }: after comparing the kept new-phone
+ * selfie with the face reference by hand (the face check could not
+ * decide; it fails closed), an admin opens the parent's data again.
+ * Logged first with the reason code.
+ */
+export const adminClearDeviceCheck = onCall(opts, (r) =>
+  run("adminClearDeviceCheck", async () => {
+    const caller = await requireAdminCaller(r);
+    const raw = data(r);
+    const uid = typeof raw.uid === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(raw.uid) ? raw.uid : null;
+    if (!uid) throw new AdminError("invalid-request");
+    const reason = reasonOf(raw);
+    const store = new FirestoreDeviceStore(adminDb(), bucket());
+    if (!(await store.deviceCheck(uid))) throw new AdminError("not-found");
+    await audit(caller.uid, "device.check.clear", `users/${uid}`, reason, ipOf(r));
+    await store.setDeviceCheck(uid, null);
+    return { cleared: true };
   }),
 );
 

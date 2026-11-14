@@ -135,3 +135,118 @@ describe("storage: new-phone selfie and closed Prompt 12 paths", () => {
     }
   });
 });
+
+// --------------------------------------------------------------------------
+// Prompt 12 review: the new-phone gate and signed-out phones, enforced by
+// the rules (users/{uid}.newDeviceCheck and sessionsValidAfter, written
+// only by Cloud Functions).
+// --------------------------------------------------------------------------
+
+const nowSeconds = (): number => Math.floor(Date.now() / 1000);
+
+/** Every child, carpool, schedule, trip and location read Alice's app makes. */
+function aliceReads(ctx: RulesTestContext): Array<[string, () => Promise<unknown>]> {
+  const db = ctx.firestore();
+  return [
+    ["children/a1", () => db.doc("children/a1").get()],
+    ["children query", () => db.collection("children").where("ownerUid", "==", "alice").get()],
+    ["carpools/k1/members", () => db.collection("carpools/k1/members").get()],
+    ["carpools/k1/requests/alice", () => db.doc("carpools/k1/requests/alice").get()],
+    ["carpools/k1/pickupPoints/alice", () => db.doc("carpools/k1/pickupPoints/alice").get()],
+    ["carpools/k1/pickupPoints/carl", () => db.doc("carpools/k1/pickupPoints/carl").get()],
+    ["carpools/k1/schedule", () => db.collection("carpools/k1/schedule").get()],
+    ["carpools/k1/swaps", () => db.collection("carpools/k1/swaps").get()],
+    ["carpools/k1/emergencies", () => db.collection("carpools/k1/emergencies").get()],
+    ["trips/t1", () => db.doc("trips/t1").get()],
+    ["trips query", () => db.collection("trips").where("viewerUids", "array-contains", "alice").get()],
+    ["trips/t1/points", () => db.collection("trips/t1/points").get()],
+    ["trips/t1/eta/alice", () => db.doc("trips/t1/eta/alice").get()],
+    ["handoverAdults/a1", () => db.doc("handoverAdults/a1").get()],
+    ["homes/alice", () => db.doc("homes/alice").get()],
+    ["emergencyContacts/alice", () => db.doc("emergencyContacts/alice").get()],
+    ["notifications", () => db.collection("users/alice/notifications").limit(20).get()],
+    ["chatSettings/alice", () => db.doc("chatSettings/alice").get()],
+  ];
+}
+
+async function seedAliceCarpool(): Promise<void> {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    // Fake data only.
+    await db.doc("memberships/k1_alice").set({ carpoolId: "k1", uid: "alice", status: "approved", role: "admin" });
+    await db.doc("memberships/k1_carl").set({ carpoolId: "k1", uid: "carl", status: "approved", role: "member" });
+    await db.doc("carpools/k1").set({ status: "open", creatorFirstName: "Alice" });
+    await db.doc("carpools/k1/members/alice").set({ uid: "alice", children: [{ firstName: "Adam", grade: 3 }] });
+    await db.doc("carpools/k1/requests/alice").set({ uid: "alice", children: [{ firstName: "Adam" }] });
+    await db.doc("carpools/k1/pickupPoints/alice").set({ lat: 30.1, lng: 31.2 });
+    await db.doc("carpools/k1/pickupPoints/carl").set({ lat: 30.2, lng: 31.3 });
+    await db.doc("carpools/k1/schedule/r1").set({ driverUid: "carl", riders: [{ firstName: "Adam" }] });
+    await db.doc("carpools/k1/swaps/s1").set({ fromUid: "carl" });
+    await db.doc("carpools/k1/emergencies/e1").set({ driverUid: "carl" });
+    await db.doc("trips/t1").set({ driverUid: "carl", status: "active", viewerUids: ["alice", "carl"], stops: [{ firstName: "Adam" }] });
+    await db.doc("trips/t1/points/p1").set({ lat: 30.15, lng: 31.25 });
+    await db.doc("trips/t1/eta/alice").set({ minutes: 7 });
+    await db.doc("handoverAdults/a1").set({ ownerUid: "alice", adults: [{ name: "Grandma" }] });
+    await db.doc("homes/alice").set({ lat: 30.1, lng: 31.2 });
+    await db.doc("emergencyContacts/alice").set({ name: "Uncle" });
+    await db.doc("users/alice/notifications/n1").set({ title: "Adam was picked up", readAt: null });
+    await db.doc("chatSettings/alice").set({ acceptRequests: true });
+  });
+}
+
+async function setAliceRecord(fields: Record<string, unknown>): Promise<void> {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().doc("users/alice").update(fields);
+  });
+}
+
+describe("firestore: the new-phone gate and signed-out phones (SIM swap)", () => {
+  it("SIM swap: the old phone is out at once; the new phone reads no child, carpool, schedule, trip or location data until the selfie matched", async () => {
+    await seedAliceCarpool();
+    const oldPhone = (): RulesTestContext => as("alice", { ...verified, auth_time: nowSeconds() - 3600 });
+    const newPhone = (): RulesTestContext => as("alice", { ...verified, auth_time: nowSeconds() - 60 });
+
+    // Before: everything Alice may read is open.
+    for (const [name, read] of aliceReads(oldPhone())) await assertSucceeds(read()).catch((e) => Promise.reject(new Error(`${name}: ${String(e)}`)));
+
+    // Someone takes over Alice's number and signs in on another phone:
+    // verifyCode signed every phone out and opened the new-phone check.
+    await setAliceRecord({ sessionsValidAfter: nowSeconds() - 600, newDeviceCheck: { required: true } });
+
+    // The phone signed in before: nothing, its own record included.
+    await assertFails(oldPhone().firestore().doc("users/alice").get());
+    for (const [name, read] of aliceReads(oldPhone())) await assertFails(read()).catch((e) => Promise.reject(new Error(`old phone ${name}: ${String(e)}`)));
+
+    // The new phone: its own record (to show the selfie screen), nothing else.
+    await assertSucceeds(newPhone().firestore().doc("users/alice").get());
+    for (const [name, read] of aliceReads(newPhone())) await assertFails(read()).catch((e) => Promise.reject(new Error(`new phone ${name}: ${String(e)}`)));
+    // Family links, transfers and wallets are closed to every phone anyway.
+    await assertFails(newPhone().firestore().doc("guardianLinks/l1").get());
+    await assertFails(newPhone().firestore().doc("wallets/alice").get());
+    // The app cannot clear either field itself.
+    await assertFails(newPhone().firestore().doc("users/alice").update({ newDeviceCheck: null }));
+    await assertFails(newPhone().firestore().doc("users/alice").update({ sessionsValidAfter: 0 }));
+
+    // The selfie matched (confirmNewDevice clears the check): the new phone
+    // reads again; the old phone stays out.
+    await setAliceRecord({ newDeviceCheck: null });
+    for (const [name, read] of aliceReads(newPhone())) await assertSucceeds(read()).catch((e) => Promise.reject(new Error(`after selfie ${name}: ${String(e)}`)));
+    await assertFails(oldPhone().firestore().doc("children/a1").get());
+    await assertFails(oldPhone().firestore().doc("trips/t1").get());
+  });
+
+  it("a phone signed out from the devices screen loses access at once, not when its token expires", async () => {
+    await seedAliceCarpool();
+    const signedOutPhone = as("alice", { ...verified, auth_time: nowSeconds() - 120 });
+    await assertSucceeds(signedOutPhone.firestore().doc("homes/alice").get());
+    await setAliceRecord({ sessionsValidAfter: nowSeconds() - 30 });
+    await assertFails(signedOutPhone.firestore().doc("homes/alice").get());
+    await assertFails(signedOutPhone.firestore().doc("users/alice").get());
+    await assertFails(signedOutPhone.firestore().doc("users/alice").update({ language: "en" }));
+    await assertFails(signedOutPhone.firestore().collection("memberships").where("uid", "==", "alice").get());
+    // The phone that signed it out signs in again with a fresh token.
+    const fresh = as("alice", { ...verified, auth_time: nowSeconds() });
+    await assertSucceeds(fresh.firestore().doc("homes/alice").get());
+    await assertSucceeds(fresh.firestore().collection("memberships").where("uid", "==", "alice").get());
+  });
+});

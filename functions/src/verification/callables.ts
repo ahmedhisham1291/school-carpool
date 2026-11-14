@@ -27,6 +27,7 @@ import {
 import { createKycProvider, kycConfigProblem, type KycProvider } from "./kyc";
 import { CloudStorageFiles, FirebaseClaimsService, FirestoreVerificationStore, readFakeKycSetting } from "./store";
 import { VerificationError, type VerificationErrorReason } from "./submission";
+import { gatedCall } from "../privacy/device_gate";
 
 /**
  * Callable functions for verification (F2, F3, F18) and the daily
@@ -176,12 +177,12 @@ const options = { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [NATIONAL_ID_HMAC
  * { identity?, children: [...], driver?, consents } -> { caseId }
  * The images must already be in verification/{uid}/pending/.
  */
-export const submitVerification = onCall(options, (request) =>
+export const submitVerification = gatedCall(options, (request) =>
   run("submitVerification", () => submitFlow(deps(true), requireUid(request), request.data)),
 );
 
 /** Parent: remove a child (F3). { childId } -> { ok } */
-export const removeChild = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const removeChild = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("removeChild", async () => {
     await removeChildFlow(deps(false), requireUid(request), request.data);
     return { ok: true };
@@ -189,7 +190,7 @@ export const removeChild = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (reque
 );
 
 /** Parent: withdraw the case waiting for review (releases the ID claim). { caseId } -> { ok } */
-export const withdrawVerification = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const withdrawVerification = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("withdrawVerification", async () => {
     await withdrawFlow(deps(false), requireUid(request), request.data);
     return { ok: true };

@@ -29,6 +29,7 @@ import { DEFAULT_ALARM_DELAY_MIN, eventFromDoc } from "./model";
 import { createPushSender } from "./push";
 import { FirestoreNotifyStore } from "./store";
 import { runNotificationTick } from "./tick";
+import { gatedCall, sessionCall } from "../privacy/device_gate";
 
 /**
  * Notifications (Prompt 8: F12, F23).
@@ -162,17 +163,17 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK };
 
 /** { token, platform, previousToken? } -> { registered } */
-export const registerPushDevice = onCall(opts, (r) => run("registerPushDevice", () => registerDevice(deviceDeps(), uidOf(r), r.data)));
+export const registerPushDevice = gatedCall(opts, (r) => run("registerPushDevice", () => registerDevice(deviceDeps(), uidOf(r), r.data)));
 
 /** { token } -> { removed } (before signing out) */
 export const unregisterPushDevice = onCall(opts, (r) => run("unregisterPushDevice", () => unregisterDevice(deviceDeps(), uidOf(r), r.data)));
 
 /** { whatsapp?: { group: bool }, quiet?: { on?, from?, to? } } -> the settings */
-export const updateNotificationSettings = onCall(opts, (r) =>
+export const updateNotificationSettings = sessionCall(opts, (r) =>
   run("updateNotificationSettings", () => updateSettings(deviceDeps(), uidOf(r), r.data)),
 );
 
 /** { accept } -> { whatsappOptIn } (WhatsApp consent after sign-up, or withdrawn) */
-export const setWhatsAppNotifications = onCall(opts, (r) =>
+export const setWhatsAppNotifications = gatedCall(opts, (r) =>
   run("setWhatsAppNotifications", () => setWhatsAppConsent(deviceDeps(), uidOf(r), r.data)),
 );

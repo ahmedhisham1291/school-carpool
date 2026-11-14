@@ -1,5 +1,4 @@
 import * as logger from "firebase-functions/logger";
-import { onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { caller, deps, opts, run } from "../carpools/callables";
 import { MIN_INSTANCES } from "../config";
@@ -17,6 +16,7 @@ import {
   setDrivingDays as daysFlow,
   takeRun as takeFlow,
 } from "./flow";
+import { gatedCall } from "../privacy/device_gate";
 
 /**
  * Schedule callables (Prompt 7: F7, F11, F27, F28, F30, F37). Every
@@ -25,31 +25,31 @@ import {
  */
 
 /** F7: { carpoolId, days } -> { days } */
-export const setDrivingDays = onCall(opts, (r) => run("setDrivingDays", () => daysFlow(deps(), caller(r), r.data)));
+export const setDrivingDays = gatedCall(opts, (r) => run("setDrivingDays", () => daysFlow(deps(), caller(r), r.data)));
 
 /** F7: { carpoolId, weekStart } -> { weekStart, planned, open } (group admin) */
-export const planScheduleWeek = onCall(opts, (r) => run("planScheduleWeek", () => planFlow(deps(), caller(r), r.data)));
+export const planScheduleWeek = gatedCall(opts, (r) => run("planScheduleWeek", () => planFlow(deps(), caller(r), r.data)));
 
 /** F28: { carpoolId, runId } -> the run */
-export const confirmRun = onCall(opts, (r) => run("confirmRun", () => confirmFlow(deps(), caller(r), r.data)));
+export const confirmRun = gatedCall(opts, (r) => run("confirmRun", () => confirmFlow(deps(), caller(r), r.data)));
 
 /** F11: { carpoolId, runId } -> the swap */
-export const requestSwap = onCall(opts, (r) => run("requestSwap", () => swapFlow(deps(), caller(r), r.data)));
+export const requestSwap = gatedCall(opts, (r) => run("requestSwap", () => swapFlow(deps(), caller(r), r.data)));
 
 /** F11: { carpoolId, runId } -> the run */
-export const cancelSwap = onCall(opts, (r) => run("cancelSwap", () => cancelSwapFlow(deps(), caller(r), r.data)));
+export const cancelSwap = gatedCall(opts, (r) => run("cancelSwap", () => cancelSwapFlow(deps(), caller(r), r.data)));
 
 /** F11: { carpoolId, runId } -> the run (accept a swap or take an open run) */
-export const takeRun = onCall(opts, (r) => run("takeRun", () => takeFlow(deps(), caller(r), r.data)));
+export const takeRun = gatedCall(opts, (r) => run("takeRun", () => takeFlow(deps(), caller(r), r.data)));
 
 /** F27: { carpoolId, date, childId, absent, directions? } -> { changed } */
-export const setChildAbsent = onCall(opts, (r) => run("setChildAbsent", () => absentFlow(deps(), caller(r), r.data)));
+export const setChildAbsent = gatedCall(opts, (r) => run("setChildAbsent", () => absentFlow(deps(), caller(r), r.data)));
 
 /** F30: { carpoolId, kind, reason, from, to?, morning?, afternoon? } -> the exception (group admin) */
-export const saveScheduleException = onCall(opts, (r) => run("saveScheduleException", () => saveExceptionFlow(deps(), caller(r), r.data)));
+export const saveScheduleException = gatedCall(opts, (r) => run("saveScheduleException", () => saveExceptionFlow(deps(), caller(r), r.data)));
 
 /** F30: { carpoolId, exceptionId } -> { deleted } (group admin) */
-export const deleteScheduleException = onCall(opts, (r) =>
+export const deleteScheduleException = gatedCall(opts, (r) =>
   run("deleteScheduleException", () => deleteExceptionFlow(deps(), caller(r), r.data)),
 );
 

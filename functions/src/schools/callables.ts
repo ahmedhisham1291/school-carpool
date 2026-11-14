@@ -1,6 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { HttpsError, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
 import {
   ALGOLIA_APP_ID,
@@ -17,6 +17,7 @@ import { syncAction } from "./catalog";
 import { addOtherSchool as addOtherFlow, OTHER_SCHOOL_ERROR_CODES, OtherSchoolError } from "./other";
 import { consumeKeyQuotaFirestore, issueSearchKey, SEARCH_KEY_ERROR_CODES, SearchKeyError } from "./search_key";
 import { FirestoreOtherSchoolsStore } from "./store";
+import { sessionCall } from "../privacy/device_gate";
 
 /**
  * Schools list functions (F4): the parent's "Other" school, the search key
@@ -51,7 +52,7 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
  * Parent: a school missing from the list ("Other").
  * { name, governorate, location?: { lat, lng } } -> { id, nameAr, nameEn, governorate, status }
  */
-export const addOtherSchool = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const addOtherSchool = sessionCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("addOtherSchool", () =>
     addOtherFlow({ store: new FirestoreOtherSchoolsStore(adminDb()), now: () => Date.now() }, requireUid(request), request.data),
   ),
@@ -63,7 +64,7 @@ export const addOtherSchool = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (re
  * MAX_SEARCH_KEYS_PER_DAY keys a day). The fake search is refused in prod.
  * {} -> { provider: "algolia", appId, indexName, key, validUntil } or { provider: "fake" }
  */
-export const getSchoolSearchKey = onCall(
+export const getSchoolSearchKey = sessionCall(
   { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [ALGOLIA_SEARCH_KEY] },
   (request) =>
     run("getSchoolSearchKey", async () => {

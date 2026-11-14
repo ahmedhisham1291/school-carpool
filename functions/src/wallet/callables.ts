@@ -36,7 +36,7 @@ import {
 import { WALLET_ERROR_CODES, WalletError } from "./model";
 import { createWalletProvider, FakeWalletProvider, walletConfigProblem, type WalletProvider } from "./provider";
 import { noteAbuse } from "../privacy/abuse_hook";
-import { requireNoDeviceCheck } from "../privacy/device_gate";
+import { gatedCall, sessionCall } from "../privacy/device_gate";
 
 /**
  * Wallet functions (Prompt 11B: F43, F44). The ONLY place the wallet
@@ -96,18 +96,17 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK, minInstances: MIN_INSTANCES_WALLET, timeoutSeconds: 60 };
 
 /** {} -> the wallet (balance from the partner) or { opened: false }. */
-export const getWallet = onCall(opts, (r) =>
+export const getWallet = gatedCall(opts, (r) =>
   run("getWallet", async () => {
-    await requireNoDeviceCheck(r.auth?.uid);
     return getFlow(deps(), caller(r));
   }),
 );
 
 /** { acceptTerms } -> the wallet: opens it after the partner's terms (consent record). */
-export const openWallet = onCall(opts, (r) => run("openWallet", () => openFlow(deps(), caller(r), r.data)));
+export const openWallet = gatedCall(opts, (r) => run("openWallet", () => openFlow(deps(), caller(r), r.data)));
 
 /** { parentId } -> { firstName, verified } only. Rate limited. */
-export const lookupParentId = onCall(opts, (r) =>
+export const lookupParentId = gatedCall(opts, (r) =>
   run("lookupParentId", async () => {
     // Prompt 12: many lookups in an hour alert the admins (scraping).
     await noteAbuse(caller(r).uid, "parentIdLookups", abuseKey(r.data, "parentId"));
@@ -122,55 +121,49 @@ function abuseKey(data: unknown, ...fields: string[]): string {
 
 
 /** { carpoolId? } -> { contacts }: parents of my carpools. */
-export const walletContacts = onCall(opts, (r) =>
+export const walletContacts = gatedCall(opts, (r) =>
   run("walletContacts", async () => {
-    await requireNoDeviceCheck(r.auth?.uid);
     return contactsFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { requestId, amount, toParentId | toUid, note?, carpoolId? } -> { transfer } */
-export const sendMoney = onCall(opts, (r) =>
+export const sendMoney = gatedCall(opts, (r) =>
   run("sendMoney", async () => {
-    await requireNoDeviceCheck(r.auth?.uid);
     return sendFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { requestId, amount } -> { transfer, checkoutUrl } */
-export const addMoney = onCall(opts, (r) =>
+export const addMoney = gatedCall(opts, (r) =>
   run("addMoney", async () => {
-    await requireNoDeviceCheck(r.auth?.uid);
     return addFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { requestId, amount } -> { transfer } */
-export const withdrawMoney = onCall(opts, (r) =>
+export const withdrawMoney = gatedCall(opts, (r) =>
   run("withdrawMoney", async () => {
-    await requireNoDeviceCheck(r.auth?.uid);
     return withdrawFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { afterId? } -> { transfers, nextAfterId } */
-export const listWalletHistory = onCall(opts, (r) =>
+export const listWalletHistory = gatedCall(opts, (r) =>
   run("listWalletHistory", async () => {
-    await requireNoDeviceCheck(r.auth?.uid);
     return historyFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { transferId } -> the transfer (a pending one is checked with the partner). */
-export const getTransfer = onCall(opts, (r) =>
+export const getTransfer = gatedCall(opts, (r) =>
   run("getTransfer", async () => {
-    await requireNoDeviceCheck(r.auth?.uid);
     return transferFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { transferId, reason, note? } -> { alertId, frozen } */
-export const reportTransfer = onCall(opts, (r) => run("reportTransfer", () => reportFlow(deps(), caller(r), r.data)));
+export const reportTransfer = sessionCall(opts, (r) => run("reportTransfer", () => reportFlow(deps(), caller(r), r.data)));
 
 /**
  * Every 5 minutes: pending transfers are settled by asking the partner

@@ -146,7 +146,7 @@ export interface DeviceDeps {
   reportError: (error: unknown) => void;
 }
 
-export type DeviceErrorReason = "invalid-request" | "not-found" | "no-account" | "no-selfie" | "no-reference" | "selfie-mismatch" | "no-check" | "own-device";
+export type DeviceErrorReason = "invalid-request" | "not-found" | "no-account" | "no-selfie" | "no-reference" | "selfie-mismatch" | "no-check" | "own-device" | "selfie-unchecked";
 
 export class DeviceError extends Error {
   constructor(readonly reason: DeviceErrorReason) {
@@ -164,6 +164,7 @@ export const DEVICE_ERROR_CODES: Readonly<Record<DeviceErrorReason, string>> = {
   "selfie-mismatch": "permission-denied",
   "no-check": "failed-precondition",
   "own-device": "failed-precondition",
+  "selfie-unchecked": "failed-precondition",
 };
 
 const INSTALL_ID = /^[0-9a-f]{16,64}$/;
@@ -250,10 +251,11 @@ export async function signOutDevice(deps: DeviceDeps, uid: string, data: unknown
  * The fresh selfie after a new-phone sign-in (uploaded to
  * deviceChecks/{uid}/selfie.jpg). A match opens chats, the wallet and
  * child data again. A clear mismatch keeps them closed and files an
- * urgent report. When the face check cannot decide (Valify not under
- * contract yet), the check passes and the admins get a report to compare
- * the kept selfie by hand. The selfie is kept on every path (selfie
- * archive, owner decision 14 Nov 2026).
+ * urgent report. FAIL CLOSED: when the face check cannot decide (an
+ * error, a timeout, Valify not answering), everything stays closed and the
+ * admins get a report to compare the kept selfie by hand; an admin clears
+ * the check with a logged reason (adminClearDeviceCheck). The selfie is
+ * kept on every path (selfie archive, owner decision 14 Nov 2026).
  */
 export async function confirmNewDevice(deps: DeviceDeps, uid: string): Promise<{ cleared: boolean; reviewed: boolean }> {
   const live = deviceSelfiePath(uid);
@@ -264,17 +266,26 @@ export async function confirmNewDevice(deps: DeviceDeps, uid: string): Promise<{
   if (created === null || nowMs - created > DEVICE_SELFIE_MAX_AGE_MS) throw new DeviceError("no-selfie");
   try {
     if (!(await deps.files.exists(deps.faceRefPath(uid)))) throw new DeviceError("no-reference");
-    const result = await deps.faces.matchFace(
-      () => deps.files.read(deps.faceRefPath(uid)),
-      () => deps.files.read(live),
-    );
+    let result: "match" | "no_match" | "error";
+    try {
+      result = await deps.faces.matchFace(
+        () => deps.files.read(deps.faceRefPath(uid)),
+        () => deps.files.read(live),
+      );
+    } catch (error) {
+      deps.reportError(error);
+      result = "error";
+    }
     if (result === "no_match") {
       await deps.store.addReport(uid, "new-device-mismatch", true, nowMs);
       throw new DeviceError("selfie-mismatch");
     }
-    if (result === "error") await deps.store.addReport(uid, "new-device-unchecked", false, nowMs);
+    if (result !== "match") {
+      await deps.store.addReport(uid, "new-device-unchecked", true, nowMs);
+      throw new DeviceError("selfie-unchecked");
+    }
     await deps.store.setDeviceCheck(uid, null);
-    return { cleared: true, reviewed: result === "error" };
+    return { cleared: true, reviewed: false };
   } finally {
     try {
       if (await deps.files.exists(live)) await deps.files.archive(live, deps.selfieArchivePath(uid, `device_${nowMs}.jpg`));
@@ -288,4 +299,19 @@ export async function confirmNewDevice(deps: DeviceDeps, uid: string): Promise<{
 export function deviceCheckPending(user: Record<string, unknown> | undefined): boolean {
   const c = user?.newDeviceCheck as { required?: unknown } | null | undefined;
   return c?.required === true;
+}
+
+/**
+ * The session gate (device_gate.ts and firestore.rules sessionValid and
+ * deviceChecked): sessionsValidAfter in seconds, the token's auth_time.
+ */
+export type GateRefusal = "signed-out" | "device-check";
+
+/** Why [user]'s session with sign-in time [authTime] (seconds) is refused, or null. */
+export function gateRefusal(user: Record<string, unknown> | undefined, authTime: number | null, checkDevice: boolean): GateRefusal | null {
+  if (!user) return null;
+  const after = user.sessionsValidAfter;
+  if (typeof after === "number" && (authTime === null || authTime < after)) return "signed-out";
+  if (checkDevice && deviceCheckPending(user)) return "device-check";
+  return null;
 }
