@@ -1394,4 +1394,4 @@ The iPhone is a verified parent in a carpool with the seed's Hoda
    admin panel > Trust.
 6. **Phone change.** Profile > Phone > new number > code (the fake
    WhatsApp sender logs it in the functions emulator) > selfie. The fake
-   face check answers what `config/kyc` says (section 9).
+   face check answers what `config/kyc` says (section 12).

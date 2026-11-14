@@ -399,9 +399,11 @@ describe("guardian links (spouse linked to the same children)", () => {
     assert.equal(t.carpoolStore.carpools.get(k)?.childrenCount, 3);
     await requestToJoin(t.carpools, as("dina"), { carpoolId: k, childIds: ["b1"], acceptRules: true });
     await decideJoinRequest(t.carpools, as("alice"), { carpoolId: k, uid: "dina", approve: true });
-    // Bob ends the link: Bassel leaves Dina's carpools.
+    // Bob ends the link: Bassel leaves Dina's carpools, and Dina, with no
+    // child left in it, leaves the carpool (and its chat).
     await removeGuardianLink(t.deps, as("bob"), { linkId: "b1_dina" });
-    assert.deepEqual(t.carpoolStore.members.get(k)?.get("dina")?.children, []);
+    assert.equal(t.carpoolStore.members.get(k)?.get("dina"), undefined);
+    assert.equal(t.carpoolStore.memberships.get(`${k}_dina`)?.status, "left");
     await rejects(removeGuardianLink(t.deps, as("bob"), { linkId: "b1_dina" }), "invalid-state");
     await rejects(removeGuardianLink(t.deps, as("cara"), { linkId: "b1_dina" }), "not-found");
   });
@@ -437,6 +439,10 @@ describe("yearly check of children, grades and schools", () => {
     assert.deepEqual(bob?.children, [{ id: "b1", firstName: "Bassel", grade: "g3" }]);
     assert.equal(t.carpoolStore.carpools.get(k)?.childrenCount, 3);
     assert.equal((await yearCheckOf(t.deps, t.store.accounts.get("bob")!)).state, "done");
+    // Cara's only child left the school: Cara leaves the carpool and its chat.
+    await confirmSchoolYear(t.deps, as("cara"), { year: 2027, children: [{ childId: "c1", stays: false }] });
+    assert.equal(t.carpoolStore.members.get(k)?.get("cara"), undefined);
+    assert.equal(t.carpoolStore.memberships.get(`${k}_cara`)?.status, "left");
     await rejects(confirmSchoolYear(t.deps, as("bob"), { year: 2027, children: [] }), "year-not-open");
   });
 

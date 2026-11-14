@@ -1,5 +1,5 @@
-import type { CarpoolDeps } from "../carpools/flow";
-import { cairoDate, carInfo, type CarInfo, type ChildRef, type MembershipRecord } from "../carpools/model";
+import { leaveCarpool, type CarpoolDeps } from "../carpools/flow";
+import { cairoDate, carInfo, CarpoolError, type CarInfo, type ChildRef, type MembershipRecord } from "../carpools/model";
 import { DEFAULT_DEADLINES } from "../schedule/model";
 import { releaseRunsWhere, removeChildFromRuns } from "../schedule/release";
 import { runInvalid } from "./model";
@@ -115,4 +115,25 @@ export async function applyCarChange(deps: CarpoolDeps, driverUid: string, car: 
 /** Same as [applyCarChange] with the car read again (daily papers check). */
 export async function recheckDriver(deps: CarpoolDeps, driverUid: string): Promise<number> {
   return applyCarChange(deps, driverUid, carInfo(await deps.store.vehicle(driverUid)));
+}
+
+/**
+ * After a child left (school or link): a member left with no child in a
+ * carpool leaves it, like "Leave" (runs they drove are released, the
+ * carpool chat follows). The carpool's admin stays (they may hand it over
+ * or close it). Returns the carpools left.
+ */
+export async function leaveEmptyCarpools(deps: CarpoolDeps, uid: string): Promise<number> {
+  const empty = (await deps.store.membershipsOf(uid)).filter((m) => m.status === "approved" && m.role !== "admin" && m.children.length === 0);
+  let left = 0;
+  for (const m of empty) {
+    try {
+      await leaveCarpool(deps, { uid, verifiedClaim: true }, { carpoolId: m.carpoolId });
+      left += 1;
+    } catch (error) {
+      // A suspended parent, or a carpool closed meanwhile: nothing to leave.
+      if (!(error instanceof CarpoolError)) throw error;
+    }
+  }
+  return left;
 }

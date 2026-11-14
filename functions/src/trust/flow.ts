@@ -3,7 +3,7 @@ import type { CarpoolDeps } from "../carpools/flow";
 import { cairoDate } from "../carpools/model";
 import { newEvent, type OutboxEvent } from "../notifications/model";
 import { addDays } from "../schedule/cairo";
-import { removeChildFromCarpools, updateChildGrade } from "./carpools";
+import { leaveEmptyCarpools, removeChildFromCarpools, updateChildGrade } from "./carpools";
 import {
   addRating,
   docId,
@@ -324,8 +324,11 @@ export async function confirmSchoolYear(deps: TrustDeps, caller: Caller, data: u
     for (const l of (await deps.store.linksOfChild(a.childId)).filter(linkLive)) {
       await deps.store.putLink({ ...l, status: "removed", decidedAtMs: nowMs, decidedBy: caller.uid, updatedAtMs: nowMs }, l.status, null);
       await removeChildFromCarpools(deps.carpools, l.guardianUid, a.childId);
+      await leaveEmptyCarpools(deps.carpools, l.guardianUid);
     }
   }
+  // A parent with no child left in a carpool leaves it (and its chat).
+  if (left > 0) await leaveEmptyCarpools(deps.carpools, caller.uid);
   return { state: "done", left };
 }
 
@@ -460,6 +463,7 @@ export async function removeGuardianLink(deps: TrustDeps, caller: Caller, data: 
   const nowMs = deps.now();
   await deps.store.putLink({ ...l, status: "removed", decidedAtMs: nowMs, decidedBy: caller.uid, updatedAtMs: nowMs }, l.status, null);
   await removeChildFromCarpools(deps.carpools, l.guardianUid, l.childId);
+  await leaveEmptyCarpools(deps.carpools, l.guardianUid);
   return { status: "removed" };
 }
 
