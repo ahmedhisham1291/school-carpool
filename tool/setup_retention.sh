@@ -31,7 +31,15 @@ gcloud storage buckets update "gs://${bucket}" --project="${project}" --soft-del
 
 echo "== Firestore TTL policies"
 # field  collection-group
+# A policy that is already on (ACTIVE) or being built (CREATING) is left
+# alone, so the script is safe to run again (tool/cloud_setup.sh calls it).
 ttl() {
+  local state
+  state="$(gcloud firestore fields describe "$1" --collection-group="$2" --project="${project}" \
+    --format='value(ttlConfig.state)' 2>/dev/null || true)"
+  case "${state}" in
+    ACTIVE|CREATING) echo "  $2.$1: already ${state}"; return 0 ;;
+  esac
   gcloud firestore fields ttls update "$1" --collection-group="$2" --enable-ttl --project="${project}" --async --quiet
 }
 # Sign-in (Prompt 2)
