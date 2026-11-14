@@ -16,6 +16,7 @@ export 'package:school_carpool/design/components/app_sheet.dart';
 export 'package:school_carpool/design/components/app_snack_bar.dart';
 export 'package:school_carpool/design/components/app_text_field.dart';
 export 'package:school_carpool/design/components/capture_tile.dart';
+export 'package:school_carpool/design/components/chat_bubble.dart';
 export 'package:school_carpool/design/components/check_row.dart';
 export 'package:school_carpool/design/components/code_field.dart';
 export 'package:school_carpool/design/components/copy_value.dart';

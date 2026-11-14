@@ -43,6 +43,20 @@ abstract interface class AdminApi {
   Future<int> mergeSchool({required String schoolId, required String intoId});
 
   Future<List<ReportItem>> reports();
+
+  /// Prompt 9: one chat report with its little context (the opening is logged).
+  Future<ReportDetail> report(String id);
+
+  /// Deletes the reported message on Stream and closes the report.
+  Future<ReportDetail> removeReportedMessage(String id);
+
+  /// Removes the reported parent from that chat for good and closes the report.
+  Future<ReportDetail> removeReportedMember(String id);
+
+  Future<ReportDetail> resolveReport(String id, ReportOutcome outcome);
+
+  /// The reported driver may drive again.
+  Future<ReportDetail> liftDrivingPause(String id);
   Future<PagedResult<AuditEntry>> audit({String? afterId});
 
   Future<List<AdminAccount>> admins();
@@ -168,6 +182,32 @@ class FirebaseAdminApi implements AdminApi {
   @override
   Future<List<ReportItem>> reports() async =>
       (await _call('adminListReports', <String, Object?>{'status': 'open'})).list('reports').map(ReportItem.fromJson).toList();
+
+  @override
+  Future<ReportDetail> report(String id) async => ReportDetail.fromJson(await _call('adminGetReport', <String, Object?>{'reportId': id}));
+
+  @override
+  Future<ReportDetail> removeReportedMessage(String id) async =>
+      ReportDetail.fromJson(await _call('adminRemoveChatMessage', <String, Object?>{'reportId': id}));
+
+  @override
+  Future<ReportDetail> removeReportedMember(String id) async =>
+      ReportDetail.fromJson(await _call('adminRemoveChatMember', <String, Object?>{'reportId': id}));
+
+  @override
+  Future<ReportDetail> resolveReport(String id, ReportOutcome outcome) async => ReportDetail.fromJson(
+    await _call('adminResolveReport', <String, Object?>{
+      'reportId': id,
+      'outcome': switch (outcome) {
+        ReportOutcome.noAction => 'no-action',
+        ReportOutcome.warned => 'warned',
+      },
+    }),
+  );
+
+  @override
+  Future<ReportDetail> liftDrivingPause(String id) async =>
+      ReportDetail.fromJson(await _call('adminLiftDrivingPause', <String, Object?>{'reportId': id}));
 
   @override
   Future<PagedResult<AuditEntry>> audit({String? afterId}) async {

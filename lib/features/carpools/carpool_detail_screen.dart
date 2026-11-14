@@ -11,6 +11,7 @@ import 'package:school_carpool/features/carpools/carpool_logic.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
+import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/verification/verification_labels.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/features/verification/verification_repository.dart';
@@ -444,6 +445,14 @@ class _ScheduleLinks extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         AppSectionHeader(l10n.scheduleSection),
+        // Prompt 9 (F10): the carpool's own chat, made with the carpool.
+        AppListRow(
+          key: const Key('detail.chat'),
+          title: l10n.chatCarpoolRow,
+          subtitle: l10n.chatCarpoolRowHelper,
+          leadingIcon: Icons.forum_outlined,
+          onTap: () => context.go(ChatRef.carpool(carpoolId).route),
+        ),
         AppListRow(
           key: const Key('detail.schedule'),
           title: l10n.scheduleWeekPlan,

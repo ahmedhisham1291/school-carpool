@@ -137,7 +137,21 @@ String reportReasonLabel(AppLocalizations l10n, String reason) => switch (reason
   'harassment' => l10n.adminModHarassment,
   'fake_profile' => l10n.adminReportFake,
   'unsafe_driving' => l10n.adminModUnsafeDriving,
+  // Prompt 9 (chat reports).
+  'inappropriate' => l10n.adminReportInappropriate,
+  'privacy' => l10n.adminReportPrivacy,
+  'childSafety' => l10n.adminReportChildSafety,
+  'dangerousDriving' => l10n.adminModUnsafeDriving,
   _ => l10n.adminModOther,
+};
+
+/// Prompt 9: which chat a report came from.
+String reportKindLabel(AppLocalizations l10n, String kind) => switch (kind) {
+  'private' => l10n.chatKindPrivate,
+  'school' => l10n.chatKindSchool,
+  'area' => l10n.chatKindArea,
+  'carpool' => l10n.chatKindCarpool,
+  _ => '',
 };
 
 String adminRoleLabel(AppLocalizations l10n, AdminRole role) =>

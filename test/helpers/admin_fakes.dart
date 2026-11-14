@@ -231,7 +231,73 @@ class FakeAdminApi implements AdminApi {
     await _maybeFail('reports');
     return <ReportItem>[
       ReportItem(id: 'r1', targetType: 'user', targetId: 'p2', reason: 'spam', createdAt: DateTime(2026, 11, 13, 8)),
+      ReportItem(id: 'r2', targetType: 'message', targetId: 'm2', reason: 'dangerousDriving', createdAt: DateTime(2026, 11, 13, 9), urgent: true, kind: 'carpool'),
     ];
+  }
+
+  /// Prompt 9: the chat report the report screen shows (fake data only).
+  ReportDetail reportDetail = ReportDetail(
+    id: 'r1',
+    targetType: 'message',
+    reason: 'dangerousDriving',
+    urgent: true,
+    open: true,
+    kind: 'carpool',
+    note: 'Speeding',
+    subjectUid: 'p2',
+    pausedDriving: true,
+    outcome: null,
+    createdAt: DateTime(2026, 11, 13, 8),
+    context: <ReportContextMessage>[
+      ReportContextMessage(id: 'm1', authorName: 'Hoda', authorParentId: 'HDAB2345', text: 'Before', attachment: null, createdAt: DateTime(2026, 11, 13, 7, 58), reported: false),
+      ReportContextMessage(id: 'm2', authorName: 'Badr', authorParentId: 'BDRC2345', text: 'The reported one', attachment: null, createdAt: DateTime(2026, 11, 13, 7, 59), reported: true),
+      ReportContextMessage(id: 'm3', authorName: 'Hoda', authorParentId: 'HDAB2345', text: '', attachment: 'image', createdAt: DateTime(2026, 11, 13, 8), reported: false),
+    ],
+  );
+
+  ReportDetail _closed(String outcome) => ReportDetail(
+    id: reportDetail.id,
+    targetType: reportDetail.targetType,
+    reason: reportDetail.reason,
+    urgent: reportDetail.urgent,
+    open: false,
+    kind: reportDetail.kind,
+    note: reportDetail.note,
+    subjectUid: reportDetail.subjectUid,
+    pausedDriving: reportDetail.pausedDriving,
+    outcome: outcome,
+    createdAt: reportDetail.createdAt,
+    context: reportDetail.context,
+  );
+
+  @override
+  Future<ReportDetail> report(String id) async {
+    await _maybeFail('report:$id');
+    return reportDetail;
+  }
+
+  @override
+  Future<ReportDetail> removeReportedMessage(String id) async {
+    await _maybeFail('removeMessage:$id');
+    return reportDetail = _closed('message-removed');
+  }
+
+  @override
+  Future<ReportDetail> removeReportedMember(String id) async {
+    await _maybeFail('removeMember:$id');
+    return reportDetail = _closed('member-removed');
+  }
+
+  @override
+  Future<ReportDetail> resolveReport(String id, ReportOutcome outcome) async {
+    await _maybeFail('resolve:$id:${outcome.name}');
+    return reportDetail = _closed(outcome.name);
+  }
+
+  @override
+  Future<ReportDetail> liftDrivingPause(String id) async {
+    await _maybeFail('liftPause:$id');
+    return reportDetail;
   }
 
   @override

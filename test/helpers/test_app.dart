@@ -8,6 +8,7 @@ import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/auth_repository.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
+import 'package:school_carpool/features/chat/chat_provider.dart';
 import 'package:school_carpool/features/maps/location_service.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/notifications/local_alarms.dart';
@@ -18,6 +19,7 @@ import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
 import 'carpool_fakes.dart';
+import 'chat_fakes.dart';
 import 'map_fakes.dart';
 import 'notification_fakes.dart';
 
@@ -185,7 +187,8 @@ class FakeAuthRepository implements AuthRepository {
 /// parent's home since Prompt 5; pass [maps] etc. to control them) and the
 /// carpool fakes (Prompt 6; pass [carpools] and [sharer]) and the schedule
 /// fake (Prompt 7; pass [schedule]) and the notification fakes (Prompt 8;
-/// pass [notifications], [push] and [alarms]). The number of
+/// pass [notifications], [push] and [alarms]) and the chat fakes (Prompt 9;
+/// pass [chat], [chatRepository] and [photos]). The number of
 /// overrides is the same for every call (one ProviderScope per test).
 List<Override> authOverrides({
   SessionState session = testVerifiedSession,
@@ -199,10 +202,14 @@ List<Override> authOverrides({
   NotificationRepository? notifications,
   PushMessaging? push,
   LocalAlarms? alarms,
+  FakeChatProvider? chat,
+  FakeChatRepository? chatRepository,
+  FakeChatPhotoPicker? photos,
 }) => <Override>[
   sessionProvider.overrideWithValue(session),
   authRepositoryProvider.overrideWithValue(repository ?? FakeAuthRepository()),
   ...mapOverrides(maps: maps, places: places, location: location),
   ...carpoolOverrides(carpools: carpools, sharer: sharer, schedule: schedule),
   ...notificationOverrides(notifications: notifications, push: push, alarms: alarms),
+  ...chatOverrides(provider: chat, repository: chatRepository, photos: photos),
 ];

@@ -55,7 +55,12 @@ MIN_ANDROID_SDK = 26
 # with Prompt 13 (permission texts) and the lawyer's review.
 PERMISSION_TEXTS = {
     "NSCameraUsageDescription":
-        "The camera is used to photograph your ID and take a live selfie for verification.",
+        "The camera is used to photograph your ID, take a live selfie for verification, "
+        "and send photos in private and carpool chats.",
+    # Prompt 9 (image_picker): choose a photo to send in a chat. Location
+    # data is removed from the photo before it is sent.
+    "NSPhotoLibraryUsageDescription":
+        "Choose a photo to send in a private or carpool chat. Location data is removed first.",
     "NSLocationWhenInUseUsageDescription":
         "Your location sets your home on the map and shows your car to parents during a run.",
     "NSLocationAlwaysAndWhenInUseUsageDescription":

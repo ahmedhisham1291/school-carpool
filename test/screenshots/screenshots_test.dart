@@ -36,6 +36,9 @@ import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
+import 'package:school_carpool/features/chat/chat_models.dart';
+import 'package:school_carpool/features/chat/chat_provider.dart';
+import 'package:school_carpool/features/chat/chats_screen.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
@@ -53,6 +56,7 @@ import 'package:school_carpool/settings/settings_store.dart';
 
 import '../helpers/admin_fakes.dart';
 import '../helpers/carpool_fakes.dart';
+import '../helpers/chat_fakes.dart';
 import '../helpers/fonts.dart';
 import '../helpers/map_fakes.dart';
 import '../helpers/notification_fakes.dart';
@@ -76,6 +80,8 @@ Future<void> _pumpScreen(
   CarpoolRepository? carpools,
   ScheduleRepository? schedule,
   NotificationRepository? notifications,
+  FakeChatProvider? chat,
+  FakeChatRepository? chatRepository,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -99,7 +105,15 @@ Future<void> _pumpScreen(
           }),
         ),
         routerProvider.overrideWithValue(router),
-        ...authOverrides(session: session, maps: maps, carpools: carpools, schedule: schedule, notifications: notifications),
+        ...authOverrides(
+          session: session,
+          maps: maps,
+          carpools: carpools,
+          schedule: schedule,
+          notifications: notifications,
+          chat: chat,
+          chatRepository: chatRepository,
+        ),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
         ...extraOverrides,
       ],
@@ -354,6 +368,7 @@ void main() {
     'other_schools': (AdminRoutes.otherSchools, const AdminSignedIn(testReviewer), const Size(1280, 800)),
     'other_school_review': ('/other-schools/p1', const AdminSignedIn(testReviewer), const Size(1280, 1100)),
     'reports': (AdminRoutes.reports, const AdminSignedIn(testReviewer), const Size(1280, 800)),
+    'report': ('/reports/r1', const AdminSignedIn(testReviewer), const Size(1280, 1100)),
     'audit': (AdminRoutes.audit, const AdminSignedIn(testSuperAdmin), const Size(1280, 800)),
     'admins': (AdminRoutes.admins, const AdminSignedIn(testSuperAdmin), const Size(1280, 800)),
     'gallery': (AdminRoutes.gallery, const AdminSignedIn(testReviewer), const Size(1280, 1600)),
@@ -639,6 +654,44 @@ void main() {
                 testNotification('n4', NotificationKind.childAbsent, read: true, ago: const Duration(days: 2)),
               ],
             ),
+          );
+          await tester.pump(const Duration(milliseconds: 400));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Prompt 9: the Chats tab, a carpool chat, requests and chat settings
+  // (fake parents, the on-phone fake chat).
+  final Map<String, String> chatScreens = <String, String>{
+    'tab': AppTab.chats.path,
+    'carpool_chat': carpoolChat.route,
+    'requests': ChatRoutes.requests,
+    'settings': ChatRoutes.settings,
+  };
+  for (final MapEntry<String, String> screen in chatScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'chat_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          final FakeChatProvider chat = FakeChatProvider(chats: sampleChats(), messages: sampleMessages(), now: chatNow);
+          final FakeChatRepository repo = FakeChatRepository(
+            requests: <ChatRequest>[testChatRequest('hoda_uid-1', from: 'uid-hoda', to: 'uid-1', fromName: 'Hoda')],
+            blocks: const <ChatBlock>[ChatBlock(blockedUid: 'uid-x', firstName: 'Samir')],
+          );
+          addTearDown(chat.close);
+          addTearDown(repo.close);
+          await _pumpScreen(
+            tester,
+            location: screen.value,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            chat: chat,
+            chatRepository: repo,
           );
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));

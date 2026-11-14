@@ -235,11 +235,15 @@ void main() {
       expect(find.text('Hoda'), findsOneWidget);
       expect(find.text('Verified'), findsOneWidget);
       expect(find.text('Nile International School'), findsWidgets);
+      // Prompt 9: Message sends a private chat request and closes the card.
       await tester.tap(find.byKey(const Key('parent.message')));
-      await tester.pump();
-      expect(find.text('Chat comes soon'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.text('Request sent to Hoda'), findsOneWidget);
+      expect(find.byKey(const Key('parent.card.p1')), findsNothing);
       // Join (Prompt 6) closes the card and opens that parent's carpools
       // (router test in test/carpools/carpool_screens_test.dart).
+      await tester.tap(find.byKey(const Key('map.area.p1')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('parent.join')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('parent.card.p1')), findsNothing);

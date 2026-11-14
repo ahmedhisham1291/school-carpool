@@ -10,6 +10,7 @@ import 'package:school_carpool/admin/screens/audit_screen.dart';
 import 'package:school_carpool/admin/screens/case_screen.dart';
 import 'package:school_carpool/admin/screens/other_schools_screen.dart';
 import 'package:school_carpool/admin/screens/queue_screen.dart';
+import 'package:school_carpool/admin/screens/report_screen.dart';
 import 'package:school_carpool/admin/screens/reports_screen.dart';
 import 'package:school_carpool/admin/screens/school_screen.dart';
 import 'package:school_carpool/admin/screens/schools_screen.dart';
@@ -97,6 +98,12 @@ GoRouter buildAdminRouter({
           GoRoute(
             path: AdminRoutes.reports,
             builder: (BuildContext context, GoRouterState state) => const ReportsScreen(),
+            routes: <RouteBase>[
+              GoRoute(
+                path: ':id',
+                builder: (BuildContext context, GoRouterState state) => ReportScreen(reportId: state.pathParameters['id'] ?? ''),
+              ),
+            ],
           ),
           GoRoute(
             path: AdminRoutes.audit,

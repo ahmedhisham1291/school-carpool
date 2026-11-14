@@ -9,10 +9,10 @@ import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/carpools/carpools_screen.dart';
+import 'package:school_carpool/features/chat/chats_screen.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
 import 'package:school_carpool/features/home/home_screen.dart';
 import 'package:school_carpool/features/notifications/notifications_screen.dart';
-import 'package:school_carpool/features/placeholder/placeholder_tab_screen.dart';
 import 'package:school_carpool/features/profile/profile_screen.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
@@ -60,18 +60,11 @@ void main() {
 
   testWidgets('each tab opens its own screen', (WidgetTester tester) async {
     final GoRouter router = await pumpRouter(tester, config: testDevConfig);
-    final Map<IconData, AppTab> icons = <IconData, AppTab>{
-      Icons.chat_bubble_outline_rounded: AppTab.chats,
-    };
-    for (final MapEntry<IconData, AppTab> entry in icons.entries) {
-      await tester.tap(find.byIcon(entry.key).first);
-      await tester.pumpAndSettle();
-      expect(currentPath(router), entry.value.path);
-      final PlaceholderTabScreen screen = tester.widget<PlaceholderTabScreen>(
-        find.byType(PlaceholderTabScreen).hitTestable(),
-      );
-      expect(screen.tab, entry.value);
-    }
+    // Chats has its own screen since Prompt 9.
+    await tester.tap(find.byIcon(Icons.chat_bubble_outline_rounded).first);
+    await tester.pumpAndSettle();
+    expect(currentPath(router), AppTab.chats.path);
+    expect(find.byType(ChatsScreen).hitTestable(), findsOneWidget);
     // Notifications has its own screen since Prompt 8.
     await tester.tap(find.byIcon(Icons.notifications_none_rounded).first);
     await tester.pumpAndSettle();
