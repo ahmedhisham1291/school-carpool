@@ -9,8 +9,8 @@
 #
 # COST MODE (free tier first, docs/COSTS.md): the free personal tier has 500
 # macOS M2 minutes a month; one iOS build takes about 15 to 25 minutes.
-#   - ios-staging: pushes to main, version tags (v*) and manual starts
-#     (Start new build). Never on other branches.
+#   - ios-staging: version tags (v*) and manual starts (Start new build).
+#     Never on a push to a branch, main included (owner, 14 Nov 2026).
 #   - ios-dev: manual starts only.
 #
 # Placeholders to replace:
@@ -50,14 +50,11 @@ workflows:
       vars:
         APP_STORE_APPLE_ID: "0000000000"
     cache: *cache
+    # Owner (14 Nov 2026, 500 free macOS minutes): no build on pushes to
+    # main any more. Builds start by hand (Start new build) or on a tag v*.
     triggering:
       events:
-        - push
         - tag
-      branch_patterns:
-        - pattern: main
-          include: true
-          source: true
       tag_patterns:
         - pattern: 'v*'
           include: true

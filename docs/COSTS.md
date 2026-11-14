@@ -35,7 +35,7 @@ Limits below are the public free allowances as understood in November 2026.
   replay, no screenshots. `SENTRY_SAMPLE_RATE` lowers the share of errors
   sent if the monthly quota gets tight.
 - CI: checks on GitHub Actions (Linux); iOS builds on Codemagic only for
-  pushes to `main`, version tags and manual starts.
+  manual starts and version tags `v*` (a push to `main` builds nothing).
 - Dev runs on the local emulators (`demo-` project): zero cloud cost.
 
 ## Sign-in (Prompt 2)

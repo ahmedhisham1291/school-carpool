@@ -231,11 +231,11 @@ daily backups **on in prod only**. Install the Google Cloud CLI (`gcloud`) and l
 3. App settings > **Environment variables**: create the groups
    `dev_defines` and `staging_defines` with the Sentry DSNs (mark them
    **Secret**).
-4. Codemagic only builds the iPhone app: `ios-staging` on pushes to `main`
-   and tags `v*`, `ios-dev` only when you press **Start new build**. Until
-   steps 1 to 3 are done for staging, a push to `main` gives a failed or
-   error-screen staging build; you can switch off automatic builds for
-   `ios-staging` in Codemagic until then.
+4. Codemagic only builds the iPhone app, and only when asked (500 free
+   minutes a month): `ios-staging` when you press **Start new build** or
+   push a tag `v*` (for example `v0.1.0`); `ios-dev` only on **Start new
+   build**. A push to `main` starts no build. Until steps 1 to 3 are done
+   for staging, a staging build fails or opens on an error screen.
 
 ## 9. Get the app on your iPhone
 

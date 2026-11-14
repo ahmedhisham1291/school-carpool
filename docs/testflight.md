@@ -16,9 +16,9 @@ What is already in the repository (`codemagic.yaml`, workflow
 - Build number: the last TestFlight build number + 1 (automatic).
 - Upload: to App Store Connect, then **TestFlight** (internal testers get
   it without Apple review).
-- Starts only on: a push to `main`, a tag `v...`, or **Start new build** by
-  hand. Never on other branches (COST MODE: about 20 of the 500 free macOS
-  minutes per build).
+- Starts only on: **Start new build** by hand, or a tag `v...` (for example
+  `v0.1.0`). A push to `main` or any other branch starts nothing (COST
+  MODE: about 20 of the 500 free macOS minutes per build).
 - No location licence is needed any more (free `geolocator`, DECISIONS.md).
 
 ## Once: Apple (about 20 minutes)
@@ -70,8 +70,9 @@ What is already in the repository (`codemagic.yaml`, workflow
 
 ## Every build
 
-1. Merge to `main` (or Codemagic > the app > **Start new build** > branch
-   `main` > workflow **iOS staging to TestFlight**).
+1. Codemagic > the app > **Start new build** > branch `main` > workflow
+   **iOS staging to TestFlight** (or push a tag `v...` on `main`). Merging
+   to `main` alone starts no build.
 2. Wait for the build (about 20 minutes) and Apple's processing (5 to 30
    minutes; you get an email).
 3. iPhone > **TestFlight** app > School Carpool Stg > **Install**.
