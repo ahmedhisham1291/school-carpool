@@ -30,11 +30,13 @@ import {
   confirmDeadline,
   dayPlan,
   DEFAULT_DEADLINES,
-  driveDebts,
+  eligibleFamilies,
   leastDrivenFirst,
   plannableWeek,
   proposeWeek,
+  retimeRun,
   runId,
+  type BalanceRecord,
   type ExceptionRecord,
   type RotationInput,
   type RunRecord,
@@ -208,8 +210,15 @@ describe("rotation (F7, F37)", () => {
   });
 
   it("the family that has driven least this term is offered more", () => {
-    const balance = { carpoolId: "k", termId: "2026-t1", families: { a: { firstName: "A", driven: 6, received: 0 }, b: { firstName: "B", driven: 0, received: 6 } }, updatedAtMs: 0 };
+    // Equal shares (3 each) but A drove 6 and B none: B is 3 behind, A 3 ahead.
+    const balance = {
+      carpoolId: "k",
+      termId: "2026-t1",
+      families: { a: { firstName: "A", driven: 6, received: 0, share: 3 }, b: { firstName: "B", driven: 0, received: 6, share: 3 } },
+      updatedAtMs: 0,
+    };
     const counts = countBy(proposeWeek(rotation([member("a", 1), member("b", 1)], { balance })).runs);
+    // After this week both have driven 8 of 8 shares.
     assert.equal(counts.get("b"), 8);
     assert.equal(counts.get("a"), 2);
     assert.deepEqual(leastDrivenFirst([member("a", 1), member("b", 1)], balance), ["b", "a"]);
@@ -274,13 +283,16 @@ describe("rotation (F7, F37)", () => {
     assert.ok(runs.some((r) => r.id === "2026-11-15_pm"));
   });
 
-  it("fair-share debts follow the children each family brings", () => {
-    const debts = driveDebts([
-      { uid: "a", children: 1, driven: 2 },
-      { uid: "b", children: 2, driven: 4 },
+  it("only families with a child on the run who can drive it share in it", () => {
+    const a = member("a", 1);
+    const b = member("b", 2);
+    const c = member("c", 3, { seats: null }); // no car: takes no share
+    const riders = [...a.children, ...b.children, ...c.children].map((x) => ({ id: x.id, firstName: x.firstName, parentUid: x.id.replace(/\d+$/, "") }));
+    const families = eligibleFamilies(riders, [a, b, c].map((m) => ({ ...m, car: m.car ? car(8) : null })), allConsents([a, b, c]), "2026-11-15", null);
+    assert.deepEqual(families, [
+      { uid: "a", weight: 1 },
+      { uid: "b", weight: 2 },
     ]);
-    assert.equal(debts.get("a"), 0);
-    assert.equal(debts.get("b"), 0);
   });
 
   it("plans this week and up to three weeks ahead, from a Saturday only", () => {
@@ -294,8 +306,131 @@ describe("rotation (F7, F37)", () => {
   it("the balance counts driven for the driver and received for other families on the run", () => {
     const run = proposeWeek(rotation([member("a", 1), member("b", 2)])).runs[0];
     const names = new Map([["a", "A"], ["b", "B"]]);
-    const b = addToBalance({ carpoolId: "k", termId: "2026-t1", families: {}, updatedAtMs: 0 }, { ...run, driverUid: "a" }, names, 5);
-    assert.deepEqual(b.families, { a: { firstName: "A", driven: 1, received: 0 }, b: { firstName: "B", driven: 0, received: 1 } });
+    const eligible = [
+      { uid: "a", weight: 1 },
+      { uid: "b", weight: 2 },
+    ];
+    const b = addToBalance({ carpoolId: "k", termId: "2026-t1", families: {}, updatedAtMs: 0 }, { ...run, driverUid: "a" }, names, eligible, 5);
+    assert.deepEqual(b.families, {
+      a: { firstName: "A", driven: 1, received: 0, share: 1 / 3 },
+      b: { firstName: "B", driven: 0, received: 1, share: 2 / 3 },
+    });
+  });
+});
+
+/**
+ * Plans [weeks] weeks in a row from [firstWeek] and completes every run,
+ * as the tick would (balance with run-by-run fair shares). [membersAt]
+ * gives the members of each week (index 0-based), so a family can join.
+ */
+function simulate(
+  weeks: number,
+  membersAt: (week: number) => MemberRecord[],
+  firstWeek = WEEK,
+  start: BalanceRecord | null = null,
+): { balance: BalanceRecord; perWeek: Array<Map<string, number>> } {
+  let balance: BalanceRecord = start ?? { carpoolId: "k", termId: "2026-t1", families: {}, updatedAtMs: 0 };
+  const perWeek: Array<Map<string, number>> = [];
+  for (let w = 0; w < weeks; w++) {
+    const weekStart = addDays(firstWeek, w * 7);
+    const members = membersAt(w);
+    const consents = allConsents(members);
+    const { runs } = proposeWeek(
+      rotation(members, { weekStart, consents, balance, nowMs: cairoToUtcMs(weekStart, "10:00"), today: weekStart }),
+    );
+    perWeek.push(countBy(runs));
+    const names = new Map(members.map((m) => [m.uid, m.firstName]));
+    for (const run of runs) {
+      balance = addToBalance(balance, run, names, eligibleFamilies(run.riders, members, consents, run.date, run.driverUid), 0);
+    }
+  }
+  return { balance, perWeek };
+}
+
+describe("fairness over a term (F37, review blocking 3)", () => {
+  it("a family that joins in week 5 gets its share from then on, not every run", () => {
+    const a = member("a", 1);
+    const b = member("b", 1);
+    const n = member("n", 1);
+    const { balance, perWeek } = simulate(8, (w) => (w < 4 ? [a, b] : [a, b, n]));
+    for (let w = 4; w < 8; w++) {
+      const got = perWeek[w].get("n") ?? 0;
+      assert.ok(got >= 3 && got <= 4, `week ${w + 1}: n drove ${got} of 10`);
+    }
+    // Over weeks 5 to 8 (40 runs) each family drove about a third.
+    const fromJoin = (uid: string) => perWeek.slice(4).reduce((x, m) => x + (m.get(uid) ?? 0), 0);
+    for (const uid of ["a", "b", "n"]) assert.ok(Math.abs(fromJoin(uid) - 40 / 3) <= 1, `${uid} drove ${fromJoin(uid)}`);
+    assert.ok(Math.abs(balance.families.n.share - 40 / 3) < 1e-9);
+  });
+
+  it("1 child against 2 children, with a family that cannot drive, approaches 1:2", () => {
+    const a = member("a", 1);
+    const b = member("b", 2);
+    const c = member("c", 3, { seats: null });
+    const big = (m: MemberRecord) => ({ ...m, car: m.car ? car(8) : null });
+    const { balance } = simulate(20, () => [big(a), big(b), big(c)]);
+    const fa = balance.families.a.driven;
+    const fb = balance.families.b.driven;
+    assert.equal(fa + fb, 200);
+    assert.equal(balance.families.c?.driven ?? 0, 0);
+    assert.ok(Math.abs(fa - 200 / 3) <= 1, `a drove ${fa}`);
+    assert.ok(Math.abs(fb - 400 / 3) <= 1, `b drove ${fb}`);
+    assert.equal(balance.families.c?.share ?? 0, 0);
+  });
+
+  it("planning three weeks ahead on one day stays even (other weeks count)", () => {
+    const fams = [member("a", 1), member("b", 1), member("c", 1)];
+    const consents = allConsents(fams);
+    const planned: RunRecord[] = [];
+    for (let w = 0; w < 3; w++) {
+      const weekStart = addDays(WEEK, w * 7);
+      const { runs } = proposeWeek(rotation(fams, { weekStart, consents, otherRuns: planned }));
+      planned.push(...runs);
+    }
+    const counts = countBy(planned);
+    assert.deepEqual([...counts.values()].sort(), [10, 10, 10]);
+  });
+});
+
+describe("time changes on planned and confirmed runs (F30, F28, review blocking 2)", () => {
+  const base = (): RunRecord => {
+    const run = proposeWeek(rotation([member("a", 1), member("b", 1)])).runs.find((r) => r.id === "2026-11-15_pm") as RunRecord;
+    return run;
+  };
+
+  it("an early dismissal on a late-deadline run moves the confirm-by time before the new start", () => {
+    // Planned on Sunday morning: confirm by 13:30 for the 14:30 run.
+    const sunday10 = cairoToUtcMs("2026-11-15", "10:00");
+    const late = { ...base(), confirmByMs: cairoToUtcMs("2026-11-15", "13:30") };
+    const moved = retimeRun(late, "12:00", sunday10, DEFAULT_DEADLINES);
+    assert.equal(moved.missed, false);
+    assert.equal(moved.run.startMs, cairoToUtcMs("2026-11-15", "12:00"));
+    assert.equal(moved.run.confirmByMs, cairoToUtcMs("2026-11-15", "11:00"));
+    assert.ok(moved.run.confirmByMs < moved.run.startMs);
+  });
+
+  it("when the new deadline has passed, the run is missed at once (alert now, not after pickup)", () => {
+    const at11 = cairoToUtcMs("2026-11-15", "11:00");
+    const late = { ...base(), confirmByMs: cairoToUtcMs("2026-11-15", "13:30") };
+    const moved = retimeRun(late, "11:30", at11, DEFAULT_DEADLINES);
+    assert.equal(moved.missed, true);
+    assert.equal(moved.run.status, "missed");
+    assert.equal(moved.run.driverUid, null);
+    // A new start already past: missed too, never counted as completed.
+    const past = retimeRun({ ...base(), status: "confirmed" }, "10:30", at11, DEFAULT_DEADLINES);
+    assert.equal(past.run.status, "missed");
+  });
+
+  it("a confirmed driver is asked to confirm again; with no time left the driver stays and is told", () => {
+    const sat = NOW;
+    const again = retimeRun({ ...base(), status: "confirmed", confirmedAtMs: 1 }, "13:00", sat, DEFAULT_DEADLINES);
+    assert.equal(again.run.status, "planned");
+    assert.equal(again.notice, "reconfirm");
+    assert.equal(again.run.confirmByMs, Date.UTC(2026, 10, 14, 19));
+    const close = cairoToUtcMs("2026-11-15", "12:30");
+    const told = retimeRun({ ...base(), status: "confirmed" }, "13:00", close, DEFAULT_DEADLINES);
+    assert.equal(told.run.status, "confirmed");
+    assert.equal(told.notice, "moved");
   });
 });
 
@@ -657,6 +792,43 @@ describe("exceptions on a planned week (F30)", () => {
     assert.equal(after.time, "13:30");
     assert.equal(after.startMs, Date.UTC(2026, 10, 18, 11, 30));
     assert.equal(after.driverUid, before.driverUid);
+  });
+
+  it("an early dismissal on the day: a late-deadline run is missed at once and everyone is alerted", async () => {
+    const { deps, store, clock } = setup();
+    const k = await readyCarpool(deps);
+    // Planned on Sunday at 10:00: the 14:30 run must be confirmed by 13:30.
+    clock.now = cairoToUtcMs("2026-11-15", "10:00");
+    await planWeek(deps, as("alice"), { carpoolId: k, weekStart: WEEK });
+    const pm = store.runs.get(k)?.get("2026-11-15_pm") as RunRecord;
+    assert.equal(pm.confirmByMs, cairoToUtcMs("2026-11-15", "13:30"));
+    // At 11:00 the admin moves pickup to 11:30: no time left to confirm.
+    clock.now = cairoToUtcMs("2026-11-15", "11:00");
+    await saveException(deps, as("alice"), { carpoolId: k, kind: "times", reason: "early", from: "2026-11-15", afternoon: "11:30" });
+    const after = store.runs.get(k)?.get(pm.id) as RunRecord;
+    assert.equal(after.status, "missed");
+    assert.equal(after.driverUid, null);
+    const alert = store.events.find((e) => e.type === "no-driver" && e.runId === pm.id);
+    assert.ok(alert?.critical);
+    assert.deepEqual(alert?.recipients, ["alice", "bob", "cara"]);
+  });
+
+  it("a time change asks a confirmed driver to confirm again, before the new start", async () => {
+    const { deps, store } = setup();
+    const k = await readyCarpool(deps);
+    await planWeek(deps, as("alice"), { carpoolId: k, weekStart: WEEK });
+    const run = store.runs.get(k)?.get("2026-11-17_pm") as RunRecord;
+    const driver = run.driverUid as string;
+    await confirmRun(deps, as(driver), { carpoolId: k, runId: run.id });
+    await saveException(deps, as("alice"), { carpoolId: k, kind: "times", reason: "early", from: "2026-11-17", afternoon: "12:00" });
+    const after = store.runs.get(k)?.get(run.id) as RunRecord;
+    assert.equal(after.status, "planned");
+    assert.equal(after.driverUid, driver);
+    assert.ok(after.confirmByMs < after.startMs);
+    const notice = store.events.find((e) => e.type === "time-changed" && e.runId === run.id);
+    assert.deepEqual(notice?.recipients, [driver]);
+    await confirmRun(deps, as(driver), { carpoolId: k, runId: run.id });
+    assert.equal(store.runs.get(k)?.get(run.id)?.status, "confirmed");
   });
 
   it("checks input: kinds, reasons, ranges up to 60 days, times only for runs the carpool has", async () => {
