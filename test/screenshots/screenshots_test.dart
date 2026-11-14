@@ -38,6 +38,8 @@ import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
+import 'package:school_carpool/features/notifications/notification_models.dart';
+import 'package:school_carpool/features/notifications/notification_repository.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
@@ -53,6 +55,7 @@ import '../helpers/admin_fakes.dart';
 import '../helpers/carpool_fakes.dart';
 import '../helpers/fonts.dart';
 import '../helpers/map_fakes.dart';
+import '../helpers/notification_fakes.dart';
 import '../helpers/schedule_fakes.dart';
 import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
@@ -72,6 +75,7 @@ Future<void> _pumpScreen(
   MapRepository? maps,
   CarpoolRepository? carpools,
   ScheduleRepository? schedule,
+  NotificationRepository? notifications,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -95,7 +99,7 @@ Future<void> _pumpScreen(
           }),
         ),
         routerProvider.overrideWithValue(router),
-        ...authOverrides(session: session, maps: maps, carpools: carpools, schedule: schedule),
+        ...authOverrides(session: session, maps: maps, carpools: carpools, schedule: schedule, notifications: notifications),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
         ...extraOverrides,
       ],
@@ -599,6 +603,42 @@ void main() {
             ),
             schedule: schedule,
             extraOverrides: verificationOverrides(repository: FakeVerificationRepository()),
+          );
+          await tester.pump(const Duration(milliseconds: 400));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Prompt 8: the Notifications tab (with a critical alert pinned above the
+  // tabs) and the alert settings.
+  final Map<String, String> notificationScreens = <String, String>{
+    'tab': AppTab.notifications.path,
+    'settings': ProfileRoutes.notifications,
+  };
+  for (final MapEntry<String, String> screen in notificationScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'notifications_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: screen.value,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            notifications: FakeNotificationRepository(
+              items: <AppNotification>[
+                testNotification('c1', NotificationKind.noDriver, ago: const Duration(minutes: 20)),
+                testNotification('n1', NotificationKind.swapRequested),
+                testNotification('n2', NotificationKind.joinRequested, ago: const Duration(hours: 3)),
+                testNotification('n3', NotificationKind.driveEvening, read: true, ago: const Duration(days: 1)),
+                testNotification('n4', NotificationKind.childAbsent, read: true, ago: const Duration(days: 2)),
+              ],
+            ),
           );
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));

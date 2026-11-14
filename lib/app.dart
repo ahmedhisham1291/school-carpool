@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/notifications/notification_center.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/settings/app_settings.dart';
@@ -52,6 +53,8 @@ class _CarpoolAppState extends ConsumerState<CarpoolApp> with WidgetsBindingObse
         ? ref.watch(designDirectionProvider)
         : DesignDirection.a;
     final GoRouter router = ref.watch(routerProvider);
+    // Prompt 8: push registration, taps and the critical-alert alarms.
+    ref.watch(notificationCenterProvider);
 
     return MaterialApp.router(
       onGenerateTitle: (BuildContext context) => context.l10n.appTitle,

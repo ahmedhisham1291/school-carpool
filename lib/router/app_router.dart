@@ -20,6 +20,8 @@ import 'package:school_carpool/features/home/home_screen.dart';
 import 'package:school_carpool/features/maps/driving_schools_screen.dart';
 import 'package:school_carpool/features/maps/home_location_screen.dart';
 import 'package:school_carpool/features/maps/nearby_parents_screen.dart';
+import 'package:school_carpool/features/notifications/notification_settings_screen.dart';
+import 'package:school_carpool/features/notifications/notifications_screen.dart';
 import 'package:school_carpool/features/onboarding/code_screen.dart';
 import 'package:school_carpool/features/onboarding/email_screen.dart';
 import 'package:school_carpool/features/onboarding/phone_screen.dart';
@@ -58,11 +60,15 @@ abstract final class ProfileRoutes {
   static const String aboutSegment = 'about';
   static const String homeLocationSegment = 'home-location';
   static const String drivingSchoolsSegment = 'driving-schools';
+  static const String notificationsSegment = 'notifications';
   static const String children = '/profile/$childrenSegment';
   static const String homeLocation = '/profile/$homeLocationSegment';
   static const String drivingSchools = '/profile/$drivingSchoolsSegment';
   static const String driving = '/profile/$drivingSegment';
   static const String about = '/profile/$aboutSegment';
+
+  /// Prompt 8: alert settings (WhatsApp per group, quiet hours).
+  static const String notifications = '/profile/$notificationsSegment';
 }
 
 /// Screens under the Home tab (Prompt 5). Verified parents only (the
@@ -216,7 +222,8 @@ GoRouter buildAppRouter({
                     AppTab.profile => const ProfileScreen(),
                     AppTab.home => const HomeScreen(),
                     AppTab.carpools => const CarpoolsScreen(),
-                    _ => PlaceholderTabScreen(tab: tab),
+                    AppTab.notifications => const NotificationsScreen(),
+                    AppTab.chats => PlaceholderTabScreen(tab: tab),
                   },
                   routes: <RouteBase>[
                     if (tab == AppTab.home)
@@ -300,6 +307,10 @@ GoRouter buildAppRouter({
                       GoRoute(
                         path: ProfileRoutes.drivingSchoolsSegment,
                         builder: (BuildContext context, GoRouterState state) => const DrivingSchoolsScreen(),
+                      ),
+                      GoRoute(
+                        path: ProfileRoutes.notificationsSegment,
+                        builder: (BuildContext context, GoRouterState state) => const NotificationSettingsScreen(),
                       ),
                     ],
                   ],

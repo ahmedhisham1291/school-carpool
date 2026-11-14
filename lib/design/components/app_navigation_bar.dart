@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/design/components/alert_banner.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 
 /// One tab of [AppNavigationBar].
@@ -8,6 +9,7 @@ class AppNavDestination {
     required this.icon,
     required this.selectedIcon,
     required this.label,
+    this.badgeLabel,
   });
 
   /// Outlined icon, shown when the tab is not selected.
@@ -18,6 +20,10 @@ class AppNavDestination {
 
   /// One short word in each language (DESIGN.md, one-line wording).
   final String label;
+
+  /// When set, a dot on the icon (for example unread alerts) and this text
+  /// for screen readers ("3 unread").
+  final String? badgeLabel;
 }
 
 /// The app's bottom navigation: raised surface with a hairline on top, a
@@ -104,7 +110,7 @@ class AppNavigationBarItem extends StatelessWidget {
       button: true,
       selected: selected,
       inMutuallyExclusiveGroup: true,
-      label: destination.label,
+      label: destination.badgeLabel == null ? destination.label : '${destination.label}, ${destination.badgeLabel}',
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -129,10 +135,17 @@ class AppNavigationBarItem extends StatelessWidget {
                         : colors.primaryContainer.withValues(alpha: 0),
                     borderRadius: AppRadii.chip,
                   ),
-                  child: Icon(
-                    selected ? destination.selectedIcon : destination.icon,
-                    size: AppIconSize.md,
-                    color: selected ? colors.onPrimaryContainer : colors.onSurfaceVariant,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: <Widget>[
+                      Icon(
+                        selected ? destination.selectedIcon : destination.icon,
+                        size: AppIconSize.md,
+                        color: selected ? colors.onPrimaryContainer : colors.onSurfaceVariant,
+                      ),
+                      if (destination.badgeLabel != null)
+                        const PositionedDirectional(top: 0, end: 0, child: AppUnreadDot()),
+                    ],
                   ),
                 ),
               ),

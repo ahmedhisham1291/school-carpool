@@ -77,8 +77,10 @@ String? _signedInTarget(Account account, String location) {
         account.status == AccountStatus.unverified || account.status == AccountStatus.rejected;
     return canSubmit ? null : AuthRoutes.verifyAccount;
   }
+  // Prompt 8: the Notifications tab too, where the verification result is.
   final bool allowed =
       location == AuthRoutes.verifyAccount ||
+      location == AppTab.notifications.path ||
       location == AppTab.profile.path ||
       location.startsWith('${AppTab.profile.path}/');
   return allowed ? null : AuthRoutes.verifyAccount;

@@ -58,6 +58,14 @@ class ProfileScreen extends ConsumerWidget {
           ...top,
           const SettingsSection(),
           const MapSettingsSection(),
+          if (session is SessionSignedIn)
+            AppListRow(
+              key: const Key('profile.notifications'),
+              title: l10n.notifSettingsTitle,
+              subtitle: l10n.profileNotificationsHelper,
+              leadingIcon: Icons.notifications_active_outlined,
+              onTap: () => context.go(ProfileRoutes.notifications),
+            ),
           AppListRow(
             key: const Key('profile.about'),
             title: l10n.aboutTitle,

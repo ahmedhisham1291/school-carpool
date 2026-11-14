@@ -11,6 +11,7 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/carpools/carpools_screen.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
 import 'package:school_carpool/features/home/home_screen.dart';
+import 'package:school_carpool/features/notifications/notifications_screen.dart';
 import 'package:school_carpool/features/placeholder/placeholder_tab_screen.dart';
 import 'package:school_carpool/features/profile/profile_screen.dart';
 import 'package:school_carpool/l10n/l10n.dart';
@@ -61,7 +62,6 @@ void main() {
     final GoRouter router = await pumpRouter(tester, config: testDevConfig);
     final Map<IconData, AppTab> icons = <IconData, AppTab>{
       Icons.chat_bubble_outline_rounded: AppTab.chats,
-      Icons.notifications_none_rounded: AppTab.notifications,
     };
     for (final MapEntry<IconData, AppTab> entry in icons.entries) {
       await tester.tap(find.byIcon(entry.key).first);
@@ -72,6 +72,11 @@ void main() {
       );
       expect(screen.tab, entry.value);
     }
+    // Notifications has its own screen since Prompt 8.
+    await tester.tap(find.byIcon(Icons.notifications_none_rounded).first);
+    await tester.pumpAndSettle();
+    expect(currentPath(router), AppTab.notifications.path);
+    expect(find.byType(NotificationsScreen).hitTestable(), findsOneWidget);
     // Carpools has its own screen since Prompt 6.
     await tester.tap(find.byIcon(Icons.directions_car_outlined).first);
     await tester.pumpAndSettle();
