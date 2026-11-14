@@ -1,7 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { onInit } from "firebase-functions/v2";
 import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
-import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminAuth, adminDb, adminStorage } from "../admin";
 import { ipOf, requireAdminCaller } from "../admin_panel/access";
 import {
@@ -20,7 +19,6 @@ import { reportError } from "../sentry";
 import {
   decideVerification as decideFlow,
   openVerificationCase as openFlow,
-  purgeVerificationImages,
   removeChild as removeChildFlow,
   withdrawVerification as withdrawFlow,
   submitVerification as submitFlow,
@@ -221,20 +219,4 @@ export const decideVerification = onCall({ enforceAppCheck: ENFORCE_APP_CHECK },
   run("decideVerification", async () => decideFlow(deps(false), await requireAdmin(request), request.data, ipOf(request))),
 );
 
-/**
- * Daily at 03:10 Cairo time: deletes verification images of decided cases
- * (5 days after the decision, so always within 7 days), uploads never
- * submitted, and orphaned case folders. minInstances stays 0 (global
- * option); one Cloud Scheduler job (free tier: 3 jobs per billing account).
- */
-export const purgeVerificationImagesDaily = onSchedule(
-  { schedule: "10 3 * * *", timeZone: "Africa/Cairo", retryCount: 2, timeoutSeconds: 540 },
-  async () => {
-    const result = await purgeVerificationImages({
-      store: new FirestoreVerificationStore(adminDb()),
-      files: new CloudStorageFiles(adminStorage().bucket()),
-      now: () => Date.now(),
-    });
-    logger.info("verification images purged", result);
-  },
-);
+// Prompt 12: the daily image purge runs inside retentionDaily (privacy/callables.ts).

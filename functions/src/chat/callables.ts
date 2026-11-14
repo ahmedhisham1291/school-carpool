@@ -37,6 +37,8 @@ import { CHAT_ERROR_CODES, ChatError } from "./model";
 import { createChatServer, verifyWebhookSignature, type ChatServer } from "./server";
 import { accountFromDoc, syncAccess, syncCarpoolMember, syncParentGroups, type SyncDeps } from "./sync";
 import { handleWebhook } from "./webhook";
+import { noteAbuse } from "../privacy/abuse_hook";
+import { requireNoDeviceCheck } from "../privacy/device_gate";
 
 /**
  * Chat functions (Prompt 9: F8, F9, F10, F13). The Stream secret is bound
@@ -108,13 +110,25 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK, secrets };
 
 /** {} -> { provider, apiKey, userId, token, expiresAtMs }: verified, non-suspended parents only. */
-export const getChatToken = onCall(opts, (r) => run("getChatToken", () => tokenFlow(chatDeps(), caller(r))));
+export const getChatToken = onCall(opts, (r) =>
+  run("getChatToken", async () => {
+    await requireNoDeviceCheck(r.auth?.uid);
+    return tokenFlow(chatDeps(), caller(r));
+  }),
+);
 
 /** {} -> { groups, carpools }: joins the caller's school, area and carpool chats. */
 export const syncMyChats = onCall(opts, (r) => run("syncMyChats", () => syncMineFlow(chatDeps(), caller(r))));
 
 /** { toUid } -> { id, status, cid } */
-export const sendChatRequest = onCall(opts, (r) => run("sendChatRequest", () => sendFlow(chatDeps(), caller(r), r.data)));
+export const sendChatRequest = onCall(opts, (r) =>
+  run("sendChatRequest", async () => {
+    // Prompt 12: many chat requests in an hour alert the admins.
+    const to = typeof r.data === "object" && r.data !== null ? (r.data as { toUid?: unknown; uid?: unknown }) : {};
+    await noteAbuse(caller(r).uid, "chatRequests", String(to.toUid ?? to.uid ?? "").slice(0, 64));
+    return sendFlow(chatDeps(), caller(r), r.data);
+  }),
+);
 
 /** { requestId, accept } -> { id, status, cid } */
 export const answerChatRequest = onCall(opts, (r) => run("answerChatRequest", () => answerFlow(chatDeps(), caller(r), r.data)));

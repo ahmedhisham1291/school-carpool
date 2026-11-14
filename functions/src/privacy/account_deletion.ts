@@ -104,7 +104,6 @@ export const PURGE_TARGETS: ReadonlyArray<{ collection: string; target: Target }
   { collection: "storage:thumbs", target: { kind: "storage", prefix: "thumbs/{uid}/" } },
   { collection: "verifications", target: { kind: "where", collection: "verifications", field: "uid" } },
   { collection: "trips", target: { kind: "where", collection: "trips", field: "driverUid" } },
-  { collection: "routeArchives", target: { kind: "where", collection: "routeArchives", field: "driverUid" } },
   { collection: "users/consents", target: { kind: "subcollection", path: "users/{uid}/consents" } },
 ];
 
@@ -149,7 +148,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   closedAccounts: "the deletion report and purge date (no name, phone or ID)",
   privacyRequests: "proof that each request was answered, 3 years",
   securityAlerts: "admin alerts, 1 year after handled",
-  routeArchives: "purged 1 year after the run",
+  routeArchives: "purged 1 year after the run (and with the account's purge step)",
   retentionRuns: "job reports (counts only)",
   mail: "mail outbox; the extension deletes sent mail",
 };
@@ -157,7 +156,8 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
 /** Steps that run through the app's flows (not plain deletes), in order. */
 export const FLOW_STEPS = ["trips", "carpools", "chat", "trust", "identity", "wallet", "records", "auth"] as const;
 export type FlowStep = (typeof FLOW_STEPS)[number];
-export const PURGE_STEPS = ["records", "stream"] as const;
+/** routes: the parent's archived routes (files and records); stream: the Stream user and messages. */
+export const PURGE_STEPS = ["routes", "stream"] as const;
 export type PurgeStep = (typeof PURGE_STEPS)[number];
 
 export interface DeletionFacts {

@@ -54,6 +54,7 @@ import { releaseOnBlock, runTrustDaily } from "./jobs";
 import { parseReminderDays, TRUST_ERROR_CODES, TrustError, yearSettings } from "./model";
 import { confirmPhoneChange as confirmPhoneFlow, phoneChangeKey, requestPhoneChange as requestPhoneFlow, type PhoneChangeDeps, type PhoneFiles } from "./phone";
 import { FirestoreTrustStore } from "./store";
+import { noteAbuse } from "../privacy/abuse_hook";
 
 /**
  * Trust functions (Prompt 11, F17). The app reads and writes nothing of
@@ -117,7 +118,14 @@ export const listRateable = onCall(opts, (r) => run("listRateable", () => rateab
 export const rateParent = onCall(opts, (r) => run("rateParent", () => rateFlow(trustDeps(), caller(r), r.data)));
 
 /** { uid? } -> { ratings, average, vouches } (self, or a parent of a shared carpool) */
-export const getTrustSummary = onCall(opts, (r) => run("getTrustSummary", () => summaryFlow(trustDeps(), caller(r), r.data)));
+export const getTrustSummary = onCall(opts, (r) =>
+  run("getTrustSummary", async () => {
+    // Prompt 12: opening many other parents' profiles alerts the admins.
+    const target = typeof r.data === "object" && r.data !== null ? (r.data as { uid?: unknown }).uid : undefined;
+    if (typeof target === "string" && target !== caller(r).uid) await noteAbuse(caller(r).uid, "profiles", target.slice(0, 64));
+    return summaryFlow(trustDeps(), caller(r), r.data);
+  }),
+);
 
 // Yearly check --------------------------------------------------------------
 

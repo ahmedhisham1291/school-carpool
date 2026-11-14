@@ -33,7 +33,6 @@ export {
   decideVerification,
   listVerificationQueue,
   openVerificationCase,
-  purgeVerificationImagesDaily,
   removeChild,
   submitVerification,
   withdrawVerification,
@@ -227,3 +226,31 @@ export {
   requestPhoneChange,
   trustDaily,
 } from "./trust/callables";
+
+// Privacy and security hardening (Prompt 12, spec section 7): the privacy
+// screen (consents, requests, export, account deletion), phones and
+// sign-ins with the new-phone check, scraping alerts, the retention job
+// for every data type (replaces purgeVerificationImagesDaily and
+// chatRetentionDaily), the archived route of each run, server-made
+// thumbnails, and admin access to photos and routes with a logged reason.
+export {
+  adminClosePrivacyRequest,
+  adminListPrivacyRequests,
+  adminListSecurityAlerts,
+  adminOpenRouteArchive,
+  adminOpenUserPhotos,
+  adminResolveSecurityAlert,
+  archiveRouteOnTripWrite,
+  confirmNewDevice,
+  deleteMyAccount,
+  exportMyData,
+  getPrivacyOverview,
+  listDevices,
+  makePhotoThumbnail,
+  requestCorrection,
+  requestPhotoCopy,
+  retentionDaily,
+  setConsent,
+  signOutDevice,
+  touchDevice,
+} from "./privacy/callables";

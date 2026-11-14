@@ -64,7 +64,7 @@ import { FirestoreTripStore } from "./store";
  * No warm instances (COST MODE): MIN_INSTANCES, 0 by default.
  */
 
-function tripDeps(): TripDeps {
+export function tripDeps(): TripDeps {
   const db = adminDb();
   const appEnv = process.env.APP_ENV ?? "dev";
   const kyc = createKycProvider({

@@ -33,6 +33,7 @@ import {
 } from "./otp_flow";
 import { FirestoreOtpStore } from "./otp_store";
 import { emailConfirmationIsNew } from "./sign_in_policy";
+import { afterSignIn } from "../privacy/callables";
 
 /**
  * Callable functions for sign-up and sign-in (F1). App Check is enforced in
@@ -165,7 +166,14 @@ export const requestCode = onCall({ ...signInOptions, consumeAppCheckToken: true
   }),
 );
 
-/** { phone, code, deviceId, language } -> { token } (a Firebase custom token) */
+/**
+ * { phone, code, deviceId, language, platform? } -> { token, newDevice, freshSelfieRequired }
+ *
+ * Prompt 12: every sign-in is recorded (users/{uid}/devices, logins). A
+ * sign-in from a new phone signs the other phones out, emails the parent
+ * and, for a verified parent, asks for a fresh selfie before chats, the
+ * wallet and child data open (privacy/devices.ts).
+ */
 export const verifyCode = onCall(signInOptions, (request) =>
   run("verifyCode", async () => {
     const result = await verifyCodeFlow(otpDeps(), {
@@ -174,7 +182,8 @@ export const verifyCode = onCall(signInOptions, (request) =>
       deviceId: field(request, "deviceId"),
       language: asLanguage(field(request, "language")),
     });
-    return { token: result.token };
+    const device = await afterSignIn(result.uid, field(request, "deviceId"), field(request, "platform"));
+    return { token: result.token, newDevice: device.newDevice, freshSelfieRequired: device.freshSelfieRequired };
   }),
 );
 

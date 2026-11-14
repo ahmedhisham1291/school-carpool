@@ -16,6 +16,11 @@ export interface RetentionStore {
   closedAccountsToWork(nowMs: number, limit: number): Promise<ClosedAccount[]>;
   /** Archived routes past their date: deletes the file and its record; returns how many. */
   deleteRouteArchivesDue(nowMs: number, limit: number): Promise<number>;
+  /**
+   * Marks the chats of carpools that closed as ended (frozen on Stream by
+   * [freeze]); Prompt 9 review item 13. Returns how many.
+   */
+  endClosedCarpoolChats(nowMs: number, limit: number, freeze: (cid: string) => Promise<void>): Promise<number>;
   /** Chats that ended before [before]: IDs ("type:id"). */
   endedChatsBefore(before: number, limit: number): Promise<string[]>;
   deleteChatRecord(cid: string): Promise<void>;
@@ -36,6 +41,8 @@ export interface RetentionDeps {
   runner: DeletionRunner;
   /** Hard-deletes a Stream channel (chat ended a year ago). */
   deleteChannel(cid: string): Promise<void>;
+  /** Freezes a Stream channel (no new messages; the history stays). */
+  freezeChannel(cid: string): Promise<void>;
   now: () => number;
   /** Sentry (scrubbed); never the data itself. */
   reportError(error: unknown): void;
@@ -85,6 +92,8 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
   });
 
   await task("routeArchives", async () => ({ deleted: await deps.store.deleteRouteArchivesDue(nowMs, PAGE), failed: 0 }));
+
+  await task("closedCarpoolChats", async () => ({ deleted: await deps.store.endClosedCarpoolChats(nowMs, PAGE, (cid) => deps.freezeChannel(cid)), failed: 0 }));
 
   // Chat: life of the chat + 1 year (owner decision; was 180 days).
   await task("chats", async () => {

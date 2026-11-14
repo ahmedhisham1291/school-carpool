@@ -39,6 +39,7 @@ import {
 } from "./flow";
 import { CARPOOL_ERROR_CODES, CarpoolError } from "./model";
 import { FirestoreCarpoolStore } from "./store";
+import { noteAbuse } from "../privacy/abuse_hook";
 
 /**
  * Carpool callables (Prompt 6). Every membership, ownership and status
@@ -112,7 +113,14 @@ export const opts = { enforceAppCheck: ENFORCE_APP_CHECK };
 export const createCarpool = onCall(opts, (r) => run("createCarpool", () => createFlow(deps(), caller(r), r.data)));
 
 /** F5, F6: { kind, schoolId?, areaId?, morning?, afternoon?, radiusKm?, parentUid? } -> { carpools } */
-export const searchCarpools = onCall(opts, (r) => run("searchCarpools", () => searchFlow(deps(), caller(r), r.data)));
+export const searchCarpools = onCall(opts, (r) =>
+  run("searchCarpools", async () => {
+    // Prompt 12: searching many schools and areas in an hour alerts the admins.
+    const q = typeof r.data === "object" && r.data !== null ? (r.data as { schoolId?: unknown; areaId?: unknown }) : {};
+    await noteAbuse(caller(r).uid, "areaSearches", `${String(q.schoolId ?? "")}|${String(q.areaId ?? "")}`.slice(0, 64));
+    return searchFlow(deps(), caller(r), r.data);
+  }),
+);
 
 /** F6: { carpoolId, childIds, acceptRules, acceptContribution } -> { status } */
 export const requestToJoinCarpool = onCall(opts, (r) => run("requestToJoinCarpool", () => requestToJoin(deps(), caller(r), r.data)));

@@ -42,6 +42,7 @@ import {
 } from "../src/privacy/devices";
 import { buildExport, redact } from "../src/privacy/export";
 import { runRetention, type RetentionReport, type RetentionStore } from "../src/privacy/jobs";
+import { accessReason, selfieArchivePath, thumbOwner, thumbPath } from "../src/privacy/photos";
 import { consentViews, needsAdmin, withdrawEffect } from "../src/privacy/requests";
 import {
   AFTER_CLOSURE_DAYS,
@@ -586,6 +587,11 @@ class MemoryRetention implements RetentionStore {
     if (this.failArchives) throw new Error("storage down");
     return 3;
   }
+  frozen: string[] = [];
+  async endClosedCarpoolChats(_nowMs: number, _limit: number, freeze: (cid: string) => Promise<void>) {
+    await freeze("cp_carpool:c-k9");
+    return 1;
+  }
   async endedChatsBefore() {
     return this.chats;
   }
@@ -630,6 +636,7 @@ describe("retention job", () => {
         if (cid === "private:b") throw new Error("stream 500");
         deletedChannels.push(cid);
       },
+      freezeChannel: async (cid) => void store.frozen.push(cid),
       now: () => NOW,
       reportError: (e) => reported.push(e),
     });
@@ -639,6 +646,7 @@ describe("retention job", () => {
     assert.deepEqual(report.tasks.chats, { deleted: 1, failed: 1 });
     assert.deepEqual(store.deletedChats, ["private:a"], "a chat whose Stream delete failed keeps its record (retried)");
     assert.deepEqual(report.tasks.exports, { deleted: 4, failed: 0 });
+    assert.deepEqual(store.frozen, ["cp_carpool:c-k9"], "a closed carpool's chat is frozen and its year starts");
     assert.deepEqual(report.failures.sort(), ["chat:private:b", "routeArchives"]);
     assert.equal(store.runs.length, 1);
     assert.equal(store.alerts.length, 1);
@@ -648,8 +656,40 @@ describe("retention job", () => {
   it("a clean run raises no alert", async () => {
     const store = new MemoryRetention();
     store.chats = [];
-    const report = await runRetention({ store, runner: new FakeRunner(), deleteChannel: async () => undefined, now: () => NOW, reportError: () => undefined });
+    const report = await runRetention({ store, runner: new FakeRunner(), deleteChannel: async () => undefined, freezeChannel: async () => undefined, now: () => NOW, reportError: () => undefined });
     assert.deepEqual(report.failures, []);
     assert.equal(store.alerts.length, 0);
+  });
+});
+
+// --------------------------------------------------------------------------
+// Kept photos: reasons, thumbnails, selfie archive
+// --------------------------------------------------------------------------
+
+
+describe("kept photos", () => {
+  it("admins open photos only with a fixed reason code", () => {
+    assert.equal(accessReason("investigation"), "investigation");
+    assert.equal(accessReason("because"), null);
+    assert.equal(accessReason(undefined), null);
+  });
+
+  it("thumbnails for kept photos only, under thumbs/{uid} with a hashed name", () => {
+    for (const p of ["verification/u1/cases/C1/id_front.jpg", "faceRefs/u1/selfie.jpg", "driverPhotos/u1/photo.jpg", "selfieArchive/u1/run_k1_2026-11-14_am.jpg"]) {
+      assert.equal(thumbOwner(p), "u1", p);
+      const t = thumbPath(p);
+      assert.match(t ?? "", /^thumbs\/u1\/[0-9a-f]{32}\.webp$/);
+      assert.ok(!(t ?? "").includes("id_front"), "the original name is not in the path");
+    }
+    for (const p of ["verification/u1/pending/id_front.jpg", "thumbs/u1/abc.webp", "selfieChecks/u1/x.jpg", "exports/u1/r.json", "routeArchive/2026/t.json.gz"]) {
+      assert.equal(thumbPath(p), null, p);
+    }
+    assert.equal(thumbPath("faceRefs/u1/selfie.jpg"), thumbPath("faceRefs/u1/selfie.jpg"), "stable");
+  });
+
+  it("selfie archive paths are checked", () => {
+    assert.equal(selfieArchivePath("u1", "phone_1.jpg"), "selfieArchive/u1/phone_1.jpg");
+    assert.throws(() => selfieArchivePath("../u1", "x.jpg"));
+    assert.throws(() => selfieArchivePath("u1", "x.png"));
   });
 });
