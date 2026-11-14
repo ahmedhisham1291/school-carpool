@@ -4,12 +4,17 @@ import { HttpsError, onCall, onRequest, type CallableRequest, type FunctionsErro
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminDb, adminStorage } from "../admin";
 import { deps as carpoolDeps } from "../carpools/callables";
+import { createChatServer } from "../chat/server";
+import { channelRef, groupChannelId } from "../chat/model";
 import {
+  CHAT_PROVIDER,
   ENFORCE_APP_CHECK,
   MAPS_SERVER_KEY,
   MIN_INSTANCES,
   ROUTES_PROVIDER,
   ROUTES_TRAFFIC,
+  STREAM_API_KEY,
+  STREAM_API_SECRET,
   TRIP_HANDOVER_MIN,
   TRIP_SELFIE_PERCENT,
   TRIP_STALE_SEC,
@@ -100,7 +105,30 @@ function tripDeps(): TripDeps {
     roll: () => randomInt(0, 100),
     settings: tripSettings(TRIP_STALE_SEC.value(), TRIP_SELFIE_PERCENT.value(), TRIP_HANDOVER_MIN.value()),
     log: (message, data) => logger.info(message, data ?? {}),
+    // F35: quick messages also go into the carpool chat (Prompt 9's Stream
+    // server client; the secret is bound to quickMessage only).
+    chat: {
+      post: (carpoolId, messageId, text, extra) => {
+        const ref = channelRef("carpool", groupChannelId("carpool", carpoolId));
+        return createChatServer(CHAT_PROVIDER.value(), appEnv, STREAM_API_KEY.value(), streamSecret(), (m) => logger.info(m)).postSystemMessage(
+          ref.type,
+          ref.id,
+          messageId,
+          text,
+          extra,
+        );
+      },
+    },
   };
+}
+
+function streamSecret(): string {
+  try {
+    return STREAM_API_SECRET.value();
+  } catch {
+    // Emulators without functions/.secret.local: the fake chat server needs none.
+    return "";
+  }
 }
 
 function caller(request: CallableRequest): Caller {
@@ -142,7 +170,7 @@ export const tripAction = onCall(opts, (r) => run("tripAction", () => actionFlow
 export const confirmHandover = onCall(opts, (r) => run("confirmHandover", () => confirmFlow(tripDeps(), caller(r), r.data)));
 
 /** F35: { carpoolId, runId, kind, requestId? } -> { posted } */
-export const quickMessage = onCall(opts, (r) => run("quickMessage", () => quickFlow(tripDeps(), caller(r), r.data)));
+export const quickMessage = onCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [STREAM_API_SECRET] }, (r) => run("quickMessage", () => quickFlow(tripDeps(), caller(r), r.data)));
 
 /** F20: { carpoolId, runId, point? } -> { emergencyId, contactSent, members } */
 export const tripEmergency = onCall(withSecrets, (r) => run("tripEmergency", () => emergencyFlow(tripDeps(), caller(r), r.data)));

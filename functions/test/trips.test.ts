@@ -12,6 +12,7 @@ import {
   getHandoverAdults,
   hashToken,
   prepareTrip,
+  quickChatText,
   quickMessage,
   runTripTick,
   saveHandoverAdults,
@@ -41,6 +42,7 @@ import {
   viewersOf,
   type Stop,
 } from "../src/trips/model";
+import { FakeChatServer } from "../src/chat/server";
 import { FakeRoutesProvider, GoogleRoutesProvider } from "../src/trips/routes";
 import { MemoryTripFiles, MemoryTripStore } from "./helpers/memory_trips";
 
@@ -544,6 +546,29 @@ describe("trips: quick buttons (F35) and emergency (F20)", () => {
     assert.deepEqual(late[0].recipients, ["p1", "p2"]);
     assert.equal(await reason(quickMessage(h.deps, p1, { ...ids(), kind: "late" })), "not-driver");
     assert.equal(await reason(quickMessage(h.deps, driver, { ...ids(), kind: "x" })), "invalid-request");
+  });
+
+  it("quick messages also go into the carpool chat as a system message, once, without a location", async () => {
+    const h = harness();
+    const chat = new FakeChatServer();
+    h.deps.chat = { post: (carpoolId, id, text, extra) => chat.postSystemMessage("cp_carpool", `c-${carpoolId}`, id, text, extra) };
+    await startTrip(h.deps, driver, ids());
+    await quickMessage(h.deps, driver, { ...ids(), kind: "late", requestId: "req-00000009" });
+    await quickMessage(h.deps, driver, { ...ids(), kind: "late", requestId: "req-00000009" });
+    assert.equal(chat.systemMessages.length, 1);
+    const m = chat.systemMessages[0];
+    assert.equal(m.cid, "cp_carpool:c-k1");
+    assert.equal(m.text, quickChatText("late", "Dina"));
+    assert.deepEqual(m.extra, { quick_kind: "late", run_id: runId() });
+    assert.ok(!/\d+\.\d{3}/.test(JSON.stringify(m)), "no coordinates");
+  });
+
+  it("a chat failure never fails the quick message (the push went out)", async () => {
+    const h = harness();
+    h.deps.chat = { post: async () => { throw new Error("stream down"); } };
+    await startTrip(h.deps, driver, ids());
+    assert.equal((await quickMessage(h.deps, driver, { ...ids(), kind: "gate" })).posted, true);
+    assert.equal(h.store.events.filter((e) => e.type === "driver-at-gate").length, 1);
   });
 
   it("emergency: every carpool member (critical) and the saved contact by WhatsApp with the location", async () => {

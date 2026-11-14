@@ -163,6 +163,14 @@ export interface ContactNotifier {
   sendTemplate(toE164: string, template: string, language: Language, params: string[], preview: string): Promise<void>;
 }
 
+/**
+ * F35 (Prompt 9 merged): posts a driver's quick message into the
+ * carpool's group chat as a system message. Never the location.
+ */
+export interface QuickChatPoster {
+  post(carpoolId: string, messageId: string, text: string, extra: Record<string, string>): Promise<void>;
+}
+
 export interface TripDeps {
   store: TripStore;
   files: TripFiles;
@@ -178,6 +186,8 @@ export interface TripDeps {
   roll: () => number;
   settings?: Partial<TripSettings>;
   log: (message: string, data?: Record<string, unknown>) => void;
+  /** The carpool chat (absent in tests that do not need it). */
+  chat?: QuickChatPoster;
 }
 
 export interface Caller {
@@ -511,10 +521,23 @@ const QUICK_EVENT: Record<QuickKind, NotificationType> = {
   allIn: "all-children-in",
 };
 
+/** The chat text of a quick message: the driver's first name, Arabic and English (members of both languages read it). */
+export const QUICK_CHAT_TEXT: Readonly<Record<QuickKind, { ar: string; en: string }>> = {
+  late: { ar: "متأخر قليلًا", en: "Running late" },
+  gate: { ar: "عند بوابة المدرسة", en: "At the school gate" },
+  allIn: { ar: "كل الأطفال في السيارة", en: "All children are in the car" },
+};
+
+export function quickChatText(kind: QuickKind, driverFirstName: string): string {
+  const t = QUICK_CHAT_TEXT[kind];
+  return `${driverFirstName}: ${t.ar} · ${t.en}`;
+}
+
 /**
- * F35: one tap tells the parents on the run (no typing). The same message
- * at most once every two minutes. Stored on the trip for the trip screen.
- * Posting it into the carpool chat follows when chat (Prompt 9) is merged.
+ * F35: one tap tells the parents on the run (no typing) and posts the
+ * message into the carpool chat as a system message (Prompt 9). The same
+ * message at most once every two minutes. Stored on the trip for the trip
+ * screen. The chat message carries no location.
  */
 export async function quickMessage(deps: TripDeps, caller: Caller, data: unknown): Promise<{ posted: boolean }> {
   await requireVerified(deps, caller);
@@ -524,13 +547,13 @@ export async function quickMessage(deps: TripDeps, caller: Caller, data: unknown
   const kind = raw.kind as QuickKind;
   const requestId = requestIdOf(raw.requestId);
   const nowMs = deps.now();
-  return deps.store.mutateTrip<{ posted: boolean }>(tripId(carpoolId, runId), (trip) => {
+  const result = await deps.store.mutateTrip<{ posted: boolean; trip: TripRecord | null }>(tripId(carpoolId, runId), (trip) => {
     if (!trip) throw new TripError("not-found");
     if (trip.driverUid !== caller.uid) throw new TripError("not-driver");
     if (trip.status !== "active") throw new TripError("trip-not-active");
-    if (requestId && trip.doneRequests.includes(requestId)) return { trip: null, events: [], result: { posted: false } };
+    if (requestId && trip.doneRequests.includes(requestId)) return { trip: null, events: [], result: { posted: false, trip: null } };
     const recent = trip.messages.some((m) => m.kind === kind && nowMs - m.atMs < QUICK_GAP_MS);
-    if (recent) return { trip: null, events: [], result: { posted: false } };
+    if (recent) return { trip: null, events: [], result: { posted: false, trip: null } };
     const parents = parentsOf(trip);
     const updated: TripRecord = {
       ...trip,
@@ -541,9 +564,23 @@ export async function quickMessage(deps: TripDeps, caller: Caller, data: unknown
     return {
       trip: updated,
       events: parents.length > 0 ? [tripEvent(QUICK_EVENT[kind], trip, `${kind}_${nowMs}`, parents, nowMs, { actorUid: caller.uid })] : [],
-      result: { posted: true },
+      result: { posted: true, trip },
     };
   });
+  const trip = result.trip;
+  if (result.posted && trip && deps.chat) {
+    try {
+      // Fixed ID: a retried call never posts twice.
+      await deps.chat.post(carpoolId, `quick-${trip.id}-${kind}-${nowMs}`.slice(0, 255), quickChatText(kind, trip.driverFirstName), {
+        quick_kind: kind,
+        run_id: runId,
+      });
+    } catch (error) {
+      // The parents were told by push already; the chat line is a bonus.
+      deps.log("quick message not posted to chat", { message: error instanceof Error ? error.message : "unknown" });
+    }
+  }
+  return { posted: result.posted };
 }
 
 /**
