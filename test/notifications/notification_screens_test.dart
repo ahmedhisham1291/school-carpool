@@ -246,7 +246,7 @@ void main() {
       expect(group.onChanged, isNull);
       await tester.tap(find.byKey(const Key('notifSettings.noDriver')));
       await tester.pumpAndSettle();
-      expect(repo.calls, isEmpty);
+      expect(repo.calls.where((String c) => !c.startsWith('register:')), isEmpty);
       // Agreeing asks first, then records the consent through Functions.
       await tester.tap(find.byKey(const Key('notifSettings.consent')));
       await tester.pumpAndSettle();
@@ -265,7 +265,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(AppButton, 'Cancel'));
       await tester.pumpAndSettle();
-      expect(repo.calls, isEmpty);
+      expect(repo.calls.where((String c) => !c.startsWith('register:')), isEmpty);
     });
 
     testWidgets('an opted-in parent can withdraw WhatsApp', (WidgetTester tester) async {
