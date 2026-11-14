@@ -1,3 +1,4 @@
+import { featureOn } from "../features/gate";
 import { GeoPoint, Timestamp, type DocumentData, type DocumentReference, type Firestore, type Transaction } from "firebase-admin/firestore";
 import { USERS } from "../auth/accounts";
 import { AREAS, SCHOOLS } from "../admin_panel/store";
@@ -30,6 +31,7 @@ import {
   consentId,
   CONTRIBUTION_PERIODS,
   DAYS,
+  drivingPaused,
   membershipId,
   type CarInfo,
   type CarpoolRecord,
@@ -414,7 +416,9 @@ class FirestoreCarpoolTx implements CarpoolTx {
     // car, so no plan, confirm or take.
     // Prompt 11 (F17): a parent who did not confirm their children for the
     // new school year by the deadline gets no new driving days either.
-    const paused = (d.drivingPaused != null && d.drivingPaused !== false) || d.yearCheckOverdue === true;
+    // Pilot switch: with yearlyChecks off the mark blocks nobody (the
+    // pauses for urgent reports and selfie checks have no switch).
+    const paused = drivingPaused(d, await featureOn("yearlyChecks"));
     const status = d.banned === true ? "suspended" : paused ? "paused" : text(d.status);
     return { status, firstName: text(d.firstName) };
   }

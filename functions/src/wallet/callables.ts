@@ -36,12 +36,17 @@ import {
 import { WALLET_ERROR_CODES, WalletError } from "./model";
 import { createWalletProvider, FakeWalletProvider, walletConfigProblem, type WalletProvider } from "./provider";
 import { noteAbuse } from "../privacy/abuse_hook";
-import { gatedCall, sessionCall } from "../privacy/device_gate";
+import { featureGatedCall, featureSessionCall, requireFeature, skipWhenOff } from "../features/gate";
 
 /**
  * Wallet functions (Prompt 11B: F43, F44). The ONLY place the wallet
  * partner is called from (through WalletProvider). Errors carry
  * details.reason for the app. Logs: kinds and IDs only.
+ *
+ * Pilot (owner decision 14 Nov 2026): the wallet is behind the "wallet"
+ * feature switch (features/model.ts), off by default. While it is off
+ * every callable here refuses with reason "feature-off" before anything
+ * else, and walletReconcile does nothing.
  */
 
 const appEnv = (): string => process.env.APP_ENV ?? "dev";
@@ -96,17 +101,17 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK, minInstances: MIN_INSTANCES_WALLET, timeoutSeconds: 60 };
 
 /** {} -> the wallet (balance from the partner) or { opened: false }. */
-export const getWallet = gatedCall(opts, (r) =>
+export const getWallet = featureGatedCall("wallet", opts, (r) =>
   run("getWallet", async () => {
     return getFlow(deps(), caller(r));
   }),
 );
 
 /** { acceptTerms } -> the wallet: opens it after the partner's terms (consent record). */
-export const openWallet = gatedCall(opts, (r) => run("openWallet", () => openFlow(deps(), caller(r), r.data)));
+export const openWallet = featureGatedCall("wallet", opts, (r) => run("openWallet", () => openFlow(deps(), caller(r), r.data)));
 
 /** { parentId } -> { firstName, verified } only. Rate limited. */
-export const lookupParentId = gatedCall(opts, (r) =>
+export const lookupParentId = featureGatedCall("wallet", opts, (r) =>
   run("lookupParentId", async () => {
     // Prompt 12: many lookups in an hour alert the admins (scraping).
     await noteAbuse(caller(r).uid, "parentIdLookups", abuseKey(r.data, "parentId"));
@@ -121,49 +126,49 @@ function abuseKey(data: unknown, ...fields: string[]): string {
 
 
 /** { carpoolId? } -> { contacts }: parents of my carpools. */
-export const walletContacts = gatedCall(opts, (r) =>
+export const walletContacts = featureGatedCall("wallet", opts, (r) =>
   run("walletContacts", async () => {
     return contactsFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { requestId, amount, toParentId | toUid, note?, carpoolId? } -> { transfer } */
-export const sendMoney = gatedCall(opts, (r) =>
+export const sendMoney = featureGatedCall("wallet", opts, (r) =>
   run("sendMoney", async () => {
     return sendFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { requestId, amount } -> { transfer, checkoutUrl } */
-export const addMoney = gatedCall(opts, (r) =>
+export const addMoney = featureGatedCall("wallet", opts, (r) =>
   run("addMoney", async () => {
     return addFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { requestId, amount } -> { transfer } */
-export const withdrawMoney = gatedCall(opts, (r) =>
+export const withdrawMoney = featureGatedCall("wallet", opts, (r) =>
   run("withdrawMoney", async () => {
     return withdrawFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { afterId? } -> { transfers, nextAfterId } */
-export const listWalletHistory = gatedCall(opts, (r) =>
+export const listWalletHistory = featureGatedCall("wallet", opts, (r) =>
   run("listWalletHistory", async () => {
     return historyFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { transferId } -> the transfer (a pending one is checked with the partner). */
-export const getTransfer = gatedCall(opts, (r) =>
+export const getTransfer = featureGatedCall("wallet", opts, (r) =>
   run("getTransfer", async () => {
     return transferFlow(deps(), caller(r), r.data);
   }),
 );
 
 /** { transferId, reason, note? } -> { alertId, frozen } */
-export const reportTransfer = sessionCall(opts, (r) => run("reportTransfer", () => reportFlow(deps(), caller(r), r.data)));
+export const reportTransfer = featureSessionCall("wallet", opts, (r) => run("reportTransfer", () => reportFlow(deps(), caller(r), r.data)));
 
 /**
  * Every 5 minutes: pending transfers are settled by asking the partner
@@ -173,6 +178,7 @@ export const reportTransfer = sessionCall(opts, (r) => run("reportTransfer", () 
 export const walletReconcile = onSchedule(
   { schedule: "every 5 minutes", timeZone: CAIRO_TZ, retryCount: 0, timeoutSeconds: 300, minInstances: 0 },
   async () => {
+    if (await skipWhenOff("wallet", "walletReconcile")) return;
     const d = deps();
     if (!d.provider) return;
     try {
@@ -196,7 +202,12 @@ function adminDeps(): WalletAdminDeps {
 }
 
 function adminCall<T>(name: string, body: (c: AdminCaller, r: CallableRequest) => Promise<T>) {
-  return onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (r) => run(name, async () => body(await requireAdminCaller(r), r)));
+  return onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (r) =>
+    run(name, async () => {
+      await requireFeature("wallet");
+      return body(await requireAdminCaller(r), r);
+    }),
+  );
 }
 
 /** { uid?, afterId? } -> { transfers, nextAfterId } */

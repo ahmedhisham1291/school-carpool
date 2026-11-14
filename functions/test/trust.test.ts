@@ -4,6 +4,7 @@ import { beforeEach, describe, it } from "node:test";
 import { DEFAULT_OTP_LIMITS, verifyCode, type OtpDeps } from "../src/auth/otp_flow";
 import { createCarpool, decideJoinRequest, DEFAULT_CARPOOL_LIMITS, removeFromCarpool, requestToJoin, setDriverConsent, type Caller, type CarpoolDeps } from "../src/carpools/flow";
 import { CarpoolError } from "../src/carpools/model";
+import { ALL_ON, FeatureOffError, type FeatureKey } from "../src/features/model";
 import { routeFor, TYPES } from "../src/notifications/catalog";
 import { planWeek, setDrivingDays } from "../src/schedule/flow";
 import { DEFAULT_DEADLINES, type RunRecord } from "../src/schedule/model";
@@ -43,7 +44,7 @@ import {
   type TripLike,
 } from "../src/trust/model";
 import { confirmPhoneChange, phoneChangeKey, phoneSelfiePath, requestPhoneChange, type PhoneChangeDeps } from "../src/trust/phone";
-import { keptApproval, samePlate, usableVehicle } from "../src/verification/vehicle";
+import { keptApproval, samePlate, usableVehicle, type UsableVehicle } from "../src/verification/vehicle";
 import type { KycResult } from "../src/verification/kyc";
 import type { Language, WhatsAppSender } from "../src/whatsapp/sender";
 import { MemoryCarpoolStore } from "./helpers/memory_carpools";
@@ -707,5 +708,81 @@ describe("removeFromCarpool (account deletion)", () => {
     assert.equal(await removeFromCarpool(t.carpools, "cara", k), "closed");
     assert.equal(t.carpoolStore.carpools.get(k)?.status, "closed");
     assert.equal(t.carpoolStore.carpools.get(k)?.memberCount, 0);
+  });
+});
+
+// --------------------------------------------------------------------------
+// Pilot feature switches (owner decision 14 Nov 2026): ratings and vouching
+// and the yearly check can be off; driver eligibility never is.
+// --------------------------------------------------------------------------
+
+describe("trust with the pilot feature switches", () => {
+  const off = (key: FeatureKey) => (e: unknown) => e instanceof FeatureOffError && e.feature === key;
+  const switches = (over: Partial<Record<FeatureKey, boolean>>) => async () => ({ ...ALL_ON, ...over });
+
+  it("ratings and vouching off: rating, the list and summaries refuse; the overview shows none", async () => {
+    const t = setup(NOW);
+    t.store.trips = [trip("t1", "alice", [["bob", "dropped"]])];
+    t.deps.features = switches({ ratingsAndVouching: false });
+    await assert.rejects(listRateable(t.deps, as("bob")), off("ratingsAndVouching"));
+    await assert.rejects(rateParent(t.deps, as("bob"), { uid: "alice", stars: 5 }), off("ratingsAndVouching"));
+    await assert.rejects(getTrustSummary(t.deps, as("bob"), {}), off("ratingsAndVouching"));
+    await assert.rejects(adminResolveRatingFlag(t.deps, "admin1", { flagId: "f1", outcome: "no-issue" }, null), off("ratingsAndVouching"));
+    const o = await getTrustOverview(t.deps, as("bob"));
+    assert.equal(o.toRate, 0);
+    assert.deepEqual(o.summary, { ratings: 0, average: null, vouches: 0 });
+    assert.deepEqual((await adminTrustQueue(t.deps)).flags, [], "no rating flags in the admin queue");
+    assert.equal(t.store.ratings.size, 0, "nothing was written");
+  });
+
+  it("ratings back on (no release): the same calls work again", async () => {
+    const t = setup(NOW);
+    t.store.trips = [trip("t1", "alice", [["bob", "dropped"]])];
+    t.deps.features = switches({ ratingsAndVouching: true });
+    assert.equal((await listRateable(t.deps, as("bob"))).parents.length, 1);
+    assert.equal((await rateParent(t.deps, as("bob"), { uid: "alice", stars: 5 })).rated, true);
+  });
+
+  it("yearly checks off: nothing is due, confirming refuses, nobody is reminded or marked overdue", async () => {
+    const t = setup(Date.UTC(2027, 8, 16, 6)); // the day after the deadline
+    t.deps.year = yearSettings("09-01", 21, 14, 2027);
+    t.deps.features = switches({ yearlyChecks: false });
+    const alice = t.store.accounts.get("alice");
+    assert.ok(alice);
+    assert.equal((await yearCheckOf(t.deps, alice)).state, "none");
+    assert.equal((await getTrustOverview(t.deps, as("alice"))).yearCheck.state, "none");
+    await assert.rejects(confirmSchoolYear(t.deps, as("alice"), { year: 2027, children: [{ childId: "a1", stays: true, grade: "g4" }] }), off("yearlyChecks"));
+    const result = await runTrustDaily({ store: t.store, carpools: t.carpools, now: t.deps.now, reminderDays: [30, 7, 1], year: t.deps.year, features: t.deps.features, log: () => undefined });
+    assert.equal(result.yearReminders, 0);
+    assert.equal(result.overdue, 0);
+    assert.equal(t.store.events.filter((e) => e.type === "year-check-due").length, 0);
+    assert.equal(t.store.accounts.get("alice")?.yearCheckOverdue, false, "nobody is blocked");
+    // The same day with the switch on: the mark is set.
+    const on = await runTrustDaily({ store: t.store, carpools: t.carpools, now: t.deps.now, reminderDays: [30, 7, 1], year: t.deps.year, features: switches({}), log: () => undefined });
+    assert.ok(on.overdue >= 1);
+  });
+
+  it("driving papers are driver eligibility: reminders and expiry run with every switch off", async () => {
+    const t = setup(NOW);
+    const usable = (licenseExpiry: string): UsableVehicle => ({ status: "approved", seats: 4, licenseExpiry, carLicenseExpiry: "2030-01-01", plate: "ABC 123", model: "Corolla", color: "White" });
+    t.store.vehicleRows = [{ uid: "bob", vehicle: usable("2026-11-21") }, { uid: "alice", vehicle: usable("2026-11-13") }];
+    const result = await runTrustDaily({
+      store: t.store,
+      carpools: t.carpools,
+      now: t.deps.now,
+      reminderDays: [30, 7, 1],
+      year: t.deps.year,
+      features: switches({ wallet: false, ratingsAndVouching: false, yearlyChecks: false, settleUp: false }),
+      log: () => undefined,
+    });
+    assert.equal(result.expiring, 1);
+    assert.equal(result.expired, 1);
+  });
+
+  it("guardian links have no switch", async () => {
+    const t = setup(NOW);
+    t.deps.features = switches({ ratingsAndVouching: false, yearlyChecks: false });
+    const family = await getFamily(t.deps, as("alice"));
+    assert.deepEqual(family.incoming, []);
   });
 });

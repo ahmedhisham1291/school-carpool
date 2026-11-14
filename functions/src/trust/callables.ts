@@ -54,6 +54,8 @@ import { parseReminderDays, TRUST_ERROR_CODES, TrustError, yearSettings } from "
 import { confirmPhoneChange as confirmPhoneFlow, phoneChangeKey, requestPhoneChange as requestPhoneFlow, type PhoneChangeDeps, type PhoneFiles } from "./phone";
 import { FirestoreTrustStore } from "./store";
 import { noteAbuse } from "../privacy/abuse_hook";
+import { featureGatedCall, featureOffError, features, requireFeature } from "../features/gate";
+import { FeatureOffError } from "../features/model";
 import { gatedCall } from "../privacy/device_gate";
 
 /**
@@ -61,6 +63,12 @@ import { gatedCall } from "../privacy/device_gate";
  * trust in Firestore: everything goes through these. Logs carry counts and
  * reasons only (never names, phone numbers or photos). minInstances 0
  * (COST MODE).
+ *
+ * Pilot feature switches (features/model.ts): ratings and vouching
+ * (listRateable, rateParent, getTrustSummary, adminResolveRatingFlag) and
+ * the yearly check (confirmSchoolYear, its part of trustDaily) refuse or
+ * do nothing while their switch is off. Guardian links, the phone change,
+ * driving papers and blocked drivers' runs have no switch.
  */
 
 function trustDeps(): TrustDeps {
@@ -69,6 +77,7 @@ function trustDeps(): TrustDeps {
     carpools: carpoolDeps(),
     now: () => Date.now(),
     rateWindowDays: TRUST_RATE_WINDOW_DAYS.value(),
+    features,
     year: yearSettings(SCHOOL_YEAR_START.value(), YEAR_CHECK_OPEN_DAYS.value(), YEAR_CHECK_GRACE_DAYS.value(), YEAR_CHECK_FIRST_YEAR.value()),
   };
 }
@@ -81,6 +90,7 @@ function caller(request: CallableRequest): Caller {
 
 function toHttpsError(error: unknown): HttpsError {
   if (error instanceof HttpsError) return error;
+  if (error instanceof FeatureOffError) return featureOffError(error.feature);
   if (error instanceof TrustError) {
     return new HttpsError(TRUST_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason, retryAfterMs: error.retryAfterMs });
   }
@@ -95,7 +105,7 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
   try {
     return await body();
   } catch (error) {
-    if (!(error instanceof TrustError || error instanceof OtpError || error instanceof AdminError || error instanceof HttpsError)) {
+    if (!(error instanceof FeatureOffError || error instanceof TrustError || error instanceof OtpError || error instanceof AdminError || error instanceof HttpsError)) {
       // Never the request data: it may hold a phone number.
       logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
       await reportError(error);
@@ -112,13 +122,13 @@ const opts = { enforceAppCheck: ENFORCE_APP_CHECK, minInstances: MIN_INSTANCES }
 export const getTrustOverview = gatedCall(opts, (r) => run("getTrustOverview", () => overviewFlow(trustDeps(), caller(r))));
 
 /** {} -> { parents: [{ uid, firstName, role, date, carpoolId }], month } */
-export const listRateable = gatedCall(opts, (r) => run("listRateable", () => rateableFlow(trustDeps(), caller(r))));
+export const listRateable = featureGatedCall("ratingsAndVouching", opts, (r) => run("listRateable", () => rateableFlow(trustDeps(), caller(r))));
 
 /** { uid, stars, tags?, vouch? } -> { rated, flagged } */
-export const rateParent = gatedCall(opts, (r) => run("rateParent", () => rateFlow(trustDeps(), caller(r), r.data)));
+export const rateParent = featureGatedCall("ratingsAndVouching", opts, (r) => run("rateParent", () => rateFlow(trustDeps(), caller(r), r.data)));
 
 /** { uid? } -> { ratings, average, vouches } (self, or a parent of a shared carpool) */
-export const getTrustSummary = gatedCall(opts, (r) =>
+export const getTrustSummary = featureGatedCall("ratingsAndVouching", opts, (r) =>
   run("getTrustSummary", async () => {
     // Prompt 12: opening many other parents' profiles alerts the admins.
     const target = typeof r.data === "object" && r.data !== null ? (r.data as { uid?: unknown }).uid : undefined;
@@ -130,7 +140,7 @@ export const getTrustSummary = gatedCall(opts, (r) =>
 // Yearly check --------------------------------------------------------------
 
 /** { year, children: [{ childId, stays, grade? }] } -> { state, left } */
-export const confirmSchoolYear = gatedCall(opts, (r) => run("confirmSchoolYear", () => confirmYearFlow(trustDeps(), caller(r), r.data)));
+export const confirmSchoolYear = featureGatedCall("yearlyChecks", opts, (r) => run("confirmSchoolYear", () => confirmYearFlow(trustDeps(), caller(r), r.data)));
 
 // Guardian links ------------------------------------------------------------
 
@@ -226,7 +236,12 @@ export const adminTrustQueue = adminCall("adminTrustQueue", () => adminQueueFlow
 export const adminDecideGuardianLink = adminCall("adminDecideGuardianLink", (uid, r) => adminDecideFlow(trustDeps(), uid, r.data, ipOf(r)));
 
 /** { flagId, outcome: no-issue | contacted | escalated } -> the flag */
-export const adminResolveRatingFlag = adminCall("adminResolveRatingFlag", (uid, r) => adminResolveFlow(trustDeps(), uid, r.data, ipOf(r)));
+export const adminResolveRatingFlag = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+  run("adminResolveRatingFlag", async () => {
+    await requireFeature("ratingsAndVouching");
+    return adminResolveFlow(trustDeps(), (await requireAdminCaller(request)).uid, request.data, ipOf(request));
+  }),
+);
 
 // Triggers and the daily job ------------------------------------------------
 
@@ -290,6 +305,7 @@ export const trustDaily = onSchedule(
       now: d.now,
       reminderDays: parseReminderDays(LICENCE_REMINDER_DAYS.value()),
       year: d.year,
+      features,
       log: (message, data) => logger.warn(message, data ?? {}),
     });
     logger.info("trust daily", { ...result });
