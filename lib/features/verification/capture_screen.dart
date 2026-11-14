@@ -25,6 +25,10 @@ class CaptureRequest {
   final LivenessChallenge challenge;
 
   bool get isSelfie => kind == CaptureKind.selfie;
+
+  /// Front camera and a face frame: the selfie and the driver photo
+  /// (Prompt 10). Only the selfie has the head-turn prompt.
+  bool get isFace => isSelfie || kind == CaptureKind.driverPhoto;
 }
 
 /// Compressed JPEG bytes, kept in memory only.
@@ -129,7 +133,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
     setState(() => _phase = _Phase.starting);
     try {
       final List<CameraDescription> cameras = await availableCameras();
-      final CameraLensDirection wanted = widget.request.isSelfie
+      final CameraLensDirection wanted = widget.request.isFace
           ? CameraLensDirection.front
           : CameraLensDirection.back;
       if (cameras.isEmpty) {
@@ -141,7 +145,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
       );
       final CameraController controller = CameraController(
         camera,
-        widget.request.isSelfie ? ResolutionPreset.high : ResolutionPreset.veryHigh,
+        widget.request.isFace ? ResolutionPreset.high : ResolutionPreset.veryHigh,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
@@ -182,7 +186,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
           debugPrint('capture: temporary file not deleted ($error)');
         }
       }
-      return await compressor.compress(raw, document: !widget.request.isSelfie);
+      return await compressor.compress(raw, document: !widget.request.isFace);
     } on Object {
       // Camera or compression failure: show the camera error with a retry.
       if (mounted) {
@@ -262,6 +266,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
     CaptureKind.schoolId => l10n.captureSchoolIdTitle,
     CaptureKind.license => l10n.captureLicenseTitle,
     CaptureKind.carLicense => l10n.captureCarLicenseTitle,
+    CaptureKind.driverPhoto => l10n.captureDriverPhotoTitle,
   };
 
   String _hint(AppLocalizations l10n) {
@@ -271,7 +276,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
           : l10n.captureTurnRight(_countdown);
     }
     return switch (widget.request.kind) {
-      CaptureKind.selfie => l10n.captureSelfieHint,
+      CaptureKind.selfie || CaptureKind.driverPhoto => l10n.captureSelfieHint,
       CaptureKind.idBack => l10n.captureIdBackHint,
       _ => l10n.captureDocumentHint,
     };
@@ -310,7 +315,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> with WidgetsBindi
       _Phase.review => _Review(image: image!, turnImage: _turnImage, onRetake: _retake, onUse: _use),
       _ => _Viewfinder(
         controller: controller,
-        selfie: widget.request.isSelfie,
+        selfie: widget.request.isFace,
         hint: _hint(l10n),
         busy: _phase != _Phase.aiming,
         onShutter: () => unawaited(_onShutter()),

@@ -152,6 +152,29 @@ export {
   unblockChatUser,
   updateChatSettings,
 } from "./chat/callables";
+// Trips and live location (Prompt 10: F15, F16, F20, F29, F33, F34, F35,
+// F38, F41): start a run (selfie check first on some runs), live points from
+// the phone's location plugin, stops, quick buttons, emergency, handover
+// list, emergency contact, today's driver card, and the minute tick
+// (location stopped, child not confirmed, deleting live points).
+export {
+  confirmHandover,
+  endTrip,
+  endTripsOnUserWrite,
+  getHandoverAdults,
+  getTodayDriverCards,
+  prepareTrip,
+  quickMessage,
+  saveHandoverAdults,
+  setEmergencyContact,
+  startTrip,
+  stopMyTrips,
+  submitSelfieCheck,
+  tripAction,
+  tripEmergency,
+  tripLocation,
+  tripTick,
+} from "./trips/callables";
 
 // Wallet (Prompt 11B: F43, F44, F25) through ONE WalletProvider (the
 // CBE-licensed partner; a fake with test money until the contract). Every

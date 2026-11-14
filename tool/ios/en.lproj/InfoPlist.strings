@@ -4,5 +4,6 @@
 "NSPhotoLibraryUsageDescription" = "Choose a photo to send in a private or carpool chat. Location data is removed first.";
 "NSLocationWhenInUseUsageDescription" = "Your location sets your home on the map and shows your car to parents during a run.";
 "NSLocationAlwaysAndWhenInUseUsageDescription" = "While you drive a run, your location keeps updating for the parents of the children in your car, even when the phone is locked. It stops when the run ends.";
+"NSMotionUsageDescription" = "Motion data helps save battery while your car waits during a run.";
 "NSFaceIDUsageDescription" = "Face ID locks the app and confirms every wallet transfer.";
 "NSLocalNetworkUsageDescription" = "Developer builds connect to test servers on your local network.";

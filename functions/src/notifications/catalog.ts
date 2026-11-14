@@ -38,8 +38,21 @@ export const NOTIFICATION_TYPES = [
   "verification-rejected",
   // New parent nearby (Prompt 5 event, F23)
   "new-parent",
-  // Handover not confirmed (F34). Critical; its producer comes with trips.
+  // Handover not confirmed (F34). Critical; produced by the trip tick (Prompt 10).
   "child-not-confirmed",
+  // Trips (Prompt 10: F15, F16, F20, F35, F41)
+  "trip-started",
+  "driver-arrived",
+  "child-picked-up",
+  "child-dropped",
+  "child-received",
+  // Review item 4: the driver marked the child not coming, or ended the run before the pickup.
+  "child-not-coming",
+  "location-stopped",
+  "driver-late",
+  "driver-at-gate",
+  "all-children-in",
+  "emergency",
   // Chat (Prompt 9): push only, never WhatsApp.
   "chat-message",
   // Wallet (Prompt 11B, F43): no amount, name or note in the text.
@@ -72,6 +85,11 @@ export const WHATSAPP_GROUPS = [
   "joins",
   "verification",
   "newParents",
+  // Prompt 10: Arrived and "location stopped" (on by default), other trip
+  // news (off), and the emergency button (on, critical).
+  "tripAlerts",
+  "trips",
+  "emergency",
   "wallet",
 ] as const;
 
@@ -93,6 +111,9 @@ export const WHATSAPP_DEFAULTS: Readonly<Record<WhatsAppGroup, boolean>> = {
   joins: false,
   verification: false,
   newParents: false,
+  tripAlerts: true,
+  trips: false,
+  emergency: true,
   // Prompt 11B: COST MODE, push only unless the parent switches WhatsApp
   // on (owner decision; the app's own alerts are always sent).
   wallet: false,
@@ -113,13 +134,19 @@ export interface TypeSpec {
   template: string | null;
   /** The text has a {when} part (date and direction of a run). */
   hasWhen: boolean;
+  /**
+   * Prompt 10: always sounds (time-sensitive push) and ignores quiet hours,
+   * but is not critical (no alarm): Arrived, location stopped.
+   */
+  urgent: boolean;
 }
 
-const spec = (group: NotificationGroup, template: string | null, hasWhen: boolean, critical = false): TypeSpec => ({
+const spec = (group: NotificationGroup, template: string | null, hasWhen: boolean, critical = false, urgent = false): TypeSpec => ({
   group,
   critical,
   template,
   hasWhen,
+  urgent,
 });
 
 export const TYPES: Readonly<Record<NotificationType, TypeSpec>> = {
@@ -144,6 +171,17 @@ export const TYPES: Readonly<Record<NotificationType, TypeSpec>> = {
   "verification-rejected": spec("verification", "cp_review_rejected", false),
   "new-parent": spec("newParents", "cp_new_parent", false),
   "child-not-confirmed": spec("childNotConfirmed", "cp_child_not_confirmed", false, true),
+  "trip-started": spec("trips", "cp_trip_started", true),
+  "driver-arrived": spec("tripAlerts", "cp_driver_arrived", true, false, true),
+  "child-picked-up": spec("trips", "cp_child_picked_up", true),
+  "child-dropped": spec("trips", "cp_child_dropped", true),
+  "child-received": spec("trips", null, true),
+  "child-not-coming": spec("tripAlerts", "cp_child_not_coming", true),
+  "location-stopped": spec("tripAlerts", "cp_location_stopped", true, false, true),
+  "driver-late": spec("trips", "cp_driver_late", true),
+  "driver-at-gate": spec("trips", "cp_driver_at_gate", true),
+  "all-children-in": spec("trips", "cp_all_children_in", true),
+  "emergency": spec("emergency", "cp_emergency", true, true),
   "chat-message": spec("chat", null, false),
   "wallet-received": spec("wallet", "cp_wallet_received", false),
   "wallet-sent": spec("wallet", "cp_wallet_sent", false),
@@ -161,6 +199,8 @@ export interface RouteInput {
   carpoolId: string | null;
   /** chat-message: "type:id" of the chat (Prompt 9). */
   chatCid?: string | null;
+  /** Prompt 10: trip types open the run's trip screen. */
+  runId?: string | null;
 }
 
 /**
@@ -177,6 +217,23 @@ export function isPushOnlyId(id: string): boolean {
 
 const CHAT_PART = /^[A-Za-z0-9_-]{1,64}$/;
 
+/** Trip types (Prompt 10): they open /carpools/{id}/trip/{runId}. */
+export const TRIP_TYPES: readonly NotificationType[] = [
+  "trip-started",
+  "driver-arrived",
+  "child-picked-up",
+  "child-dropped",
+  "child-received",
+  "child-not-coming",
+  "child-not-confirmed",
+  "location-stopped",
+  "driver-late",
+  "driver-at-gate",
+  "all-children-in",
+];
+
+const RUN = /^\d{4}-\d{2}-\d{2}_(am|pm)$/;
+
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 /**
@@ -185,7 +242,12 @@ const ID = /^[A-Za-z0-9_-]{1,128}$/;
  */
 export function routeFor(input: RouteInput): string {
   const carpool = input.carpoolId && ID.test(input.carpoolId) ? input.carpoolId : null;
+  const run = input.runId && RUN.test(input.runId) ? input.runId : null;
+  if (TRIP_TYPES.includes(input.type)) return carpool && run ? `/carpools/${carpool}/trip/${run}` : carpool ? `/carpools/${carpool}/schedule` : "/notifications";
   switch (input.type) {
+    case "emergency":
+      // Every member is told, also those without a child on the run.
+      return carpool ? `/carpools/${carpool}/emergency` : "/notifications";
     case "join-requested":
     case "join-approved":
     case "join-declined":

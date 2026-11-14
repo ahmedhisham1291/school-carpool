@@ -24,7 +24,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
 | WhatsApp Business | Pay per template message | Codes and critical alerts only by default (wallet messages too only if the parent switches them on); other notifications are push unless the parent switches WhatsApp on | Meta WhatsApp Manager > Insights | Budget set by the owner |
 | Valify, wallet partner | Fake providers | Nothing is called until the pilot | n/a | Contract signed |
-| flutter_background_geolocation | No license | Debug builds and iOS need none | n/a | Before the first Android release build |
+| flutter_background_geolocation | No license (v5) | Debug builds need none; v5 checks the licence on iPhone and Android release builds | n/a | Before the first TestFlight build with trips (SETUP.md 20.5) |
 
 ## Rules the code follows
 
@@ -131,7 +131,7 @@ has its own free monthly calls (Essentials 10,000, Pro 5,000, Enterprise
 | Address search as you type | Autocomplete Requests (Essentials, via Places API New) | 10,000 | 3 letters, 400 ms pause, one session token per search, at most 60 searches per parent per hour (`MAP_PLACE_SEARCHES_PER_HOUR`) |
 | The picked address | Place Details Essentials (fields `id`, `formattedAddress`, `location` only) | 10,000 | Cached in `placeCache` for 30 days (Firestore TTL deletes old entries); cache misses limited to 20 per parent per hour (`MAP_PLACE_DETAILS_PER_HOUR`); suspended accounts refused |
 | "Use my location" | Free (the phone's GPS) | n/a | Nothing is sent to Google |
-| Arrival times | Routes | n/a now | Prompt 13: only during a live run, at most once a minute per stop |
+| Arrival times | Routes: Compute Routes Pro (traffic aware, up to 10 stops) | 5,000 | Prompt 10: only during a live run, at most one request a minute per run covering every stop ahead (see "Trips") |
 
 - **Dev and CI:** `PLACES_PROVIDER=fake` (a few fixed places) and no map
   key: no Google calls at all. The maps are drawn by a sketch.
@@ -256,6 +256,38 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
 - **Limits per parent** (server side): 10 new chat requests a day, 30
   tokens an hour, 20 reports a day, 100 blocks, mutes and settings changes
   a day, 10 "sync my chats" an hour.
+## Trips (Prompt 10)
+
+- **Routes (arrival times):** one Compute Routes request covers every stop
+  still ahead (stops are intermediate waypoints; each leg is one stop's
+  arrival), at most once a minute per run (`etaIntervalMs`), and only while
+  the run is tracked. A 30-minute run is about 30 requests; two runs a day
+  for 22 school days is about 1,300 a month per carpool, so the 5,000 free
+  "Pro" (traffic-aware) requests cover about 3 to 4 carpools. Watch Google
+  Cloud > APIs > Routes API > Metrics. **Upgrade trigger:** 4,000 requests
+  in a month: pay as you go (the owner's rule: keep the best option,
+  traffic-aware), or set `ROUTES_TRAFFIC=false` to use the Essentials SKU
+  (10,000 free) only if the owner agrees. Dev and CI use `ROUTES_PROVIDER=fake`.
+- **Live points:** the phone sends a point every 5 to 10 seconds while
+  moving (about 180 to 360 a 30-minute run). Each upload is one call of
+  `tripLocation` (Cloud Functions: 2 million free calls a month) and 2
+  Firestore writes (the point and the trip's last point), so about 700
+  writes a run: about 28 runs a day fit in the 20,000 free writes per day
+  of a project. Parents read the trip document (one read per update while
+  the screen is open). **Upgrade trigger:** Firestore writes pass 16,000 a
+  day for a week: raise the plugin's distance filter (fewer points) or pay
+  per write (cheap: about USD 0.18 per 100,000 writes).
+- **Cleanup:** `tripTick` runs every minute (a 5th Cloud Scheduler job after `chatRetentionDaily`: the
+  first 3 per billing account are free, then USD 0.10 a month per job) and
+  deletes live points within 12 hours (spec: within 24). TTL policies are
+  the backup (SETUP.md 20.2). `minInstances` 0.
+- **WhatsApp:** by default only Arrived, "location stopped" and Emergency
+  (urgent), plus the emergency contact's message; trip news (started,
+  picked up, dropped, quick messages) is push only unless a parent switches
+  "Run updates" on.
+- **Face match (F38):** about 20 percent of runs of drivers with a photo
+  (`TRIP_SELFIE_PERCENT`); fake provider until the Valify contract (then
+  one paid face match per check).
 
 ## Wallet (Prompt 11B)
 
@@ -280,7 +312,7 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
   counter per parent and day; balances are a copy, read from the partner.
 - **Limits per parent** (server settings `config/wallet`): 2,000 EGP per
   transfer, 5,000 EGP and 20 transfers a day, 20 parent ID lookups an hour,
-  10 reports a day (SETUP.md 20.2).
+  10 reports a day (SETUP.md 21.2).
 
 ## Open cost questions
 

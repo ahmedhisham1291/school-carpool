@@ -570,3 +570,34 @@ describe("claim before status (review fix)", () => {
     store.saveDecision = save;
   });
 });
+
+describe("driver photo (Prompt 10: F33, F38)", () => {
+  it("an approved case keeps the optional driver photo", async () => {
+    uploadAll("alice", [...IDENTITY_FILES, "school_id_c1.jpg", "license.jpg", "car_license.jpg", "driver_photo.jpg"]);
+    const { caseId } = await submitVerification(deps, "alice", submission({ driver }));
+    assert.ok([...files.files.keys()].some((p) => p.endsWith(`${caseId}/driver_photo.jpg`)));
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
+    assert.ok(files.files.has("driverPhotos/alice/photo.jpg"));
+  });
+
+  it("a rejected case keeps nothing", async () => {
+    uploadAll("alice", [...IDENTITY_FILES, "school_id_c1.jpg", "license.jpg", "car_license.jpg", "driver_photo.jpg"]);
+    const { caseId } = await submitVerification(deps, "alice", submission({ driver }));
+    await decideVerification(deps, "admin1", { caseId, decision: "reject", reasonCode: "photo_unclear" });
+    assert.equal(files.files.has("driverPhotos/alice/photo.jpg"), false);
+  });
+
+  it("an approved identity case keeps the selfie as the face reference for selfie checks (F38)", async () => {
+    uploadAll("alice");
+    const { caseId } = await submitVerification(deps, "alice", submission());
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
+    assert.ok(files.files.has("faceRefs/alice/selfie.jpg"));
+  });
+
+  it("the photo is optional", async () => {
+    uploadAll("alice", [...IDENTITY_FILES, "school_id_c1.jpg", "license.jpg", "car_license.jpg"]);
+    const { caseId } = await submitVerification(deps, "alice", submission({ driver }));
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
+    assert.equal(files.files.has("driverPhotos/alice/photo.jpg"), false);
+  });
+});

@@ -15,6 +15,8 @@ import 'package:school_carpool/features/notifications/local_alarms.dart';
 import 'package:school_carpool/features/notifications/notification_repository.dart';
 import 'package:school_carpool/features/notifications/push_messaging.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
+import 'package:school_carpool/features/trips/location_tracker.dart';
+import 'package:school_carpool/features/trips/trip_repository.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
@@ -207,13 +209,15 @@ List<Override> authOverrides({
   FakeChatProvider? chat,
   FakeChatRepository? chatRepository,
   FakeChatPhotoPicker? photos,
+  TripRepository? trips,
+  LocationTracker? tracker,
   FakeWalletRepository? wallet,
   FakeDeviceAuth? deviceAuth,
 }) => <Override>[
   sessionProvider.overrideWithValue(session),
   authRepositoryProvider.overrideWithValue(repository ?? FakeAuthRepository()),
   ...mapOverrides(maps: maps, places: places, location: location),
-  ...carpoolOverrides(carpools: carpools, sharer: sharer, schedule: schedule),
+  ...carpoolOverrides(carpools: carpools, sharer: sharer, schedule: schedule, trips: trips, tracker: tracker),
   ...notificationOverrides(notifications: notifications, push: push, alarms: alarms),
   ...chatOverrides(provider: chat, repository: chatRepository, photos: photos),
   ...walletOverrides(repository: wallet, auth: deviceAuth),

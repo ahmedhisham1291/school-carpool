@@ -166,7 +166,7 @@ gallery under "Wallet" with `BalanceCard`, `ReceiverCard` and
 
 ## How to test it on the iPhone (the "Done when" check)
 
-1. Emulators and seed as in Prompts 6 to 8 (SETUP.md 20.4); `WALLET_PROVIDER`
+1. Emulators and seed as in Prompts 6 to 8 (SETUP.md 21.4); `WALLET_PROVIDER`
    is `fake` by default. Dev app on the iPhone with
    `--dart-define=EMULATOR_HOST=<Mac IP>`, signed in as your verified seed
    parent; a second device (simulator) as another verified seed parent of

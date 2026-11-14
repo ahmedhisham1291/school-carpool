@@ -76,6 +76,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
             MapMarkerKind.home => colors.primary,
             MapMarkerKind.school => context.appColors.warning,
             MapMarkerKind.selectedSchool => context.appColors.success,
+            MapMarkerKind.car => colors.primary,
           }),
           infoWindow: gm.InfoWindow(title: m.label),
           onTap: m.onTap,

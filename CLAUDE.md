@@ -143,8 +143,10 @@ PRIVACY (never skip)
 - Never log phone numbers, national ID numbers, images, coordinates or
   message text, and never send them to Sentry or Algolia.
 - Only fake data in dev and staging. Never copy production data.
-- ID, selfie, school ID and license images go to a private bucket and are
-  deleted by the scheduled job after review.
+- ID, selfie, school ID, licence and driver photos go to a private bucket,
+  encrypted with our KMS key, and are kept while the account is active and
+  deleted 1 year after it closes (docs/DECISIONS.md, data retention). Admins
+  read them only through a logged reason.
 - Other parents get rounded home coordinates only. Exact pickup points are
   readable only by approved members of that carpool.
 

@@ -33,3 +33,29 @@ check with the lawyer again.
   pay-as-you-go Grow plan ($0.50 per extra 1,000 searches). The free plan's limit is
   10,000 searches a month (not users), so watch the monthly search count in COSTS.md
   and switch when it nears the limit.
+
+## Data retention and collection (owner, 14 Nov 2026)
+
+The owner wants to keep all photos and collect more data, with storage optimized. This replaces
+the earlier "delete ID images within 7 days" rule. **The owner will confirm the new retention
+periods with the lawyer** (as the legal section above requires for longer retention).
+
+- **Photos** (national ID front/back, identity selfie, child school ID, driver's and car
+  licence, driver photo, live selfie checks): kept while the account is active and deleted
+  1 year after the account closes. Stored in the private bucket, encrypted with our own key
+  (Cloud KMS), compressed on the phone, readable only by admins through a logged reason.
+  The identity selfie is the face reference for the random driver selfie checks.
+- **Usage analytics:** collected (screens, features used, crashes) without names, phone
+  numbers, IDs, message text or coordinates; parents can switch it off in Settings.
+- **Trip history:** run summaries (who drove, date, times, on time or late, children counted)
+  kept while the account is active + 1 year.
+- **Location history:** live points are still deleted from the live collection within 24 hours,
+  but each run's route is archived as one compressed, down-sampled track (about 1 point per
+  30 s) in cold storage, kept 1 year, readable only by admins with a logged reason
+  (safety investigations). Never shown to other parents after the run.
+- **Chat history:** messages kept for the life of the chat + 1 year (was 180 days).
+- **Storage optimization:** photos resized and re-encoded (WebP/JPEG, long edge about 1600 px)
+  before upload, small thumbnails for the admin panel, Cloud Storage lifecycle rules (Nearline
+  after 30 days, Coldline after 180 days), compressed route archives, and per-collection TTLs.
+- Every new data type is listed on the privacy screen, in the consent records and in the
+  App Store privacy answers.

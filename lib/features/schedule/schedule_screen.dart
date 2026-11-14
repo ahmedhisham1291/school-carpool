@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
@@ -12,6 +13,8 @@ import 'package:school_carpool/features/schedule/schedule_labels.dart';
 import 'package:school_carpool/features/schedule/schedule_logic.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
+import 'package:school_carpool/features/trips/trip_logic.dart';
+import 'package:school_carpool/features/trips/trip_screen.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// The runs of one week of one carpool: (carpoolId, week start key).
@@ -391,6 +394,24 @@ class _RunSheetState extends ConsumerState<RunSheet> {
         if (_error != null) ...<Widget>[
           const SizedBox(height: AppSpacing.s16),
           AppInlineMessage(key: const Key('run.error'), message: _error!, tone: AppStateTone.error),
+        ],
+        // Prompt 10 (F15): today, the driver starts the run here and the
+        // parents of the children on it follow it.
+        if (canStartRun(_run, uid, now) || canFollowRun(_run, uid, now)) ...<Widget>[
+          const SizedBox(height: AppSpacing.s24),
+          AppButton(
+            key: Key(canStartRun(_run, uid, now) ? 'run.startTrip' : 'run.followTrip'),
+            label: canStartRun(_run, uid, now) ? l10n.tripStartOpen : l10n.tripFollow,
+            icon: canStartRun(_run, uid, now) ? Icons.navigation_outlined : Icons.map_outlined,
+            size: AppButtonSize.large,
+            expand: true,
+            onPressed: () {
+              final GoRouter router = GoRouter.of(context);
+              final String path = TripScreen.path(id, _run.id);
+              Navigator.of(context).pop();
+              router.go(canStartRun(_run, uid, now) ? '$path/drive' : path);
+            },
+          ),
         ],
         if (action != RunAction.none) const SizedBox(height: AppSpacing.s24),
         if (action == RunAction.confirm)

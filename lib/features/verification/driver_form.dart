@@ -13,7 +13,9 @@ import 'package:school_carpool/l10n/l10n.dart';
 /// model, color, passenger seats, both expiry dates and photos of the
 /// driver's license and the car license. Used in the first verification
 /// and on Profile > Driving. Only the expiry dates and car details are
-/// kept after review; the photos are deleted.
+/// kept after review; the document photos are deleted. The optional driver
+/// photo (Prompt 10) is kept once approved, for today's driver card and the
+/// random selfie check.
 class DriverForm extends ConsumerWidget {
   const DriverForm({required this.value, required this.onChanged, required this.today, super.key});
 
@@ -30,11 +32,11 @@ class DriverForm extends ConsumerWidget {
     if (result == null) {
       return;
     }
-    onChanged(
-      kind == CaptureKind.license
-          ? value.copyWith(licensePhoto: result.image)
-          : value.copyWith(carLicensePhoto: result.image),
-    );
+    onChanged(switch (kind) {
+      CaptureKind.license => value.copyWith(licensePhoto: result.image),
+      CaptureKind.driverPhoto => value.copyWith(driverPhoto: result.image),
+      _ => value.copyWith(carLicensePhoto: result.image),
+    });
   }
 
   String? _textError(AppLocalizations l10n, String? text, int max) {
@@ -129,6 +131,20 @@ class DriverForm extends ConsumerWidget {
           doneLabel: l10n.captureDone,
           todoLabel: l10n.captureTodo,
           onCapture: () => unawaited(_capture(context, ref, CaptureKind.carLicense)),
+        ),
+        const SizedBox(height: AppSpacing.s16),
+        // Prompt 10 (F33, F38): optional; shown to the carpool's parents on
+        // the day you drive and used for the random selfie check.
+        AppCaptureTile(
+          key: const Key('driver.photoTile'),
+          title: l10n.driverPhotoTitle,
+          helperText: l10n.driverPhotoHelper,
+          icon: Icons.face_outlined,
+          image: value.driverPhoto,
+          actionLabel: value.driverPhoto == null ? l10n.captureTake : l10n.captureRetake,
+          doneLabel: l10n.captureDone,
+          todoLabel: l10n.driverPhotoOptional,
+          onCapture: () => unawaited(_capture(context, ref, CaptureKind.driverPhoto)),
         ),
       ],
     );

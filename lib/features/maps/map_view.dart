@@ -13,7 +13,8 @@ import 'package:school_carpool/l10n/l10n.dart';
 /// draws it is chosen by [mapViewBuilderProvider] (Google Maps in real
 /// builds, a sketch in tests, the gallery and builds without a key).
 
-enum MapMarkerKind { home, school, selectedSchool }
+/// [car]: the driver's car on the live trip map (Prompt 10).
+enum MapMarkerKind { home, school, selectedSchool, car }
 
 /// A pin: the parent's own home or a school. Other parents are never pins.
 @immutable
@@ -328,6 +329,7 @@ class _SketchMapViewState extends State<SketchMapView> {
       MapMarkerKind.home => (Icons.home_rounded, colors.primary),
       MapMarkerKind.school => (Icons.school_rounded, colors.onSurfaceVariant),
       MapMarkerKind.selectedSchool => (Icons.school_rounded, colors.primary),
+      MapMarkerKind.car => (Icons.directions_car_filled_rounded, colors.primary),
     };
     return Positioned(
       left: at.dx - size / 2,

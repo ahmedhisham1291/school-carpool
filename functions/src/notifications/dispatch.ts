@@ -225,7 +225,8 @@ async function deliver(deps: DispatchDeps, event: OutboxEvent, uid: string): Pro
   );
   out.record = true;
   const settings = await store.settings(uid);
-  const quiet = !record.critical && inQuietHours(nowMs, settings.quiet);
+  // Critical and urgent alerts (Arrived, location stopped) ignore quiet hours.
+  const quiet = !record.critical && !TYPES[record.type].urgent && inQuietHours(nowMs, settings.quiet);
 
   // Push to every phone of the parent.
   if (await store.claim(uid, record.id, "push", nowMs, MAX_ATTEMPTS)) {
