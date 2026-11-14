@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { TEXTS } from "../src/notifications/texts";
+import { deleteAccount, DeletionError, type DeletionRunner, type WalletLock } from "../src/privacy/account_deletion";
 import { TYPES } from "../src/notifications/catalog";
 import * as walletAdmin from "../src/wallet/admin";
 import { adminGetWallet, adminListTransfers, adminResolveWalletAlert, adminSetWalletFrozen, type WalletAdminDeps } from "../src/wallet/admin";
@@ -746,5 +747,122 @@ describe("admin panel", () => {
     assert.equal(closed.status, "handled");
     assert.equal(audit.at(-1)?.action, "wallet.alert.resolve");
     await assert.rejects(adminResolveWalletAlert(deps, admin, { alertId, outcome: "refund" }, null), WalletError);
+  });
+});
+
+// --------------------------------------------------------------------------
+// Account deletion locks the wallet first (Prompt 12 review, item 2)
+// --------------------------------------------------------------------------
+
+/**
+ * The deletion runner's wallet steps over the wallet test world (the
+ * Firestore runner does the same with a transaction on wallets/{uid}).
+ */
+function deletionOver(w: World, onLocked: () => Promise<void> = async () => undefined): DeletionRunner & { ran: string[] } {
+  const ran: string[] = [];
+  return {
+    ran,
+    facts: async () => ({ exists: true, drivingNow: false, parentId: "ALYZ2345", banned: false }),
+    lockWallet: async (uid, nowMs) => {
+      const wal = await w.store.wallet(uid);
+      if (!wal) return null;
+      const lock: WalletLock = { status: wal.status, frozenReason: wal.frozenReason, frozenAtMs: wal.frozenAtMs, frozenBy: wal.frozenBy };
+      await w.store.updateWallet(uid, { status: "frozen", frozenReason: null, frozenAtMs: nowMs, frozenBy: "deletion" });
+      try {
+        await w.provider.freeze(wal.walletRef, true);
+      } catch (error) {
+        await w.store.updateWallet(uid, { status: wal.status, frozenAtMs: wal.frozenAtMs, frozenBy: wal.frozenBy });
+        throw error;
+      }
+      ran.push("lock");
+      await onLocked();
+      return lock;
+    },
+    walletFacts: async (uid) => {
+      const wal = await w.store.wallet(uid);
+      const open = [...w.store.transfers.values()].filter((t) => t.parties.includes(uid) && !w.store.results_.has(t.id));
+      return { balance: await w.provider.balance(wal!.walletRef), pending: open.length };
+    },
+    unlockWallet: async (uid, lock) => {
+      const wal = await w.store.wallet(uid);
+      if (lock.status === "active") await w.provider.freeze(wal!.walletRef, false);
+      await w.store.updateWallet(uid, { status: lock.status === "active" ? "active" : "frozen", frozenReason: null, frozenAtMs: lock.frozenAtMs, frozenBy: lock.frozenBy });
+      ran.push("unlock");
+    },
+    saveClosed: async () => void ran.push("saveClosed"),
+    closed: async () => null,
+    runFlowStep: async (_uid, step) => void ran.push(`flow:${step}`),
+    runTarget: async () => 1,
+    runPurgeStep: async () => undefined,
+  };
+}
+
+describe("account deletion and the wallet", () => {
+  it("an INCOMING pending transfer refuses the deletion, and the wallet is open again", async () => {
+    const w = world();
+    await twoParents(w, 0);
+    await addMoney(w.deps, hoda, { requestId: "topup-hoda-000000001", amount: 5_000 });
+    w.mode.value = "timeout";
+    const r = await sendTransfer(w.deps, hoda, { requestId: "send-to-ali-00000001", amount: 2_000, toParentId: "ALYZ2345" });
+    assert.equal(r.transfer.status, "pending");
+    w.mode.value = "ok";
+    const runner = deletionOver(w);
+    await assert.rejects(deleteAccount(runner, "ali", T0, () => undefined), (e: unknown) => e instanceof DeletionError && e.reason === "wallet-pending");
+    assert.deepEqual(runner.ran, ["lock", "unlock"], "nothing deleted");
+    assert.equal((await w.store.wallet("ali"))?.status, "active");
+  });
+
+  it("a transfer arriving mid-deletion is refused (the wallet is locked before the check)", async () => {
+    const w = world();
+    await twoParents(w, 0);
+    await addMoney(w.deps, hoda, { requestId: "topup-hoda-000000002", amount: 5_000 });
+    let arriving: Promise<unknown> | null = null;
+    const runner = deletionOver(w, async () => {
+      arriving = sendTransfer(w.deps, hoda, { requestId: "send-to-ali-00000002", amount: 2_000, toParentId: "ALYZ2345" });
+      await refuses(arriving, "receiver-cannot-receive");
+    });
+    const res = await deleteAccount(runner, "ali", T0, () => undefined);
+    assert.equal(res.closed, true);
+    assert.ok(arriving, "a transfer was tried while deleting");
+    assert.equal(await balanceOf(w, "hoda"), 5_000, "nothing left Hoda's wallet");
+    assert.equal(w.store.transfers.size, 1, "only Hoda's top-up exists");
+  });
+
+  it("a transfer that passed its checks just before the lock is refused in its transaction", async () => {
+    const w = world();
+    await twoParents(w, 0);
+    await addMoney(w.deps, hoda, { requestId: "topup-hoda-000000003", amount: 5_000 });
+    const runner = deletionOver(w);
+    w.store.beforeStart = () => {
+      w.store.beforeStart = null;
+      // Deletion locks Ali's wallet between Hoda's checks and her transaction.
+      const wal = w.store.wallets.get("ali")!;
+      w.store.wallets.set("ali", { ...wal, status: "frozen", frozenBy: "deletion" });
+    };
+    await refuses(sendTransfer(w.deps, hoda, { requestId: "send-to-ali-00000003", amount: 2_000, toParentId: "ALYZ2345" }), "receiver-cannot-receive");
+    assert.equal((await deleteAccount(runner, "ali", T0, () => undefined)).closed, true);
+    assert.equal(await balanceOf(w, "hoda"), 5_000);
+  });
+
+  it("money in the wallet refuses the deletion after the lock; an admin cannot reopen a closed wallet", async () => {
+    const w = world();
+    await twoParents(w, 1_000);
+    const runner = deletionOver(w);
+    await assert.rejects(deleteAccount(runner, "ali", T0, () => undefined), (e: unknown) => e instanceof DeletionError && e.reason === "wallet-not-empty");
+    assert.equal((await w.store.wallet("ali"))?.status, "active");
+    // A wallet locked by deletion stays shut whatever an admin taps.
+    await w.store.updateWallet("hoda", { status: "frozen", frozenBy: "deletion" });
+    const deps: WalletAdminDeps = { store: w.store, provider: w.provider, now: () => w.clock.now, audit: async () => undefined };
+    await assert.rejects(adminSetWalletFrozen(deps, { uid: "admin1" } as never, { uid: "hoda", frozen: false, reasonCode: "other" }, null), (e: unknown) => e instanceof WalletError && e.reason === "invalid-state");
+  });
+
+  it("the partner cannot be told: nothing is deleted, the wallet stays as it was", async () => {
+    const w = world();
+    await twoParents(w, 0);
+    w.mode.value = "down";
+    const runner = deletionOver(w);
+    await assert.rejects(deleteAccount(runner, "ali", T0, () => undefined), (e: unknown) => e instanceof DeletionError && e.reason === "wallet-unavailable");
+    assert.ok(!runner.ran.includes("saveClosed"));
+    assert.equal((await w.store.wallet("ali"))?.status, "active");
   });
 });

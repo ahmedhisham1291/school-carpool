@@ -168,7 +168,7 @@ export interface DeletionFacts {
   drivingNow: boolean;
 }
 
-export type DeletionRefusal = "wallet-not-empty" | "wallet-pending" | "driving-now" | "no-account";
+export type DeletionRefusal = "wallet-not-empty" | "wallet-pending" | "wallet-unavailable" | "driving-now" | "no-account";
 
 /** Why the account cannot be deleted yet, or null. */
 export function deletionRefusal(f: DeletionFacts): DeletionRefusal | null {
@@ -199,8 +199,34 @@ export function newClosedAccount(uid: string, parentId: string, banned: boolean,
   return { uid, parentId, closedAtMs: nowMs, purgeAtMs: purgeAfterClosure(nowMs), banned, failed: [], purgedAtMs: null };
 }
 
+/**
+ * What the wallet was before deletion locked it (so a refused deletion
+ * puts it back exactly). null: the parent has no open wallet.
+ */
+export interface WalletLock {
+  status: string;
+  frozenReason: string | null;
+  frozenAtMs: number | null;
+  frozenBy: string | null;
+}
+
+/** Wallet status reason written while the account is being closed. */
+export const CLOSING_REASON = "accountClosing";
+
 export interface DeletionRunner {
-  facts(uid: string): Promise<DeletionFacts & { parentId: string; banned: boolean }>;
+  /** The account facts without the wallet (read after the lock). */
+  facts(uid: string): Promise<Omit<DeletionFacts, "wallet"> & { parentId: string; banned: boolean }>;
+  /**
+   * Closes the wallet to money FIRST: frozen with reason accountClosing in
+   * our copy (startTransfer reads it in its transaction, so no transfer to
+   * or from the parent starts after this) and frozen at the partner.
+   * Throws when the partner cannot be told (our copy is put back).
+   */
+  lockWallet(uid: string, nowMs: number): Promise<WalletLock | null>;
+  /** Balance at the partner and transfers not settled, in BOTH directions. Throws when unknown. */
+  walletFacts(uid: string, nowMs: number): Promise<{ balance: number; pending: number }>;
+  /** A refused deletion: the wallet is as it was. */
+  unlockWallet(uid: string, lock: WalletLock, nowMs: number): Promise<void>;
   saveClosed(c: ClosedAccount): Promise<void>;
   closed(uid: string): Promise<ClosedAccount | null>;
   /** One flow step (carpools, chat ...). Throws on failure. */
@@ -252,8 +278,35 @@ export async function deleteAccount(
   onError: (step: string, error: unknown) => void,
 ): Promise<{ closed: true; failed: number; purgeAtMs: number }> {
   const facts = await runner.facts(uid);
-  const refusal = deletionRefusal(facts);
-  if (refusal) throw new DeletionError(refusal);
+  const early = deletionRefusal({ ...facts, wallet: null });
+  if (early) throw new DeletionError(early);
+  // The wallet is locked FIRST, then checked: a transfer cannot start (or
+  // arrive) between the check and the deletion.
+  let lock: WalletLock | null;
+  try {
+    lock = await runner.lockWallet(uid, nowMs);
+  } catch (error) {
+    onError("wallet:lock", error);
+    throw new DeletionError("wallet-unavailable");
+  }
+  if (lock) {
+    let wallet: { balance: number; pending: number } | null = null;
+    try {
+      wallet = await runner.walletFacts(uid, nowMs);
+    } catch (error) {
+      onError("wallet:facts", error);
+    }
+    const refusal = wallet ? deletionRefusal({ ...facts, wallet }) : "wallet-unavailable";
+    if (refusal) {
+      try {
+        await runner.unlockWallet(uid, lock, nowMs);
+      } catch (error) {
+        // Stays frozen (safe side); an admin can unfreeze from the panel.
+        onError("wallet:unlock", error);
+      }
+      throw new DeletionError(refusal);
+    }
+  }
   // Recorded FIRST: if anything below fails, the daily job finishes it.
   const closed = newClosedAccount(uid, facts.parentId, facts.banned, nowMs);
   const steps = immediateSteps();

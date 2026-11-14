@@ -305,6 +305,8 @@ class PrivacyFailure implements Exception {
       return PrivacyFailure(switch (reason) {
         'wallet-not-empty' => PrivacyFailureKind.walletNotEmpty,
         'wallet-pending' => PrivacyFailureKind.walletPending,
+        // The payment partner did not answer: nothing was deleted; try later.
+        'wallet-unavailable' => PrivacyFailureKind.unknown,
         'driving-now' => PrivacyFailureKind.drivingNow,
         'rate-limited' => PrivacyFailureKind.rateLimited,
         'device-check' => PrivacyFailureKind.deviceCheck,

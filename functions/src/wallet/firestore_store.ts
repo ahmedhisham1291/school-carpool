@@ -102,7 +102,8 @@ export function walletFromDoc(uid: string, d: DocumentData): WalletRecord {
   return {
     uid,
     walletRef: text(d.walletRef),
-    status: d.status === "frozen" ? "frozen" : "active",
+    // Anything but "active" (frozen, or closed by account deletion) moves no money.
+    status: d.status === "active" ? "active" : "frozen",
     balanceCopy: int(d.balanceCopy),
     balanceAtMs: ms(d.balanceAt),
     termsVersion: text(d.termsVersion),
@@ -308,6 +309,8 @@ export class FirestoreWalletStore implements WalletStore {
       tx.create(ref, transferToDoc(t));
       tx.create(this.db.collection(WALLET_PENDING).doc(t.id), {
         uid: t.uid,
+        // Both sides: account deletion checks incoming transfers too.
+        parties: t.parties,
         createdAt: ts(t.createdAtMs),
         resends: 0,
         checkedAt: ts(t.createdAtMs),

@@ -6,7 +6,7 @@ import { outboxDoc } from "../notifications/outbox";
 import type { OutboxEvent } from "../notifications/model";
 import type { AbuseCounter, AbuseKind, AbuseStore, SecurityAlert } from "./abuse";
 import { alertFor } from "./abuse";
-import { pathFor, type ClosedAccount, type DeletionFacts, type DeletionRunner, type FlowStep, type PurgeStep, type Target } from "./account_deletion";
+import { CLOSING_REASON, pathFor, type ClosedAccount, type DeletionFacts, type DeletionRunner, type FlowStep, type PurgeStep, type Target, type WalletLock } from "./account_deletion";
 import type { DeviceAccount, DeviceRecord, DeviceStore, Platform, SignInPlan, SignOutReason } from "./devices";
 import type { ExportSource } from "./export";
 import type { RetentionReport, RetentionStore } from "./jobs";
@@ -270,6 +270,8 @@ export interface DeletionHooks {
   chat: ChatServer;
   /** Wallet balance at the partner (piastres), or null when the wallet is off. */
   walletBalance(walletRef: string): Promise<number | null>;
+  /** Freezes or unfreezes the wallet at the partner (no-op when the wallet is off). Throws on failure. */
+  walletFreeze(walletRef: string, frozen: boolean): Promise<void>;
   revokeSessions(uid: string): Promise<void>;
   deleteAuthUser(uid: string): Promise<void>;
 }
@@ -281,25 +283,88 @@ export class FirestoreDeletionRunner implements DeletionRunner {
     private readonly hooks: DeletionHooks,
   ) {}
 
-  async facts(uid: string): Promise<DeletionFacts & { parentId: string; banned: boolean }> {
+  async facts(uid: string): Promise<Omit<DeletionFacts, "wallet"> & { parentId: string; banned: boolean }> {
     const user = await this.db.collection(USERS).doc(uid).get();
-    const wallet = await this.db.collection("wallets").doc(uid).get();
-    let walletFacts: DeletionFacts["wallet"] = null;
-    if (wallet.exists && wallet.get("status") !== "closed") {
-      const pending = await this.db.collection("walletPending").where("uid", "==", uid).limit(1).get();
-      const balance = await this.hooks.walletBalance(text(wallet.get("walletRef")));
-      // The partner cannot be asked: use our copy (never 0 by guess).
-      const known = balance ?? (typeof wallet.get("balanceCopy") === "number" ? (wallet.get("balanceCopy") as number) : 1);
-      walletFacts = { balance: known, pending: pending.size };
-    }
     const driving = await this.db.collection("trips").where("driverUid", "==", uid).where("status", "==", "active").limit(1).get();
     return {
       exists: user.exists,
-      wallet: walletFacts,
       drivingNow: !driving.empty,
       parentId: text(user.get("parentId")),
       banned: user.get("banned") === true,
     };
+  }
+
+  async lockWallet(uid: string, nowMs: number): Promise<WalletLock | null> {
+    const ref = this.db.collection("wallets").doc(uid);
+    // In a transaction: startTransfer reads both wallets in its own
+    // transaction, so a transfer either committed before this (and is in
+    // walletPending) or sees the wallet frozen and is refused.
+    const locked = await this.db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists || snap.get("status") === "closed") return null;
+      const lock: WalletLock = {
+        status: text(snap.get("status")) || "active",
+        frozenReason: text(snap.get("frozenReason")) || null,
+        frozenAtMs: snap.get("frozenAt") ? millis(snap.get("frozenAt")) : null,
+        frozenBy: text(snap.get("frozenBy")) || null,
+      };
+      tx.update(ref, { status: "frozen", frozenReason: CLOSING_REASON, frozenAt: ts(nowMs), frozenBy: "deletion", closingAt: ts(nowMs), updatedAt: ts(nowMs) });
+      return { lock, walletRef: text(snap.get("walletRef")) };
+    });
+    if (!locked) return null;
+    try {
+      if (locked.lock.status === "active") await this.hooks.walletFreeze(locked.walletRef, true);
+    } catch (error) {
+      await this.restoreWallet(uid, locked.lock, nowMs);
+      throw error;
+    }
+    return locked.lock;
+  }
+
+  async walletFacts(uid: string, nowMs: number): Promise<{ balance: number; pending: number }> {
+    const wallet = await this.db.collection("wallets").doc(uid).get();
+    // Outgoing and incoming entries (parties), and entries written before
+    // parties was stored (uid: outgoing only).
+    const both = await this.db.collection("walletPending").where("parties", "array-contains", uid).limit(1).get();
+    const out = await this.db.collection("walletPending").where("uid", "==", uid).limit(1).get();
+    // Transfers of the last 30 days without an outcome, either direction
+    // (covers a pending entry written before parties was stored).
+    const recent = await this.db
+      .collection("transfers")
+      .where("parties", "array-contains", uid)
+      .where("createdAt", ">=", ts(nowMs - 30 * DAY_MS))
+      .orderBy("createdAt", "desc")
+      .limit(100)
+      .get();
+    let open = 0;
+    if (!recent.empty) {
+      const results = await this.db.getAll(...recent.docs.map((d) => this.db.collection("transferResults").doc(d.id)));
+      open = results.filter((r) => !r.exists).length;
+    }
+    const balance = await this.hooks.walletBalance(text(wallet.get("walletRef")));
+    // The partner cannot be asked: use our copy (never 0 by guess).
+    const known = balance ?? (typeof wallet.get("balanceCopy") === "number" ? (wallet.get("balanceCopy") as number) : 1);
+    return { balance: known, pending: both.size + out.size + open };
+  }
+
+  async unlockWallet(uid: string, lock: WalletLock, nowMs: number): Promise<void> {
+    const ref = this.db.collection("wallets").doc(uid);
+    if (lock.status === "active") await this.hooks.walletFreeze(text((await ref.get()).get("walletRef")), false);
+    await this.restoreWallet(uid, lock, nowMs);
+  }
+
+  private async restoreWallet(uid: string, lock: WalletLock, nowMs: number): Promise<void> {
+    await this.db
+      .collection("wallets")
+      .doc(uid)
+      .update({
+        status: lock.status,
+        frozenReason: lock.frozenReason,
+        frozenAt: lock.frozenAtMs === null ? null : ts(lock.frozenAtMs),
+        frozenBy: lock.frozenBy,
+        closingAt: FieldValue.delete(),
+        updatedAt: ts(nowMs),
+      });
   }
 
   async saveClosed(c: ClosedAccount): Promise<void> {

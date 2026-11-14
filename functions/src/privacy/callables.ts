@@ -65,7 +65,7 @@ import { archivePath, packArchive, unpackArchive, type TrackPoint } from "./rout
 /** Analytics consent version (the Settings switch text, Prompt 12). */
 export const ANALYTICS_CONSENT_VERSION = "2026-11-14";
 
-export type PrivacyErrorReason = "invalid-request" | "unauthenticated" | "not-found" | "wallet-not-empty" | "wallet-pending" | "driving-now" | "no-account" | "rate-limited" | "export-failed";
+export type PrivacyErrorReason = "invalid-request" | "unauthenticated" | "not-found" | "wallet-not-empty" | "wallet-pending" | "wallet-unavailable" | "driving-now" | "no-account" | "rate-limited" | "export-failed";
 
 const PRIVACY_ERROR_CODES: Record<PrivacyErrorReason, FunctionsErrorCode> = {
   "invalid-request": "invalid-argument",
@@ -73,6 +73,7 @@ const PRIVACY_ERROR_CODES: Record<PrivacyErrorReason, FunctionsErrorCode> = {
   "not-found": "not-found",
   "wallet-not-empty": "failed-precondition",
   "wallet-pending": "failed-precondition",
+  "wallet-unavailable": "unavailable",
   "driving-now": "failed-precondition",
   "no-account": "failed-precondition",
   "rate-limited": "resource-exhausted",
@@ -378,6 +379,10 @@ export function deletionRunner(): FirestoreDeletionRunner {
     walletBalance: async (walletRef) => {
       const p = walletProvider();
       return p ? p.balance(walletRef) : null;
+    },
+    walletFreeze: async (walletRef, frozen) => {
+      const p = walletProvider();
+      if (p) await p.freeze(walletRef, frozen);
     },
     revokeSessions: (uid) => adminAuth().revokeRefreshTokens(uid),
     deleteAuthUser: async (uid) => {

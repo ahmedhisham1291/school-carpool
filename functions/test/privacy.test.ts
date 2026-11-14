@@ -20,6 +20,7 @@ import {
   type FlowStep,
   type PurgeStep,
   type Target,
+  type WalletLock,
 } from "../src/privacy/account_deletion";
 import { ABUSE_THRESHOLDS, countActivity, counterId, HOUR_MS, noteActivity, type AbuseCounter, type AbuseStore } from "../src/privacy/abuse";
 import {
@@ -372,8 +373,22 @@ class FakeRunner implements DeletionRunner {
   ran: string[] = [];
   failing = new Set<string>();
   factsValue = { exists: true, wallet: null as { balance: number; pending: number } | null, drivingNow: false, parentId: "ABCD2345", banned: false };
+  walletLog: string[] = [];
   async facts() {
-    return { ...this.factsValue };
+    const { wallet: _wallet, ...rest } = this.factsValue;
+    return rest;
+  }
+  async lockWallet(): Promise<WalletLock | null> {
+    if (!this.factsValue.wallet) return null;
+    this.walletLog.push("lock");
+    return { status: "active", frozenReason: null, frozenAtMs: null, frozenBy: null };
+  }
+  async walletFacts() {
+    this.walletLog.push("facts");
+    return { ...this.factsValue.wallet! };
+  }
+  async unlockWallet() {
+    this.walletLog.push("unlock");
   }
   async saveClosed(c: ClosedAccount) {
     this.closedMap.set(c.uid, { ...c, failed: [...c.failed] });
@@ -460,6 +475,7 @@ describe("account deletion", () => {
     const r = new FakeRunner();
     r.factsValue.wallet = { balance: 1, pending: 0 };
     await assert.rejects(deleteAccount(r, "u1", NOW, () => undefined), (e: unknown) => e instanceof DeletionError && e.reason === "wallet-not-empty");
+    assert.deepEqual(r.walletLog, ["lock", "facts", "unlock"], "locked first, checked, then opened again");
     assert.deepEqual(r.ran, []);
     assert.equal(r.closedMap.size, 0);
   });
