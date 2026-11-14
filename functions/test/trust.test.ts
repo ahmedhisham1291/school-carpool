@@ -352,6 +352,7 @@ describe("guardian links (spouse linked to the same children)", () => {
     assert.equal(t.store.events.at(-1)?.type, "guardian-linked");
     const fam = await getFamily(t.deps, as("dina"));
     assert.deepEqual(fam.linked.map((l) => l.childId), ["b1", "b2"]);
+    assert.deepEqual(fam.linked.map((l) => [l.childSchoolId, l.childGrade]), [["nile", "g2"], ["nile", "kg2"]]);
     assert.equal(fam.outgoing.length, 0);
     await rejects(answerGuardianRequest(t.deps, as("bob"), { requestId, accept: true, childIds: ["b1"] }), "invalid-state");
   });

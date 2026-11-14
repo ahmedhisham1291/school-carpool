@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/install_id.dart';
 import 'package:school_carpool/features/trust/trust_models.dart';
+import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
 /// Trust through our Cloud Functions only (Prompt 11, F17). The app reads
@@ -142,4 +143,15 @@ final FutureProvider<List<RateableParent>> rateableProvider = FutureProvider.aut
 final FutureProvider<FamilyView> familyProvider = FutureProvider.autoDispose<FamilyView>(
   retry: noTrustRetry,
   (Ref ref) => ref.watch(trustRepositoryProvider).family(),
+);
+
+/// Children another parent linked to me (active links), for the carpool
+/// join picker: the server lets me bring them (Prompt 11). Empty while
+/// loading or on an error.
+final FutureProvider<List<ChildRecord>> linkedChildrenProvider = FutureProvider.autoDispose<List<ChildRecord>>(
+  retry: noTrustRetry,
+  (Ref ref) async => <ChildRecord>[
+    for (final GuardianLink l in (await ref.watch(familyProvider.future)).linked)
+      if (l.asChild case final ChildRecord c) c,
+  ],
 );

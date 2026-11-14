@@ -37,7 +37,7 @@ class FakeTrustRepository implements TrustRepository {
   FakeTrustRepository({
     this.overviewValue = const TrustOverview(summary: TrustSummary(ratings: 4, average: 4.5, vouches: 2), toRate: 2),
     this.rateableList = sampleRateable,
-    this.familyValue = sampleFamily,
+    this.familyValue = const FamilyView(),
   });
 
   TrustOverview overviewValue;

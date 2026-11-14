@@ -810,7 +810,7 @@ void main() {
             direction: 'a',
             logicalSize: const Size(390, 844),
             pixelRatio: 3,
-            trust: FakeTrustRepository(overviewValue: const TrustOverview(summary: TrustSummary(ratings: 4, average: 4.5, vouches: 2), toRate: 2, yearCheck: sampleYearCheck)),
+            trust: FakeTrustRepository(overviewValue: const TrustOverview(summary: TrustSummary(ratings: 4, average: 4.5, vouches: 2), toRate: 2, yearCheck: sampleYearCheck), familyValue: sampleFamily),
           );
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));

@@ -79,6 +79,20 @@ void main() {
       expect(f.linked.single.relation, GuardianRelation.guardian);
       expect(f.isEmpty, isFalse);
       expect(const FamilyView().isEmpty, isTrue);
+      // Prompt 11: a linked child can join my carpools (the join picker).
+      final GuardianLink active = GuardianLink.fromMap(const <Object?, Object?>{
+        'id': 'k1_me',
+        'childId': 'k1',
+        'childFirstName': 'Omar',
+        'childGrade': 'g3',
+        'childSchoolId': 'nile',
+        'childSchoolName': 'Nile',
+        'status': 'active',
+        'relation': 'mother',
+      });
+      expect(active.asChild?.schoolId, 'nile');
+      expect(active.asChild?.status, ReviewStatus.approved);
+      expect(f.linked.single.asChild, isNull, reason: 'in review');
       final RateableParent p = RateableParent.fromMap(const <Object?, Object?>{'uid': 'u', 'firstName': 'Hoda', 'role': 'driver', 'date': '2026-11-12'});
       expect(p.drove, isTrue);
       expect(p.date, DateTime.utc(2026, 11, 12));

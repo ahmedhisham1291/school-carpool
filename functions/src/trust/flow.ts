@@ -463,13 +463,20 @@ export async function removeGuardianLink(deps: TrustDeps, caller: Caller, data: 
   return { status: "removed" };
 }
 
+/** A link to another parent's child, with what the linked parent needs to bring the child to a carpool. */
+export interface LinkedChildView extends GuardianLink {
+  childGrade: string;
+  childSchoolId: string;
+  childSchoolName: string;
+}
+
 export interface FamilyView {
   incoming: GuardianRequest[];
   outgoing: GuardianRequest[];
   /** Links of my children to other parents. */
   shared: GuardianLink[];
-  /** Links that give me another parent's children. */
-  linked: GuardianLink[];
+  /** Links that give me another parent's children (approved children only carry details). */
+  linked: LinkedChildView[];
 }
 
 export async function getFamily(deps: TrustDeps, caller: Caller): Promise<FamilyView> {
@@ -480,11 +487,17 @@ export async function getFamily(deps: TrustDeps, caller: Caller): Promise<Family
     deps.store.linksAs(caller.uid, "owner"),
     deps.store.linksAs(caller.uid, "guardian"),
   ]);
+  const live = linked.filter(linkLive);
+  const owners = new Map<string, ChildLite[]>();
+  for (const owner of new Set(live.filter((l) => l.status === "active").map((l) => l.ownerUid))) owners.set(owner, await deps.store.childrenOf(owner));
   return {
     incoming: incoming.filter((r) => r.status === "requested"),
     outgoing: outgoing.filter((r) => r.status === "requested"),
     shared: shared.filter(linkLive),
-    linked: linked.filter(linkLive),
+    linked: live.map((l) => {
+      const c = l.status === "active" ? owners.get(l.ownerUid)?.find((x) => x.id === l.childId && x.status === "approved") : undefined;
+      return { ...l, childGrade: c?.grade ?? "", childSchoolId: c?.schoolId ?? "", childSchoolName: c?.schoolName ?? "" };
+    }),
   };
 }
 

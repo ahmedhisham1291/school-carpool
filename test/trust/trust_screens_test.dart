@@ -154,7 +154,7 @@ void main() {
 
   group('family links', () {
     testWidgets('ask a parent by ID and relation', (WidgetTester tester) async {
-      final FakeTrustRepository trust = FakeTrustRepository();
+      final FakeTrustRepository trust = FakeTrustRepository(familyValue: sampleFamily);
       await _pump(tester, ProfileRoutes.family, trust: trust);
       await _tap(tester, find.byKey(const Key('family.link')));
       expect(_button(tester, 'family.send').onPressed, isNull);
@@ -166,7 +166,7 @@ void main() {
     });
 
     testWidgets('a wrong ID says how to fix it', (WidgetTester tester) async {
-      await _pump(tester, ProfileRoutes.family, trust: FakeTrustRepository());
+      await _pump(tester, ProfileRoutes.family, trust: FakeTrustRepository(familyValue: sampleFamily));
       await _tap(tester, find.byKey(const Key('family.link')));
       await _type(tester, find.byKey(const Key('family.parentId')), 'ABCD1234');
       expect(find.text('Type 8 letters and digits, like ABCD2345.'), findsOneWidget);
@@ -175,7 +175,7 @@ void main() {
     });
 
     testWidgets('accept a request with chosen children; only approved children are offered', (WidgetTester tester) async {
-      final FakeTrustRepository trust = FakeTrustRepository();
+      final FakeTrustRepository trust = FakeTrustRepository(familyValue: sampleFamily);
       await _pump(tester, ProfileRoutes.family, trust: trust);
       expect(find.byKey(const Key('family.linked.k9_uid-1')), findsOneWidget);
       expect(find.text('Sami · In review'), findsOneWidget);
@@ -191,7 +191,7 @@ void main() {
     });
 
     testWidgets('removing a link asks first', (WidgetTester tester) async {
-      final FakeTrustRepository trust = FakeTrustRepository();
+      final FakeTrustRepository trust = FakeTrustRepository(familyValue: sampleFamily);
       await _pump(tester, ProfileRoutes.family, trust: trust);
       await _tap(tester, find.byKey(const Key('family.remove.k1_uid-dina')));
       expect(find.text('Remove this link?'), findsOneWidget);
@@ -202,7 +202,7 @@ void main() {
     });
 
     testWidgets('empty: only the sentence and the action', (WidgetTester tester) async {
-      await _pump(tester, ProfileRoutes.family, trust: FakeTrustRepository(familyValue: const FamilyView()));
+      await _pump(tester, ProfileRoutes.family, trust: FakeTrustRepository());
       expect(find.byKey(const Key('family.empty')), findsOneWidget);
       expect(find.byKey(const Key('family.link')), findsOneWidget);
     });
@@ -301,7 +301,7 @@ void main() {
           }
         });
         testWidgets('family and its sheets in $where', (WidgetTester tester) async {
-          await _pump(tester, ProfileRoutes.family, trust: FakeTrustRepository(), locale: locale, width: 320, textScale: scale);
+          await _pump(tester, ProfileRoutes.family, trust: FakeTrustRepository(familyValue: sampleFamily), locale: locale, width: 320, textScale: scale);
           expectOneLine(find.byKey(const Key('family.link')), 'link $where', requireText: true);
           expectOneLine(find.byType(AppSectionHeader), 'headers $where', allowEllipsis: scale > 1);
           await _tap(tester, find.byKey(const Key('family.link')));

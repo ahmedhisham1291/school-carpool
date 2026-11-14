@@ -210,10 +210,18 @@ class GuardianLink {
     required this.guardianFirstName,
     required this.relation,
     required this.status,
+    this.childId = '',
+    this.childGrade,
+    this.childSchoolId = '',
+    this.childSchoolName = '',
   });
 
   factory GuardianLink.fromMap(Map<Object?, Object?> m) => GuardianLink(
     id: _str(m['id']),
+    childId: _str(m['childId']),
+    childGrade: Grade.fromName(m['childGrade']),
+    childSchoolId: _str(m['childSchoolId']),
+    childSchoolName: _str(m['childSchoolName']),
     childFirstName: _str(m['childFirstName']),
     ownerFirstName: _str(m['ownerFirstName']),
     guardianFirstName: _str(m['guardianFirstName']),
@@ -231,6 +239,30 @@ class GuardianLink {
   final String guardianFirstName;
   final GuardianRelation relation;
   final LinkStatus status;
+
+  /// For links that give me another parent's child (active): what a carpool needs.
+  final String childId;
+  final Grade? childGrade;
+  final String childSchoolId;
+  final String childSchoolName;
+
+  /// The linked child as a child record for carpool pickers, or null while
+  /// the link waits for review or the child has no details.
+  ChildRecord? get asChild {
+    final Grade? grade = childGrade;
+    if (status != LinkStatus.active || childId.isEmpty || grade == null) {
+      return null;
+    }
+    return ChildRecord(
+      id: childId,
+      firstName: childFirstName,
+      age: 0,
+      grade: grade,
+      schoolName: childSchoolName,
+      schoolId: childSchoolId,
+      status: ReviewStatus.approved,
+    );
+  }
 }
 
 /// getFamily.
