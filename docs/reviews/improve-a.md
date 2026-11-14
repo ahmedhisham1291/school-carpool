@@ -169,9 +169,11 @@ Feature switches
    (Financial Info: the InstaPay address and the records, no payment
    processing); app-review-notes; test-iphone 9 and 9b; open-items B7 to
    B10 and D19 to D22; SETUP 21b; COSTS. The five new params are in all
-   three `.env` files with defaults in `config.ts`. CLAUDE.md still says
-   F1 to F44 and describes the wallet as the payment feature (D20, the
-   owner's file).
+   three `.env` files with defaults in `config.ts`. CLAUDE.md on this
+   branch (from main) already describes the switches and Settle up; only
+   "Feature IDs (F1 to F44)" is out of date (D20, the owner's file), and
+   the progress report's remark that it still describes the wallet as the
+   payment feature no longer holds.
 5. **Staging deploy.** No new secret; every new param has a value in each
    env file and a default, so `firebase deploy` will not prompt; two new
    composite indexes on `settleUps` (both used: the list and the
