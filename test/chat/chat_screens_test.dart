@@ -194,8 +194,11 @@ void main() {
       chat.offline = true;
       await _pump(tester, carpoolChat.route, chat: chat, repo: repo);
       await tester.enterText(find.byKey(const Key('chat.composer.field')), 'Queued');
+      // Rebuild first: the send button turns on only after a frame with text.
+      await tester.pump();
       await tester.tap(find.byKey(const Key('chat.composer.send')));
       await tester.pumpAndSettle();
+      expect(chat.calls, contains('sendText:${carpoolChat.cid}'));
       expect(_iconLabel(tester, Icons.schedule_rounded), 'Sending');
       chat.backOnline();
       await tester.pumpAndSettle();
