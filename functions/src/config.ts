@@ -163,11 +163,6 @@ export const SCHEDULE_CHANGES_PER_DAY = defineInt("SCHEDULE_CHANGES_PER_DAY", { 
  * nothing is sent; refused in prod) or "fcm". FCM is free.
  */
 export const PUSH_PROVIDER = defineString("PUSH_PROVIDER", { default: "fake" });
-/**
- * Emulators only: the dev Firebase project that the functions emulator
- * sends real pushes for (SETUP.md section 18.4). Empty: the default app.
- */
-export const FCM_PROJECT_ID = defineString("FCM_PROJECT_ID", { default: "" });
 /** A critical alert still unread after this many minutes sounds the alarm (spec section 11). */
 export const NOTIFY_ALARM_DELAY_MIN = defineInt("NOTIFY_ALARM_DELAY_MIN", { default: 15 });
 /** Cairo time from which drivers get the "you drive tomorrow" reminder. */

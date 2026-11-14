@@ -1,4 +1,4 @@
-import { getApps, initializeApp, type App } from "firebase-admin/app";
+import type { App } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
 import type { PushMessage } from "./model";
 import type { PushResult, PushSender, PushToken } from "./dispatch";
@@ -84,16 +84,6 @@ export class FcmPushSender implements PushSender {
     });
     return { sent: response.successCount, invalid };
   }
-}
-
-/**
- * The Admin app that sends pushes. [fcmProjectId] (FCM_PROJECT_ID) lets the
- * functions emulator send real pushes for the dev project to the owner's
- * iPhone (SETUP.md section 18.4); otherwise the default app.
- */
-export function messagingApp(defaultApp: () => App, fcmProjectId: string): App {
-  if (!fcmProjectId) return defaultApp();
-  return getApps().find((a) => a.name === "fcm") ?? initializeApp({ projectId: fcmProjectId }, "fcm");
 }
 
 /** PUSH_PROVIDER: "fake" (refused in prod) or "fcm". */

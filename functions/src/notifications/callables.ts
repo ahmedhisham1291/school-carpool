@@ -5,7 +5,6 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminApp, adminDb } from "../admin";
 import {
   ENFORCE_APP_CHECK,
-  FCM_PROJECT_ID,
   MIN_INSTANCES,
   NOTIFY_ALARM_DELAY_MIN,
   NOTIFY_DEVICE_CHANGES_PER_DAY,
@@ -27,7 +26,7 @@ import { createWhatsAppSender } from "../whatsapp/sender";
 import { DeviceError, registerDevice, unregisterDevice, updateSettings, type DeviceDeps } from "./devices";
 import { dispatchEvent, RetryableDispatchError, type DispatchDeps } from "./dispatch";
 import { DEFAULT_ALARM_DELAY_MIN, eventFromDoc } from "./model";
-import { createPushSender, messagingApp } from "./push";
+import { createPushSender } from "./push";
 import { FirestoreNotifyStore } from "./store";
 import { runNotificationTick } from "./tick";
 
@@ -55,7 +54,7 @@ function dispatchDeps(): DispatchDeps {
   const phoneNumberId = WHATSAPP_PHONE_NUMBER_ID.value();
   return {
     store: new FirestoreNotifyStore(adminDb()),
-    push: createPushSender(PUSH_PROVIDER.value(), appEnv, () => messagingApp(adminApp, FCM_PROJECT_ID.value()), log),
+    push: createPushSender(PUSH_PROVIDER.value(), appEnv, adminApp, log),
     whatsapp: createWhatsAppSender(
       {
         provider: WHATSAPP_PROVIDER.value(),
