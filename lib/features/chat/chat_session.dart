@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:school_carpool/features/auth/account.dart';
@@ -17,7 +18,8 @@ import 'package:school_carpool/features/verification/image_compressor.dart';
 typedef ChatProviderFactory = ChatProvider Function(String provider);
 
 final Provider<ChatProviderFactory> chatProviderFactoryProvider = Provider<ChatProviderFactory>(
-  (Ref ref) => (String provider) => provider == 'stream' ? StreamChatProvider() : demoChatProvider(),
+  // Offline storage on the phone; the website keeps chat in memory (Stage 2).
+  (Ref ref) => (String provider) => provider == 'stream' ? StreamChatProvider(persist: !kIsWeb) : demoChatProvider(),
 );
 
 /// The signed-in, VERIFIED parent's uid, or null.

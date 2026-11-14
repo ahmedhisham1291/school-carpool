@@ -160,6 +160,18 @@ focused and hovered controls get a veil of their label color at
   one-line title, the sentence as subtitle, time and dot trailing) under
   "New" and "Earlier" section headers; alert settings reuse
   `AppSwitchRow`. Notification text never names a child or parent.
+- **Chat** (Prompt 9, in the gallery under "Chat"): `AppChatBubble` (own
+  messages at the end of the line on the `primaryContainer` wash, others
+  at the start on the raised surface with a hairline; radius 16 with an
+  8 corner next to the author; author one line above, time and delivery
+  mark one line below; at most 80 % of the line; follows the reading
+  direction), `AppChatComposer` (raised bar with a top hairline: photo and
+  location icon buttons only where allowed, the field grows to five lines,
+  a filled send button that is off until there is text; every button 48 by
+  48 with a label) and `AppCountPill` (unread count on chat rows, accent
+  pill, "99+" at most). The Chats tab reuses `AppListRow`; requests use
+  `AppCard` with a secondary Accept and a text Decline (several can wait,
+  so no filled button); report reasons are `AppChip`s.
 - New component: add it to the gallery first, then use it.
 
 ## One-line wording

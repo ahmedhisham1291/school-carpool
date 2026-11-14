@@ -932,3 +932,115 @@ from section 17.2 can stay; nothing writes there any more.
   then `GCLOUD_PROJECT=<dev project id> npm --prefix functions run notify:cloud -- <your uid> drive-hour`
   (needs `gcloud auth application-default login`; refuses any project
   that does not end in `-dev`).
+
+## 19. Chat on Stream (Prompt 9)
+
+Chat runs on Stream Chat. Cloud Functions hold the Stream secret, issue
+short-lived tokens to verified parents only, create every channel and add
+or remove every member. The app cannot create a channel or add anyone
+(Stream channel-type permissions, set by a script). Chat push goes through
+our own notification sender (section 18): Stream's own push stays off.
+
+Two Stream apps: **one for dev and staging** (fake users only: the seed
+parents get a Stream user the first time they open Chats) and **one for
+prod**. Never use the prod app with test data, or the dev app with real
+families.
+
+### 19.1 Stream apps (once)
+
+1. Sign up at getstream.io and create an organization for the project.
+2. Create the app `school-carpool-dev` (region: EU, Dublin, the closest to
+   `europe-west1`). Later create `school-carpool-prod` the same way.
+3. Plan: **Build (free)** for both (COST MODE). docs/COSTS.md says when to
+   move to Maker.
+4. For each app, copy the **Key** and the **Secret** (Dashboard > App >
+   Overview). The key is public; the secret is not.
+
+### 19.2 Secret and parameters (each cloud project)
+
+```bash
+# Dev and staging projects: the DEV Stream app. Prod: the PROD app.
+firebase functions:secrets:set STREAM_API_SECRET --project dev
+```
+
+Then in `functions/.env.dev` (and `.env.staging`, `.env.prod`):
+
+```
+CHAT_PROVIDER=stream
+STREAM_API_KEY=<the app's key>
+CHAT_RETENTION_DAYS=180
+```
+
+`CHAT_PROVIDER=fake` (the default for dev and staging in the repository)
+keeps everything on the phone: the app shows a few fake chats and nothing
+goes to Stream. The fake is refused in prod. Deploying needs the secret
+to exist even with the fake: set it to any value then.
+
+On the emulators: `functions/.env.local` and `functions/.secret.local`
+(copy `.secret.local.example`) with the DEV app's key and secret, if you
+want real chat between two phones while the rest runs on the emulators.
+
+### 19.3 Configure the Stream app (each app, and after changing chat rules)
+
+```bash
+STREAM_API_KEY=<key> STREAM_API_SECRET=<secret> \
+  WEBHOOK_URL=https://europe-west1-<project id>.cloudfunctions.net/chatWebhook \
+  npm --prefix functions run chat:setup
+```
+
+The script (`functions/scripts/stream_setup.ts`, plan in
+`functions/src/chat/setup_plan.ts`):
+
+- checks that every permission it grants exists in the app and that no
+  parent gets a forbidden one (create channel, add members, change or
+  freeze a channel, delete others' messages, skip moderation);
+- creates the blocked-terms lists `carpool_blocked_ar` and
+  `carpool_blocked_en` (blocked, not just flagged);
+- creates the four channel types `cp_private`, `cp_school`, `cp_area`,
+  `cp_carpool`: uploads (photos) on only for private and carpool chats,
+  read receipts only for those, no reactions, threads, polls, commands or
+  Stream push; parents (role `user`) may only edit or delete their own
+  messages; members read, write, mention and type;
+- creates the `carpool-system` user that creates every channel;
+- sets the webhook (event `message.new`) to `chatWebhook`;
+- sends the AI moderation policy for text and images (19.4).
+
+Run it again whenever `setup_plan.ts` changes. Without `WEBHOOK_URL` (first
+time, before the first deploy) it skips the webhook: deploy, then run it
+again with the URL.
+
+### 19.4 Moderation (each app)
+
+Stream Dashboard > Moderation: turn on **AI Text** and **AI Image** for the
+app, then run 19.3 again (the policy step prints FAIL until moderation is
+on; the blocked-terms lists work without it). Harmful text and images are
+removed; borderline ones are flagged in Stream's review queue. Reports from
+parents still go to OUR admin panel (Reports), not to Stream.
+
+Extend the blocked terms in `setup_plan.ts` (Arabic and English, a few
+common spellings) and run 19.3 again.
+
+### 19.5 Webhook
+
+`chatWebhook` is an HTTPS function without App Check (Stream calls it). It
+refuses every request whose `X-Signature` is not Stream's HMAC of the body
+with the app secret (HTTP 401) and reads nothing then. Check in the Stream
+Dashboard > Webhooks that the URL is set and the last calls return 200.
+
+### 19.6 Retention and expiry (each cloud project)
+
+- `chatRetentionDaily` (03:30 Cairo) deletes, in every channel we created,
+  messages older than `CHAT_RETENTION_DAYS` (default 180 days; the owner
+  and the lawyer choose the period). Reports keep their own short copy.
+- Firestore > TTL policies: collection `chatRequests`, field `expiresAt`
+  (30 days after the last change), and collection group `chatPushes`,
+  field `expiresAt` (2 days: delivery records of chat pushes).
+
+### 19.7 On the iPhone
+
+- Info.plist gets the photo library text (`tool/patch_native.py`): the
+  camera text now also mentions chat photos.
+- Photos are re-encoded as JPEG with EXIF removed (location included)
+  before upload; the app keeps chats in Stream's offline storage, so a
+  message written offline sends when the phone is back online. Signing out
+  clears that storage.
