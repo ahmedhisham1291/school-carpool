@@ -1,15 +1,34 @@
 // Chat logic (Prompt 9). Written, not run here (no Flutter SDK in the build
 // workspace). CI runs it.
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:school_carpool/features/auth/account.dart';
+import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/chat/chat_labels.dart';
 import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/chat/chat_provider.dart';
+import 'package:school_carpool/features/chat/chat_repository.dart';
+import 'package:school_carpool/features/chat/chat_session.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 import '../helpers/chat_fakes.dart';
+import '../helpers/test_app.dart';
+
+final NotifierProvider<_Session, SessionState> _sessionHolder = NotifierProvider<_Session, SessionState>(_Session.new);
+
+class _Session extends Notifier<SessionState> {
+  @override
+  SessionState build() => testVerifiedSession;
+
+  void set(SessionState s) => state = s;
+}
 
 void main() {
   setUpAll(() async {
@@ -38,6 +57,9 @@ void main() {
       expect(ChatKind.carpool.photos, isTrue);
       expect(ChatKind.school.photos, isFalse);
       expect(ChatKind.area.readReceipts, isFalse);
+      expect(ChatKind.school.locationPin, isFalse);
+      expect(ChatKind.area.locationPin, isFalse);
+      expect(ChatKind.carpool.locationPin, isTrue);
     });
 
     test('a chat push may open a chat; other routes still fall back', () {
@@ -124,6 +146,77 @@ void main() {
       p.backOnline();
       expect(p.messagesOf(carpoolChat).single.delivery, ChatDelivery.sent);
       await c.dispose();
+    });
+  });
+
+  group('chat connection follows only the token-relevant facts', () {
+    test('a record change that keeps the parent verified does not reconnect (offline queue kept); suspension does', () async {
+      final FakeChatProvider fake = FakeChatProvider(chats: sampleChats(), now: chatNow);
+      final FakeChatRepository repo = FakeChatRepository();
+      addTearDown(fake.close);
+      addTearDown(repo.close);
+      final ProviderContainer container = ProviderContainer(
+        overrides: <Override>[
+          sessionProvider.overrideWith((Ref ref) => ref.watch(_sessionHolder)),
+          chatRepositoryProvider.overrideWithValue(repo),
+          chatProviderFactoryProvider.overrideWithValue((String _) => fake),
+        ],
+      );
+      addTearDown(container.dispose);
+      // Kept alive for the whole test (closed with the container).
+      container.listen<AsyncValue<ChatProvider>>(chatClientProvider, (_, _) {});
+      expect(await container.read(chatClientProvider.future), same(fake));
+      expect(repo.calls.where((String c) => c == 'token'), hasLength(1));
+
+      // Language and email changed: same uid, still verified.
+      container.read(_sessionHolder.notifier).set(
+        const SessionSignedIn(
+          uid: 'uid-1',
+          account: Account(
+            parentId: 'ABCD2345',
+            status: AccountStatus.verified,
+            phone: '+201000000001',
+            email: 'new@example.com',
+            emailVerified: true,
+            termsAccepted: true,
+            language: 'en',
+          ),
+        ),
+      );
+      await container.read(chatClientProvider.future);
+      expect(repo.calls.where((String c) => c == 'token'), hasLength(1));
+      expect(fake.calls, isNot(contains('disconnect')));
+
+      // Suspended: chat is cut off on the phone too.
+      container.read(_sessionHolder.notifier).set(
+        const SessionSignedIn(
+          uid: 'uid-1',
+          account: Account(
+            parentId: 'ABCD2345',
+            status: AccountStatus.suspended,
+            phone: '+201000000001',
+            email: 'new@example.com',
+            emailVerified: true,
+            termsAccepted: true,
+            language: 'en',
+          ),
+        ),
+      );
+      await expectLater(container.read(chatClientProvider.future), throwsA(isA<ChatFailure>()));
+      expect(fake.calls, contains('disconnect'));
+    });
+  });
+
+  group('photos carry no EXIF', () {
+    test('a JPEG with an EXIF (APP1) segment is detected; a clean one is not', () {
+      // SOI, APP1 "Exif\0\0" with a tiny body, then SOS.
+      final Uint8List withExif = Uint8List.fromList(<int>[
+        0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x0A, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x4D, 0x4D, 0xFF, 0xDA, 0x00, 0x02,
+      ]);
+      final Uint8List clean = Uint8List.fromList(<int>[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x04, 0x4A, 0x46, 0xFF, 0xDA, 0x00, 0x02]);
+      expect(jpegHasExif(withExif), isTrue);
+      expect(jpegHasExif(clean), isFalse);
+      expect(jpegHasExif(base64Decode(kTinyPng)), isFalse);
     });
   });
 }

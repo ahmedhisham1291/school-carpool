@@ -4,7 +4,7 @@ import type { AuditEntry } from "../admin_panel/types";
 import { parseCid, type ReportRecord } from "./model";
 import type { ChatServer } from "./server";
 import type { ChatStore, DrivingPauser } from "./store";
-import { setMember, newChannel, type SyncDeps } from "./sync";
+import type { SyncDeps } from "./sync";
 
 /**
  * Admin panel: chat reports (Prompt 9, F13 and F14).
@@ -110,8 +110,12 @@ export async function removeReportedMember(deps: ChatAdminDeps, caller: AdminCal
   const uid = report.subjectUid;
   const ref = parseCid(report.cid);
   if (!uid || !ref) throw new AdminError("invalid-state");
-  await setMember(deps, ref, () => newChannel(ref, null, null, "", "", deps.now()), uid, false);
-  await deps.store.updateChannel(ref.cid, (c) => (c && !c.excluded.includes(uid) ? { ...c, excluded: [...c.excluded, uid], updatedAtMs: deps.now() } : null));
+  // One transaction: out of the members AND on the excluded list, so a sync
+  // running in between can never add them back.
+  const saved = await deps.store.updateChannel(ref.cid, (c) =>
+    c ? { ...c, members: c.members.filter((u) => u !== uid), excluded: c.excluded.includes(uid) ? c.excluded : [...c.excluded, uid], updatedAtMs: deps.now() } : null,
+  );
+  if (saved) await deps.server.removeMembers(ref.type, ref.id, [uid]);
   await deps.audit({ actorUid: caller.uid, action: "chat.removeMember", target: `reports/${report.id}`, details: { kind: report.kind }, ip });
   return close(deps, caller, report, "member-removed");
 }

@@ -334,7 +334,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
               onSend: _sendText,
               onPhoto: widget.chat.kind.photos ? () => unawaited(_sendPhoto()) : null,
               photoLabel: l10n.chatPhotoTitle,
-              onLocation: () => unawaited(_sendLocation()),
+              onLocation: widget.chat.kind.locationPin ? () => unawaited(_sendLocation()) : null,
               locationLabel: l10n.chatLocationSend,
               onChanged: (String _) => unawaited(_conversation?.keyStroke().catchError((Object _) {})),
             ),

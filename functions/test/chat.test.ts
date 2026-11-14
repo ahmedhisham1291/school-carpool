@@ -29,7 +29,7 @@ import {
   type ChannelRecord,
 } from "../src/chat/model";
 import { retentionDays, runChatRetention } from "../src/chat/retention";
-import { allChannelTypeSettings, BLOCKED_TERMS_AR, BLOCKED_TERMS_EN, FORBIDDEN_FOR_PARENTS, moderationPolicy } from "../src/chat/setup_plan";
+import { allChannelTypeSettings, APP_GRANTS, appGrantProblems, BLOCKED_TERMS_AR, BLOCKED_TERMS_EN, FORBIDDEN_APP_GRANTS, FORBIDDEN_FOR_PARENTS, moderationPolicy } from "../src/chat/setup_plan";
 import { createChatServer, FakeChatServer, signJwt, StreamChatServer, verifyWebhookSignature, type FetchLike } from "../src/chat/server";
 import { accountFromDoc, chatRelevant, nearestArea, syncAccess, syncCarpoolMember, syncParentGroups } from "../src/chat/sync";
 import { handleWebhook } from "../src/chat/webhook";
@@ -196,6 +196,11 @@ describe("Stream REST calls", () => {
     assert.deepEqual(calls[0].body, { users: [{ id: "alice", set: { revoke_tokens_issued_before: new Date(T0).toISOString() } }] });
     assert.equal((calls[2].body as { data: { created_by_id: string } }).data.created_by_id, "carpool-system");
     assert.deepEqual((calls[5].body as Record<string, unknown>).hard_delete, true);
+  });
+  it("cutting off a parent who never opened chat (no Stream user) is done, not an error", async () => {
+    const server = new StreamChatServer("K", "S", (async () => ({ ok: false, status: 400, json: async () => ({ code: 4 }) })) as FetchLike);
+    await server.revokeTokens("old", T0);
+    await server.deactivateUser("old");
   });
   it("a failed call throws with the status (never the body)", async () => {
     const server = new StreamChatServer("K", "S", (async () => ({ ok: false, status: 500, json: async () => ({ code: 4, message: "secret text" }) })) as FetchLike);
@@ -378,6 +383,15 @@ describe("private chat requests", () => {
     await rejects(sendChatRequest(s.deps, me("alice"), { toUid: "c3" }), "rate-limited");
     s.clock.now += 86_400_000;
     await sendChatRequest(s.deps, me("alice"), { toUid: "c3" });
+  });
+  it("refused requests count toward the daily limit (no free probing of uids)", async () => {
+    const s = twoParents();
+    s.deps.limits.requestsPerDay = 2;
+    s.store.addParent("far");
+    s.store.childSchools.set("far", ["other"]);
+    await rejects(sendChatRequest(s.deps, me("alice"), { toUid: "far" }), "no-shared-school");
+    await rejects(sendChatRequest(s.deps, me("alice"), { toUid: "ghost" }), "not-found");
+    await rejects(sendChatRequest(s.deps, me("alice"), { toUid: "bob" }), "rate-limited");
   });
   it("refused: requests off, no shared school or carpool, unverified target, yourself, unverified caller", async () => {
     const s = twoParents();
@@ -690,6 +704,23 @@ describe("Stream app setup plan (scripts/stream_setup.ts)", () => {
       assert.equal(t.read_events, uploads);
       assert.equal(t.grants.channel_member.includes("upload-attachment"), uploads);
     }
+  });
+  it("app level: parents cannot update their own profile or list users", () => {
+    for (const role of ["user", "guest", "anonymous"]) {
+      const list = APP_GRANTS[role];
+      assert.ok(list, role);
+      for (const id of list) assert.ok(!FORBIDDEN_APP_GRANTS.includes(id), `${role} ${id}`);
+    }
+    assert.ok(FORBIDDEN_APP_GRANTS.includes("update-user-owner"));
+    assert.ok(FORBIDDEN_APP_GRANTS.includes("search-user"));
+    assert.deepEqual(appGrantProblems(APP_GRANTS), []);
+    // What Stream answers with its defaults is refused by the script.
+    assert.deepEqual(appGrantProblems({ user: ["update-user-owner", "search-user", "flag-user", "mute-user"], guest: ["search-user"] }), [
+      "user: update-user-owner",
+      "user: search-user",
+      "guest: search-user",
+    ]);
+    assert.deepEqual(appGrantProblems(undefined), []);
   });
   it("blocked terms in Arabic and English; moderation covers text and images", () => {
     assert.ok(BLOCKED_TERMS_AR.length >= 10 && BLOCKED_TERMS_AR.every((w) => /[؀-ۿ]/.test(w)));

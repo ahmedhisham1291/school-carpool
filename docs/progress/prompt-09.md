@@ -226,6 +226,50 @@ chats kept on the phone, enough to check the screens.
 | `test/admin/admin_screens_test.dart` (+4), `admin_one_line_test.dart` (report screen), `router_test.dart` (Chats tab), `maps_screens_test.dart` (Message sends a request) | Written, not run here |
 | Screenshots `chat_tab`, `chat_carpool_chat`, `chat_requests`, `chat_settings`, `admin_report` (AR/EN, light/dark) | Written, not run here (CI artifact) |
 
+## Review fixes (docs/reviews/prompt-09-review.md)
+
+Blocking:
+1. **App-level grants**: `setup_plan.ts` now has `APP_GRANTS` (nothing for
+   `user`, `guest`, `anonymous`) and `appGrantProblems`; the script sets
+   them, reads them back and refuses to finish while `update-user-owner`,
+   `search-user` (or other forbidden app rights) remain. Stream users are
+   written only by Cloud Functions; the app connects with its uid only.
+   Tests in `chat.test.ts`; manual check on the dev Stream app in SETUP 19.3.
+2. **Location pin** only in private and carpool chats
+   (`ChatKind.locationPin`), as for photos; Stream refuses attachments in
+   groups anyway. Widget tests: groups have neither button, private chats
+   have both.
+
+Non-blocking done:
+- 1: the chat client follows `chatUidProvider` (uid while verified, via
+  `select`), so other writes to the parent's record no longer reconnect and
+  wipe the offline queue; unit test with a changing session.
+- 6: removing a reported member and excluding them is one transaction.
+- 8: `jpegHasExif` refuses any photo that still has an EXIF segment after
+  re-encoding; unit test.
+- 9: chat requests count toward the daily limit before anything about the
+  other parent is revealed; test.
+- 10: already so: own messages have no long-press menu (no Report or Block).
+- 11: the setup script exits with an error when moderation fails, unless
+  `--no-moderation`.
+- 12: revoking or deactivating a parent with no Stream user (400 or 404)
+  counts as done; test.
+
+Non-blocking left (next prompt or the pilot):
+- 2: chat does not open offline at a cold start (a token is needed first).
+- 3: retention truncates every channel every night; truncate only channels
+  with old messages and pace the calls (check `channel.truncated` on the
+  phone).
+- 4: urgent report abuse: limit urgent reports per reporter, alert admins
+  on repeated pauses from one reporter; `lift` should keep the pause while
+  another urgent report is open.
+- 5: report and pause are two steps: idempotency key for reports and a
+  retrying pause trigger.
+- 7: clear the context of handled reports after the retention period.
+- 11 (rest): check on the dev app that multi-word blocklist phrases work
+  and that typing and read events need no more grants.
+- 13: freeze the chat of a closed carpool.
+
 ## Learned from earlier reviews
 
 - Every new collection has rules and rules tests (owner, other parent,

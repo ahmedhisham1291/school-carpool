@@ -21,6 +21,11 @@ enum ChatKind {
   /// Photos only in private and carpool chats (spec section 5).
   bool get photos => this == ChatKind.private || this == ChatKind.carpool;
 
+  /// The location pin is an attachment too: private and carpool chats only.
+  /// Groups get no attachments on Stream, and an exact location must never
+  /// go to a whole school (spec section 6).
+  bool get locationPin => photos;
+
   /// Read receipts only in small chats.
   bool get readReceipts => photos;
 

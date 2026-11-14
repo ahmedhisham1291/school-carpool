@@ -22,14 +22,18 @@ final Provider<ChatProviderFactory> chatProviderFactoryProvider = Provider<ChatP
   (Ref ref) => (String provider) => provider == 'stream' ? StreamChatProvider(persist: !kIsWeb) : demoChatProvider(),
 );
 
-/// The signed-in, VERIFIED parent's uid, or null.
-String? _verifiedUid(Ref ref) {
-  final SessionState session = ref.watch(sessionProvider);
-  if (session is SessionSignedIn && session.account?.status == AccountStatus.verified) {
-    return session.uid;
-  }
-  return null;
-}
+/// The uid of a signed-in, VERIFIED parent, or null (also when suspended or
+/// banned: the record's status is then not "verified").
+String? verifiedUidOf(SessionState session) =>
+    session is SessionSignedIn && session.account?.status == AccountStatus.verified ? session.uid : null;
+
+/// Changes only when the token-relevant facts change (who is signed in, and
+/// whether they may chat). Other writes to the parent's record (language,
+/// email, driving pause...) do not reconnect chat, so messages waiting in
+/// the offline queue are kept.
+final Provider<String?> chatUidProvider = Provider<String?>((Ref ref) => ref.watch(sessionProvider.select(verifiedUidOf)));
+
+String? _verifiedUid(Ref ref) => ref.watch(chatUidProvider);
 
 /// The connected chat for the signed-in verified parent. Connects with a
 /// short-lived token from Cloud Functions and refreshes it when it runs
@@ -122,13 +126,52 @@ class DevicePhotoPicker implements ChatPhotoPicker {
     if (file == null) {
       return null;
     }
+    final Uint8List out;
     try {
       // keepExif is off: the compressor drops EXIF, GPS included.
-      return await _compressor.compress(await file.readAsBytes(), document: false);
+      out = await _compressor.compress(await file.readAsBytes(), document: false);
     } on Object {
       throw const ChatFailure(ChatFailureKind.photoFailed);
     }
+    // Belt and braces: never upload a JPEG that still carries EXIF.
+    if (jpegHasExif(out)) {
+      throw const ChatFailure(ChatFailureKind.photoFailed);
+    }
+    return out;
   }
+}
+
+/// True when [bytes] is a JPEG with an APP1 "Exif" segment before the image
+/// data (where GPS location lives). Non-JPEG data returns false.
+bool jpegHasExif(Uint8List bytes) {
+  if (bytes.length < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8) {
+    return false;
+  }
+  int i = 2;
+  while (i + 4 <= bytes.length) {
+    if (bytes[i] != 0xFF) {
+      return false;
+    }
+    final int marker = bytes[i + 1];
+    // Start of scan or end of image: no more metadata segments.
+    if (marker == 0xDA || marker == 0xD9) {
+      return false;
+    }
+    final int length = (bytes[i + 2] << 8) | bytes[i + 3];
+    if (marker == 0xE1 &&
+        i + 10 <= bytes.length &&
+        bytes[i + 4] == 0x45 &&
+        bytes[i + 5] == 0x78 &&
+        bytes[i + 6] == 0x69 &&
+        bytes[i + 7] == 0x66) {
+      return true;
+    }
+    if (length < 2) {
+      return false;
+    }
+    i += 2 + length;
+  }
+  return false;
 }
 
 final Provider<ChatPhotoPicker> chatPhotoPickerProvider = Provider<ChatPhotoPicker>(

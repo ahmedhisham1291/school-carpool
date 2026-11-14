@@ -1003,7 +1003,29 @@ The script (`functions/scripts/stream_setup.ts`, plan in
   messages; members read, write, mention and type;
 - creates the `carpool-system` user that creates every channel;
 - sets the webhook (event `message.new`) to `chatWebhook`;
-- sends the AI moderation policy for text and images (19.4).
+- removes every **app-level** right of parents (`user`, `guest`,
+  `anonymous`): no updating their own Stream user (name, parent ID) and no
+  listing users. It reads the settings back and stops with an error if
+  `update-user-owner` or `search-user` is still granted. Names and parent
+  IDs are written only by Cloud Functions; the app connects with its uid
+  only;
+- sends the AI moderation policy for text and images (19.4). Without
+  Stream's moderation product the script fails; for a dev app without it
+  add `-- --no-moderation` (never for prod).
+
+**Manual check on the dev Stream app (once, and after Stream changes its
+defaults).** With a dev parent's token from `getChatToken` (Functions log
+in the emulator, or the app's debug console), in a Node shell with the
+`stream-chat` client: `client.connectUser({ id: '<uid>' }, '<token>')`, then
+
+1. `client.partialUpdateUser({ id: '<uid>', set: { name: 'School admin' } })`
+   must fail (permission error);
+2. `client.queryUsers({})` must fail;
+3. `client.channel('cp_school', 's-<schoolId>').create()` and
+   `addMembers(['<other uid>'])` on a carpool chat must fail;
+4. sending a message with an attachment in a school group must fail.
+
+Write the date of the check in docs/progress.
 
 Run it again whenever `setup_plan.ts` changes. Without `WEBHOOK_URL` (first
 time, before the first deploy) it skips the webhook: deploy, then run it

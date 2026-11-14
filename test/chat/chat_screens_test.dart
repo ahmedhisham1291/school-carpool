@@ -224,10 +224,18 @@ void main() {
       expect(chat.calls, contains('sendPhoto:${carpoolChat.cid}:68'));
     });
 
-    testWidgets('no photos in school groups (location still)', (WidgetTester tester) async {
+    testWidgets('no photos and no location pin in school and area groups', (WidgetTester tester) async {
       final (FakeChatProvider chat, FakeChatRepository repo) = _fakes();
       await _pump(tester, schoolChat.route, chat: chat, repo: repo);
       expect(find.byKey(const Key('chat.composer.photo')), findsNothing);
+      expect(find.byKey(const Key('chat.composer.location')), findsNothing);
+      expect(find.byKey(const Key('chat.composer.field')), findsOneWidget);
+    });
+
+    testWidgets('private chats have the photo and location buttons', (WidgetTester tester) async {
+      final (FakeChatProvider chat, FakeChatRepository repo) = _fakes();
+      await _pump(tester, privateChat.route, chat: chat, repo: repo);
+      expect(find.byKey(const Key('chat.composer.photo')), findsOneWidget);
       expect(find.byKey(const Key('chat.composer.location')), findsOneWidget);
     });
 

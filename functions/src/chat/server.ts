@@ -173,8 +173,8 @@ export class StreamChatServer implements ChatServer {
     try {
       await this.call("POST", `/users/${encodeURIComponent(uid)}/deactivate`, { mark_messages_deleted: false, created_by_id: SYSTEM_USER_ID });
     } catch (error) {
-      // Never connected: nothing to cut off.
-      if (error instanceof ChatServiceError && error.status === 404) return;
+      // Never connected (Stream answers 404 or 400 "user does not exist"): nothing to cut off.
+      if (error instanceof ChatServiceError && (error.status === 404 || error.status === 400)) return;
       throw error;
     }
   }
@@ -193,7 +193,8 @@ export class StreamChatServer implements ChatServer {
     try {
       await this.call("PATCH", "/users", { users: [{ id: uid, set: { revoke_tokens_issued_before: new Date(beforeMs).toISOString() } }] });
     } catch (error) {
-      if (error instanceof ChatServiceError && error.status === 404) return;
+      // A parent who never opened chat has no Stream user, so no token to revoke.
+      if (error instanceof ChatServiceError && (error.status === 404 || error.status === 400)) return;
       throw error;
     }
   }

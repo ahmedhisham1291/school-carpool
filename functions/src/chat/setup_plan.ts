@@ -52,6 +52,47 @@ export const BLOCKLISTS = [
   { name: "carpool_blocked_en", words: BLOCKED_TERMS_EN },
 ] as const;
 
+/**
+ * App-level (".app" scope) grants (review of Prompt 9, blocking 1). Stream's
+ * defaults let role "user" update its own profile (`update-user-owner`) and
+ * list every user (`search-user`). Here parents get NOTHING at app level:
+ * names and parent IDs are written only by Cloud Functions (getChatToken and
+ * the users trigger upsert them server-side), and nobody can list users
+ * (parent ID lookups stay behind our rate-limited function).
+ */
+export const APP_GRANTS: Readonly<Record<string, readonly string[]>> = {
+  user: [],
+  guest: [],
+  anonymous: [],
+};
+
+/** App-level rights a parent (or a guest) must never have. */
+export const FORBIDDEN_APP_GRANTS: readonly string[] = [
+  "update-user-owner",
+  "update-user",
+  "search-user",
+  "search-user-owner",
+  "query-users",
+  "create-channel",
+  "ban-user",
+];
+
+/**
+ * Problems in the app-level grants Stream reports back (GET /app): every
+ * forbidden right still granted to user, guest or anonymous. Empty = safe.
+ */
+export function appGrantProblems(grants: unknown): string[] {
+  const out: string[] = [];
+  const g = (grants ?? {}) as Record<string, unknown>;
+  for (const role of ["user", "guest", "anonymous"]) {
+    const list = Array.isArray(g[role]) ? (g[role] as unknown[]) : [];
+    for (const id of list) {
+      if (typeof id === "string" && FORBIDDEN_APP_GRANTS.includes(id)) out.push(`${role}: ${id}`);
+    }
+  }
+  return out;
+}
+
 /** Parents get no app-level channel rights in our types (Functions create and fill channels). */
 export const USER_GRANTS: readonly string[] = ["update-message-owner", "delete-message-owner", "delete-attachment-owner"];
 

@@ -165,6 +165,9 @@ export async function sendChatRequest(deps: ChatDeps, caller: Caller, data: unkn
   const me = await requireChatAccount(deps, caller);
   const toUid = uidField(record(data).toUid);
   if (toUid === caller.uid) throw new ChatError("self");
+  // Counted before anything about the other parent is revealed (blocked,
+  // requests off, no shared school), so nobody can probe uids freely.
+  await take(deps, caller.uid, "requests", DAY, deps.limits.requestsPerDay);
   const other = await deps.store.account(toUid);
   if (!chatEligible(other)) throw new ChatError("not-found");
   if (await blockedEitherWay(deps.store, caller.uid, toUid)) throw new ChatError("blocked");
@@ -182,7 +185,6 @@ export async function sendChatRequest(deps: ChatDeps, caller: Caller, data: unkn
   if (mine?.status === "pending") throw new ChatError("already-pending");
   if ((await deps.store.settings(toUid)).requestsOff) throw new ChatError("requests-off");
   if (!(await shareSomething(deps.store, caller.uid, toUid))) throw new ChatError("no-shared-school");
-  await take(deps, caller.uid, "requests", DAY, deps.limits.requestsPerDay);
 
   const nowMs = deps.now();
   const r: RequestRecord = {

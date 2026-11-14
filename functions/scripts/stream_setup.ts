@@ -14,19 +14,23 @@
  *    and add no member), photos and read receipts per kind, Stream push off;
  * 4. the system user that creates every channel;
  * 5. the webhook to our chatWebhook (new messages) and Stream push off;
- * 6. the AI moderation policy for text and images (needs Stream's
- *    moderation product; a refusal here is printed, the rest still holds).
+ * 6. app-level grants: parents cannot update their own Stream user (name,
+ *    parent ID) or list users; read back, refuses to finish otherwise;
+ * 7. the AI moderation policy for text and images (needs Stream's
+ *    moderation product; fails unless --no-moderation is given).
  *
  * The secret comes from the environment only (never a file in the repo).
  * Prints step names and Stream's error codes only.
  */
 import { signJwt } from "../src/chat/server";
-import { allChannelTypeSettings, BLOCKLISTS, FORBIDDEN_FOR_PARENTS, moderationPolicy, SYSTEM_USER } from "../src/chat/setup_plan";
+import { allChannelTypeSettings, APP_GRANTS, appGrantProblems, BLOCKLISTS, FORBIDDEN_FOR_PARENTS, moderationPolicy, SYSTEM_USER } from "../src/chat/setup_plan";
 
 const BASE = "https://chat.stream-io-api.com";
 const key = process.env.STREAM_API_KEY ?? "";
 const secret = process.env.STREAM_API_SECRET ?? "";
 const webhookUrl = process.env.WEBHOOK_URL ?? "";
+// Only for a Stream app without the moderation product (dev): moderation off is then accepted.
+const noModeration = process.argv.includes("--no-moderation");
 
 function refuse(reason: string): never {
   console.error(`chat:setup: ${reason}`);
@@ -97,10 +101,20 @@ async function main(): Promise<void> {
     console.log("skip  webhook (set WEBHOOK_URL after the first deploy and run again)");
   }
 
-  // 6. AI moderation for text and images (Stream moderation product).
+  // 6. App-level grants: parents may not change their own profile (name,
+  // parent ID) or list users. Read back and refuse to finish otherwise.
+  if (!report("app-level grants", await call("PATCH", "/app", { grants: APP_GRANTS }))) process.exit(1);
+  const app = await call("GET", "/app");
+  if (!report("read app settings", app)) process.exit(1);
+  const appJson = (app.json.app ?? {}) as Record<string, unknown>;
+  const problems = appGrantProblems(appJson.grants);
+  if (problems.length > 0) refuse(`parents still have app-level rights: ${problems.join(", ")}`);
+
+  // 7. AI moderation for text and images (Stream moderation product).
   const mod = await call("POST", "/api/v2/moderation/config", moderationPolicy());
   if (!report("moderation policy (text and images)", mod)) {
     console.error("      Turn on Moderation for this app in the Stream dashboard and run again (SETUP.md 19.4). The blocklists above already apply.");
+    if (!noModeration) refuse("moderation is not on (run with --no-moderation only for a dev app without it)");
   }
   console.log("done");
 }
