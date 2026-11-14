@@ -56,6 +56,12 @@ Placeholders used in the code that you will replace with your own values:
 Do this three times: **dev**, **staging**, **prod**. Use only fake data in dev
 and staging, ever.
 
+**Staging without installing anything:** after steps 1 to 5 below, run
+`bash tool/cloud_setup.sh staging school-carpool-staging <admin-email>` in
+Google Cloud Shell. It does the rest of this section and the per-project
+steps of sections 4 and 11 to 23 that a command can do, and prints what is
+left. Guide: [docs/owner-cloud-shell.md](docs/owner-cloud-shell.md).
+
 1. console.firebase.google.com > **Add project**. Suggested ids:
    `<yourname>-carpool-dev`, `-staging`, `-prod`. Turn Google Analytics
    **off** (not in our stack, and it collects data). Put the ids in

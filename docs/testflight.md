@@ -68,6 +68,13 @@ What is already in the repository (`codemagic.yaml`, workflow
    the functions, rules and indexes (SETUP.md 23.1), and register App Check
    with **App Attest** for the iOS app (SETUP.md 3 step 8).
 
+   **Easiest:** [docs/owner-cloud-shell.md](owner-cloud-shell.md). After four
+   console clicks, one command in Google Cloud Shell
+   (`bash tool/cloud_setup.sh staging school-carpool-staging <admin-email>`)
+   does the deploy, App Attest, the Maps keys (it prints `MAPS_API_KEY_IOS`
+   for step 2), the admin panel and the staging Firebase options for step 3.
+   The APNs upload stays a console step.
+
 ## Every build
 
 1. Codemagic > the app > **Start new build** > branch `main` > workflow
