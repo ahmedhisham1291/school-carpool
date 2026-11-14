@@ -8,9 +8,23 @@
 # cannot change what runs.
 name: checks
 
+# Minutes budget (owner, 14 Nov 2026): the monthly Actions allowance is
+# nearly used, so:
+# - docs-only pushes don't run anything (paths-ignore);
+# - feature branches run analyze, tests and the backend tests only;
+# - screenshots and the web/admin/Android builds run on main, on tags,
+#   or when started by hand (Actions > checks > Run workflow, full=true).
 on:
   push:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   workflow_dispatch:
+    inputs:
+      full:
+        description: "Also run screenshots and the web/admin/Android builds"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -42,9 +56,10 @@ jobs:
       - name: flutter test
         run: flutter test --reporter expanded
       - name: Screenshots (AR/EN, light/dark, directions A/B)
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.full
         run: flutter test test/screenshots --update-goldens --reporter expanded
       - name: Upload screenshots
-        if: always()
+        if: always() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.full)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: screenshots
@@ -61,6 +76,7 @@ jobs:
 
   builds:
     name: Web, admin panel and Android compile (staging)
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || inputs.full
     runs-on: ubuntu-latest
     # Android release builds take 15-25 minutes on a cold runner.
     timeout-minutes: 45
