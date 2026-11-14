@@ -3,16 +3,15 @@ import 'dart:typed_data';
 
 import 'package:school_carpool/features/chat/chat_models.dart';
 
-/// The chat service as screens see it (Prompt 9). Two implementations:
-/// - StreamChatProvider (stream_chat_provider.dart): Stream Chat's Flutter
-///   SDK, with its offline storage and send queue;
-/// - FakeChatProvider (below): on the phone only, for dev without a Stream
-///   app and for widget tests and CI (no Stream account needed).
+/// The chat service as screens see it. Two implementations:
+/// - FirestoreChatProvider (firestore_chat_provider.dart): our own chat on
+///   Firestore, with Firestore's offline cache and write queue;
+/// - FakeChatProvider (below): in memory, for widget tests.
 ///
 /// Nothing here creates a chat or adds a member: Cloud Functions do.
 abstract interface class ChatProvider {
-  /// Connects as [first.userId]. [refresh] fetches a new token from Cloud
-  /// Functions when the current one runs out (about every hour).
+  /// Connects as [first.userId]. [refresh] is unused by our own chat (it
+  /// needs no token); kept so a provider with tokens fits the same shape.
   Future<void> connect(ChatCredentials first, Future<String> Function() refresh);
 
   /// Disconnects and clears what was kept on the phone (sign-out).
@@ -41,7 +40,7 @@ abstract interface class ChatConversation {
   /// Sends now, or keeps it on the phone and sends when back online.
   Future<void> sendText(String text);
 
-  /// A JPEG with no EXIF (photo_prep.dart strips it before this).
+  /// A WebP or JPEG with no EXIF (the photo picker strips it before this).
   Future<void> sendPhoto(Uint8List jpeg);
 
   Future<void> sendLocation(double latitude, double longitude);
@@ -58,7 +57,7 @@ abstract interface class ChatConversation {
   Future<void> dispose();
 }
 
-/// On-phone chat with a few fake parents (dev without Stream, tests).
+/// In-memory chat with a few fake parents (widget tests).
 class FakeChatProvider implements ChatProvider {
   FakeChatProvider({List<ChatSummary>? chats, Map<ChatRef, List<ChatMessage>>? messages, this.me = 'uid-1', DateTime? now})
     : _chats = chats ?? <ChatSummary>[],

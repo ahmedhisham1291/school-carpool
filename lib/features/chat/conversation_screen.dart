@@ -12,16 +12,25 @@ import 'package:school_carpool/features/chat/chat_provider.dart';
 import 'package:school_carpool/features/chat/chat_session.dart';
 import 'package:school_carpool/features/chat/chat_sheets.dart';
 import 'package:school_carpool/features/chat/chats_screen.dart';
+import 'package:school_carpool/features/chat/firestore_chat_provider.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/location_service.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// One chat photo by its path (Storage; members of that chat only). Null
+/// when it is gone or may not be read. The chat provider keeps the last few.
+final _chatPhotoProvider = FutureProvider.autoDispose.family<Uint8List?, String>((Ref ref, String path) async {
+  final ChatProvider provider = await ref.watch(chatClientProvider.future);
+  return provider is ChatPhotoSource ? provider.photo(path) : null;
+});
+
 /// One chat (spec section 10, "conversation"): messages oldest at the top,
 /// newest at the bottom, the composer below. Photos and the location pin
 /// only where the chat allows them (photos: private and carpool chats).
 /// Read marks in small chats, a typing line, and an offline note: a
-/// message written offline waits on the phone and sends when back online.
+/// message written offline waits on the phone (Firestore's write queue)
+/// and sends when back online.
 ///
 /// Long-press another parent's message to report it or block them. The
 /// info button opens mute, report and block. A blocked parent's messages
@@ -464,17 +473,30 @@ class _MessageListState extends ConsumerState<_MessageList> {
         return Text(m.text);
       case ChatMessageKind.photo:
         final List<int>? local = m.localImage;
-        final String? url = m.imageUrl;
-        final Widget image = local != null
-            ? Image.memory(Uint8List.fromList(local), fit: BoxFit.cover, semanticLabel: l10n.chatPhoto)
-            : url != null
-            ? Image.network(
-                url,
-                fit: BoxFit.cover,
-                semanticLabel: l10n.chatPhoto,
-                errorBuilder: (BuildContext context, Object e, StackTrace? s) => Icon(Icons.broken_image_outlined, size: AppIconSize.xl, color: context.colors.onSurfaceVariant),
-              )
-            : Icon(Icons.image_outlined, size: AppIconSize.xl, color: context.colors.onSurfaceVariant);
+        final String? path = m.photoPath;
+        final Widget placeholder = Icon(Icons.image_outlined, size: AppIconSize.xl, color: context.colors.onSurfaceVariant);
+        final Widget broken = Icon(Icons.broken_image_outlined, size: AppIconSize.xl, color: context.colors.onSurfaceVariant);
+        final Widget image;
+        if (local != null) {
+          image = Image.memory(Uint8List.fromList(local), fit: BoxFit.cover, semanticLabel: l10n.chatPhoto);
+        } else if (path != null) {
+          // Fetched through the rules (members of this chat only).
+          final AsyncValue<Uint8List?> photo = ref.watch(_chatPhotoProvider(path));
+          final Uint8List? bytes = photo.value;
+          image = bytes != null
+              ? Image.memory(
+                  bytes,
+                  fit: BoxFit.cover,
+                  semanticLabel: l10n.chatPhoto,
+                  gaplessPlayback: true,
+                  errorBuilder: (BuildContext context, Object e, StackTrace? s) => broken,
+                )
+              : photo.isLoading
+              ? placeholder
+              : broken;
+        } else {
+          image = placeholder;
+        }
         return ClipRRect(
           borderRadius: AppRadii.control,
           child: SizedBox.square(dimension: AppSpacing.chatPhoto, child: image),

@@ -3,7 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
-/// Words and icons for chat screens (Prompt 9). Every string comes from the
+/// Words and icons for chat screens. Every string comes from the
 /// ARB files.
 
 IconData chatKindIcon(ChatKind kind) => switch (kind) {

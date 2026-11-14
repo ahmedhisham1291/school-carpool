@@ -1,47 +1,47 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/chat/chat_backend.dart';
 import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/chat/chat_provider.dart';
 import 'package:school_carpool/features/chat/chat_repository.dart';
-import 'package:school_carpool/features/chat/stream_chat_provider.dart';
+import 'package:school_carpool/features/chat/firestore_chat_provider.dart';
 import 'package:school_carpool/features/verification/image_compressor.dart';
 
-/// Builds the chat provider the server asked for: "stream" (a Stream app is
-/// set up for this project) or "fake" (dev without one: chat stays on the
-/// phone with a few fake parents).
+/// Builds the chat provider: our own chat on Firestore, in every flavor
+/// (dev runs it on the Firestore emulator). Widget tests override
+/// [chatClientProvider] with the in-memory fake instead.
 typedef ChatProviderFactory = ChatProvider Function(String provider);
 
-final Provider<ChatProviderFactory> chatProviderFactoryProvider = Provider<ChatProviderFactory>(
-  // Offline storage on the phone; the website keeps chat in memory (Stage 2).
-  (Ref ref) => (String provider) => provider == 'stream' ? StreamChatProvider(persist: !kIsWeb) : demoChatProvider(),
-);
+final Provider<ChatProviderFactory> chatProviderFactoryProvider = Provider<ChatProviderFactory>((Ref ref) {
+  final ChatBackend backend = FirestoreChatBackend(ref.watch(firestoreProvider), () => FirebaseStorage.instance);
+  return (String provider) => FirestoreChatProvider(backend);
+});
 
 /// The uid of a signed-in, VERIFIED parent, or null (also when suspended or
 /// banned: the record's status is then not "verified").
 String? verifiedUidOf(SessionState session) =>
     session is SessionSignedIn && session.account?.status == AccountStatus.verified ? session.uid : null;
 
-/// Changes only when the token-relevant facts change (who is signed in, and
-/// whether they may chat). Other writes to the parent's record (language,
-/// email, driving pause...) do not reconnect chat, so messages waiting in
-/// the offline queue are kept.
+/// Changes only when the facts chat depends on change (who is signed in,
+/// and whether they may chat). Other writes to the parent's record
+/// (language, email, driving pause...) do not reconnect chat.
 final Provider<String?> chatUidProvider = Provider<String?>((Ref ref) => ref.watch(sessionProvider.select(verifiedUidOf)));
 
 String? _verifiedUid(Ref ref) => ref.watch(chatUidProvider);
 
-/// The connected chat for the signed-in verified parent. Connects with a
-/// short-lived token from Cloud Functions and refreshes it when it runs
-/// out; joins the parent's chats once. Signing out (or losing verification)
-/// disconnects and clears the chat kept on the phone.
+/// The connected chat for the signed-in verified parent. No token and no
+/// server call is needed to connect (firestore.rules decide what the parent
+/// reads), so chat also opens offline from Firestore's cache. Signing out
+/// (or losing verification) disconnects.
 /// Riverpod 3 retries a failed provider by itself. A parent who may not chat
 /// (not verified, suspended) must get the error at once, not a screen that
-/// keeps loading; other failures (offline, Stream down) retry a few times.
+/// keeps loading; other failures retry a few times.
 Duration? chatClientRetry(int retryCount, Object error) {
   if (error is ChatFailure && (error.kind == ChatFailureKind.notVerified || error.kind == ChatFailureKind.suspended)) {
     return null;
@@ -55,11 +55,12 @@ final FutureProvider<ChatProvider> chatClientProvider = FutureProvider<ChatProvi
     throw const ChatFailure(ChatFailureKind.notVerified);
   }
   final ChatRepository repo = ref.watch(chatRepositoryProvider);
-  final ChatCredentials first = await repo.token();
-  final ChatProvider provider = ref.watch(chatProviderFactoryProvider)(first.provider);
+  const String kind = 'firestore';
+  final ChatProvider provider = ref.watch(chatProviderFactoryProvider)(kind);
   ref.onDispose(() => unawaited(provider.disconnect()));
-  await provider.connect(first, () async => (await repo.token()).token);
-  // Best effort: the triggers normally did this already.
+  await provider.connect(ChatCredentials(provider: kind, userId: uid), () async => '');
+  // Best effort: the triggers normally did this already (a missed change
+  // is repaired here; offline it simply fails and nothing is lost).
   unawaited(repo.syncMyChats().catchError((Object _) {}));
   return provider;
 });
@@ -115,9 +116,9 @@ final StreamProvider<bool> chatRequestsOffProvider = StreamProvider<bool>((Ref r
 
 enum PhotoSource { camera, gallery }
 
-/// Picks a photo and prepares it for upload: re-encoded as JPEG, at most
-/// 1080 on the short side, with EXIF (and so any location) removed. Null
-/// when the parent cancelled.
+/// Picks a photo and prepares it for upload: re-encoded (WebP on the phone,
+/// JPEG on the web), long edge at most 1600, with EXIF (and so any
+/// location) removed. Null when the parent cancelled.
 abstract interface class ChatPhotoPicker {
   Future<Uint8List?> pick(PhotoSource source);
 }
@@ -188,47 +189,3 @@ bool jpegHasExif(Uint8List bytes) {
 final Provider<ChatPhotoPicker> chatPhotoPickerProvider = Provider<ChatPhotoPicker>(
   (Ref ref) => DevicePhotoPicker(ref.watch(imageCompressorProvider)),
 );
-
-// ---------------------------------------------------------------------------
-// Dev without a Stream app: a few fake parents on the phone
-// ---------------------------------------------------------------------------
-
-FakeChatProvider demoChatProvider() {
-  final DateTime t = DateTime.now().toUtc();
-  const ChatRef school = ChatRef(ChatKind.school, 's-demo');
-  const ChatRef carpool = ChatRef(ChatKind.carpool, 'c-demo');
-  return FakeChatProvider(
-    me: 'me',
-    chats: <ChatSummary>[
-      ChatSummary(
-        ref: carpool,
-        nameAr: 'مشوار المدرسة · 07:30',
-        nameEn: 'School run · 07:30',
-        lastAt: t,
-        unread: 1,
-        memberCount: 3,
-        lastMessage: const ChatPreview(kind: ChatMessageKind.text, text: 'صباح الخير'),
-      ),
-      ChatSummary(
-        ref: school,
-        nameAr: 'مدرسة تجريبية',
-        nameEn: 'Demo school',
-        lastAt: t.subtract(const Duration(hours: 3)),
-        muted: true,
-        memberCount: 64,
-      ),
-    ],
-    messages: <ChatRef, List<ChatMessage>>{
-      carpool: <ChatMessage>[
-        ChatMessage(
-          id: 'demo-1',
-          authorId: 'demo-hoda',
-          authorName: 'هدى',
-          kind: ChatMessageKind.text,
-          createdAt: t.subtract(const Duration(minutes: 3)),
-          text: 'صباح الخير',
-        ),
-      ],
-    },
-  );
-}

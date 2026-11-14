@@ -29,7 +29,7 @@ abstract final class ChatRoutes {
 ///
 /// States: loading (skeleton rows), empty ("No chats yet"), error and
 /// offline (retry). When the connection drops, a note says messages will
-/// send when the phone is back online (Stream's offline queue).
+/// send when the phone is back online (Firestore's write queue).
 class ChatsScreen extends ConsumerWidget {
   const ChatsScreen({super.key});
 

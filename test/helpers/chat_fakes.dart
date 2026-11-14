@@ -102,12 +102,6 @@ class FakeChatRepository implements ChatRepository {
   }
 
   @override
-  Future<ChatCredentials> token() async {
-    await _maybeFail('token');
-    return ChatCredentials(provider: 'fake', apiKey: '', userId: 'uid-1', token: 't', expiresAt: chatNow.add(const Duration(hours: 1)));
-  }
-
-  @override
   Future<void> syncMyChats() => _maybeFail('syncMyChats');
 
   @override
@@ -185,7 +179,7 @@ class FakeChatPhotoPicker implements ChatPhotoPicker {
   }
 }
 
-/// Chat overrides for widget tests: the fake provider (no Stream account),
+/// Chat overrides for widget tests: the in-memory fake provider (no Firebase),
 /// the fake repository, the fake photo picker and a fixed clock. Always the
 /// same four overrides.
 List<Override> chatOverrides({FakeChatProvider? provider, FakeChatRepository? repository, FakeChatPhotoPicker? photos}) {

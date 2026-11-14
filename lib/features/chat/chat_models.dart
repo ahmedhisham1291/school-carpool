@@ -2,11 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
-/// Chat (Prompt 9: F8, F9, F10, F13). The app's own picture of chat, so
-/// screens never depend on Stream's types (the fake provider in tests and
-/// the Stream provider on the phone both produce these).
+/// Chat (F8, F9, F10, F13). The app's own picture of chat, so screens never
+/// depend on where chat is kept (the fake provider in tests and the
+/// Firestore provider on the phone both produce these).
 
-/// The four kinds of chat (spec section 5), with Stream's channel type.
+/// The four kinds of chat (spec section 5), with the type that starts a
+/// chat's ID and its route.
 enum ChatKind {
   private('cp_private'),
   school('cp_school'),
@@ -15,19 +16,23 @@ enum ChatKind {
 
   const ChatKind(this.type);
 
-  /// Stream channel type (functions/src/chat/model.ts).
+  /// Chat type (functions/src/chat/model.ts CHANNEL_TYPES).
   final String type;
 
-  /// Photos only in private and carpool chats (spec section 5).
-  bool get photos => this == ChatKind.private || this == ChatKind.carpool;
+  /// Private and carpool chats: photos, the location pin, read marks and
+  /// typing, and an unread counter per member kept by Cloud Functions.
+  /// School and area groups are text only (firestore.rules `smallChat`).
+  bool get small => this == ChatKind.private || this == ChatKind.carpool;
 
-  /// The location pin is an attachment too: private and carpool chats only.
-  /// Groups get no attachments on Stream, and an exact location must never
-  /// go to a whole school (spec section 6).
-  bool get locationPin => photos;
+  /// Photos only in private and carpool chats (spec section 5).
+  bool get photos => small;
+
+  /// The location pin too: an exact location must never go to a whole
+  /// school (spec section 6). The rules refuse it in groups.
+  bool get locationPin => small;
 
   /// Read receipts only in small chats.
-  bool get readReceipts => photos;
+  bool get readReceipts => small;
 
   static ChatKind? fromType(String? type) {
     for (final ChatKind k in ChatKind.values) {
@@ -41,7 +46,7 @@ enum ChatKind {
 
 final RegExp _part = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
 
-/// A chat by its Stream type and ID ("type:id" is its cid).
+/// A chat by its type and ID ("type:id" is its cid, the document ID).
 class ChatRef {
   const ChatRef(this.kind, this.id);
 
@@ -152,7 +157,7 @@ class ChatMessage {
     required this.kind,
     required this.createdAt,
     this.text = '',
-    this.imageUrl,
+    this.photoPath,
     this.localImage,
     this.latitude,
     this.longitude,
@@ -167,7 +172,9 @@ class ChatMessage {
   final ChatMessageKind kind;
   final DateTime createdAt;
   final String text;
-  final String? imageUrl;
+
+  /// Where the photo is kept (Storage, members of the chat only).
+  final String? photoPath;
 
   /// A photo still uploading (bytes on the phone).
   final List<int>? localImage;
@@ -184,7 +191,7 @@ class ChatMessage {
     kind: kind,
     createdAt: createdAt,
     text: text,
-    imageUrl: imageUrl,
+    photoPath: photoPath,
     localImage: localImage,
     latitude: latitude,
     longitude: longitude,
@@ -222,28 +229,14 @@ class ChatInfo {
   final bool canWrite;
 }
 
-/// The token the server hands out (getChatToken).
+/// Who chat connects as. Our own chat needs no token: the Firebase sign-in
+/// is the identity and firestore.rules decide what the parent may read.
 class ChatCredentials {
-  const ChatCredentials({required this.provider, required this.apiKey, required this.userId, required this.token, required this.expiresAt});
+  const ChatCredentials({required this.provider, required this.userId});
 
-  factory ChatCredentials.fromMap(Map<Object?, Object?> m) {
-    String text(Object? v) => v is String ? v : '';
-    final Object? expires = m['expiresAtMs'];
-    return ChatCredentials(
-      provider: m['provider'] == 'stream' ? 'stream' : 'fake',
-      apiKey: text(m['apiKey']),
-      userId: text(m['userId']),
-      token: text(m['token']),
-      expiresAt: DateTime.fromMillisecondsSinceEpoch(expires is num ? expires.toInt() : 0, isUtc: true),
-    );
-  }
-
-  /// "stream" or "fake" (dev without a Stream app, and tests).
+  /// "firestore" (the app) or "fake" (widget tests).
   final String provider;
-  final String apiKey;
   final String userId;
-  final String token;
-  final DateTime expiresAt;
 }
 
 // ---------------------------------------------------------------------------
@@ -360,8 +353,13 @@ class ChatFailure implements Exception {
         },
       });
     }
-    if (error is FirebaseException && error.code == 'unavailable') {
-      return const ChatFailure(ChatFailureKind.offline);
+    if (error is FirebaseException) {
+      return ChatFailure(switch (error.code) {
+        'unavailable' || 'deadline-exceeded' => ChatFailureKind.offline,
+        // The rules: not (or no longer) a member, or not verified.
+        'permission-denied' || 'unauthorized' => ChatFailureKind.notMember,
+        _ => ChatFailureKind.unknown,
+      });
     }
     return const ChatFailure(ChatFailureKind.unknown);
   }

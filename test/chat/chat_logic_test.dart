@@ -1,4 +1,4 @@
-// Chat logic (Prompt 9). Written, not run here (no Flutter SDK in the build
+// Chat logic. Written, not run here (no Flutter SDK in the build
 // workspace). CI runs it.
 import 'dart:convert';
 import 'dart:typed_data';
@@ -120,21 +120,6 @@ void main() {
     });
   });
 
-  group('ChatCredentials', () {
-    test('reads the token answer; anything but stream is the fake', () {
-      final ChatCredentials c = ChatCredentials.fromMap(<Object?, Object?>{
-        'provider': 'stream',
-        'apiKey': 'k',
-        'userId': 'u',
-        'token': 't',
-        'expiresAtMs': 1000,
-      });
-      expect(c.provider, 'stream');
-      expect(c.expiresAt, DateTime.fromMillisecondsSinceEpoch(1000, isUtc: true));
-      expect(ChatCredentials.fromMap(<Object?, Object?>{'provider': 'other'}).provider, 'fake');
-    });
-  });
-
   group('FakeChatProvider (offline queue)', () {
     test('messages written offline wait, then send', () async {
       final FakeChatProvider p = FakeChatProvider(chats: sampleChats(), now: chatNow);
@@ -149,8 +134,8 @@ void main() {
     });
   });
 
-  group('chat connection follows only the token-relevant facts', () {
-    test('a record change that keeps the parent verified does not reconnect (offline queue kept); suspension does', () async {
+  group('chat connection follows only who is signed in and whether they may chat', () {
+    test('a record change that keeps the parent verified does not reconnect; suspension does', () async {
       final FakeChatProvider fake = FakeChatProvider(chats: sampleChats(), now: chatNow);
       final FakeChatRepository repo = FakeChatRepository();
       addTearDown(fake.close);
@@ -166,7 +151,9 @@ void main() {
       // Kept alive for the whole test (closed with the container).
       container.listen<AsyncValue<ChatProvider>>(chatClientProvider, (_, _) {});
       expect(await container.read(chatClientProvider.future), same(fake));
-      expect(repo.calls.where((String c) => c == 'token'), hasLength(1));
+      // Connected as the signed-in parent, with no token and no server call first.
+      expect(fake.calls.where((String c) => c == 'connect:uid-1'), hasLength(1));
+      expect(repo.calls, isNot(contains('token')));
 
       // Language and email changed: same uid, still verified.
       container.read(_sessionHolder.notifier).set(
@@ -184,7 +171,7 @@ void main() {
         ),
       );
       await container.read(chatClientProvider.future);
-      expect(repo.calls.where((String c) => c == 'token'), hasLength(1));
+      expect(fake.calls.where((String c) => c.startsWith('connect:')), hasLength(1));
       expect(fake.calls, isNot(contains('disconnect')));
 
       // Suspended: chat is cut off on the phone too.

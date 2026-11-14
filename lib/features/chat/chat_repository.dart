@@ -7,14 +7,11 @@ import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
-/// Chat through our Cloud Functions (Prompt 9): the token, requests,
-/// blocks, mutes, settings and reports. The app reads its own requests,
-/// blocks, mutes and settings from Firestore (firestore.rules) and writes
-/// none of them.
+/// Chat through our Cloud Functions: requests, blocks, mutes, settings and
+/// reports. The app reads its own requests, blocks, mutes and settings from
+/// Firestore (firestore.rules) and writes none of them. Messages are
+/// firestore_chat_provider.dart.
 abstract interface class ChatRepository {
-  /// A short-lived Stream token (verified, non-suspended parents only).
-  Future<ChatCredentials> token();
-
   /// Puts the parent in their school, area and carpool chats.
   Future<void> syncMyChats();
 
@@ -76,9 +73,6 @@ class FirebaseChatRepository implements ChatRepository {
       chat: ChatRef.fromCid(cid is String ? cid : null),
     );
   }
-
-  @override
-  Future<ChatCredentials> token() async => ChatCredentials.fromMap(await _call('getChatToken'));
 
   @override
   Future<void> syncMyChats() => _call('syncMyChats');

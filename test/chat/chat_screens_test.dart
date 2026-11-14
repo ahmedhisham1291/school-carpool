@@ -1,5 +1,6 @@
-// Chat screens (Prompt 9: F8, F9, F10, F13) with the on-phone fake chat:
-// no Stream account is needed. Written, not run here (no Flutter SDK in the
+// Chat screens (F8, F9, F10, F13) through the ChatProvider interface, with
+// the in-memory fake chat: no Firebase is needed. The Firestore provider
+// behind the same interface is tested in firestore_chat_provider_test.dart. Written, not run here (no Flutter SDK in the
 // build workspace). CI runs it.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
