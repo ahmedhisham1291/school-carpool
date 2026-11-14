@@ -72,11 +72,12 @@ PERMISSION_TEXTS = {
     "NSLocationWhenInUseUsageDescription":
         "Your location sets your home on the map. When you drive a school run, it shows your car "
         "to the parents of the children in it, also with the phone locked, until the run ends.",
-    # Required by App Store Connect because the location plugin links the
-    # "Always" API. The app never asks for "Always".
+    # Prompt 13 (owner request 13:44): "Always" is OPTIONAL, offered once to
+    # drivers so a run resumes if iOS closes the app (run_recovery plugin).
     "NSLocationAlwaysAndWhenInUseUsageDescription":
-        "School Carpool only asks for While Using the App. Your location is shared only while you "
-        "drive a school run, with the parents of the children in your car, and stops when the run ends.",
+        "Optional: with Always, a school run you drive starts sharing your location again by itself "
+        "if iPhone closes the app. Used only during runs you start, with the blue indicator, "
+        "for the parents of the children in your car; it stops when the run ends.",
     "NSFaceIDUsageDescription":
         "Face ID unlocks the app and confirms every wallet transfer.",
     "NSLocalNetworkUsageDescription":

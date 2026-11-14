@@ -3,6 +3,6 @@
 "NSCameraUsageDescription" = "The camera takes photos of your ID and a live selfie to verify you, and photos you choose to send in chats.";
 "NSPhotoLibraryUsageDescription" = "Choose a photo to send in a chat. Its location data is removed before it is sent.";
 "NSLocationWhenInUseUsageDescription" = "Your location sets your home on the map. When you drive a school run, it shows your car to the parents of the children in it, also with the phone locked, until the run ends.";
-"NSLocationAlwaysAndWhenInUseUsageDescription" = "School Carpool only asks for While Using the App. Your location is shared only while you drive a school run, with the parents of the children in your car, and stops when the run ends.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Optional: with Always, a school run you drive starts sharing your location again by itself if iPhone closes the app. Used only during runs you start, with the blue indicator, for the parents of the children in your car; it stops when the run ends.";
 "NSFaceIDUsageDescription" = "Face ID unlocks the app and confirms every wallet transfer.";
 "NSLocalNetworkUsageDescription" = "Developer builds connect to test servers on your local network.";
