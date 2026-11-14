@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 import { NOTIFICATION_TYPES, routeFor, TYPES, WHATSAPP_DEFAULTS, WHATSAPP_GROUPS, type NotificationType } from "../src/notifications/catalog";
-import { DeviceError, registerDevice, unregisterDevice, updateSettings, type DeviceDeps } from "../src/notifications/devices";
+import { DeviceError, registerDevice, setWhatsAppConsent, unregisterDevice, updateSettings, type DeviceDeps } from "../src/notifications/devices";
 import { dispatchEvent, RetryableDispatchError, type DispatchDeps } from "../src/notifications/dispatch";
 import {
   applySettingsChange,
@@ -595,5 +595,78 @@ describe("schedule event kinds (Prompt 7 fixes)", () => {
     await store.saveSettings("bob", applySettingsChange(defaultSettings(), { whatsapp: { noDriver: false } }));
     await dispatchEvent(deps, { ...moved, id: "e-moved-2", recipients: ["bob"] });
     assert.equal(whatsapp.sent.length, 1);
+  });
+});
+
+describe("Prompt 8 follow-ups", () => {
+  const run = (extra: Partial<RunLite>): RunLite => ({
+    carpoolId: "k1",
+    runId: "2026-11-16_am",
+    date: "2026-11-16",
+    direction: "toSchool",
+    driverUid: "bob",
+    startMs: cairoToUtcMs("2026-11-16", "07:30"),
+    confirmByMs: cairoToUtcMs("2026-11-15", "21:00"),
+    status: "confirmed",
+    ...extra,
+  });
+  const tick = () => runNotificationTick({ store, now: () => clock.now, eveningAt: "19:00" });
+
+  it("a run that moves gets new reminders for its new time; the same time never gets two", async () => {
+    store.runs = [run({ status: "planned" })];
+    clock.now = cairoToUtcMs("2026-11-15", "19:30");
+    assert.equal((await tick()).reminders, 1);
+    // Ramadan time: the run moves to 08:30 and the driver is asked again (new confirm-by).
+    store.runs = [run({ status: "planned", startMs: cairoToUtcMs("2026-11-16", "08:30"), confirmByMs: cairoToUtcMs("2026-11-15", "21:15") })];
+    clock.now += 5 * 60_000;
+    assert.equal((await tick()).reminders, 1, "re-asked driver gets a fresh confirm reminder");
+    assert.equal((await tick()).reminders, 0);
+    // Confirmed at the new time: the hour reminder is for 08:30, and a move to 09:00 makes another.
+    store.runs = [run({ startMs: cairoToUtcMs("2026-11-16", "08:30") })];
+    clock.now = cairoToUtcMs("2026-11-16", "07:40");
+    assert.equal((await tick()).reminders, 1);
+    store.runs = [run({ startMs: cairoToUtcMs("2026-11-16", "08:35") })];
+    assert.equal((await tick()).reminders, 1);
+    const ids = [...store.events.keys()].filter((k) => k.startsWith("drive-hour"));
+    assert.equal(ids.length, 2);
+    assert.notEqual(reminderId("confirm-reminder", run({ confirmByMs: 1 }), "bob"), reminderId("confirm-reminder", run({ confirmByMs: 2 }), "bob"));
+  });
+
+  it("tomorrow's runs are not queried before the evening reminder time", async () => {
+    clock.now = cairoToUtcMs("2026-11-15", "12:00");
+    await tick();
+    assert.equal(store.confirmedQueries, 1, "only the one-hour query");
+    clock.now = cairoToUtcMs("2026-11-15", "19:05");
+    await tick();
+    assert.equal(store.confirmedQueries, 3);
+  });
+
+  it("a parent who said no to WhatsApp at sign-up can agree later, and withdraw again", async () => {
+    store.addParent("nowa", { whatsappOptIn: false });
+    const d: DeviceDeps = { store, now: () => clock.now, limits: { deviceChangesPerDay: 3, settingsChangesPerDay: 5 } };
+    await dispatchEvent(deps, scheduleEvent("no-driver", ["nowa"]));
+    assert.equal(whatsapp.sent.length, 0);
+    for (const bad of [null, {}, { accept: "yes" }]) {
+      await assert.rejects(setWhatsAppConsent(d, "nowa", bad), (e: unknown) => e instanceof DeviceError && e.reason === "invalid-request");
+    }
+    assert.deepEqual(await setWhatsAppConsent(d, "nowa", { accept: true }), { whatsappOptIn: true });
+    assert.deepEqual(store.consents.map((c) => [c.type, c.source, c.withdrawnAtMs]), [["whatsapp", "settings", null]]);
+    // Agreeing twice keeps one open record.
+    await setWhatsAppConsent(d, "nowa", { accept: true });
+    assert.equal(store.consents.length, 1);
+    await dispatchEvent(deps, newEvent("e-after", "no-driver", ["nowa"], clock.now, { carpoolId: "k1", date: "2026-11-16", direction: "toSchool" }));
+    assert.deepEqual(whatsapp.sent.map((w) => w.template), ["cp_no_driver"]);
+    await setWhatsAppConsent(d, "nowa", { accept: false });
+    assert.equal(store.consents[0].withdrawnAtMs, clock.now);
+    await dispatchEvent(deps, newEvent("e-withdrawn", "no-driver", ["nowa"], clock.now, { carpoolId: "k1", date: "2026-11-16", direction: "toSchool" }));
+    assert.equal(whatsapp.sent.length, 1);
+  });
+
+  it("consent changes count toward the daily settings limit", async () => {
+    store.addParent("nowa", { whatsappOptIn: false });
+    const d: DeviceDeps = { store, now: () => clock.now, limits: { deviceChangesPerDay: 3, settingsChangesPerDay: 2 } };
+    await setWhatsAppConsent(d, "nowa", { accept: true });
+    await setWhatsAppConsent(d, "nowa", { accept: false });
+    await assert.rejects(setWhatsAppConsent(d, "nowa", { accept: true }), (e: unknown) => e instanceof DeviceError && e.reason === "rate-limited");
   });
 });

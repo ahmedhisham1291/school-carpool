@@ -28,6 +28,8 @@ export class MemoryNotifyStore implements NotifyStore, TickStore, DeviceStore {
   locations = new Map<string, NearbyParent & { showOnMap: boolean; schoolIds: string[] }>();
   runs: RunLite[] = [];
   limits = new Map<string, WindowCounter>();
+  consents: Array<{ uid: string; type: string; source: string; acceptedAtMs: number; withdrawnAtMs: number | null }> = [];
+  confirmedQueries = 0;
 
   private key(uid: string, id: string): string {
     return `${uid}/${id}`;
@@ -70,6 +72,15 @@ export class MemoryNotifyStore implements NotifyStore, TickStore, DeviceStore {
   async registerToken(uid: string, token: string, platform: string, previous: string | null, nowMs: number): Promise<void> {
     this.tokensByKey.set(`k:${token}`, { uid, token, platform, updatedAtMs: nowMs });
     if (previous && previous !== token && this.tokensByKey.get(`k:${previous}`)?.uid === uid) this.tokensByKey.delete(`k:${previous}`);
+  }
+
+  async setWhatsAppConsent(uid: string, accept: boolean, nowMs: number): Promise<void> {
+    const r = this.recipients.get(uid);
+    if (!r) throw new Error("no account record");
+    const open = this.consents.filter((c) => c.uid === uid && c.type === "whatsapp" && c.withdrawnAtMs === null);
+    if (accept && open.length === 0) this.consents.push({ uid, type: "whatsapp", source: "settings", acceptedAtMs: nowMs, withdrawnAtMs: null });
+    if (!accept) for (const c of open) c.withdrawnAtMs = nowMs;
+    r.whatsappOptIn = accept;
   }
 
   async unregisterToken(uid: string, token: string): Promise<boolean> {
@@ -140,6 +151,7 @@ export class MemoryNotifyStore implements NotifyStore, TickStore, DeviceStore {
 
   // ---- tick ----
   async confirmedRuns(fromMs: number, toMs: number, limit: number): Promise<RunLite[]> {
+    this.confirmedQueries += 1;
     return this.runs.filter((r) => r.status === "confirmed" && r.startMs >= fromMs && r.startMs < toMs).slice(0, limit);
   }
 
