@@ -197,9 +197,9 @@ docs/restore-test.md, SETUP.md 21.6 and 23, COSTS.md "Privacy and security
 
 ## Questions for the owner
 
-1. **PITR:** Prompt 12 says "switched on"; CLAUDE.md COST MODE says off
-   for now. Left off, documented (SETUP 23.7, restore test written). Switch
-   on now?
+1. **PITR:** decided by the owner (14 Nov 2026): ON in prod, daily
+   backups kept (SETUP 23.7, `tool/setup_retention.sh <prod-id> --prod`,
+   COSTS). The coordinator updates the CLAUDE.md cost line.
 2. **Lawyer** (DECISIONS.md requires a check for longer retention and new
    data): the new periods (photos and run summaries 1 year after closure,
    route archives 1 year, chat life + 1 year), usage analytics, the selfie
@@ -290,9 +290,20 @@ remains in the console).
   callables exist and are logged; the panel UI is the next admin pass.
 - Feature events other than the privacy ones are in the analytics catalog
   but not yet sent from their screens (screens are tracked).
-- The email extension (owner decision), PITR (owner decision), the outside
-  penetration test (owner).
+- The email extension (owner decision) and the outside penetration test
+  (owner). PITR is switched on by the owner's setup step (SETUP 23.7).
 - The driver's in-run queue of stop actions stays in memory (Prompt 10);
   only run confirmations are kept on the phone.
 - Not verified here: `flutter analyze`, `flutter test`, the rules tests,
   the iOS build with firebase_analytics, the deploy with sharp.
+
+## CI fixes (run 43585030380)
+
+- `new_device_screen.dart`: missing import of `CaptureKind`
+  (verification_models.dart).
+- `analytics.dart`: the field is `_collecting` (no private named
+  initializing formal; no prefer_initializing_formals).
+- `privacy_logic_test.dart`: `const` on the outermost literal passed to
+  `fromMap` (no nested const).
+- PITR on in prod (owner decision): SETUP 23.7, COSTS, restore test,
+  `tool/setup_retention.sh --prod`.

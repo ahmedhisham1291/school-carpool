@@ -122,22 +122,22 @@ abstract final class AnalyticsPrivacy {
 
 /// The app's analytics: the parent's choice plus the privacy filter.
 class Analytics {
-  Analytics(this._sink, {required bool enabled}) : _enabled = enabled;
+  Analytics(this._sink, {required bool enabled}) : _collecting = enabled;
 
   final AnalyticsSink _sink;
-  bool _enabled;
+  bool _collecting;
   String? _lastScreen;
 
-  bool get enabled => _enabled;
+  bool get enabled => _collecting;
 
   Future<void> setEnabled(bool enabled) async {
-    _enabled = enabled;
+    _collecting = enabled;
     await _guard(() => _sink.setEnabled(enabled));
   }
 
   /// Sends [event] when the parent allows it. Never throws.
   void track(AnalyticsEvent event, [Map<String, Object?> parameters = const <String, Object?>{}]) {
-    if (!_enabled) {
+    if (!_collecting) {
       return;
     }
     unawaited(_guard(() => _sink.event(event.wire, AnalyticsPrivacy.cleanParameters(event, parameters))));
@@ -146,7 +146,7 @@ class Analytics {
   /// A screen from the router (route pattern, never the real path).
   void screen(String fullPath) {
     final String name = AnalyticsPrivacy.screenName(fullPath);
-    if (!_enabled || name == _lastScreen) {
+    if (!_collecting || name == _lastScreen) {
       return;
     }
     _lastScreen = name;

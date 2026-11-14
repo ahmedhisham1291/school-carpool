@@ -9,6 +9,7 @@ import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/privacy/privacy_models.dart';
 import 'package:school_carpool/features/privacy/privacy_repository.dart';
 import 'package:school_carpool/features/verification/capture_screen.dart';
+import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 

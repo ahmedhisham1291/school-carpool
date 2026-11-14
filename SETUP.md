@@ -165,8 +165,8 @@ and staging, ever.
 
 ## 5. Firestore point-in-time recovery and daily backups
 
-COST MODE: point-in-time recovery (PITR) **off** for now; daily backups
-**on in prod only**. Install the Google Cloud CLI (`gcloud`) and log in.
+Owner decision (14 Nov 2026): point-in-time recovery (PITR) **on in prod**;
+daily backups **on in prod only**. Install the Google Cloud CLI (`gcloud`) and log in.
 
 - Daily backup, prod only, kept 7 days:
 
@@ -177,17 +177,16 @@ COST MODE: point-in-time recovery (PITR) **off** for now; daily backups
   gcloud firestore backups schedules list --project=<prod-id> --database='(default)'
   ```
 
-- Switch PITR on later (before real families join, your decision; it adds
-  storage cost):
+- Switch PITR on in prod (owner decision; it adds storage cost, COSTS.md):
 
   ```sh
   gcloud firestore databases update --project=<prod-id> \
     --database='(default)' --enable-pitr
   ```
 
-  Off again: `--no-enable-pitr`. With PITR on you can read or restore data
-  from any minute of the last 7 days.
-- A restore drill is written in Prompt 12.
+  With PITR on you can read or restore data from any minute of the last
+  7 days. Leave it on in prod.
+- The restore drill: `docs/restore-test.md` (SETUP 23.7).
 
 ## 6. Sentry (free Developer plan)
 
@@ -1502,13 +1501,23 @@ tags match `area` equals `signin`" (then the same for `trips` and `wallet`)
 > send an email to the owner. Keep Sentry's own PII scrubbing ("Data
 scrubber", "Use default scrubbers") on as the second layer.
 
-### 23.7 Point-in-time recovery and backups
+### 23.7 Point-in-time recovery and backups (prod)
 
-Daily backups stay on in prod (section 5). PITR is still off (COST MODE);
-Prompt 12 asks for it on, so the owner decides (progress note question 1).
-To switch it on: `gcloud firestore databases update --database='(default)' --enable-pitr --project=<prod-id>`.
-Run the restore test in `docs/restore-test.md` once now in staging and every
-3 months.
+Owner decision (14 Nov 2026, "best option, even if paid"): **point-in-time
+recovery ON in prod**, and the daily backups stay on (section 5). Switch it
+on once:
+
+```sh
+gcloud firestore databases update --database='(default)' --enable-pitr --project=<prod-id>
+gcloud firestore databases describe --database='(default)' --project=<prod-id> \
+  --format='value(pointInTimeRecoveryEnablement,versionRetentionPeriod)'
+# expect POINT_IN_TIME_RECOVERY_ENABLED and 604800s (7 days)
+```
+
+`tool/setup_retention.sh <prod-id> --prod` does the same. Any minute of the
+last 7 days can then be read or cloned into a new database
+(`docs/restore-test.md`). Run the restore test once now in staging and
+every 3 months.
 
 ### 23.8 Try it on the iPhone (the "Done when" check)
 

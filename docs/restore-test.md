@@ -7,7 +7,7 @@ Spec section 7: "Back up the database daily and test a restore." Prompt 12.
 | What | Where | Status |
 | --- | --- | --- |
 | Daily Firestore backups | prod: Firestore > Disaster recovery > Backups, daily, kept 7 days (SETUP.md section 5) | on in prod |
-| Point-in-time recovery (PITR, any minute of the last 7 days) | `gcloud firestore databases update --database='(default)' --enable-pitr --project=<prod-id>` | **off** (COST MODE, CLAUDE.md). Prompt 12 asks for it on; the owner decides (see the progress note). Switch on before real families join. |
+| Point-in-time recovery (PITR, any minute of the last 7 days) | `gcloud firestore databases update --database='(default)' --enable-pitr --project=<prod-id>` (SETUP.md 23.7) | **on in prod** (owner decision, 14 Nov 2026) |
 | Cloud Storage | soft delete 7 days (`tool/setup_retention.sh`); photos are never overwritten | on |
 | Stream Chat | Stream keeps its own backups; we cannot restore a single chat | n/a |
 | Secrets | Secret Manager keeps old versions | on |

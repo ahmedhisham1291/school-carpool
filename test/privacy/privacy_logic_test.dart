@@ -241,9 +241,9 @@ void main() {
     });
 
     test('the account reads the check from the record', () {
-      expect(Account.fromMap(<String, dynamic>{'newDeviceCheck': <String, dynamic>{'required': true}}).newDeviceCheck, isTrue);
-      expect(Account.fromMap(<String, dynamic>{'newDeviceCheck': null}).newDeviceCheck, isFalse);
-      expect(Account.fromMap(<String, dynamic>{}).newDeviceCheck, isFalse);
+      expect(Account.fromMap(const <String, dynamic>{'newDeviceCheck': <String, dynamic>{'required': true}}).newDeviceCheck, isTrue);
+      expect(Account.fromMap(const <String, dynamic>{'newDeviceCheck': null}).newDeviceCheck, isFalse);
+      expect(Account.fromMap(const <String, dynamic>{}).newDeviceCheck, isFalse);
     });
 
     test('the phone reports itself on a new session and every 15 minutes', () {
@@ -272,7 +272,7 @@ void main() {
     });
 
     test('overview, devices and requests parse the server answers', () {
-      final PrivacyOverview o = PrivacyOverview.fromMap(<Object?, Object?>{
+      final PrivacyOverview o = PrivacyOverview.fromMap(const <Object?, Object?>{
         'consents': <Object?>[
           <Object?, Object?>{'kind': 'analytics', 'active': true},
           <Object?, Object?>{'kind': 'face', 'active': true, 'acceptedAtMs': 1763100000000, 'version': '2026-11-14'},
@@ -285,7 +285,7 @@ void main() {
       expect(o.consents.map((ConsentView c) => c.kind), <ConsentKind>[ConsentKind.analytics, ConsentKind.face]);
       expect(o.consent(ConsentKind.face)?.version, '2026-11-14');
       expect(o.requests.single.kind, RequestKind.exportData);
-      final DeviceList d = DeviceList.fromMap(<Object?, Object?>{
+      final DeviceList d = DeviceList.fromMap(const <Object?, Object?>{
         'current': 's_1',
         'devices': <Object?>[
           <Object?, Object?>{'key': 's_1', 'platform': 'ios', 'lastSeenAtMs': 1, 'firstSignInAtMs': 1},

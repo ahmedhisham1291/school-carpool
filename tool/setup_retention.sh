@@ -17,8 +17,12 @@
 #    field (Firestore deletes expired documents within about 24 hours, free).
 set -euo pipefail
 
-project="${1:?usage: tool/setup_retention.sh <project-id> [bucket]}"
-bucket="${2:-${project}.firebasestorage.app}"
+#   tool/setup_retention.sh <prod-id> --prod   also switches on point-in-time
+#                                              recovery (owner decision: on in prod)
+project="${1:?usage: tool/setup_retention.sh <project-id> [bucket|--prod]}"
+prod=false
+bucket="${project}.firebasestorage.app"
+if [ "${2:-}" = "--prod" ]; then prod=true; elif [ -n "${2:-}" ]; then bucket="$2"; fi
 here="$(cd "$(dirname "$0")" && pwd)"
 
 echo "== Cloud Storage lifecycle on gs://${bucket}"
@@ -57,6 +61,11 @@ ttl expiresAt logins
 ttl expiresAt devices
 ttl expiresAt mail
 ttl expiresAt retentionRuns
+
+if [ "${prod}" = true ]; then
+  echo "== Point-in-time recovery (prod)"
+  gcloud firestore databases update --database='(default)' --enable-pitr --project="${project}"
+fi
 
 echo "Done. Check: Firestore > TTL policies (each one 'Serving' after a few minutes),"
 echo "and Cloud Storage > ${bucket} > Lifecycle."
