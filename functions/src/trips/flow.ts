@@ -584,6 +584,40 @@ export async function endDriverTrips(deps: TripDeps, uid: string, nowMs: number)
   return ended;
 }
 
+/** Why the driver's phone says location went away mid-run. */
+export const LOST_REASONS = ["service", "permission", "precise"] as const;
+export type LostReason = (typeof LOST_REASONS)[number];
+
+/**
+ * Prompt 13: the driver's app saw location go away during the run
+ * (Location Services off, permission or Precise Location taken away). The
+ * parents get "location stopped" at once instead of after 2 minutes. Once
+ * per gap: it shares staleAlertedAtMs with the tick, cleared by the next
+ * point. Tracking is not stopped: the driver fixes it and goes on.
+ */
+export async function reportTrackingLost(deps: TripDeps, caller: Caller, data: unknown): Promise<{ alerted: boolean }> {
+  await requireVerified(deps, caller);
+  const raw = record(data);
+  const { carpoolId, runId } = parseRun(raw);
+  const reason = typeof raw.reason === "string" && (LOST_REASONS as readonly string[]).includes(raw.reason) ? (raw.reason as LostReason) : null;
+  if (!reason) throw new TripError("invalid-request");
+  const nowMs = deps.now();
+  const alerted = await deps.store.mutateTrip<boolean>(tripId(carpoolId, runId), (trip) => {
+    if (!trip) throw new TripError("not-found");
+    if (trip.driverUid !== caller.uid) throw new TripError("not-driver");
+    if (trip.status !== "active" || trip.staleAlertedAtMs !== null) return { trip: null, events: [], result: false };
+    const parents = parentsOf(trip);
+    return {
+      trip: { ...trip, staleAlertedAtMs: nowMs, updatedAtMs: nowMs },
+      events: parents.length > 0 ? [tripEvent("location-stopped", trip, `lost_${nowMs}`, parents, nowMs)] : [],
+      result: true,
+    };
+  });
+  // No coordinates, only the reason (PRIVACY).
+  deps.log("tracking lost", { reason, alerted });
+  return { alerted };
+}
+
 /** The driver signs out: the app calls this first (review item 5). */
 export async function stopMyTrips(deps: TripDeps, caller: Caller): Promise<{ ended: number }> {
   if (!caller.uid) throw new TripError("not-verified");
@@ -858,7 +892,12 @@ export async function runTripTick(deps: TripDeps, limit = 200): Promise<TickResu
       let stale = 0;
       let ended = 0;
       if (isStale(trip, nowMs, s.staleMs)) {
-        events.push(tripEvent("location-stopped", trip, String(nowMs), trip.viewerUids, nowMs));
+        // Prompt 13: the parents get "location stopped"; the driver gets
+        // "Run still on, open the app" (iOS stops location when the app is
+        // swiped away). Once per gap: the next point clears staleAlertedAtMs.
+        const parents = parentsOf(trip);
+        if (parents.length > 0) events.push(tripEvent("location-stopped", trip, String(nowMs), parents, nowMs));
+        events.push(tripEvent("run-still-on", trip, String(nowMs), [trip.driverUid], nowMs));
         updated = { ...updated, staleAlertedAtMs: nowMs, updatedAtMs: nowMs };
         stale = 1;
       }

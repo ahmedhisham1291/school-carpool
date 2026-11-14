@@ -72,6 +72,9 @@ export const NOTIFICATION_TYPES = [
   "phone-changed",
   // Prompt 12: a sign-in from a new phone (reaches the old phone too).
   "new-device",
+  // Prompt 13: to the driver when no location came for 2 minutes during a
+  // run ("Run still on, open the app"). Urgent, not critical.
+  "run-still-on",
   // The second, louder push of a critical alert nobody opened in time.
   "critical-alarm",
 ] as const;
@@ -211,6 +214,7 @@ export const TYPES: Readonly<Record<NotificationType, TypeSpec>> = {
   "guardian-declined": spec("trust", "cp_guardian_declined", false),
   "phone-changed": spec("trust", "cp_phone_changed", false),
   "new-device": spec("trust", "cp_new_device", false),
+  "run-still-on": spec("tripAlerts", "cp_run_still_on", true, false, true),
   "critical-alarm": spec("alarm", null, false, true),
 };
 
@@ -305,6 +309,9 @@ export function routeFor(input: RouteInput): string {
       return "/profile";
     case "new-device":
       return "/profile/privacy/devices";
+    case "run-still-on":
+      // The driver's own run screen.
+      return carpool && run ? `/carpools/${carpool}/trip/${run}/drive` : carpool ? `/carpools/${carpool}/schedule` : "/notifications";
     case "critical-alarm":
       return "/notifications";
     default:

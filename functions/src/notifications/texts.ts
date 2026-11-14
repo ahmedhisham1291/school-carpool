@@ -78,6 +78,7 @@ export const TEXTS: Readonly<Texts> = {
   "guardian-declined": t("لم يتم الربط", "لم يتم ربطك بالأطفال. افتح التطبيق للتفاصيل.", "Link not made", "You were not linked to the children. Open the app for details."),
   "phone-changed": t("تغيّر رقم الهاتف", "تغيّر رقم هاتف حسابك. إن لم تفعل ذلك تواصل معنا فورًا.", "Phone number changed", "Your account's phone number changed. If it wasn't you, contact us at once."),
   "new-device": t("تسجيل دخول من هاتف جديد", "دخل أحدهم إلى حسابك من هاتف جديد، فأخرجنا الهواتف الأخرى. إن لم تكن أنت فتواصل معنا فورًا.", "New phone signed in", "Someone signed in to your account on a new phone, so we signed out the others. If it wasn't you, contact us at once."),
+  "run-still-on": t("المشوار مستمر", "لم يصل موقعك منذ دقيقتين في مشوار {when}. افتح التطبيق للمتابعة.", "Run still on", "No location from you for 2 minutes on the {when} run. Open the app to continue."),
 };
 
 const WEEKDAYS: Record<Language, string[]> = {
