@@ -15,9 +15,8 @@ quality)
 - Three Firebase projects and three app flavors: dev, staging, prod.
   Dev runs on the Firebase emulators.
 - Sign-in: a one-time code sent by WhatsApp from Cloud Functions, then a
-  Firebase custom token. SMS only as a backup when WhatsApp delivery fails,
-  through our own SmsProvider in Cloud Functions (owner decision 14 Nov
-  2026); never Firebase phone auth.
+  Firebase custom token. No SMS anywhere (an SMS backup is on hold until
+  Meta answers; docs/DECISIONS.md).
 - The WhatsApp Business Platform is called only from Cloud Functions.
 - Google Maps Platform for every map, with Places for address search and
   Routes for arrival times.
@@ -34,14 +33,17 @@ quality)
 - Wallet: a payment partner licensed by the Central Bank of Egypt behind
   one interface (WalletProvider). The partner holds the money. Our database
   keeps a copy of balances and a record of transfers, never the money.
-- Errors: Firebase Crashlytics in the app; Google Cloud Error Reporting and
-  Logging for Cloud Functions (owner decision 14 Nov 2026, replaces Sentry).
+- Errors: Sentry in the app, the website and Cloud Functions.
 - Pilot feature switches: server settings turn features on or off without a
   new build; the wallet and other non-core features start off (docs/DECISIONS.md).
+- Payments in the pilot: "Settle up" by InstaPay. The app records who
+  asked, who paid and who confirmed, and shows the payee's InstaPay address
+  to the payer only. It never moves, holds or sees money. The wallet stays
+  in the code, switched off.
 - Builds and releases: Codemagic.
 - Fakes for dev: the ID check, wallet, WhatsApp and school search each have
   a fake provider, so the app runs on the emulators with no paid account
-  and work is never blocked by a contract. SMS has a fake provider too.
+  and work is never blocked by a contract.
 
 COST MODE (decided 13 Nov 2026): FREE TIER FIRST
 Start every service on its free plan; upgrade only when usage reaches that
@@ -52,9 +54,8 @@ plan's limit. Code must not depend on any paid-only feature being on.
   ON in prod (owner: best option even if paid); daily backup ON in prod.
   Auth: Identity Platform free tier.
 - Algolia: free Build plan (10k searches/month); keep the fake search for dev.
-- Crashlytics, Error Reporting and Cloud Logging: free; log no personal data.
-- SMS backup: paid per message; only after a WhatsApp failure, Egyptian
-  numbers only, strict per-number and per-IP limits (SMS fraud).
+- Sentry: free Developer plan; low sample rates, errors only, no tracing by
+  default.
 - Codemagic: free personal tier (500 macOS min/month): build iOS only by
   hand (Start new build) or on a v* tag, never on push; analyze/test on
   GitHub Actions.
@@ -145,13 +146,13 @@ SECURITY (never skip)
 - App Check is enforced on Functions, Firestore and Storage in staging and
   prod.
 - Secrets live in Secret Manager or build-time defines, never in the
-  repository. Algolia, Valify, WhatsApp, SMS and wallet secrets stay in
+  repository. Algolia, Valify, WhatsApp and wallet secrets stay in
   Cloud Functions; the app holds only short-lived tokens and search-only
   keys.
 
 PRIVACY (never skip)
 - Never log phone numbers, national ID numbers, images, coordinates or
-  message text, and never send them to Crashlytics, logs or Algolia.
+  message text, and never send them to Sentry or Algolia.
 - Only fake data in dev and staging. Never copy production data.
 - ID, selfie, school ID, licence and driver photos go to a private bucket,
   encrypted with our KMS key, and are kept while the account is active and

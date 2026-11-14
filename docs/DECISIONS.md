@@ -184,3 +184,30 @@ paid plugin, no new third-party dependency.
    sign-in, verification, carpools, schedule, live trips and alerts, chat.
    Off: wallet, ratings and vouching, yearly re-checks (all can be turned on
    from server settings without a new build).
+
+## Improvements, revised (owner, 14 Nov 2026, 17:24): supersedes the list above
+
+After a second check of the code and current facts, the owner approved this
+revised list ("implement all your suggestions"):
+
+1. **Pilot feature switches; wallet off.** As above (items 1 and 7).
+2. **Lock package versions.** Commit `pubspec.lock` and
+   `functions/package-lock.json`; CI and deploys install exactly those.
+3. **Own chat on Firestore, replacing Stream.** Built now on its own branch;
+   merged only after the first TestFlight build runs on the owner's iPhone.
+   Reasons: staging's fake chat is on one phone only, Stream's free account
+   caps connections at 100 at once, and messages stay in our database.
+4. **Sentry stays** (Crashlytics is withdrawn: its Flutter plugin has no web
+   support, so the admin panel and the website would lose error reports).
+5. **Xcode Cloud is dropped** (it needs the iOS project stored in the
+   repository; ours is generated at build time). Codemagic stays.
+6. **SMS backup is on hold.** The "No SMS anywhere" rule stands. The owner
+   starts Meta business verification now; SMS is reconsidered only if Meta
+   stalls.
+7. **Private repository before public launch.** docs/launch-private-repo.md.
+8. **"Settle up" by InstaPay replaces the wallet for the pilot.** Apple Pay
+   cannot send money between people (Apple Cash is US only). The app records
+   payment requests between parents of the same carpool (requested, paid,
+   received), shows the payee's InstaPay address to the payer, and never
+   moves, holds or sees money, so no payment partner is needed. The lawyer
+   should confirm that no Central Bank licence is needed for this.
