@@ -50,8 +50,9 @@ plan's limit. Code must not depend on any paid-only feature being on.
 - Algolia: free Build plan (10k searches/month); keep the fake search for dev.
 - Sentry: free Developer plan; low sample rates, errors only, no tracing by
   default.
-- Codemagic: free personal tier (500 macOS min/month): build iOS only on
-  push to main or a tag, not on every branch; analyze/test on Linux.
+- Codemagic: free personal tier (500 macOS min/month): build iOS only by
+  hand (Start new build) or on a v* tag, never on push; analyze/test on
+  GitHub Actions.
 - Google Maps: stay inside the monthly free allowance; cache place details,
   debounce Places autocomplete with session tokens, Routes only during a
   live run, at most once a minute per stop.
