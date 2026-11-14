@@ -252,7 +252,7 @@ export function buildRecord(event: OutboxEvent, uid: string, nowMs: number, alar
     runId: event.runId,
     date: event.date,
     direction: event.direction,
-    route: routeFor({ type: event.type, carpoolId: event.carpoolId }),
+    route: routeFor({ type: event.type, carpoolId: event.carpoolId, runId: event.runId }),
     createdAtMs: nowMs,
     readAtMs: null,
     alarmAtMs: critical ? nowMs + alarmDelayMs : null,
@@ -287,7 +287,8 @@ export function recordText(record: Pick<NotificationRecord, "type" | "date" | "d
 export function buildPush(record: NotificationRecord, language: Language, opts: { quiet: boolean; alarm: boolean }): PushMessage {
   const text = recordText(record, language);
   const critical = record.critical;
-  const level = critical ? "time-sensitive" : opts.quiet ? "passive" : "active";
+  const urgent = TYPES[record.type].urgent;
+  const level = critical || urgent ? "time-sensitive" : opts.quiet ? "passive" : "active";
   return {
     title: opts.alarm ? (language === "ar" ? `تذكير: ${text.title}` : `Reminder: ${text.title}`) : text.title,
     body: text.body,
@@ -300,7 +301,7 @@ export function buildPush(record: NotificationRecord, language: Language, opts: 
       // Critical: when the app's own alarm should sound if still unread (ms since epoch).
       alarmAt: record.alarmAtMs === null ? "" : String(record.alarmAtMs),
     },
-    sound: critical || !opts.quiet,
+    sound: critical || urgent || !opts.quiet,
     level,
     threadId: TYPES[record.type].group,
     contentAvailable: critical,

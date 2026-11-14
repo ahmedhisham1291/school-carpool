@@ -57,7 +57,7 @@ function scheduleEvent(type: NotificationType, recipients: string[], extra: Part
 }
 
 describe("catalog", () => {
-  it("every type has a group, texts in both languages and a route; only no-driver and child-not-confirmed are critical", () => {
+  it("every type has a group, texts in both languages and a route; only no-driver, child-not-confirmed and emergency are critical", () => {
     for (const type of NOTIFICATION_TYPES) {
       assert.ok(TYPES[type], type);
       if (type !== "critical-alarm") {
@@ -68,12 +68,12 @@ describe("catalog", () => {
       assert.match(routeFor({ type, carpoolId: "k1" }), /^\/[a-z0-9/_-]*$/i);
     }
     const critical = NOTIFICATION_TYPES.filter((t) => TYPES[t].critical && t !== "critical-alarm");
-    assert.deepEqual(critical, ["no-driver", "child-not-confirmed"]);
+    assert.deepEqual(critical, ["no-driver", "child-not-confirmed", "emergency"]);
   });
 
-  it("COST MODE: WhatsApp is on by default only for the critical alerts; chat is never WhatsApp", () => {
+  it("COST MODE: WhatsApp is on by default only for the critical alerts and Arrived; chat is never WhatsApp", () => {
     const on = WHATSAPP_GROUPS.filter((g) => WHATSAPP_DEFAULTS[g]);
-    assert.deepEqual(on, ["noDriver", "childNotConfirmed"]);
+    assert.deepEqual(on, ["noDriver", "childNotConfirmed", "tripAlerts", "emergency"]);
     assert.equal(TYPES["chat-message"].template, null);
   });
 
