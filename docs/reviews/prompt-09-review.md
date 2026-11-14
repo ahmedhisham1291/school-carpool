@@ -247,3 +247,70 @@ permission reference.
 
 All of this needs the dev Stream app set up with the corrected script
 (blocking item 1) before the iPhone check.
+
+## Re-review (head `bb98a92`)
+
+Commits reviewed: `b501884` (review fixes) and `bb98a92` (chat client
+retry).
+
+### Verdict: PASS
+
+### CI
+
+Run 43562933059 on `bb98a92`: **all green**.
+
+| Job | Result |
+| --- | --- |
+| Flutter analyze, tests and screenshots | success |
+| Cloud Functions tests and rules tests (emulators) | success |
+| Web, admin panel and Android compile (staging) | success |
+
+I ran nothing here.
+
+### Blocking items
+
+1. **App-level grants: fixed.**
+   - `setup_plan.ts` now has `APP_GRANTS`, which gives `user`, `guest`
+     and `anonymous` nothing at app level.
+   - `stream_setup.ts` sends them with `PATCH /app`, then reads them back
+     with `GET /app`. `appGrantProblems` refuses to finish if
+     `update-user-owner`, `search-user` or another forbidden right is
+     still granted.
+   - Tests cover this, and SETUP.md has a manual check on the dev app.
+2. **Location pin: fixed.**
+   - `ChatKind.locationPin` is true only for private and carpool chats,
+     and `conversation_screen.dart:337` passes `null` for groups.
+   - A widget test was updated.
+
+### Non-blocking items fixed
+
+- **Reconnect:** chat reconnects only when the uid or verification
+  changes (`chatUidProvider` with `select`).
+- **Member removal:** the admin "remove member" now removes and excludes
+  in one transaction.
+- **EXIF:** `jpegHasExif` refuses to upload a JPEG that still has an APP1
+  Exif segment. Unit tests cover it.
+- **Request probing:** the request limit is now counted before anything
+  about the other parent is revealed.
+- **Parents without a Stream user:** a 400 on revoke or deactivate is
+  treated as done.
+- **Moderation:** the setup script fails unless `--no-moderation` is
+  given.
+- **Retry (`bb98a92`):** an unverified or suspended parent gets the error
+  at once instead of a screen that keeps loading. Other failures retry up
+  to 3 times with backoff.
+
+### Still open (non-blocking, from the first review)
+
+1. **Missing grants list counts as safe.** If `GET /app` returns no
+   `grants`, `appGrantProblems` reports no problems and the script passes.
+   Treat a missing grants list as a failure.
+2. Item 2: chat does not open offline at a cold start.
+3. Item 3: the retention job truncates every channel every night.
+4. Item 4: abuse of urgent reports, and lifting one pause while another
+   urgent report is open.
+5. Item 5: the report and the pause are not one step.
+6. Item 7: handled reports keep their message context forever.
+7. Item 11: the setup script's blocklist phrases and typing/read-receipt
+   permissions are not yet checked on a real Stream app.
+8. Item 13: a closed carpool keeps its chat.
