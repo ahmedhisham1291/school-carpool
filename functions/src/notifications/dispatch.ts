@@ -241,7 +241,7 @@ async function deliver(deps: DispatchDeps, event: OutboxEvent, uid: string): Pro
   }
 
   // WhatsApp when the parent has this group on (COST MODE: critical only by default).
-  if (wantsWhatsApp(record.type, recipient, settings)) {
+  if (wantsWhatsApp(record.type, recipient, settings, record.critical)) {
     if (quiet) {
       if (await store.claim(uid, record.id, "whatsapp", nowMs, MAX_ATTEMPTS)) {
         await store.finish(uid, record.id, "whatsapp", "skipped", "quiet", deps.now());

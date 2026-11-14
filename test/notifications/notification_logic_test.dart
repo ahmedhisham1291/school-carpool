@@ -16,7 +16,7 @@ void main() {
       // functions/src/notifications/catalog.ts (critical-alarm is a push only, never a record).
       const List<String> server = <String>[
         'plan-ready', 'no-driver', 'swap-requested', 'swap-accepted', 'swap-cancelled', 'run-taken', //
-        'child-absent', 'child-back', 'driver-unavailable', 'schedule-changed', 'drive-evening', 'drive-hour',
+        'child-absent', 'child-back', 'driver-unavailable', 'schedule-changed', 'time-changed', 'drive-evening', 'drive-hour',
         'confirm-reminder', 'join-requested', 'join-approved', 'join-declined', 'verification-approved',
         'verification-rejected', 'new-parent', 'child-not-confirmed', 'chat-message',
       ];
@@ -27,6 +27,21 @@ void main() {
       );
       expect(NotificationKind.fromWire('launch-rockets'), isNull);
       expect(NotificationKind.chatMessage.group, isNull);
+    });
+
+    test('a run moved with no time to confirm again is critical by event, not by kind', () {
+      final AppNotification n = AppNotification.fromDoc('t1', NotificationKind.timeChanged, <String, dynamic>{
+        'critical': true,
+        'route': '/carpools/k1/schedule',
+        'date': '2026-11-17',
+        'direction': 'toSchool',
+      });
+      expect(NotificationKind.timeChanged.critical, isFalse);
+      expect(n.critical, isTrue);
+      expect(n.markedRead(notifNow).critical, isTrue);
+      final AppLocalizations en = lookupAppLocalizations(AppLocales.english);
+      expect(notificationBody(en, n), 'The Tue 17/11, to school run has a new time. Check the plan.');
+      expect(AppNotification.fromDoc('t2', NotificationKind.timeChanged, const <String, dynamic>{}).critical, isFalse);
     });
 
     test('COST MODE: WhatsApp on by default only for the urgent groups', () {

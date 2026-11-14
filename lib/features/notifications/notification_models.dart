@@ -16,6 +16,7 @@ enum NotificationKind {
   childBack('child-back', WhatsAppGroup.absences),
   driverUnavailable('driver-unavailable', WhatsAppGroup.swaps),
   scheduleChanged('schedule-changed', WhatsAppGroup.schedule),
+  timeChanged('time-changed', WhatsAppGroup.schedule),
   driveEvening('drive-evening', WhatsAppGroup.reminders),
   driveHour('drive-hour', WhatsAppGroup.reminders),
   confirmReminder('confirm-reminder', WhatsAppGroup.reminders),
@@ -92,6 +93,7 @@ class AppNotification {
     this.toSchool,
     this.readAt,
     this.alarmAt,
+    this.criticalEvent = false,
   });
 
   factory AppNotification.fromDoc(String id, NotificationKind kind, Map<String, dynamic> d) {
@@ -106,6 +108,7 @@ class AppNotification {
       toSchool: direction == 'toSchool' ? true : (direction == 'toHome' ? false : null),
       readAt: _time(d['readAt']),
       alarmAt: _time(d['alarmAt']),
+      criticalEvent: d['critical'] == true,
     );
   }
 
@@ -125,8 +128,11 @@ class AppNotification {
   /// true: to school, false: home, null: not about one run.
   final bool? toSchool;
 
+  /// The server made this one critical (a run moved with no time left to confirm).
+  final bool criticalEvent;
+
   bool get unread => readAt == null;
-  bool get critical => kind.critical;
+  bool get critical => kind.critical || criticalEvent;
 
   AppNotification markedRead(DateTime at) => AppNotification(
     id: id,
@@ -138,6 +144,7 @@ class AppNotification {
     toSchool: toSchool,
     readAt: at,
     alarmAt: alarmAt,
+    criticalEvent: criticalEvent,
   );
 
   static DateTime? _time(Object? v) => v is Timestamp ? v.toDate().toUtc() : null;

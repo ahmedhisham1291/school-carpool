@@ -227,11 +227,16 @@ export function canReceive(r: Recipient | null, type: NotificationType): r is Re
   return type === "verification-approved" || type === "verification-rejected";
 }
 
-/** WhatsApp for this recipient and type: a template exists, they agreed, and the group is on. */
-export function wantsWhatsApp(type: NotificationType, r: Recipient, settings: NotificationSettings): boolean {
+/**
+ * WhatsApp for this recipient and type: a template exists, they agreed, and
+ * the group is on. An event made critical by its producer (a run moved with
+ * no time left to confirm) follows the urgent "no driver" group, which is
+ * on by default.
+ */
+export function wantsWhatsApp(type: NotificationType, r: Recipient, settings: NotificationSettings, critical = false): boolean {
   const spec = TYPES[type];
   if (!spec.template || !r.whatsappOptIn || !r.phone) return false;
-  const group = spec.group;
+  const group = critical && !spec.critical ? "noDriver" : spec.group;
   return isWhatsAppGroup(group) && settings.whatsapp[group];
 }
 

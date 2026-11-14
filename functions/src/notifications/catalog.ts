@@ -22,6 +22,9 @@ export const NOTIFICATION_TYPES = [
   "child-back",
   "driver-unavailable",
   "schedule-changed",
+  // A run's time moved (Prompt 7 fixes): to its driver; critical when there
+  // is no time left to confirm again.
+  "time-changed",
   // Driver reminders (Prompt 8 producer)
   "drive-evening",
   "drive-hour",
@@ -120,6 +123,7 @@ export const TYPES: Readonly<Record<NotificationType, TypeSpec>> = {
   "child-back": spec("absences", "cp_child_back", true),
   "driver-unavailable": spec("swaps", "cp_needs_driver", true),
   "schedule-changed": spec("schedule", "cp_schedule_changed", false),
+  "time-changed": spec("schedule", "cp_time_changed", true),
   "drive-evening": spec("reminders", "cp_drive_tomorrow", true),
   "drive-hour": spec("reminders", "cp_drive_soon", true),
   "confirm-reminder": spec("reminders", "cp_confirm_drive", true),

@@ -892,6 +892,7 @@ the others have no parameter. No names, no addresses, no message text.
 | `cp_child_back` | A child is back for the {{1}} run. |
 | `cp_plan_ready` | Check your runs this week. |
 | `cp_schedule_changed` | Days off or times changed in your carpool. |
+| `cp_time_changed` | The {{1}} run has a new time. Check the plan. |
 | `cp_join_requested` | A parent asked to join your carpool. |
 | `cp_join_approved` | You are now in the carpool. |
 | `cp_join_declined` | Your request to join was declined. |
@@ -901,7 +902,9 @@ the others have no parameter. No names, no addresses, no message text.
 
 The Arabic bodies are in `functions/src/notifications/texts.ts`. Add
 "Open the app for details." as the footer. Only `cp_no_driver` and
-`cp_child_not_confirmed` are sent by default (COST MODE); the others only
+`cp_child_not_confirmed` (and `cp_time_changed` when a run moved with no
+time left to confirm: it follows the "No driver" switch) are sent by
+default (COST MODE); the others only
 for parents who switch that group on, and only to parents who agreed to
 WhatsApp at sign-up.
 

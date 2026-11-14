@@ -4863,5 +4863,18 @@
   "gallerySectionAlerts": "التنبيهات",
   "@gallerySectionAlerts": {
     "description": "Gallery section header"
+  },
+  "notifTimeChangedTitle": "موعد جديد",
+  "@notifTimeChangedTitle": {
+    "description": "Notification title: a run moved to a new time"
+  },
+  "notifTimeChangedBody": "مشوار {run} له موعد جديد. راجع الخطة.",
+  "@notifTimeChangedBody": {
+    "description": "Notification text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
   }
 }

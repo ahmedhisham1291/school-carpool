@@ -37,6 +37,7 @@ export const TEXTS: Readonly<Texts> = {
   "child-back": t("عودة طفل", "طفل سيركب مشوار {when} مرة أخرى.", "Child back", "A child is back for the {when} run."),
   "driver-unavailable": t("مشوار بلا سائق", "مشوار {when} يحتاج سائقًا.", "Run needs a driver", "The {when} run needs a driver."),
   "schedule-changed": t("تغيّر الجدول", "تغيّرت الإجازات أو المواعيد في مشوارك.", "Schedule changed", "Days off or times changed in your carpool."),
+  "time-changed": t("موعد جديد", "مشوار {when} له موعد جديد. راجع الخطة.", "New run time", "The {when} run has a new time. Check the plan."),
   "drive-evening": t("تقود غدًا", "أنت سائق مشوار {when}.", "You drive tomorrow", "You drive the {when} run."),
   "drive-hour": t("مشوارك بعد قليل", "مشوار {when} يبدأ خلال ساعة.", "Run within the hour", "Your {when} run starts within the hour."),
   "confirm-reminder": t("أكّد القيادة", "يرجى تأكيد مشوار {when} قبل الموعد.", "Confirm your drive", "Please confirm the {when} run before the deadline."),

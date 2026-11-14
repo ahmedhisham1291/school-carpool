@@ -557,3 +557,42 @@ describe("senders", () => {
     assert.deepEqual(plain.template.components, []);
   });
 });
+
+describe("schedule event kinds (Prompt 7 fixes)", () => {
+  it("every schedule event kind the flows write is a notification type with text and a schedule link", () => {
+    const kinds = [
+      "plan-ready", "no-driver", "swap-requested", "swap-accepted", "swap-cancelled", "run-taken",
+      "child-absent", "child-back", "driver-unavailable", "schedule-changed", "time-changed",
+      "join-requested", "join-approved", "join-declined",
+    ] as const;
+    for (const k of kinds) {
+      assert.ok((NOTIFICATION_TYPES as readonly string[]).includes(k), k);
+      if (!k.startsWith("join")) assert.equal(routeFor({ type: k, carpoolId: "k1" }), "/carpools/k1/schedule", k);
+    }
+  });
+
+  it("time-changed: to the driver, with the run; a reconfirm notice is normal, a moved one is critical and goes to WhatsApp", async () => {
+    await dispatchEvent(deps, scheduleEvent("time-changed", ["bob"], { critical: false }));
+    let r = store.recordsOf("bob")[0];
+    assert.equal(r.critical, false);
+    assert.equal(r.alarmAtMs, null);
+    assert.equal(push.sent[0].message.body, "The Mon 16 Nov, to school run has a new time. Check the plan.");
+    assert.equal(whatsapp.sent.length, 0);
+
+    const moved = newEvent("e-moved", "time-changed", ["cara"], clock.now, { carpoolId: "k1", runId: "2026-11-16_am", date: "2026-11-16", direction: "toSchool", critical: true });
+    clock.now = cairoToUtcMs("2026-11-15", "23:30");
+    moved.createdAtMs = clock.now;
+    await dispatchEvent(deps, moved);
+    r = store.recordsOf("cara")[0];
+    assert.equal(r.critical, true);
+    assert.ok(r.alarmAtMs);
+    const last = push.sent.at(-1)?.message;
+    assert.equal(last?.level, "time-sensitive");
+    assert.equal(last?.sound, true, "quiet hours do not silence it");
+    assert.deepEqual(whatsapp.sent.map((w) => w.template), ["cp_time_changed"]);
+    // Switching the urgent group off stops it.
+    await store.saveSettings("bob", applySettingsChange(defaultSettings(), { whatsapp: { noDriver: false } }));
+    await dispatchEvent(deps, { ...moved, id: "e-moved-2", recipients: ["bob"] });
+    assert.equal(whatsapp.sent.length, 1);
+  });
+});

@@ -22,6 +22,10 @@ Expect small analyzer fixes on the first CI run, most likely in the
      points at the outbox): plan ready, no driver (take your own child,
      critical), swap requested/accepted/cancelled, run taken, driver
      unavailable, child absent/back, schedule changed;
+   - Prompt 7 fixes: `time-changed` to the run's driver (critical by
+     event when the run moved with no time left to confirm: time-sensitive
+     push, alarm, WhatsApp under the "No driver" switch; otherwise a normal
+     schedule notice);
    - Prompt 6 join flows: join requested (to the carpool's admins), join
      approved / declined (to the requester), written in the same
      transaction;

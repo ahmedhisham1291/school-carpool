@@ -1109,5 +1109,7 @@
   "notifQuietSection": "Quiet hours",
   "notifQuietHours": "Quiet at night",
   "notifQuietHelper": "{from} to {to}, except urgent alerts",
-  "gallerySectionAlerts": "Alerts"
+  "gallerySectionAlerts": "Alerts",
+  "notifTimeChangedTitle": "New run time",
+  "notifTimeChangedBody": "The {run} run has a new time. Check the plan."
 }
