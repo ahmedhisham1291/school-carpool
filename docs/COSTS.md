@@ -81,8 +81,8 @@ Limits below are the public free allowances as understood in November 2026.
 - **Firestore:** user search reads at most about 25 documents per search
   and is capped at 30 searches per admin per 10 minutes
   (`ADMIN_SEARCH_LIMIT`). The audit log grows by one small document per
-  admin action or view; set a retention period with the lawyer (open
-  question).
+  admin action or view; entries are deleted after 2 years
+  (`AUDIT_LOG_DAYS`, retentionDaily, Prompt 12).
 - **App Check on the web:** reCAPTCHA Enterprise has a free monthly
   allowance (check the current number on Google's pricing page); admins
   make few calls.
@@ -376,7 +376,7 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub
    Actions.
 2. Cloud Storage outside the free US regions is billed from the first GB.
-   The bucket region is part of the hosting decision with the lawyer.
+   The bucket is in `europe-west1` (hosting abroad confirmed by the lawyer; docs/DECISIONS.md).
 3. Algolia's Build plan terms say it is "provided only for evaluation
    purposes" and not for production use. Before launch, either ask
    Algolia's non-profit programme (the app is free and non-profit) or

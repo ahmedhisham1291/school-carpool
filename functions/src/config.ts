@@ -2,8 +2,8 @@ import { defineBoolean, defineInt, defineSecret, defineString } from "firebase-f
 
 /**
  * Region of every function. Must match kFunctionsRegion in
- * lib/firebase/firebase_setup.dart. Open question for the owner and the
- * lawyer (hosting abroad); see docs/progress/prompt-01.md.
+ * lib/firebase/firebase_setup.dart. Hosting abroad in europe-west1 is
+ * confirmed by the lawyer (docs/DECISIONS.md, 14 Nov 2026).
  */
 export const REGION = "europe-west1";
 

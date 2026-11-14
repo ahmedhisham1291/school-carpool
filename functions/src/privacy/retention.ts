@@ -5,9 +5,9 @@
  * deletes it. The privacy screen, the export, SECURITY.md and the App Store
  * answers list the same types (ids in DATA_TYPES). Pure; unit-tested.
  *
- * The owner will confirm the new periods with the lawyer (DECISIONS.md).
- * Every period here is one constant, so a change from the lawyer is a
- * one-line change.
+ * The lawyer confirmed the periods (docs/DECISIONS.md, owner update 14 Nov
+ * 2026). Every period here is one constant, so a change is a one-line
+ * change.
  */
 
 export const DAY_MS = 86_400_000;
@@ -37,6 +37,12 @@ export const DEVICE_STALE_DAYS = 180;
 export const EXPORT_FILE_DAYS = 1;
 /** Abuse counters (scraping alerts). */
 export const ABUSE_COUNTER_DAYS = 2;
+/**
+ * Transfer records (transfers, transferResults): PLACEHOLDER of 5 years.
+ * The lawyer confirmed how long they are kept (DECISIONS.md) but the
+ * period is not recorded; the owner replaces this number.
+ */
+export const TRANSFER_RECORD_YEARS = 5;
 /** Security alerts for admins once handled. */
 export const SECURITY_ALERT_DAYS = YEAR_DAYS;
 /** A closed carpool (card, members, runs, swaps, balances, its trips) is deleted 1 year after it closed (Prompt 12 review). */
@@ -130,8 +136,11 @@ export const RETENTION: readonly RetentionRule[] = [
   { id: "emergencyContact", where: "emergencyContacts/{uid}", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "notifications", where: "users/{uid}/notifications (60 days), notificationEvents (30 days), pushTokens, notificationSettings", days: 60, from: "created", enforcedBy: ["firestoreTtl", "accountDeletion"] },
   { id: "devices", where: "users/{uid}/devices, users/{uid}/logins (90 days)", days: LOGIN_HISTORY_DAYS, from: "created", enforcedBy: ["firestoreTtl", "accountDeletion"] },
-  // The lawyer decides how long transfer records stay (Prompt 12: "as long as the law requires").
-  { id: "wallet", where: "transfers, transferResults (append-only), wallets/{uid} (partner reference); the money is held by the partner", days: null, from: "never", enforcedBy: ["kept"] },
+  // The lawyer confirmed a period for transfer records (DECISIONS.md) but
+  // its length is not written down yet: TRANSFER_RECORD_YEARS (5) is a
+  // PLACEHOLDER for the owner to replace. Nothing deletes them yet (MONEY:
+  // append-only); a deletion job needs the owner's go (docs/progress/prompt-12.md).
+  { id: "wallet", where: "transfers, transferResults (append-only), wallets/{uid} (partner reference); the money is held by the partner", days: TRANSFER_RECORD_YEARS * YEAR_DAYS, from: "created", enforcedBy: ["kept"] },
   { id: "reports", where: "reports (open reports are kept after deletion), message copies in reports", days: REPORT_CONTEXT_DAYS, from: "handled", enforcedBy: ["retentionDaily"] },
   { id: "analytics", where: "Google Analytics for Firebase (screens and features, no names, numbers, IDs, text or places)", days: 60, from: "created", enforcedBy: ["kept"] },
   { id: "crashReports", where: "Sentry (scrubbed errors)", days: 90, from: "created", enforcedBy: ["kept"] },
@@ -141,7 +150,7 @@ export const RETENTION: readonly RetentionRule[] = [
 export const KEPT_AFTER_DELETION = [
   { what: "bannedIds/{hash}", why: "keyed national-ID hash on the ban list (only when the parent was banned)" },
   { what: "reports (open)", why: "open reports against or by the parent until an admin handles them" },
-  { what: "transfers, transferResults", why: "transfer records for as long as the law requires (lawyer to confirm)" },
+  { what: "transfers, transferResults", why: "transfer records for as long as the law requires (period confirmed by the lawyer; 5 years placeholder until the owner gives it)" },
   { what: "auditLog", why: "admin actions (2 years)" },
   { what: "parentIds/{id}", why: "the parent ID is reserved forever so it is never reused (holds only the uid)" },
   { what: "closedAccounts/{uid}", why: "the purge date and the deletion report (no name, phone or ID)" },

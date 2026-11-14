@@ -7,7 +7,8 @@ import { USERS } from "./accounts";
  * The versions must match lib/features/auth/legal_documents.dart; a newer
  * server version makes old app builds ask the parent to update.
  *
- * The texts are drafts until the lawyer signs them off (open question).
+ * What the documents cover is confirmed by the lawyer (docs/DECISIONS.md,
+ * 14 Nov 2026); a change to the final wording raises the version.
  */
 export const CONSENT_VERSIONS = {
   terms: "2026-11-13",

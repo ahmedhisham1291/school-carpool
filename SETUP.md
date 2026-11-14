@@ -20,7 +20,7 @@ Placeholders used in the code that you will replace with your own values:
 
 1. Enroll at developer.apple.com (paid yearly). An organization account needs
    a D-U-N-S number; this decides the seller name on the App Store (ties to
-   the "operator entity" question for the lawyer).
+   the operating entity, which the lawyer confirmed; docs/DECISIONS.md).
 2. **Certificates, Identifiers & Profiles > Identifiers > +  > App IDs > App.**
    Create three explicit App IDs:
    - `org.schoolcarpool.app.dev` (School Carpool Dev)
@@ -63,9 +63,9 @@ and staging, ever.
 2. **Upgrade to Blaze** (pay as you go). Cloud Functions need it. You pay
    nothing while usage stays in the free quotas; step 4 adds budget alerts.
 3. **Location** (asked when you create Firestore): this is permanent.
-   Hosting data abroad needs the lawyer's answer (spec section 7). Until
-   then, use `europe-west1` (Belgium) for the dev project only and wait
-   with staging and prod. Functions use `europe-west1` too
+   Hosting abroad in `europe-west1` (Belgium) is confirmed by the lawyer
+   (docs/DECISIONS.md, 14 Nov 2026): use it for dev, staging and prod.
+   Functions use `europe-west1` too
    (`functions/src/config.ts`, `lib/firebase/firebase_setup.dart`).
 4. **Build > Firestore Database > Create database**: Standard edition,
    **production mode** (deny all). We deploy our own rules anyway.
@@ -191,7 +191,8 @@ daily backups **on in prod only**. Install the Google Cloud CLI (`gcloud`) and l
 ## 6. Sentry (free Developer plan)
 
 1. sentry.io > sign up > choose the **Developer** (free) plan. Pick the EU
-   data region if offered (cross-border data question for the lawyer).
+   data region if offered (hosting abroad is confirmed by the lawyer;
+   docs/DECISIONS.md).
 2. Create two projects: **carpool-app** (platform Flutter) and
    **carpool-functions** (platform Node.js). Environments (dev, staging,
    prod) come from the app, so one project each is enough.
@@ -1056,9 +1057,10 @@ Dashboard > Webhooks that the URL is set and the last calls return 200.
 
 ### 19.6 Retention and expiry (each cloud project)
 
-- `chatRetentionDaily` (03:30 Cairo) deletes, in every channel we created,
-  messages older than `CHAT_RETENTION_DAYS` (default 180 days; the owner
-  and the lawyer choose the period). Reports keep their own short copy.
+- Since Prompt 12, `retentionDaily` (03:10 Cairo) deletes a chat 1 year
+  after it ended (owner decision, confirmed by the lawyer; docs/DECISIONS.md).
+  `chatRetentionDaily` and `CHAT_RETENTION_DAYS` are gone. Reports keep
+  their own short copy, cleared 1 year after the report is handled.
 - Firestore > TTL policies: collection `chatRequests`, field `expiresAt`
   (30 days after the last change), and collection group `chatPushes`,
   field `expiresAt` (2 days: delivery records of chat pushes).

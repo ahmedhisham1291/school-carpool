@@ -3,7 +3,9 @@
 Draft for App Store Connect > App Privacy (Prompt 12; Prompt 13 finalises it
 with the TestFlight build). Built from the data the app really collects
 (privacy screen list, `DATA_TYPES` in functions/src/privacy/retention.ts).
-**The owner and the lawyer confirm before submission.**
+The lawyer confirmed the data collected and the retention periods
+(docs/DECISIONS.md, 14 Nov 2026); **the owner checks these answers against
+the build before submission.**
 
 "Linked to you" = stored with the parent's account. "Tracking" = No for
 every type (no advertising, no data brokers, no IDFA).

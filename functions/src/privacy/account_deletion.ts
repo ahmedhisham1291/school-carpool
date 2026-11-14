@@ -16,7 +16,8 @@ import { purgeAfterClosure } from "./retention";
  *
  * Kept after that: the keyed national-ID hash on the ban list (banned
  * parents only), open reports, the transfer records (as long as the law
- * requires; lawyer), the admin audit log and the reserved parent ID.
+ * requires: TRANSFER_RECORD_YEARS, confirmed by the lawyer), the admin
+ * audit log and the reserved parent ID.
  *
  * The wallet must be empty and settled first. Every step runs on its own;
  * a failed step is recorded in closedAccounts/{uid} and retried by
@@ -79,7 +80,7 @@ export const IMMEDIATE_TARGETS: ReadonlyArray<{ collection: string; target: Targ
   // Children and car (Prompt 3)
   { collection: "children", target: { kind: "where", collection: "children", field: "ownerUid" } },
   { collection: "vehicles", target: { kind: "doc", path: "vehicles/{uid}" } },
-  // Wallet (Prompt 11B): counters only; transfers stay (lawyer), wallets/{uid} is closed, not deleted.
+  // Wallet (Prompt 11B): counters only; transfers stay (TRANSFER_RECORD_YEARS), wallets/{uid} is closed, not deleted.
   { collection: "walletLimits", target: { kind: "doc", path: "walletLimits/{uid}" } },
   // Devices and privacy (Prompt 12)
   { collection: "users/devices", target: { kind: "subcollection", path: "users/{uid}/devices" } },
@@ -117,7 +118,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   reports: "open reports are kept; handled ones lose their message copy after 1 year",
   moderations: "admin decisions (part of the audit trail)",
   auditLog: "admin actions, 2 years",
-  transfers: "transfer records, as long as the law requires (lawyer)",
+  transfers: "transfer records, as long as the law requires (TRANSFER_RECORD_YEARS: 5, placeholder for the period the lawyer confirmed)",
   transferResults: "transfer outcomes, with the transfers",
   walletPending: "empty: the wallet must be settled before deletion",
   walletDaily: "per-day amounts for the limits (no names); TTL expiresAt, 35 days",
