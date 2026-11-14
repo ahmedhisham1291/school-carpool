@@ -171,6 +171,31 @@ Business Platform, so invite links cost nothing.
   `expiresAt` field; a Firestore TTL policy deletes them (SETUP.md 16.4).
 - **Upgrade when:** never on its own; it counts toward the Firebase row above.
 
+## Schedule (Prompt 7)
+
+No new paid service.
+
+- **Cloud Scheduler:** one more job, `scheduleTick`, every 15 minutes
+  (Africa/Cairo). With `purgeVerificationImagesDaily` that is 2 of the 3
+  free jobs per billing account. About 2,900 runs a month, far inside the
+  free 2 million Functions invocations; each run is two small collection
+  group queries (planned or open runs past their cut-off, confirmed runs
+  that started) and one transaction per run that changes. No warm
+  instances: `minInstances` is `MIN_INSTANCES` (0).
+- **Firestore:** planning a week is one transaction (members, consents,
+  exceptions, the week's runs, the balance: about 20 reads; up to 14 run
+  writes and one event). Confirm, swap, take, absent and exception changes
+  are one transaction of a few reads and 1 to 3 writes plus an event. The
+  week plan listens to at most 14 run documents.
+- **Limits per parent** (server settings): 20 plans a day
+  (`SCHEDULE_PLANS_PER_DAY`), 100 other schedule changes a day
+  (`SCHEDULE_CHANGES_PER_DAY`).
+- **Alert events** (`scheduleEvents`) wait for Prompt 8's sender; they
+  carry IDs only and expire after 30 days (TTL, SETUP.md 17.2). WhatsApp
+  costs start with Prompt 8: only the critical "no driver" alert goes to
+  WhatsApp by default.
+- **Upgrade when:** never on its own; it counts toward the Firebase row above.
+
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub

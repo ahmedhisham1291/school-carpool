@@ -635,6 +635,13 @@ enum CarpoolFailureKind {
   notYourSchool,
   notFound,
   suspended,
+  // Prompt 7 (schedule)
+  noConsent,
+  notDriver,
+  tooLate,
+  runTaken,
+  notPlannable,
+  tooManyExceptions,
   invalid,
   unknown,
 }
@@ -671,6 +678,12 @@ class CarpoolFailure implements Exception {
         'not-your-school' => CarpoolFailureKind.notYourSchool,
         'not-found' => CarpoolFailureKind.notFound,
         'suspended' => CarpoolFailureKind.suspended,
+        'no-consent' => CarpoolFailureKind.noConsent,
+        'not-driver' => CarpoolFailureKind.notDriver,
+        'too-late' => CarpoolFailureKind.tooLate,
+        'run-taken' => CarpoolFailureKind.runTaken,
+        'not-plannable' => CarpoolFailureKind.notPlannable,
+        'too-many-exceptions' => CarpoolFailureKind.tooManyExceptions,
         'invalid-request' || 'invalid-school' || 'invalid-area' || 'no-children' || 'not-your-child' || 'self-consent' =>
           CarpoolFailureKind.invalid,
         _ => switch (error.code) {
@@ -713,6 +726,12 @@ class CarpoolFailure implements Exception {
     CarpoolFailureKind.notYourSchool => l10n.mapErrorNotYourSchool,
     CarpoolFailureKind.notFound => l10n.carpoolErrorNotFound,
     CarpoolFailureKind.suspended => l10n.errorSuspended,
+    CarpoolFailureKind.noConsent => l10n.carpoolErrorNoConsent,
+    CarpoolFailureKind.notDriver => l10n.carpoolErrorNotDriver,
+    CarpoolFailureKind.tooLate => l10n.carpoolErrorTooLate,
+    CarpoolFailureKind.runTaken => l10n.carpoolErrorRunTaken,
+    CarpoolFailureKind.notPlannable => l10n.carpoolErrorNotPlannable,
+    CarpoolFailureKind.tooManyExceptions => l10n.carpoolErrorTooManyExceptions,
     CarpoolFailureKind.invalid || CarpoolFailureKind.unknown => l10n.errorGeneric,
   };
 

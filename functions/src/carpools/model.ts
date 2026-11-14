@@ -96,7 +96,14 @@ export type CarpoolErrorReason =
   | "no-home"
   | "invite-invalid"
   | "admin-must-stay"
-  | "rate-limited";
+  | "rate-limited"
+  // Prompt 7 (schedule)
+  | "no-consent"
+  | "not-driver"
+  | "too-late"
+  | "run-taken"
+  | "not-plannable"
+  | "too-many-exceptions";
 
 export class CarpoolError extends Error {
   constructor(
@@ -138,6 +145,12 @@ export const CARPOOL_ERROR_CODES: Record<CarpoolErrorReason, string> = {
   "invite-invalid": "not-found",
   "admin-must-stay": "failed-precondition",
   "rate-limited": "resource-exhausted",
+  "no-consent": "failed-precondition",
+  "not-driver": "permission-denied",
+  "too-late": "failed-precondition",
+  "run-taken": "failed-precondition",
+  "not-plannable": "invalid-argument",
+  "too-many-exceptions": "resource-exhausted",
 };
 
 // --------------------------------------------------------------------------

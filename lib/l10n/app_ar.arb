@@ -4038,5 +4038,461 @@
   "gallerySectionCarpools": "المشاوير",
   "@gallerySectionCarpools": {
     "description": "Gallery section header"
+  },
+  "actionSave": "حفظ",
+  "@actionSave": {
+    "description": "Button: save a form"
+  },
+  "scheduleSection": "الجدول",
+  "@scheduleSection": {
+    "description": "Section header on the carpool screen"
+  },
+  "scheduleWeekPlan": "خطة الأسبوع",
+  "@scheduleWeekPlan": {
+    "description": "Row and screen title: who drives each run this week"
+  },
+  "scheduleWeekPlanHelper": "من يقود كل مشوار",
+  "@scheduleWeekPlanHelper": {
+    "description": "Row helper"
+  },
+  "scheduleExceptions": "إجازات ومواعيد",
+  "@scheduleExceptions": {
+    "description": "Row and screen title: holidays and time changes (F30)"
+  },
+  "scheduleExceptionsHelper": "إجازات وامتحانات ورمضان",
+  "@scheduleExceptionsHelper": {
+    "description": "Row helper"
+  },
+  "scheduleBalance": "رصيد القيادة",
+  "@scheduleBalance": {
+    "description": "Row and screen title (F37)"
+  },
+  "scheduleBalanceHelper": "المشاوير هذا الترم",
+  "@scheduleBalanceHelper": {
+    "description": "Row helper"
+  },
+  "scheduleThisWeek": "هذا الأسبوع",
+  "@scheduleThisWeek": {
+    "description": "Chip: this week"
+  },
+  "scheduleNextWeek": "الأسبوع القادم",
+  "@scheduleNextWeek": {
+    "description": "Chip: next week"
+  },
+  "scheduleToSchool": "للمدرسة {time}",
+  "@scheduleToSchool": {
+    "description": "Run title: morning run to school at a time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleToHome": "للبيت {time}",
+  "@scheduleToHome": {
+    "description": "Run title: afternoon run home at a time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleDayTitle": "{day} {date}",
+  "@scheduleDayTitle": {
+    "description": "Day header: short weekday and date, or weekday and time",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleNoDriver": "لا يوجد سائق بعد",
+  "@scheduleNoDriver": {
+    "description": "Run with no driver"
+  },
+  "scheduleYou": "أنت",
+  "@scheduleYou": {
+    "description": "The signed-in parent as the driver"
+  },
+  "scheduleDriverLine": "{name} · {count, plural, =0{بلا أطفال} =1{طفل} =2{طفلان} few{{count} أطفال} many{{count} طفلًا} other{{count} طفل}}",
+  "@scheduleDriverLine": {
+    "description": "Run row subtitle: driver and number of children on the pickup list",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleDriverIs": "السائق: {name}",
+  "@scheduleDriverIs": {
+    "description": "Run sheet: who drives",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "runPlanned": "للتأكيد",
+  "@runPlanned": {
+    "description": "Badge: proposed driver must confirm (F28)"
+  },
+  "runConfirmed": "مؤكد",
+  "@runConfirmed": {
+    "description": "Badge: driver confirmed"
+  },
+  "runSwapAsked": "طلب تبديل",
+  "@runSwapAsked": {
+    "description": "Badge: the driver asked for a swap (F11)"
+  },
+  "runNeedsDriver": "بحاجة لسائق",
+  "@runNeedsDriver": {
+    "description": "Badge: no driver yet"
+  },
+  "runOwnTrip": "كلٌّ يوصل طفله",
+  "@runOwnTrip": {
+    "description": "Badge: no driver confirmed by the cut-off; each family takes their own child"
+  },
+  "runNoSchool": "لا مدرسة",
+  "@runNoSchool": {
+    "description": "Badge: no-school day"
+  },
+  "runDone": "تم",
+  "@runDone": {
+    "description": "Badge: run done"
+  },
+  "scheduleToConfirm": "{count, plural, =1{لديك مشوار واحد للتأكيد} =2{لديك مشواران للتأكيد} few{لديك {count} مشاوير للتأكيد} many{لديك {count} مشوارًا للتأكيد} other{لديك {count} مشوار للتأكيد}}",
+  "@scheduleToConfirm": {
+    "description": "Note on the week plan",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleMissedNote": "لم يؤكد أي سائق. كل أسرة توصل طفلها اليوم.",
+  "@scheduleMissedNote": {
+    "description": "Run sheet: missed run (backups rule)"
+  },
+  "scheduleNotPlannedTitle": "لم تُخطط بعد",
+  "@scheduleNotPlannedTitle": {
+    "description": "Empty state title"
+  },
+  "scheduleNotPlannedAdmin": "اقترح سائقًا لكل مشوار، وكل سائق يؤكد مشاويره.",
+  "@scheduleNotPlannedAdmin": {
+    "description": "Empty state body for the group admin"
+  },
+  "scheduleNotPlannedMember": "مسؤول المجموعة يخطط الأسبوع. اختر أيام قيادتك.",
+  "@scheduleNotPlannedMember": {
+    "description": "Empty state body for members"
+  },
+  "schedulePlan": "خطط الأسبوع",
+  "@schedulePlan": {
+    "description": "Primary button for the group admin"
+  },
+  "schedulePlanned": "تم اقتراح الخطة",
+  "@schedulePlanned": {
+    "description": "Snackbar"
+  },
+  "schedulePlannedOpen": "{count, plural, =1{تم الاقتراح. مشوار بلا سائق} =2{تم الاقتراح. مشواران بلا سائق} few{تم الاقتراح. {count} مشاوير بلا سائق} many{تم الاقتراح. {count} مشوارًا بلا سائق} other{تم الاقتراح. {count} مشوار بلا سائق}}",
+  "@schedulePlannedOpen": {
+    "description": "Snackbar after planning",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleMyDays": "أيام قيادتي",
+  "@scheduleMyDays": {
+    "description": "Button and sheet title"
+  },
+  "scheduleMyDaysIntro": "اختر الأيام التي تستطيع القيادة فيها. الخطة القادمة تتبعها.",
+  "@scheduleMyDaysIntro": {
+    "description": "Driving days sheet intro"
+  },
+  "scheduleDaysSaved": "تم حفظ الأيام",
+  "@scheduleDaysSaved": {
+    "description": "Snackbar"
+  },
+  "scheduleConfirm": "تأكيد القيادة",
+  "@scheduleConfirm": {
+    "description": "Large button: the driver confirms the run (F28)"
+  },
+  "scheduleConfirmedSnack": "تم تأكيد القيادة",
+  "@scheduleConfirmedSnack": {
+    "description": "Snackbar"
+  },
+  "scheduleConfirmBy": "أكّد قبل {time}",
+  "@scheduleConfirmBy": {
+    "description": "Run sheet: deadline",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleFallbackNote": "لم يختر أحد هذا اليوم، فعُرض على من قاد أقل.",
+  "@scheduleFallbackNote": {
+    "description": "Run sheet note"
+  },
+  "scheduleCantDrive": "لا أستطيع",
+  "@scheduleCantDrive": {
+    "description": "Large button: ask for a swap (F11)"
+  },
+  "scheduleSwapTitle": "طلب تبديل؟",
+  "@scheduleSwapTitle": {
+    "description": "Confirm dialog title"
+  },
+  "scheduleSwapBody": "لن تكون سائق هذا المشوار. أي عضو يستطيع أخذه، وإلا تُنبَّه كل أسرة.",
+  "@scheduleSwapBody": {
+    "description": "Confirm dialog body"
+  },
+  "scheduleSwapAsk": "اطلب تبديل",
+  "@scheduleSwapAsk": {
+    "description": "Confirm dialog button"
+  },
+  "scheduleSwapSent": "تم إرسال طلب التبديل",
+  "@scheduleSwapSent": {
+    "description": "Snackbar"
+  },
+  "scheduleTake": "سأقود هذا",
+  "@scheduleTake": {
+    "description": "Large button: take an open run or accept a swap"
+  },
+  "scheduleTakeTitle": "تقود هذا المشوار؟",
+  "@scheduleTakeTitle": {
+    "description": "Confirm dialog title"
+  },
+  "scheduleTakeBody": "هذا تأكيد منك أمام كل الأسر.",
+  "@scheduleTakeBody": {
+    "description": "Confirm dialog body"
+  },
+  "scheduleTaken": "أنت سائق هذا المشوار",
+  "@scheduleTaken": {
+    "description": "Snackbar"
+  },
+  "scheduleTakeBack": "سأقوده أنا",
+  "@scheduleTakeBack": {
+    "description": "Button: take back one's own swap request"
+  },
+  "scheduleTakenBack": "عدت سائقًا لهذا المشوار",
+  "@scheduleTakenBack": {
+    "description": "Snackbar"
+  },
+  "schedulePickupList": "قائمة التوصيل",
+  "@schedulePickupList": {
+    "description": "Run sheet section"
+  },
+  "scheduleNoRiders": "لا أطفال في هذا المشوار",
+  "@scheduleNoRiders": {
+    "description": "Run sheet: empty pickup list"
+  },
+  "scheduleAbsentTag": "{name} (غائب)",
+  "@scheduleAbsentTag": {
+    "description": "Pickup list: child marked absent",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleAbsentChild": "غائب: {name}",
+  "@scheduleAbsentChild": {
+    "description": "Switch title: mark one's child absent (F27)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleAbsentHelper": "الذهاب والعودة في هذا اليوم",
+  "@scheduleAbsentHelper": {
+    "description": "Switch helper"
+  },
+  "scheduleMarkedAbsent": "تم إبلاغ السائق",
+  "@scheduleMarkedAbsent": {
+    "description": "Snackbar"
+  },
+  "scheduleMarkedBack": "عاد إلى القائمة",
+  "@scheduleMarkedBack": {
+    "description": "Snackbar"
+  },
+  "exceptionsEmptyTitle": "لا إجازات ولا تغييرات",
+  "@exceptionsEmptyTitle": {
+    "description": "Empty state title"
+  },
+  "exceptionsEmptyBody": "أضف الإجازات وأيام الامتحانات ومواعيد رمضان.",
+  "@exceptionsEmptyBody": {
+    "description": "Empty state body for the admin"
+  },
+  "exceptionsEmptyMember": "مسؤول المجموعة يضيفها هنا.",
+  "@exceptionsEmptyMember": {
+    "description": "Empty state body for members"
+  },
+  "exceptionsAdd": "أضف إجازة أو موعدًا",
+  "@exceptionsAdd": {
+    "description": "Primary button and sheet title"
+  },
+  "exceptionKindLabel": "النوع",
+  "@exceptionKindLabel": {
+    "description": "Label above the kind chips"
+  },
+  "exceptionReasonLabel": "السبب",
+  "@exceptionReasonLabel": {
+    "description": "Label above the reason chips"
+  },
+  "exceptionKindNoSchool": "لا مدرسة",
+  "@exceptionKindNoSchool": {
+    "description": "Chip: no-school day"
+  },
+  "exceptionKindTimes": "مواعيد أخرى",
+  "@exceptionKindTimes": {
+    "description": "Chip: one-off or ranged time change"
+  },
+  "exReasonHoliday": "إجازة",
+  "@exReasonHoliday": {
+    "description": "Chip and row title"
+  },
+  "exReasonExams": "امتحانات",
+  "@exReasonExams": {
+    "description": "Chip and row title"
+  },
+  "exReasonEarly": "خروج مبكر",
+  "@exReasonEarly": {
+    "description": "Chip and row title: early dismissal"
+  },
+  "exReasonRamadan": "رمضان",
+  "@exReasonRamadan": {
+    "description": "Chip and row title"
+  },
+  "exReasonOther": "أخرى",
+  "@exReasonOther": {
+    "description": "Chip and row title"
+  },
+  "exceptionFrom": "من",
+  "@exceptionFrom": {
+    "description": "Date field label"
+  },
+  "exceptionTo": "إلى",
+  "@exceptionTo": {
+    "description": "Date field label"
+  },
+  "exceptionDateRange": "{from} إلى {to}",
+  "@exceptionDateRange": {
+    "description": "Date range",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "exceptionMorning": "الذهاب",
+  "@exceptionMorning": {
+    "description": "Time field label: new morning time"
+  },
+  "exceptionAfternoon": "العودة",
+  "@exceptionAfternoon": {
+    "description": "Time field label: new afternoon time"
+  },
+  "exceptionUsual": "كالمعتاد",
+  "@exceptionUsual": {
+    "description": "Time option: keep the usual time"
+  },
+  "exceptionErrorRange": "اختر نهاية بعد البداية، ٦٠ يومًا كحد أقصى.",
+  "@exceptionErrorRange": {
+    "description": "Field error"
+  },
+  "exceptionErrorTimes": "اختر موعدًا جديدًا واحدًا على الأقل.",
+  "@exceptionErrorTimes": {
+    "description": "Field error"
+  },
+  "exceptionSaved": "تم الحفظ وإبلاغ المجموعة",
+  "@exceptionSaved": {
+    "description": "Snackbar"
+  },
+  "exceptionDeleteTitle": "حذف هذا التغيير؟",
+  "@exceptionDeleteTitle": {
+    "description": "Confirm dialog title"
+  },
+  "exceptionDeleteBody": "تعود المشاوير لمواعيدها المعتادة، وقد تحتاج سائقًا من جديد.",
+  "@exceptionDeleteBody": {
+    "description": "Confirm dialog body"
+  },
+  "exceptionDelete": "حذف",
+  "@exceptionDelete": {
+    "description": "Button and tooltip"
+  },
+  "exceptionDeleted": "تم الحذف",
+  "@exceptionDeleted": {
+    "description": "Snackbar"
+  },
+  "balanceIntro": "العدل يتبع عدد الأطفال: الأسرة الأقل قيادة تُعرض عليها مشاوير أكثر.",
+  "@balanceIntro": {
+    "description": "Balance screen intro (F37)"
+  },
+  "balanceTerm": "هذا الترم",
+  "@balanceTerm": {
+    "description": "Section header"
+  },
+  "balanceRow": "قاد {driven} · استفاد {received}",
+  "@balanceRow": {
+    "description": "Balance row: runs driven and runs received",
+    "placeholders": {
+      "driven": {
+        "type": "int"
+      },
+      "received": {
+        "type": "int"
+      }
+    }
+  },
+  "balanceLeast": "الأقل قيادة",
+  "@balanceLeast": {
+    "description": "Badge"
+  },
+  "balanceEmptyBody": "لا مشاوير بعد. يُحسب كل مشوار مؤكد بعد موعده.",
+  "@balanceEmptyBody": {
+    "description": "Note when nothing was driven this term"
+  },
+  "carpoolErrorNoConsent": "يجب أن يوافق كل الأهالي عليك كسائق أولًا.",
+  "@carpoolErrorNoConsent": {
+    "description": "Error"
+  },
+  "carpoolErrorNotDriver": "هذا المشوار ليس لك.",
+  "@carpoolErrorNotDriver": {
+    "description": "Error"
+  },
+  "carpoolErrorTooLate": "فات وقت التغيير لهذا المشوار.",
+  "@carpoolErrorTooLate": {
+    "description": "Error"
+  },
+  "carpoolErrorRunTaken": "أخذه عضو آخر بالفعل.",
+  "@carpoolErrorRunTaken": {
+    "description": "Error"
+  },
+  "carpoolErrorNotPlannable": "خطط لهذا الأسبوع أو الثلاثة التالية.",
+  "@carpoolErrorNotPlannable": {
+    "description": "Error"
+  },
+  "carpoolErrorTooManyExceptions": "تغييرات كثيرة. احذف القديم أولًا.",
+  "@carpoolErrorTooManyExceptions": {
+    "description": "Error"
+  },
+  "scheduleDirToSchool": "للمدرسة",
+  "@scheduleDirToSchool": {
+    "description": "Run row: the morning run to school"
+  },
+  "scheduleDirToHome": "للبيت",
+  "@scheduleDirToHome": {
+    "description": "Run row: the afternoon run home"
   }
 }

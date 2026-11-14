@@ -756,6 +756,24 @@ class _CarpoolSamplesState extends State<_CarpoolSamples> {
         defaultTime: RunTime.defaultMorning,
         onChanged: (String? t) => setState(() => _time = t),
       ),
+      const SizedBox(height: AppSpacing.s16),
+      // Prompt 7: the run status badges of the week plan.
+      Wrap(
+        spacing: AppSpacing.s8,
+        runSpacing: AppSpacing.s8,
+        children: <Widget>[
+          for (final (String label, AppBadgeTone tone) in <(String, AppBadgeTone)>[
+            (context.l10n.runPlanned, AppBadgeTone.warning),
+            (context.l10n.runConfirmed, AppBadgeTone.success),
+            (context.l10n.runSwapAsked, AppBadgeTone.warning),
+            (context.l10n.runNeedsDriver, AppBadgeTone.error),
+            (context.l10n.runOwnTrip, AppBadgeTone.error),
+            (context.l10n.runNoSchool, AppBadgeTone.neutral),
+            (context.l10n.runDone, AppBadgeTone.neutral),
+          ])
+            AppStatusBadge(label: label, tone: tone),
+        ],
+      ),
     ],
   );
 }

@@ -194,6 +194,7 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
         ),
         if (member) _MembersSection(carpoolId: _id, busy: _busy, run: _run),
         if (admin) _RequestsSection(carpool: c, busy: _busy, run: _run),
+        if (member) _ScheduleLinks(carpoolId: _id),
         const SizedBox(height: AppSpacing.s32),
         Padding(
           padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter),
@@ -424,6 +425,46 @@ class _MembersSection extends ConsumerWidget {
                   ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// Prompt 7: the week plan (F7, F11, F27, F28), days off and times (F30)
+/// and the drive balance (F37); approved members only.
+class _ScheduleLinks extends StatelessWidget {
+  const _ScheduleLinks({required this.carpoolId});
+
+  final String carpoolId;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        AppSectionHeader(l10n.scheduleSection),
+        AppListRow(
+          key: const Key('detail.schedule'),
+          title: l10n.scheduleWeekPlan,
+          subtitle: l10n.scheduleWeekPlanHelper,
+          leadingIcon: Icons.calendar_month_outlined,
+          onTap: () => context.go(CarpoolRoutes.schedule(carpoolId)),
+        ),
+        AppListRow(
+          key: const Key('detail.exceptions'),
+          title: l10n.scheduleExceptions,
+          subtitle: l10n.scheduleExceptionsHelper,
+          leadingIcon: Icons.event_busy_outlined,
+          onTap: () => context.go(CarpoolRoutes.exceptions(carpoolId)),
+        ),
+        AppListRow(
+          key: const Key('detail.balance'),
+          title: l10n.scheduleBalance,
+          subtitle: l10n.scheduleBalanceHelper,
+          leadingIcon: Icons.balance_outlined,
+          onTap: () => context.go(CarpoolRoutes.balance(carpoolId)),
+        ),
       ],
     );
   }

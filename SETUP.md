@@ -776,3 +776,40 @@ Play a second parent from the Mac with
 a second phone or simulator with her fake number `+201000000101` (the code
 is printed in the emulator log).
 
+## 17. Schedule (Prompt 7)
+
+### 17.1 Functions settings and deploy (each cloud project)
+
+Optional settings in `functions/.env.dev`, `.env.staging`, `.env.prod`
+(defaults in brackets): `SCHEDULE_CONFIRM_BY` (`21:00`, Cairo time on the
+evening before each run: drivers confirm by then), `SCHEDULE_LATE_LEAD_MIN`
+(60: a run planned or released after that time must be confirmed this many
+minutes before it starts), `SCHEDULE_PLANS_PER_DAY` (20),
+`SCHEDULE_CHANGES_PER_DAY` (100). Deploy rules, indexes and functions:
+`firebase deploy --only firestore:rules,firestore:indexes,functions --project dev`.
+The scheduled function `scheduleTick` needs the two collection group
+indexes on `schedule` (status + confirmBy, status + startAt); the deploy
+creates them, and Cloud Scheduler gets the job (Africa/Cairo, every 15
+minutes) on the first deploy.
+
+### 17.2 Expiry (each cloud project)
+
+Firestore > TTL policies: add a policy on collection `scheduleEvents`,
+field `expiresAt` (alert events, 30 days).
+
+### 17.3 The schedule on the emulators
+
+The emulators do not run scheduled functions by themselves. Run the tick
+by hand (cut-offs and the drive balance, now):
+`npm --prefix functions run carpool:emulator -- tick --as any`.
+Play the second fake parent (Hoda, `seed-map-parent-1`) with the schedule
+commands in the header of `functions/scripts/carpool.ts`: `days`, `runs`,
+`confirm`, `swap`, `take`, `absent`, `plan`.
+
+### 17.4 Firestore backups
+
+Unchanged from section 5: daily backups in prod only, point-in-time
+recovery off for now. The schedule lives in Firestore under
+`carpools/{id}/schedule`, `swaps`, `exceptions` and `balances`, so the
+daily backup covers it.
+

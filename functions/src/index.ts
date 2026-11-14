@@ -97,3 +97,19 @@ export {
   setDriverConsent,
   setPickupSharing,
 } from "./carpools/callables";
+
+// Schedule (Prompt 7: F7, F11, F27, F28, F30, F37): rotation, driver
+// confirmation, swaps, absences, exceptions and the drive balance. Every
+// schedule write is here; scheduleTick handles cut-offs (Africa/Cairo).
+export {
+  cancelSwap,
+  confirmRun,
+  deleteScheduleException,
+  planScheduleWeek,
+  requestSwap,
+  saveScheduleException,
+  scheduleTick,
+  setChildAbsent,
+  setDrivingDays,
+  takeRun,
+} from "./schedule/callables";

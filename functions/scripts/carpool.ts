@@ -12,6 +12,17 @@
  *   npm --prefix functions run carpool:emulator -- invite <carpoolId> --as seed-map-parent-1
  *   npm --prefix functions run carpool:emulator -- mine --as seed-map-parent-1
  *
+ * Schedule (Prompt 7):
+ *   ... -- days <carpoolId> sun,mon,tue --as seed-map-parent-1        (her driving days)
+ *   ... -- runs <carpoolId> [--week YYYY-MM-DD] --as seed-map-parent-1 (the week's runs)
+ *   ... -- confirm <carpoolId> <runId> --as seed-map-parent-1          (runId like 2026-11-15_am)
+ *   ... -- swap <carpoolId> <runId> --as seed-map-parent-1             (ask for a swap)
+ *   ... -- take <carpoolId> <runId> --as seed-map-parent-1             (accept a swap / take an open run)
+ *   ... -- absent <carpoolId> <date> <childId> [--back] --as seed-map-parent-1
+ *   ... -- plan <carpoolId> [--week YYYY-MM-DD] --as <admin uid>
+ *   ... -- tick --as any                                              (cut-offs and balance now;
+ *       the emulators do not run scheduled functions by themselves)
+ *
  * Emulators and demo- projects only (fake data only).
  */
 import { initializeApp } from "firebase-admin/app";
@@ -28,6 +39,9 @@ import {
 } from "../src/carpools/flow";
 import { CarpoolError } from "../src/carpools/model";
 import { FirestoreCarpoolStore } from "../src/carpools/store";
+import { cairoDate } from "../src/carpools/model";
+import { addDays, weekStartOf } from "../src/schedule/cairo";
+import { confirmRun, planWeek, requestSwap, runScheduleTick, setChildAbsent, setDrivingDays, takeRun } from "../src/schedule/flow";
 
 function refuse(reason: string): never {
   console.error(`carpool: refusing to run: ${reason}`);
@@ -45,7 +59,7 @@ const deps: CarpoolDeps = {
   store,
   now: () => Date.now(),
   // Generous limits for testing by hand.
-  limits: { ...DEFAULT_CARPOOL_LIMITS, searchesPerHour: 1000, joinRequestsPerDay: 1000, invitesPerDay: 1000 },
+  limits: { ...DEFAULT_CARPOOL_LIMITS, searchesPerHour: 1000, joinRequestsPerDay: 1000, invitesPerDay: 1000, plansPerDay: 1000, scheduleChangesPerDay: 1000 },
   newCode: newInviteCode,
   linkBase: process.env.INVITE_LINK_BASE ?? "https://demo-school-carpool-links.web.app",
 };
@@ -59,7 +73,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
   const uid = option(args, "--as");
-  if (!command || !uid) refuse("usage: <search|request|approve|consent|invite|mine> ... --as <uid> (see the header)");
+  if (!command || !uid) refuse("usage: <search|request|approve|consent|invite|mine|days|plan|runs|confirm|swap|take|absent|tick> ... --as <uid> (see the header)");
   const caller = { uid, verifiedClaim: true };
   switch (command) {
     case "search": {
@@ -90,6 +104,36 @@ async function main(): Promise<void> {
       return;
     case "invite":
       console.log((await createInvite(deps, caller, { carpoolId: args[1] })).url);
+      return;
+    case "days":
+      console.log(await setDrivingDays(deps, caller, { carpoolId: args[1], days: (args[2] ?? "").split(",").filter((d) => d.length > 0) }));
+      return;
+    case "plan":
+      console.log(await planWeek(deps, caller, { carpoolId: args[1], weekStart: option(args, "--week") ?? weekStartOf(cairoDate(Date.now())) }));
+      return;
+    case "runs": {
+      const week = option(args, "--week") ?? weekStartOf(cairoDate(Date.now()));
+      const runs = await store.transact((tx) => tx.runs(args[1], week, addDays(week, 6)));
+      for (const r of runs) {
+        console.log(`${r.id}  ${r.time}  ${r.status.padEnd(9)}  driver ${r.driverUid ?? "-"}  riders ${r.riders.map((x) => x.id).join(",")}  absent ${r.absent.map((x) => x.id).join(",") || "-"}`);
+      }
+      if (runs.length === 0) console.log("no runs planned for this week");
+      return;
+    }
+    case "confirm":
+      console.log((await confirmRun(deps, caller, { carpoolId: args[1], runId: args[2] })).status);
+      return;
+    case "swap":
+      console.log((await requestSwap(deps, caller, { carpoolId: args[1], runId: args[2] })).status);
+      return;
+    case "take":
+      console.log((await takeRun(deps, caller, { carpoolId: args[1], runId: args[2] })).status);
+      return;
+    case "absent":
+      console.log(await setChildAbsent(deps, caller, { carpoolId: args[1], date: args[2], childId: args[3], absent: !args.includes("--back") }));
+      return;
+    case "tick":
+      console.log(await runScheduleTick(deps));
       return;
     case "mine":
       for (const m of await store.membershipsOf(uid)) console.log(`${m.carpoolId}  ${m.status}  ${m.role}`);
