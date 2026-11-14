@@ -188,6 +188,7 @@ void main() {
       final GeolocatorTracker t = tracker();
       await t.start(_session);
       source.fixes.add(_fix(0));
+      await pumpEventQueue();
       await t.flush();
       expect(poster.posts, hasLength(1));
       final (String url, String token, Map<String, Object?> body) = poster.posts.single;

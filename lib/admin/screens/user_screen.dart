@@ -387,7 +387,12 @@ class _DeviceCheckFormState extends ConsumerState<_DeviceCheckForm> {
   Future<List<AdminPhoto>>? _photos;
 
   /// One logged access, with the reason the admin picked.
-  void _open(AccessReasonCode reason) => setState(() => _photos = ref.read(adminApiProvider).userPhotos(widget.uid, reason));
+  void _open(AccessReasonCode reason) {
+    final Future<List<AdminPhoto>> photos = ref.read(adminApiProvider).userPhotos(widget.uid, reason);
+    setState(() {
+      _photos = photos;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
