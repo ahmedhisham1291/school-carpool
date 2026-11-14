@@ -6,7 +6,8 @@
 // directions A and B), the schools picker and About (Prompt 4B), the maps
 // screens (Prompt 5: nearby parents, home picker, driving schools), the
 // carpool screens (Prompt 6: tab, search, create, detail as a member and
-// as a visitor, invite, looking for a carpool) with the
+// as a visitor, invite, looking for a carpool), the trip screens (Prompt
+// 10: driver run, live run, handover list) with the
 // real bundled fonts, and writes PNGs to
 // test/screenshots/goldens/. The shell, the sign-up and the verification
 // screens are also rendered on a small 320 dp phone, at normal and at 200
@@ -44,6 +45,9 @@ import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
 import 'package:school_carpool/features/schools/school_picker_screen.dart';
+import 'package:school_carpool/features/trips/location_tracker.dart';
+import 'package:school_carpool/features/trips/trip_models.dart';
+import 'package:school_carpool/features/trips/trip_repository.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
@@ -59,6 +63,7 @@ import '../helpers/notification_fakes.dart';
 import '../helpers/schedule_fakes.dart';
 import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
+import '../helpers/trip_fakes.dart';
 import '../helpers/verification_fakes.dart';
 
 Future<void> _pumpScreen(
@@ -76,6 +81,8 @@ Future<void> _pumpScreen(
   CarpoolRepository? carpools,
   ScheduleRepository? schedule,
   NotificationRepository? notifications,
+  TripRepository? trips,
+  LocationTracker? tracker,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -99,7 +106,7 @@ Future<void> _pumpScreen(
           }),
         ),
         routerProvider.overrideWithValue(router),
-        ...authOverrides(session: session, maps: maps, carpools: carpools, schedule: schedule, notifications: notifications),
+        ...authOverrides(session: session, maps: maps, carpools: carpools, schedule: schedule, notifications: notifications, trips: trips, tracker: tracker),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
         ...extraOverrides,
       ],
@@ -639,6 +646,45 @@ void main() {
                 testNotification('n4', NotificationKind.childAbsent, read: true, ago: const Duration(days: 2)),
               ],
             ),
+          );
+          await tester.pump(const Duration(milliseconds: 400));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Prompt 10: the driver's run (stops, quick and emergency buttons), the
+  // parents' live run (map, arrival time, driver card) and the handover list.
+  final Map<String, String> tripScreens = <String, String>{
+    'drive': CarpoolRoutes.drive('k1', '2026-11-14_am'),
+    'live': CarpoolRoutes.trip('k1', '2026-11-14_am'),
+    'handover': '${ProfileRoutes.handover}/c1',
+  };
+  for (final MapEntry<String, String> screen in tripScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'trips_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          final bool live = screen.key == 'live';
+          final FakeTripRepository trips = FakeTripRepository(trip: testTrip(driverUid: live ? 'p1' : 'uid-1'))
+            ..eta = TripEta(stops: <String, DateTime>{'c1': testNow.add(const Duration(minutes: 7)).toUtc()})
+            ..adults = <HandoverAdult>[const HandoverAdult(name: 'Gran', relation: Relation.grandparent)]
+            ..preparation = const TripPreparation(tripId: 'k1_2026-11-14_am', selfieRequired: false, active: true);
+          final FakeLocationTracker tracker = FakeLocationTracker(permission: TrackerPermission.always);
+          addTearDown(trips.dispose);
+          addTearDown(tracker.dispose);
+          await _pumpScreen(
+            tester,
+            location: screen.value,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            trips: trips,
+            tracker: tracker,
+            extraOverrides: verificationOverrides(repository: FakeVerificationRepository()),
           );
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
