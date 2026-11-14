@@ -453,6 +453,15 @@ void main() {
       expect(find.text('Join requests'), findsNothing);
     });
 
+    testWidgets('Pay contribution (F25, F43) opens Send with the agreed amount for my children; nothing is sent', (WidgetTester tester) async {
+      // testCarpool: 50 EGP per child a week; testMe (Mona) has one child.
+      final GoRouter router = await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: memberRepo()));
+      await _tapVisible(tester, 'detail.payContribution');
+      final Uri uri = router.routerDelegate.currentConfiguration.uri;
+      expect(uri.path, '${ProfileRoutes.wallet}/${WalletRoutes.sendSegment}');
+      expect(uri.queryParameters, <String, String>{'carpool': 'k1', 'amount': '5000'});
+    });
+
     testWidgets('accepting a driver asks first, says to meet, and can be withdrawn', (WidgetTester tester) async {
       final FakeCarpoolRepository carpools = memberRepo();
       await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: carpools));

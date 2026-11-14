@@ -10,23 +10,21 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
-import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/wallet/device_auth.dart';
 import 'package:school_carpool/features/wallet/wallet_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
-import '../helpers/carpool_fakes.dart';
 import '../helpers/one_line.dart';
 import '../helpers/test_app.dart';
 import '../helpers/wallet_fakes.dart';
 
 /// The same overrides in every pump (one ProviderScope shape per test).
-List<Override> _overrides(FakeWalletRepository repo, FakeDeviceAuth auth, {FakeCarpoolRepository? carpools}) => <Override>[
+List<Override> _overrides(FakeWalletRepository repo, FakeDeviceAuth auth) => <Override>[
   flavorConfigProvider.overrideWithValue(testDevConfig),
   settingsStoreProvider.overrideWithValue(InMemorySettingsStore()),
-  ...authOverrides(wallet: repo, deviceAuth: auth, carpools: carpools),
+  ...authOverrides(wallet: repo, deviceAuth: auth),
 ];
 
 Future<GoRouter> _pump(
@@ -34,7 +32,6 @@ Future<GoRouter> _pump(
   String location, {
   required FakeWalletRepository repo,
   FakeDeviceAuth? auth,
-  FakeCarpoolRepository? carpools,
   Locale locale = AppLocales.english,
   double width = 400,
   double textScale = 1,
@@ -49,7 +46,7 @@ Future<GoRouter> _pump(
   addTearDown(router.dispose);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: _overrides(repo, auth ?? FakeDeviceAuth(), carpools: carpools),
+      overrides: _overrides(repo, auth ?? FakeDeviceAuth()),
       child: MaterialApp.router(
         routerConfig: router,
         locale: locale,
@@ -375,20 +372,6 @@ void main() {
       await _tap(tester, find.byKey(const Key('report.send')));
       expect(find.text('Reported; wallet paused'), findsOneWidget);
     });
-  });
-
-  testWidgets('carpool: Pay contribution opens Send with the agreed amount for my children', (WidgetTester tester) async {
-    // testCarpool: 50 EGP per child a week; testMe has one child.
-    final FakeCarpoolRepository carpools = FakeCarpoolRepository(
-      memberships: const <Membership>[Membership(carpoolId: 'k1', status: MembershipStatus.approved)],
-      members: const <CarpoolMember>[testMe],
-    );
-    final GoRouter router = await _pump(tester, CarpoolRoutes.detail('k1'), repo: FakeWalletRepository(), carpools: carpools);
-    await _tap(tester, find.byKey(const Key('detail.payContribution')));
-    expect(_path(router), '${ProfileRoutes.wallet}/${WalletRoutes.sendSegment}');
-    final Uri uri = router.routerDelegate.currentConfiguration.uri;
-    expect(uri.queryParameters['carpool'], 'k1');
-    expect(uri.queryParameters['amount'], '5000');
   });
 
   group('one line at 320 dp', () {
