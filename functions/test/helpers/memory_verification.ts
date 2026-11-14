@@ -11,6 +11,8 @@ import type {
   VerificationFiles,
   VerificationStore,
 } from "../../src/verification/flow";
+import { verificationResultEvent } from "../../src/notifications/producers";
+import type { OutboxEvent } from "../../src/notifications/model";
 import { VerificationError } from "../../src/verification/submission";
 
 /** In-memory stand-ins for Firestore, Cloud Storage and Auth claims (unit tests). */
@@ -55,6 +57,7 @@ export class MemoryVerificationStore implements VerificationStore {
 
   /** Shared, ordered record of claim changes and status writes (order tests). */
   readonly events: string[] = [];
+  readonly notifications: OutboxEvent[] = [];
   /** Lets a test claim an ID between the early check and the commit. */
   beforeCommit: (() => void) | null = null;
 
@@ -111,6 +114,8 @@ export class MemoryVerificationStore implements VerificationStore {
       if (w.userStatus) user.status = w.userStatus;
     }
     this.events.push(`status:${w.userStatus ?? "unchanged"}`);
+    // Prompt 8: the outbox event written in the same transaction.
+    this.notifications.push(verificationResultEvent(w, w.decidedAtMs));
     if (w.claimsChanged) this.events.push("marker:claimsUpdatedAt");
     for (const id of w.childIds) {
       const child = this.children.get(id);

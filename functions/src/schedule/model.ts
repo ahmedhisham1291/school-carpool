@@ -20,7 +20,8 @@ import { addDays, cairoToUtcMs, daysBetween, isDate, termOf, weekdayOf } from ".
  *   time changes such as Ramadan times (F30), set by the group admin.
  * - carpools/{id}/balances/{termId}: runs driven and received per family
  *   this term (F37).
- * - scheduleEvents/{id}: alert events for Prompt 8 to send (functions only).
+ * - notificationEvents/{id}: alert events for the notification sender
+ *   (Prompt 8; functions only). Also used by the join-request flows.
  *
  * The backups rule (spec section 6) holds everywhere: a run gets a driver
  * only when that driver confirms (confirmRun, or taking the run, which is
@@ -143,10 +144,14 @@ export type ScheduleEventType =
   | "child-absent"
   | "child-back"
   | "driver-unavailable"
-  | "schedule-changed";
+  | "schedule-changed"
+  // Prompt 8: join requests and decisions (carpools/flow.ts).
+  | "join-requested"
+  | "join-approved"
+  | "join-declined";
 
 /**
- * An alert for Prompt 8's sender. Holds IDs only: no names, children's
+ * An alert for the notification sender (Prompt 8). Holds IDs only: no names, children's
  * names, addresses or message text (the app loads details after it opens).
  */
 export interface ScheduleEvent {

@@ -157,3 +157,21 @@ export const SCHEDULE_CONFIRM_BY = defineString("SCHEDULE_CONFIRM_BY", { default
 export const SCHEDULE_LATE_LEAD_MIN = defineInt("SCHEDULE_LATE_LEAD_MIN", { default: 60 });
 export const SCHEDULE_PLANS_PER_DAY = defineInt("SCHEDULE_PLANS_PER_DAY", { default: 20 });
 export const SCHEDULE_CHANGES_PER_DAY = defineInt("SCHEDULE_CHANGES_PER_DAY", { default: 100 });
+
+/**
+ * Notifications (Prompt 8: F12, F23). "fake" (dev and CI: pushes are logged,
+ * nothing is sent; refused in prod) or "fcm". FCM is free.
+ */
+export const PUSH_PROVIDER = defineString("PUSH_PROVIDER", { default: "fake" });
+/**
+ * Emulators only: the dev Firebase project that the functions emulator
+ * sends real pushes for (SETUP.md section 18.4). Empty: the default app.
+ */
+export const FCM_PROJECT_ID = defineString("FCM_PROJECT_ID", { default: "" });
+/** A critical alert still unread after this many minutes sounds the alarm (spec section 11). */
+export const NOTIFY_ALARM_DELAY_MIN = defineInt("NOTIFY_ALARM_DELAY_MIN", { default: 15 });
+/** Cairo time from which drivers get the "you drive tomorrow" reminder. */
+export const REMINDER_EVENING_AT = defineString("REMINDER_EVENING_AT", { default: "19:00" });
+/** Push token registrations and settings changes per parent per day. */
+export const NOTIFY_DEVICE_CHANGES_PER_DAY = defineInt("NOTIFY_DEVICE_CHANGES_PER_DAY", { default: 30 });
+export const NOTIFY_SETTINGS_CHANGES_PER_DAY = defineInt("NOTIFY_SETTINGS_CHANGES_PER_DAY", { default: 100 });

@@ -2,6 +2,8 @@ import type { Auth } from "firebase-admin/auth";
 import { FieldValue, Timestamp, type DocumentData, type Firestore } from "firebase-admin/firestore";
 import type { Storage } from "firebase-admin/storage";
 import { USERS } from "../auth/accounts";
+import { verificationResultEvent } from "../notifications/producers";
+import { NOTIFICATION_EVENTS, outboxDoc } from "../notifications/outbox";
 import { nameSearchFields } from "../text/normalize";
 import type { KycOutcome, KycResult } from "./kyc";
 import { asKycResult } from "./kyc";
@@ -293,6 +295,9 @@ export class FirestoreVerificationStore implements VerificationStore {
           createdAt: FieldValue.serverTimestamp(),
         });
       }
+      // Prompt 8: the parent is told the result (push; WhatsApp when on).
+      const notice = verificationResultEvent(w, w.decidedAtMs);
+      tx.set(this.db.collection(NOTIFICATION_EVENTS).doc(notice.id), outboxDoc(notice));
       tx.create(this.db.collection(AUDIT_LOG).doc(), {
         actorUid: w.reviewerUid,
         action: w.banNationalIdHash ? "verification.ban" : `verification.${approved ? "approve" : "reject"}`,

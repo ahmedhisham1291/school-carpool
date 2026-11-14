@@ -1,4 +1,5 @@
 import { Timestamp, type DocumentData } from "firebase-admin/firestore";
+import { NOTIFICATION_EVENTS } from "../notifications/outbox";
 import {
   EVENT_TTL_DAYS,
   EXCEPTION_REASONS,
@@ -22,7 +23,12 @@ export const SCHEDULE = "schedule";
 export const SWAPS = "swaps";
 export const EXCEPTIONS = "exceptions";
 export const BALANCES = "balances";
-export const SCHEDULE_EVENTS = "scheduleEvents";
+/**
+ * Prompt 8: schedule alerts go straight to the notification outbox
+ * (notifications/outbox.ts), where the one sender
+ * (sendNotification) picks them up. Same document shape as before.
+ */
+export const SCHEDULE_EVENTS = NOTIFICATION_EVENTS;
 
 function text(v: unknown): string {
   return typeof v === "string" ? v : "";
@@ -202,10 +208,10 @@ export function eventToDoc(e: ScheduleEvent): DocumentData {
     actorUid: e.actorUid,
     childId: e.childId,
     critical: e.critical,
-    // Prompt 8's sender picks up "pending" events.
+    // The sender (notifications/dispatch.ts) picks up "pending" events.
     status: "pending",
     createdAt: ts(e.createdAtMs),
-    // Also the Firestore TTL field (SETUP.md section 17).
+    // Also the Firestore TTL field (SETUP.md section 18).
     expiresAt: ts(e.createdAtMs + EVENT_TTL_DAYS * 86_400_000),
   };
 }
