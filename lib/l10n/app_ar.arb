@@ -6187,5 +6187,193 @@
   "gallerySectionWallet": "المحفظة",
   "@gallerySectionWallet": {
     "description": "Gallery section header"
+  },
+  "adminNavWallet": "المحفظة",
+  "@adminNavWallet": {
+    "description": "Admin navigation"
+  },
+  "adminAuditWalletView": "عرض محفظة",
+  "@adminAuditWalletView": {
+    "description": "Audit action"
+  },
+  "adminAuditWalletLog": "عرض سجل التحويلات",
+  "@adminAuditWalletLog": {
+    "description": "Audit action"
+  },
+  "adminFreezeFraud": "اشتباه احتيال",
+  "@adminFreezeFraud": {
+    "description": "Freeze reason"
+  },
+  "adminFreezeParentAsked": "بطلب ولي الأمر",
+  "@adminFreezeParentAsked": {
+    "description": "Freeze reason"
+  },
+  "adminFreezeStolenPhone": "هاتف مسروق",
+  "@adminFreezeStolenPhone": {
+    "description": "Freeze reason"
+  },
+  "adminFreezeDispute": "نزاع",
+  "@adminFreezeDispute": {
+    "description": "Freeze reason"
+  },
+  "adminFreezePartner": "بطلب شريك الدفع",
+  "@adminFreezePartner": {
+    "description": "Freeze reason"
+  },
+  "adminFreezeOther": "أخرى",
+  "@adminFreezeOther": {
+    "description": "Freeze reason"
+  },
+  "adminWalletTitle": "المحفظة",
+  "@adminWalletTitle": {
+    "description": "Admin page title"
+  },
+  "adminWalletOneTitle": "محفظة ولي الأمر",
+  "@adminWalletOneTitle": {
+    "description": "Admin page title"
+  },
+  "adminWalletAlerts": "تنبيهات",
+  "@adminWalletAlerts": {
+    "description": "Section header"
+  },
+  "adminWalletNoAlerts": "لا توجد تنبيهات مفتوحة.",
+  "@adminWalletNoAlerts": {
+    "description": "Empty alerts"
+  },
+  "adminWalletLog": "سجل التحويلات",
+  "@adminWalletLog": {
+    "description": "Section header"
+  },
+  "adminWalletNoTransfers": "لا توجد تحويلات.",
+  "@adminWalletNoTransfers": {
+    "description": "Empty log"
+  },
+  "adminWalletAlertNewReceivers": "مستلمون جدد كثيرون",
+  "@adminWalletAlertNewReceivers": {
+    "description": "Alert kind"
+  },
+  "adminWalletAlertMany": "تحويلات كثيرة",
+  "@adminWalletAlertMany": {
+    "description": "Alert kind"
+  },
+  "adminWalletAlertReport": "بلاغ عن تحويل",
+  "@adminWalletAlertReport": {
+    "description": "Alert kind"
+  },
+  "adminWalletAlertCount": "{count} خلال ساعة",
+  "@adminWalletAlertCount": {
+    "description": "Alert detail",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminWalletResolve": "إغلاق",
+  "@adminWalletResolve": {
+    "description": "Button: close an alert"
+  },
+  "adminWalletOutcomeNoIssue": "لا مشكلة",
+  "@adminWalletOutcomeNoIssue": {
+    "description": "Alert outcome"
+  },
+  "adminWalletOutcomeFrozen": "أُوقفت المحفظة",
+  "@adminWalletOutcomeFrozen": {
+    "description": "Alert outcome"
+  },
+  "adminWalletOutcomePartner": "أُحيل لشريك الدفع",
+  "@adminWalletOutcomePartner": {
+    "description": "Alert outcome"
+  },
+  "adminWalletOutcomeContacted": "تم التواصل مع ولي الأمر",
+  "@adminWalletOutcomeContacted": {
+    "description": "Alert outcome"
+  },
+  "adminWalletFromTo": "{from} إلى {to}",
+  "@adminWalletFromTo": {
+    "description": "Log row",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "adminWalletTopUp": "{name} أضاف أموالًا",
+  "@adminWalletTopUp": {
+    "description": "Log row",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminWalletWithdraw": "{name} سحب",
+  "@adminWalletWithdraw": {
+    "description": "Log row",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminWalletActive": "تعمل",
+  "@adminWalletActive": {
+    "description": "Badge"
+  },
+  "adminWalletFrozen": "موقوفة",
+  "@adminWalletFrozen": {
+    "description": "Badge"
+  },
+  "adminWalletCopy": "{amount} (نسخة، الشريك لا يرد)",
+  "@adminWalletCopy": {
+    "description": "Balance when the partner is down",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "adminWalletFreeze": "إيقاف المحفظة",
+  "@adminWalletFreeze": {
+    "description": "Danger button"
+  },
+  "adminWalletUnfreeze": "تشغيل المحفظة",
+  "@adminWalletUnfreeze": {
+    "description": "Button"
+  },
+  "adminWalletFreezeTitle": "إيقاف هذه المحفظة؟",
+  "@adminWalletFreezeTitle": {
+    "description": "Confirm title"
+  },
+  "adminWalletFreezeBody": "لن يستطيع ولي الأمر الإرسال أو السحب أو الاستلام حتى تشغيلها. نبلغه دون ذكر السبب.",
+  "@adminWalletFreezeBody": {
+    "description": "Confirm text"
+  },
+  "adminWalletUnfreezeTitle": "تشغيل هذه المحفظة؟",
+  "@adminWalletUnfreezeTitle": {
+    "description": "Confirm title"
+  },
+  "adminWalletUnfreezeBody": "يعود ولي الأمر لاستخدام المحفظة فورًا.",
+  "@adminWalletUnfreezeBody": {
+    "description": "Confirm text"
+  },
+  "adminWalletNone": "لا توجد محفظة",
+  "@adminWalletNone": {
+    "description": "Empty title"
+  },
+  "adminWalletNoneBody": "لم يفتح ولي الأمر محفظة بعد.",
+  "@adminWalletNoneBody": {
+    "description": "Empty text"
+  },
+  "adminWalletPartner": "سجل شريك الدفع",
+  "@adminWalletPartner": {
+    "description": "Section header"
+  },
+  "adminWalletPartnerNone": "لا توجد عمليات لدى الشريك، أو لم يرد.",
+  "@adminWalletPartnerNone": {
+    "description": "Empty partner list"
   }
 }

@@ -48,6 +48,7 @@ import 'package:school_carpool/features/schedule/schedule_repository.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
 import 'package:school_carpool/features/schools/school_picker_screen.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
+import 'package:school_carpool/features/wallet/wallet_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
@@ -64,6 +65,7 @@ import '../helpers/schedule_fakes.dart';
 import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
 import '../helpers/verification_fakes.dart';
+import '../helpers/wallet_fakes.dart';
 
 Future<void> _pumpScreen(
   WidgetTester tester, {
@@ -82,6 +84,7 @@ Future<void> _pumpScreen(
   NotificationRepository? notifications,
   FakeChatProvider? chat,
   FakeChatRepository? chatRepository,
+  FakeWalletRepository? wallet,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -113,6 +116,7 @@ Future<void> _pumpScreen(
           notifications: notifications,
           chat: chat,
           chatRepository: chatRepository,
+          wallet: wallet,
         ),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
         ...extraOverrides,
@@ -692,6 +696,39 @@ void main() {
             pixelRatio: 3,
             chat: chat,
             chatRepository: repo,
+          );
+          await tester.pump(const Duration(milliseconds: 400));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
+  // Prompt 11B: the wallet (open and not yet opened), Send (Pay contribution
+  // lands on the receiver confirmation), a pending transfer and Add money.
+  // Fake parents and test money only.
+  final Map<String, (String, WalletInfo)> walletScreens = <String, (String, WalletInfo)>{
+    'wallet': (ProfileRoutes.wallet, openWallet),
+    'open': (ProfileRoutes.wallet, closedWallet),
+    'send_who': (WalletRoutes.send(), openWallet),
+    'send_confirm': (WalletRoutes.send(carpoolId: 'c-k1', amount: 30000), openWallet),
+    'transfer': (WalletRoutes.transfer('t_2'), openWallet),
+    'add': (WalletRoutes.add, openWallet),
+  };
+  for (final MapEntry<String, (String, WalletInfo)> screen in walletScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'wallet_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          await _pumpScreen(
+            tester,
+            location: screen.value.$1,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 844),
+            pixelRatio: 3,
+            wallet: FakeWalletRepository(info: screen.value.$2),
           );
           await tester.pump(const Duration(milliseconds: 400));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));

@@ -284,16 +284,15 @@ class WalletContact {
 }
 
 /// Who gets the money: chosen from a carpool (uid) or typed (parent ID).
-@immutable
 class Receiver {
-  const Receiver.contact(WalletContact c)
+  Receiver.contact(WalletContact c)
     : uid = c.uid,
       parentId = null,
       firstName = c.firstName,
       verified = c.verified,
       carpoolId = c.carpoolId;
 
-  const Receiver.byParentId(String id, ReceiverPreview preview)
+  Receiver.byParentId(String id, ReceiverPreview preview)
     : uid = null,
       parentId = id,
       firstName = preview.firstName,

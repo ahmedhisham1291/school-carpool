@@ -15,6 +15,9 @@ abstract final class AdminRoutes {
   static const String audit = '/audit';
   static const String admins = '/admins';
 
+  /// Prompt 11B: the wallet log, alerts and one parent's wallet.
+  static const String wallets = '/wallets';
+
   /// Dev flavor only: the admin components gallery.
   static const String gallery = '/dev/admin-gallery';
 
@@ -24,6 +27,7 @@ abstract final class AdminRoutes {
   static String user(String uid) => '$users/$uid';
   static String school(String id) => '$schools/$id';
   static String otherSchool(String id) => '$otherSchools/$id';
+  static String wallet(String uid) => '$wallets/$uid';
 
   /// Screens shown without a signed-in admin.
   static const Set<String> outside = <String>{starting, signIn, twoStepSetup};

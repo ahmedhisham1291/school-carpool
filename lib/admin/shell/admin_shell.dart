@@ -35,6 +35,12 @@ List<AdminSection> adminSections({required bool superAdmin}) => <AdminSection>[
     (AppLocalizations l) => l.adminNavOther,
   ),
   AdminSection(AdminRoutes.reports, Icons.flag_outlined, Icons.flag, (AppLocalizations l) => l.adminNavReports),
+  AdminSection(
+    AdminRoutes.wallets,
+    Icons.account_balance_wallet_outlined,
+    Icons.account_balance_wallet,
+    (AppLocalizations l) => l.adminNavWallet,
+  ),
   AdminSection(AdminRoutes.audit, Icons.history_outlined, Icons.history, (AppLocalizations l) => l.adminNavAudit),
   if (superAdmin)
     AdminSection(

@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/data/admin_api.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
+import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/admin/widgets/admin_labels.dart';
 import 'package:school_carpool/admin/widgets/admin_widgets.dart';
 import 'package:school_carpool/design/bidi.dart';
@@ -129,6 +131,14 @@ class _UserScreenState extends ConsumerState<UserScreen> {
                     AdminFact(label: l10n.adminJoined, value: adminDateTime(context, u.createdAt)),
                   ],
                 ),
+              ),
+              // Prompt 11B: the parent's wallet (read only, freeze).
+              AppListRow(
+                key: const Key('user.wallet'),
+                inset: false,
+                title: l10n.adminWalletOneTitle,
+                leadingIcon: Icons.account_balance_wallet_outlined,
+                onTap: () => context.go(AdminRoutes.wallet(widget.uid)),
               ),
               const SizedBox(height: AppSpacing.s24),
               AppSectionHeader(l10n.adminVerificationHistory),

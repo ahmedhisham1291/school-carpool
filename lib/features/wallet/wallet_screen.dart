@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
-import 'package:school_carpool/features/wallet/wallet_labels.dart';
 import 'package:school_carpool/features/wallet/wallet_models.dart';
 import 'package:school_carpool/features/wallet/wallet_repository.dart';
 import 'package:school_carpool/features/wallet/wallet_widgets.dart';
@@ -235,7 +234,11 @@ class _WalletContent extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         onRefresh();
-        await ref.read(walletInfoProvider.future).then((_) {}, onError: (Object _) {});
+        try {
+          await ref.read(walletInfoProvider.future);
+        } on Object {
+          // The screen shows the error with its own Retry.
+        }
       },
       child: ListView(
         key: const Key('wallet.list'),
