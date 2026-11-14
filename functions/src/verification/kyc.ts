@@ -43,6 +43,14 @@ export interface KycProvider {
   check(images: () => Promise<KycImages>): Promise<KycOutcome>;
 }
 
+/**
+ * Prompt 10 (F38): matches a live selfie against the driver's photo
+ * approved during verification. Same provider (Valify at launch).
+ */
+export interface FaceMatcher {
+  matchFace(reference: () => Promise<Buffer>, live: () => Promise<Buffer>): Promise<KycResult>;
+}
+
 export class KycNotConfiguredError extends Error {
   constructor(message: string) {
     super(message);
@@ -68,6 +76,11 @@ export class FakeKycProvider implements KycProvider {
       score: result === "match" ? 0.99 : result === "no_match" ? 0.12 : null,
       reference: null,
     };
+  }
+
+  /** Same test setting (config/kyc.fakeResult): "no_match" makes the selfie check fail. */
+  async matchFace(): Promise<KycResult> {
+    return this.setting();
   }
 }
 
@@ -109,6 +122,15 @@ export class ValifyKycProvider implements KycProvider {
     }
     // Not implemented until the contract: fail closed so a person reviews.
     throw new KycNotConfiguredError("Valify integration is not implemented yet.");
+  }
+
+  /**
+   * STUB until the contract: Valify's face match of the live selfie against
+   * the approved photo. Answers "error" (the run goes on, an admin is told)
+   * rather than blocking a driver on a missing integration.
+   */
+  async matchFace(): Promise<KycResult> {
+    return "error";
   }
 }
 

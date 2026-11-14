@@ -3,6 +3,8 @@ import { runKyc } from "./kyc";
 import { nationalIdHash } from "./national_id";
 import {
   cairoDate,
+  DRIVER_PHOTO_FILE,
+  driverPhotoPath,
   parseDecision,
   parseSubmission,
   requiredFiles,
@@ -264,6 +266,8 @@ export async function submitVerification(deps: VerificationDeps, uid: string, da
     if (!(await deps.files.exists(pendingPath(uid, name)))) missing.push(name);
   }
   if (missing.length > 0) throw new VerificationError("missing-upload", { missing });
+  // Prompt 10: the optional driver photo goes with the driver details.
+  if (submission.driver && (await deps.files.exists(pendingPath(uid, DRIVER_PHOTO_FILE)))) names.push(DRIVER_PHOTO_FILE);
 
   const caseId = deps.store.newId();
   const prefix = casePrefix(uid, caseId);
@@ -412,6 +416,16 @@ export async function decideVerification(
     throw error;
   }
   if (decision.ban) await deps.claims.revokeSessions(record.uid);
+  // Prompt 10 (F33, F38): an approved driver photo is kept for the driver
+  // card and the selfie checks; every other image is deleted after review.
+  const photo = record.files.find((f) => f.endsWith(`/${DRIVER_PHOTO_FILE}`));
+  if (write.status === "approved" && photo) {
+    try {
+      await deps.files.copy(photo, driverPhotoPath(record.uid));
+    } catch (error) {
+      deps.reportError(error);
+    }
+  }
   return { status: write.status };
 }
 

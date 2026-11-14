@@ -170,3 +170,19 @@ export const REMINDER_EVENING_AT = defineString("REMINDER_EVENING_AT", { default
 /** Push token registrations and settings changes per parent per day. */
 export const NOTIFY_DEVICE_CHANGES_PER_DAY = defineInt("NOTIFY_DEVICE_CHANGES_PER_DAY", { default: 30 });
 export const NOTIFY_SETTINGS_CHANGES_PER_DAY = defineInt("NOTIFY_SETTINGS_CHANGES_PER_DAY", { default: 100 });
+
+/**
+ * Trips (Prompt 10: F15, F16, F20, F29, F33, F34, F35, F38, F41).
+ * "fake" (dev and CI: straight-line arrival times, no key, no cost; refused
+ * in prod) or "google" (Routes API with MAPS_SERVER_KEY, which must also
+ * allow "Routes API"). COST MODE: docs/COSTS.md.
+ */
+export const ROUTES_PROVIDER = defineString("ROUTES_PROVIDER", { default: "fake" });
+/** Traffic-aware arrival times (spec section 6). Off uses the cheaper Essentials request. */
+export const ROUTES_TRAFFIC = defineBoolean("ROUTES_TRAFFIC", { default: true });
+/** No live point for this many seconds: parents and driver get "location stopped". */
+export const TRIP_STALE_SEC = defineInt("TRIP_STALE_SEC", { default: 120 });
+/** F38: percent of runs that ask the driver for a live selfie first. */
+export const TRIP_SELFIE_PERCENT = defineInt("TRIP_SELFIE_PERCENT", { default: 20 });
+/** F34: minutes the receiving parent has to confirm an afternoon drop-off. */
+export const TRIP_HANDOVER_MIN = defineInt("TRIP_HANDOVER_MIN", { default: 10 });

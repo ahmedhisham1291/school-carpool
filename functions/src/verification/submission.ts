@@ -112,6 +112,14 @@ export interface Submission {
 /** Upload names in verification/{uid}/pending/ (storage.rules allows only these). */
 export const IDENTITY_FILES = ["id_front.jpg", "id_back.jpg", "selfie.jpg", "selfie_turn.jpg"] as const;
 export const DRIVER_FILES = ["license.jpg", "car_license.jpg"] as const;
+/**
+ * Prompt 10 (F33, F38): the driver's photo for today's driver card, taken
+ * live in the app. Optional; the reviewer approves it with the rest, and
+ * it is kept (driverPhotos/{uid}/photo.jpg) when the case is approved.
+ */
+export const DRIVER_PHOTO_FILE = "driver_photo.jpg";
+/** Where the approved driver photo is kept (storage.rules: Cloud Functions only). */
+export const driverPhotoPath = (uid: string): string => `driverPhotos/${uid}/photo.jpg`;
 export function schoolIdFile(ref: string): string {
   return `school_id_${ref}.jpg`;
 }
