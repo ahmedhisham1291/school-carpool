@@ -1,5 +1,133 @@
 # Review: Prompt 13 (iPhone test release)
 
+## Re-review (head cc5ec2e): PASS
+
+Branch `prompt-13-testflight`, head `cc5ec2e`. I checked the fixes since
+the first review (`git diff 084325c..cc5ec2e`, 31 files) against the
+handling table in docs/progress/prompt-13.md.
+
+CI: the coordinator reports run 43594381801 as green on this head
+(`flutter analyze` clean, all Flutter tests, Functions and rules tests).
+The builds job (web and Android compile) was skipped in branch mode. I did
+not start any run.
+
+### Blocker 1 (compile error): fixed
+
+- `location_gate.dart` now has `FcmNotificationStatus.fromFcm`, an
+  exhaustive switch over firebase_messaging 17's `AuthorizationStatus`.
+  `deniedPermanently` maps to `denied`, together with `denied`.
+- The mapping has a unit test.
+- `flutter analyze` and the tests passing in CI confirm the app compiles.
+
+### Blocker 2 (UIScene template stops background relaunch): fixed in code, still needs a real iPhone
+
+I checked the patch against the Flutter **3.50.0** tag
+(`ab2912035e16`): the iOS app template, the iOS engine headers and
+`flutter_tools`.
+
+- **Template (3.50.0):**
+  - `AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate`
+    registers plugins in `didInitializeImplicitFlutterEngine`.
+  - `SceneDelegate: FlutterSceneDelegate`.
+  - Info.plist has `UIApplicationSceneManifest` (with
+    `UISceneStoryboardFile Main`) and `UIMainStoryboardFile Main`.
+  - `Main.storyboard`'s initial view controller is a `FlutterViewController`.
+- **`patch_ios_launch` (`tool/patch_native.py`)** runs after `patch_ios`
+  and before the Maps and alerts patches. It is idempotent, guarded by a
+  marker:
+  - It replaces AppDelegate.swift with a classic `FlutterAppDelegate`. That
+    delegate does the following in `didFinishLaunchingWithOptions`:
+    - creates `FlutterEngine(name:)`, runs it, then calls
+      `GeneratedPluginRegistrant.register(with: flutterEngine)`;
+    - builds the window with `FlutterViewController(engine:nibName:bundle:)`;
+    - **then** calls `super`, so plugins receive the real launch options.
+  - Each call matches the 3.50 headers: `FlutterEngine` `initWithName:` and
+    `run`, `FlutterViewController`
+    `initWithEngine:nibName:bundle:` (designated), and
+    `FlutterAppDelegate.window`.
+  - Engine registrars add plugins to the app delegate's lifecycle through
+    `FlutterAppLifeCycleProvider` (`FlutterEngine.mm`
+    `addApplicationDelegate:`). Plugins registered before `super` therefore
+    get `application:didFinishLaunchingWithOptions:` with the real
+    options.
+  - It removes `UIApplicationSceneManifest` **and**
+    `UIMainStoryboardFile`. Without the second, the storyboard would build
+    a second `FlutterViewController` and engine.
+  - It empties SceneDelegate.swift down to a comment. A comment-only Swift
+    file compiles, and the Xcode project still lists it.
+  - The Maps and alerts blocks still find `didFinishLaunchingWithOptions…{`
+    and `^import UIKit$`. A Python test covers this, and the 9 tests in
+    `tool/test_*.py` pass here.
+- **`flutter_tools` UIScene migration (3.50.0):** it does not migrate the
+  app back. With no scene manifest and no `UIMainStoryboardFile`, it only
+  prints the "UIScene lifecycle will soon be required" message and returns.
+  Expect that warning in every iOS build log. It does not fail the build.
+- **`RunRecoveryPlugin.swift`:**
+  - reads the location launch key under both its string and its typed key;
+  - answers the optional Always request when the app becomes active again
+    (0.7 s delay), with a 10 s fallback, and a stale timer can no longer
+    answer a newer request;
+  - `applicationDidBecomeActive(_:)` has the right
+    `FlutterApplicationLifeCycleDelegate` signature.
+- **Wording:** the App Review notes, the AR/EN Always purpose strings,
+  SETUP, T6 and DECISIONS now say the run "usually resumes within a few
+  minutes after the car moves". DECISIONS records that this must be
+  revisited when Apple requires UIScene.
+
+### Non-blocking items from the first review
+
+| # | Status |
+| --- | --- |
+| 1 Mid-run steps required notifications | Fixed. During a run `showLocationSteps(..., locationOnly: true)` is used, and closing the screen by hand after fixing location still restarts tracking (re-check). Tests. |
+| 2 Trips deleted too early | Fixed. `keepForClosedParent` stores `keptUntilMs` = closure + 1 year at anonymisation. `planTripRetention` does not delete before that date and clears the field once it has passed. Functions tests. |
+| 3 Orphan job read the same trips every day | Fixed. The query is now `driverUid == deleted && keptUntilMs <= now`, backed by a new composite index in `firestore.indexes.json`. Values that have passed are cleared, so nothing is read twice. |
+| 4 Always prompt could spin 30 s | Fixed (see above). |
+| 5 Admin photos opened with a default reason | Fixed. The admin picks the reason first, then taps "Show photos": one logged access, and the reason is locked after that. The coordinator also fixed `_open` so that `setState` gets a synchronous callback. |
+| 6 Stream receives the account ID | Fixed in docs/app-store-privacy.md (Identifiers row and the partner table). |
+| 7 No driver push after a reported loss | Recorded in open-items (accepted). |
+| 8 Out-of-date text | Fixed. SETUP 20.x, the doc comments, `trip_fakes.dart`, and the doc comments in `callables.ts` and `otp_flow.ts` are back in place. |
+| 9 Buffer trim during a flush | Fixed. Points are now removed by identity; the storage location is recorded in open-items. |
+| 10 Review code window | Docs use 14 days (the cap is 30). |
+| 11 No `Package.swift` | Recorded in open-items (the CocoaPods fallback works). |
+| 12 Rules tests | `config/reviewAccess` added to the server-only list in `tests/rules/verification.test.ts`. CI rules tests are green per the coordinator. |
+| 13 Type-stub noise | 156 errors here now, all stub noise, same as main. |
+
+### Tests run here
+
+- **Functions:** `node --test lib/test/*.test.js`: **632 tests, 632 pass,
+  0 fail.** `tsc` with the workspace stubs shows stub noise only.
+- **Python:** `python3 -m unittest discover -s tool -p 'test_*.py'`:
+  **9 pass**.
+- **Flutter and rules:** not run here. Green in CI run 43594381801, as
+  reported by the coordinator.
+
+### Still not verifiable without the builds or a real iPhone
+
+- The Swift build of the patched AppDelegate and of `run_recovery` (Codemagic
+  `ios-staging`), and the web and Android compile (the builds job runs on
+  main).
+- On a real iPhone:
+  - The app starts normally with the classic delegate: window, launch
+    screen, deep links (`FlutterDeepLinkingEnabled`), push and the
+    notification delegate.
+  - Background relaunch with Always runs Dart and shows "Tracking resumed"
+    (T6), and how quickly.
+  - "While Using" is offered first (L2), plus T1-T5 and T7-T10.
+- The TestFlight upload (owner setup, open-items A1-A3) and App Review's
+  answer.
+
+### Watch later (no action now)
+
+- Apple will require UIScene in an SDK after iOS 26. The classic delegate
+  will then have to change to a headless engine started on a location
+  launch. This is recorded in DECISIONS.
+- iOS builds will keep printing Flutter's UIScene migration warning. It is
+  expected and harmless.
+
+---
+
+# First review (head 28dfc15): FAIL, kept for the record
+
 Branch `prompt-13-testflight`, head `28dfc15` (26 commits on top of main).
 Compared with `git diff main...HEAD` (84 files, +5,511 / -622). Read
 against CLAUDE.md, docs/build-prompts.md Prompt 13, docs/DECISIONS.md
