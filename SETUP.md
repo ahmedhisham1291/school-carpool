@@ -56,6 +56,12 @@ Placeholders used in the code that you will replace with your own values:
 Do this three times: **dev**, **staging**, **prod**. Use only fake data in dev
 and staging, ever.
 
+**Staging without installing anything:** after steps 1 to 5 below, run
+`bash tool/cloud_setup.sh staging school-carpool-staging <admin-email>` in
+Google Cloud Shell. It does the rest of this section and the per-project
+steps of sections 4 and 11 to 23 that a command can do, and prints what is
+left. Guide: [docs/owner-cloud-shell.md](docs/owner-cloud-shell.md).
+
 1. console.firebase.google.com > **Add project**. Suggested ids:
    `<yourname>-carpool-dev`, `-staging`, `-prod`. Turn Google Analytics
    **off** (not in our stack, and it collects data). Put the ids in
@@ -231,11 +237,11 @@ daily backups **on in prod only**. Install the Google Cloud CLI (`gcloud`) and l
 3. App settings > **Environment variables**: create the groups
    `dev_defines` and `staging_defines` with the Sentry DSNs (mark them
    **Secret**).
-4. Codemagic only builds the iPhone app: `ios-staging` on pushes to `main`
-   and tags `v*`, `ios-dev` only when you press **Start new build**. Until
-   steps 1 to 3 are done for staging, a push to `main` gives a failed or
-   error-screen staging build; you can switch off automatic builds for
-   `ios-staging` in Codemagic until then.
+4. Codemagic only builds the iPhone app, and only when asked (500 free
+   minutes a month): `ios-staging` when you press **Start new build** or
+   push a tag `v*` (for example `v0.1.0`); `ios-dev` only on **Start new
+   build**. A push to `main` starts no build. Until steps 1 to 3 are done
+   for staging, a staging build fails or opens on an error screen.
 
 ## 9. Get the app on your iPhone
 
@@ -470,8 +476,9 @@ Prefer the commands above.
    add the admin site's domains (`<site id>.web.app`, `<site id>.firebaseapp.com`).
 6. **Images in the panel (Storage CORS):** the panel draws document images
    on the canvas (never as a downloadable `<img>`), which needs CORS on the
-   bucket for the admin site only. Put the site's domains in
-   `tool/storage_cors.json`, then
+   bucket for the admin site only. `tool/storage_cors.json` holds the
+   staging admin site (`school-carpool-staging-admin`); for another project
+   put that project's admin site domains in it, then
    `gsutil cors set tool/storage_cors.json gs://<bucket>`.
 7. **Deploy the rules, indexes and functions:**
    `firebase deploy --only firestore:rules,firestore:indexes,functions --project dev`.

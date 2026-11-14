@@ -5,6 +5,11 @@
  *   npm --prefix functions run admins:emulator -- create-super-admin <email> "<name>"
  *   ADMIN_PROJECT=<project id> npm --prefix functions run admins:cloud -- enable-totp
  *   ADMIN_PROJECT=<project id> npm --prefix functions run admins:cloud -- create-super-admin <email> "<name>"
+ *   ADMIN_PROJECT=<project id> npm --prefix functions run admins:cloud -- password-link <email>
+ *
+ * password-link prints a new one-time "set your password" link for an
+ * existing admin account (cloud only), for when the first link expired
+ * before it was used (tool/cloud_setup.sh uses it on a rerun).
  *
  * create-super-admin makes an email account with no phone number and the
  * admin + superAdmin claims, and prints a one-time link where that person
@@ -86,6 +91,18 @@ async function createSuperAdmin(email: string, displayName: string): Promise<voi
   }
 }
 
+async function passwordLink(email: string): Promise<void> {
+  if (onEmulator) refuse("the emulators use the dev password; run this against a cloud project");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) refuse("give a valid email");
+  const user = await auth.getUserByEmail(email.toLowerCase());
+  const claims = user.customClaims ?? {};
+  if (claims.admin !== true) refuse("that account is not an admin");
+  if (user.phoneNumber) refuse("that account has a phone number (a parent), not an admin");
+  const link = await auth.generatePasswordResetLink(email.toLowerCase());
+  console.log(`admins: one-time link for admin ${user.uid} (valid 1 hour; give it to them directly):`);
+  console.log(link);
+}
+
 async function enableTotp(): Promise<void> {
   if (onEmulator) refuse("the Auth emulator has no TOTP; run this against a cloud project");
   await auth.projectConfigManager().updateProjectConfig({
@@ -124,12 +141,14 @@ async function main(): Promise<void> {
   switch (command) {
     case "create-super-admin":
       return createSuperAdmin(arg1 ?? "", rest.join(" "));
+    case "password-link":
+      return passwordLink(arg1 ?? "");
     case "enable-totp":
       return enableTotp();
     case "check-totp":
       return checkTotp();
     default:
-      refuse('commands: create-super-admin <email> "<name>" | enable-totp | check-totp');
+      refuse('commands: create-super-admin <email> "<name>" | password-link <email> | enable-totp | check-totp');
   }
 }
 

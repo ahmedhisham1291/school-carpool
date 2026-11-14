@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["https://REPLACE-admin-site-id.web.app", "https://REPLACE-admin-site-id.firebaseapp.com"],
+    "origin": ["https://school-carpool-staging-admin.web.app", "https://school-carpool-staging-admin.firebaseapp.com"],
     "method": ["GET"],
     "responseHeader": ["Content-Type"],
     "maxAgeSeconds": 300
