@@ -71,3 +71,23 @@ periods with the lawyer** (as the legal section above requires for longer retent
 - **GitHub:** no paid Actions minutes for now. CI runs automatically only on `main`;
   feature branches are checked by hand when a step is ready (one run per step).
 - **Point-in-time recovery:** on in prod (best option rule).
+
+## Location tracking on iPhone (14 Nov 2026, 13:05)
+
+- **Plugin:** start with the free `geolocator` behind `LocationTracker`; the paid
+  flutter_background_geolocation licence (USD 400) is deferred to the Android stage or to the
+  pilot if tracking proves unreliable. Switching back is a one-file change.
+- **Permission:** "While Using the App" + Precise Location, background location mode on, blue
+  indicator shown. We do not ask for "Always".
+- **Gate (owner chose option 1):** a driver cannot start a run without Location Services on,
+  app permission granted and Precise Location on (plus notifications). A full-screen blocking
+  sheet shows the steps (Arabic and English) and an "Open Settings" button, and re-checks on
+  return. Other parents can use the rest of the app; they see a banner with the same steps.
+  The whole app is NOT blocked (App Store guideline 5.1.1).
+- **During a run:** losing permission or precise location shows the steps at once and alerts
+  parents. No point for 2 minutes → server pushes the driver "Run still on, open the app" and
+  alerts parents. Points are buffered offline.
+- **Settings:** automotive navigation, best accuracy, ~15 m distance filter, automatic pausing
+  off.
+- **App Review:** localized purpose strings, a reviewer note on background location, and a
+  short run recording from the owner's iPhone.
