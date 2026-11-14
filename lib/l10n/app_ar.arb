@@ -2036,7 +2036,7 @@
   "@adminSuspendTitle": {
     "description": "Admin panel: dialog title"
   },
-  "adminSuspendBody": "سيُسجَّل خروج ولي الأمر ولن يستطيع استخدام التطبيق حتى رفع الإيقاف.",
+  "adminSuspendBody": "يتم تسجيل خروج ولي الأمر ولا يمكنه استخدام التطبيق حتى رفع الإيقاف. تُفتح أيام قيادته لمجموعاته، ويُقال لهم فقط إن السائق غير متاح.",
   "@adminSuspendBody": {
     "description": "Admin panel: dialog body"
   },
@@ -2048,7 +2048,7 @@
   "@adminUnsuspendBody": {
     "description": "Admin panel: dialog body"
   },
-  "adminBanUserBody": "يُوقف الحساب نهائيًا ويُضاف رقم البطاقة لقائمة الحظر. لا يمكن التراجع من هنا.",
+  "adminBanUserBody": "يُوقف الحساب نهائيًا ويُضاف رقم الهوية إلى قائمة الحظر. تُفتح أيام قيادته لمجموعاته. لا يمكن التراجع عن ذلك هنا.",
   "@adminBanUserBody": {
     "description": "Admin panel: dialog body"
   },
@@ -7873,5 +7873,118 @@
   "notifPhoneChangedBody": "تغيّر رقم حسابك. إن لم تفعل ذلك تواصل معنا.",
   "@notifPhoneChangedBody": {
     "description": "Notification body"
+  },
+  "adminNavTrust": "الثقة",
+  "@adminNavTrust": {
+    "description": "Admin nav"
+  },
+  "adminTrustTitle": "الثقة",
+  "@adminTrustTitle": {
+    "description": "Admin page title"
+  },
+  "adminTrustLinks": "روابط عائلية للمراجعة",
+  "@adminTrustLinks": {
+    "description": "Section"
+  },
+  "adminTrustNoLinks": "لا روابط في الانتظار.",
+  "@adminTrustNoLinks": {
+    "description": "Empty"
+  },
+  "adminTrustFlags": "تقييمات للمراجعة",
+  "@adminTrustFlags": {
+    "description": "Section"
+  },
+  "adminTrustNoFlags": "لا تقييمات مفتوحة.",
+  "@adminTrustNoFlags": {
+    "description": "Empty"
+  },
+  "adminTrustLinkTitle": "{guardian} لـ {child}",
+  "@adminTrustLinkTitle": {
+    "description": "Row title",
+    "placeholders": {
+      "guardian": {
+        "type": "String"
+      },
+      "child": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTrustLinkOwner": "ولي الأمر: {name}",
+  "@adminTrustLinkOwner": {
+    "description": "Row subtitle part",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTrustLinkBody": "سيتمكن {guardian} من رؤية {child} والتوصيل معه. وافق {owner}.",
+  "@adminTrustLinkBody": {
+    "description": "Confirm body",
+    "placeholders": {
+      "guardian": {
+        "type": "String"
+      },
+      "child": {
+        "type": "String"
+      },
+      "owner": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTrustApprove": "موافقة",
+  "@adminTrustApprove": {
+    "description": "Button"
+  },
+  "adminTrustReject": "رفض",
+  "@adminTrustReject": {
+    "description": "Button"
+  },
+  "adminTrustApproveTitle": "الموافقة على هذا الربط؟",
+  "@adminTrustApproveTitle": {
+    "description": "Confirm title"
+  },
+  "adminTrustRejectTitle": "رفض هذا الربط؟",
+  "@adminTrustRejectTitle": {
+    "description": "Confirm title"
+  },
+  "adminTrustFlagTitle": "{name}: {stars} من 5 نجوم",
+  "@adminTrustFlagTitle": {
+    "description": "Row title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "stars": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTrustFlagBy": "من {name}",
+  "@adminTrustFlagBy": {
+    "description": "Row subtitle part",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTrustResolve": "إغلاق",
+  "@adminTrustResolve": {
+    "description": "Button and sheet title"
+  },
+  "adminTrustOutcomeNoIssue": "لا مشكلة",
+  "@adminTrustOutcomeNoIssue": {
+    "description": "Outcome"
+  },
+  "adminTrustOutcomeContacted": "تم التواصل مع ولي الأمر",
+  "@adminTrustOutcomeContacted": {
+    "description": "Outcome"
+  },
+  "adminTrustOutcomeEscalated": "تم التصعيد",
+  "@adminTrustOutcomeEscalated": {
+    "description": "Outcome"
   }
 }

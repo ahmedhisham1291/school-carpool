@@ -18,6 +18,9 @@ abstract final class AdminRoutes {
   /// Prompt 11B: the wallet log, alerts and one parent's wallet.
   static const String wallets = '/wallets';
 
+  /// Prompt 11: guardian links to review and rating flags.
+  static const String trust = '/trust';
+
   /// Dev flavor only: the admin components gallery.
   static const String gallery = '/dev/admin-gallery';
 

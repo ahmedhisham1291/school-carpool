@@ -41,6 +41,7 @@ List<AdminSection> adminSections({required bool superAdmin}) => <AdminSection>[
     Icons.account_balance_wallet,
     (AppLocalizations l) => l.adminNavWallet,
   ),
+  AdminSection(AdminRoutes.trust, Icons.shield_outlined, Icons.shield, (AppLocalizations l) => l.adminNavTrust),
   AdminSection(AdminRoutes.audit, Icons.history_outlined, Icons.history, (AppLocalizations l) => l.adminNavAudit),
   if (superAdmin)
     AdminSection(
