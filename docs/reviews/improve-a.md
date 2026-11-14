@@ -1,5 +1,98 @@
 # Review: workstream A (pilot feature switches, Settle up by InstaPay, F45)
 
+## Round 2 verdict: PASS
+
+Re-review of `00e67d4` (commits `6b07cd0`, `72d6811`, `02142f7`,
+`00e67d4`), 14 Nov 2026, by the same validator. Blocker B1 is closed and
+the findings the builder took on are fixed correctly; nothing regressed in
+what I re-checked. No blocker remains.
+
+What was run here: the functions unit tests (759 pass, 0 fail, on this
+head) and a temporary probe test of every address path (removed, not
+committed). CI run 43637019273 (analyze, Flutter tests, functions, rules)
+was reported green by the coordinator; Flutter and rules tests were not
+run here.
+
+### B1: closed
+
+`getAddressFor` (`functions/src/settle_up/flow.ts`) now requires, in this
+order: caller verified (claim and record), not suspended or banned; a
+party; the payer; **the record was created by the payee**; status open;
+nobody reported it; the payee still a party, verified, not suspended or
+banned; no block either way; then the rate limit. `createdBy` is set only
+by the server from `kind` (extra fields in the create input are ignored).
+The record page shows the address block only for the same case and a
+one-sentence "ask the parent" note otherwise.
+
+Probe results (memory store, through the real flows):
+
+| Path | Result |
+| --- | --- |
+| Payer-created record: paid; re-opened by "Not received"; re-opened twice; reported; declined | refused (`not-allowed`) in every state |
+| Payee asks for an address on a payer-created record | refused |
+| Payee-created request, payer, open | address (intended) |
+| Same, re-opened after "Not received" | address (intended: the payee asked) |
+| Same, paid, closed, cancelled, declined | refused (`invalid-state`) |
+| Same, reported by either side | refused |
+| Payee on their own request (payer's address) | refused |
+| Other member of the carpool, stranger | `not-found` |
+| No account, uid "deleted" | `no-account` |
+| Payer without the verified claim, unverified, suspended, banned | refused |
+| Payee suspended or banned | refused |
+| Block in either direction | refused |
+| Payee deleted the account | refused (record ended; address document deleted) |
+| Forged `createdBy`, `payeeUid`, `payerUid` in the create input | ignored; roles follow `kind` |
+
+Rules: collection-group reads of `settleUpAddresses`, `settleUpLimits` and
+`settleUps` are now asserted as refused (N10).
+
+### Other fixes checked
+
+- **N1** eligibility and block checks on the address: done (above).
+- **N2** atomic report: `update` writes the "reported" mark and the report
+  document in one transaction (`store.ts`); a failed write leaves neither
+  (tested with `failNextWrite`).
+- **N3** `removeAddress` takes no limit any more.
+- **N4** cap per pair: new field `pair` (the two uids sorted, joined by
+  "|") on every record; `create` counts `pair == x && finished == false`
+  inside the create transaction, so two requests at once cannot both pass.
+  Index changed to `pair` + `finished`. A deleted parent reads as
+  "deleted" in `pair`; those records are finished, so they never count.
+  No stored records exist yet, so no backfill is needed.
+- **N5** deletion loop: a damaged record is taken out of `parties`, and a
+  50-page cap stops a loop without progress.
+- **N6** documented, one seam (`blockedEitherWay`, `chatBlockDocId`) and a
+  unit test on the ID format. Still a dependency for the own-chat branch.
+- **N8** fail closed: after 3 failed reads in a row (about 60 to 90
+  seconds) an instance drops its last known copy for the pilot defaults;
+  a good read or an admin change resets the count.
+- **N9** the switch and its audit entry are one batch.
+- **N11** withdrawing the wallet consent with the wallet off uses our
+  balance copy and never calls the partner; an unknown copy refuses.
+
+### Remaining notes (none blocking)
+
+- **R1.** `createSettleUp` takes the daily "requests" limit before the
+  per-pair cap answers "too-many-open", so a refused request still costs
+  one of the 20. Harmless.
+- **R2.** With the wallet off and no stored balance copy, withdrawing the
+  wallet consent answers "wallet-not-empty"; the wording is off for that
+  rare case (only a wallet opened before the switch-off).
+- **R3.** On a fresh project the two `settleUps` indexes need a few
+  minutes to build after deploy; until then the list and
+  `createSettleUp` fail with an index error.
+- **N7, N12** unchanged (retention period to confirm and publish, B7; the
+  switch is checked before the admin check).
+- CLAUDE.md and AGENTS.md now say F1 to F45.
+
+The "not verifiable without a real iPhone" list of the first review still
+applies, plus: the "ask the parent" note on a payment I recorded myself
+(Arabic, 320 dp, 200 percent text).
+
+---
+
+# First review (round 1, `bb2b571`)
+
 Branch `improve-a-feature-switches` at `bb2b571` (main merged in), reviewed
 14 Nov 2026 by the independent validator against CLAUDE.md,
 docs/DECISIONS.md ("Improvements, revised", "Owner update 17:28") and
