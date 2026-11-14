@@ -1294,7 +1294,7 @@
   "notifEmergencyTitle": "Emergency",
   "notifEmergencyBody": "The driver pressed Emergency: {run}. Open the app.",
   "notifGroupEmergency": "Emergency",
-  "notifGroupTripAlerts": "Car outside, location",
+  "notifGroupTripAlerts": "Trip alerts",
   "notifGroupTrips": "Run updates",
   "emergencyContactTitle": "Emergency contact",
   "emergencyContactIntro": "If you press Emergency during a run, this person gets a WhatsApp message with the car's location.",
