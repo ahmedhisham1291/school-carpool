@@ -263,7 +263,7 @@ export interface PushMessage {
   title: string;
   body: string;
   /** Only these keys, all IDs or flags: the app loads the rest after it opens. */
-  data: { type: string; notificationId: string; route: string; critical: string; alarm: string };
+  data: { type: string; notificationId: string; route: string; critical: string; alarm: string; alarmAt: string };
   /** Sound and a heads-up banner (false in quiet hours). */
   sound: boolean;
   /** iOS interruption level and Android channel. */
@@ -292,6 +292,8 @@ export function buildPush(record: NotificationRecord, language: Language, opts: 
       route: record.route,
       critical: critical ? "1" : "0",
       alarm: opts.alarm ? "1" : "0",
+      // Critical: when the app's own alarm should sound if still unread (ms since epoch).
+      alarmAt: record.alarmAtMs === null ? "" : String(record.alarmAtMs),
     },
     sound: critical || !opts.quiet,
     level,

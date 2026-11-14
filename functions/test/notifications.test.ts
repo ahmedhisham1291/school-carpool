@@ -276,7 +276,7 @@ describe("privacy: no names, addresses or message text leave the server", () => 
     const payloads = JSON.stringify({ push: push.sent, whatsapp: whatsapp.sent });
     for (const word of [...FORBIDDEN, "child-adam", "mona"]) assert.ok(!payloads.includes(word), `payload contains ${word}`);
     for (const p of push.sent) {
-      assert.deepEqual(Object.keys(p.message.data).sort(), ["alarm", "critical", "notificationId", "route", "type"]);
+      assert.deepEqual(Object.keys(p.message.data).sort(), ["alarm", "alarmAt", "critical", "notificationId", "route", "type"]);
     }
     assert.ok(push.sent.length >= 40);
     assert.ok(whatsapp.sent.length >= 30);
