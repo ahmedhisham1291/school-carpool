@@ -14,16 +14,24 @@ account in **Sign-In Information** (section 2). Attach the run video
 > **Background location.** The app uses location in the background ONLY
 > while a parent drives a school run they started themselves (Start run on
 > the run screen). During that run, the parents of the children in the car
-> see the car on a map and get "car outside" and arrival-time updates. The
-> app asks only for "While Using the App" (never "Always"); tracking keeps
-> going with the phone locked through the location background mode, and
-> iOS shows the blue location indicator the whole time. Tracking stops
-> automatically at the last drop-off, when the driver ends the run, and
-> after 4 hours at the latest. Live points are deleted within 24 hours.
-> Parents who do not drive are never tracked. Without Location Services,
-> location permission and Precise Location, a parent can still use the
-> whole app except starting a run; the run screen shows the steps to turn
-> them on.
+> see the car on a map and get "car outside" and arrival-time updates. To
+> start a run the app needs only "While Using the App" with Precise
+> Location; tracking keeps going with the phone locked or another app open
+> through the location background mode, and iOS shows the blue location
+> indicator the whole time. Tracking stops automatically at the last
+> drop-off, when the driver ends the run, and after 4 hours at the latest.
+> Live points are deleted within 24 hours. Parents who do not drive are
+> never tracked. Without Location Services, location permission and
+> Precise Location, a parent can still use the whole app except starting a
+> run; the run screen shows the steps to turn them on.
+>
+> **"Always" is optional.** Before a driver's first run, one screen offers
+> "Always" so that, if iOS closes the app during a run, the run resumes by
+> itself (significant location changes relaunch the app; it then checks
+> the run is still on and shows "Tracking resumed"). It is used only for
+> drivers during school runs they start, with the blue indicator, and ends
+> with the run. Declining changes nothing else: the app works the same and
+> asks the driver to keep the app open during the run.
 >
 > **Sign-in.** Parents sign in with a one-time code sent by WhatsApp (no
 > SMS, no password). For review, the demo phone number in Sign-In
@@ -118,7 +126,8 @@ needed. Use the staging TestFlight build and the two test accounts.
    1. The run screen and **Start run**.
    2. The location prompt choosing **Allow While Using App** (first time
       only; otherwise show Settings > School Carpool > Location = While
-      Using the App, Precise Location on).
+      Using the App, Precise Location on), then the optional "Resume runs
+      by itself" screen (show both buttons; choose either).
    3. The running run screen with the line "Keep the app open — you can
       lock the phone."
    4. Press the side button to **lock the phone**, drive about a minute,

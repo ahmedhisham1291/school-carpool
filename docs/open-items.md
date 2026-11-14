@@ -41,7 +41,7 @@ to 13, docs/DECISIONS.md.
 | # | Item | Decision |
 | --- | --- | --- |
 | C1 | **Chat stays connected up to 60 minutes after sign-out** on a signed-out phone (Stream token lifetime, `CHAT_TOKEN_TTL_MIN`) | Accepted by the owner (14 Nov 2026, 13:29). Firebase data closes at once. Fix later: call `chat.revokeTokens(uid)` in `revokeSessions`. |
-| C2 | **Swiping the app away stops location on iPhone** (free plugin) | Accepted (DECISIONS.md "Location tracking on iPhone"): the server pushes the driver "Run still on" after 2 minutes and tells the parents |
+| C2 | **Swiping the app away stops location on iPhone** (free plugin) | Without the optional "Always": accepted, the server pushes the driver "Run still on" after 2 minutes and tells the parents. With "Always": our run_recovery plugin resumes the run after iOS relaunches the app (owner, 13:44) |
 | C3 | Transfer records kept 5 years | Confirmed (owner, 13:29) |
 | C4 | Trips of a closed carpool | Kept per parent: active + 1 year; built in Prompt 13 (`trip_retention.ts`) |
 
@@ -51,7 +51,8 @@ to 13, docs/DECISIONS.md.
 | --- | --- | --- | --- |
 | D1 | **Flutter and rules tests not run in this workspace** (no Flutter SDK, no emulators). Prompt 13's widget, golden and screen tests are written, not run | CI may show small analyzer or test fixes | One CI run on the branch (coordinator) |
 | D2 | **Screenshots / goldens** of the new screens (gate, banner, steps) not produced here (`full=false` in CI) | Owner cannot see them yet | Run the full screenshots workflow at merge |
-| D3 | geolocator's iOS permission prompt must offer "While Using the App" (the always key is in Info.plist because Apple requires it for the linked API; the app never asks for Always) | If iOS shows an "Always" upgrade prompt, App Review may ask | Check in test-iphone.md L2 |
+| D3 | The gate's first location prompt (geolocator) must offer "While Using the App"; "Always" comes only from the optional screen (run_recovery plugin) | If iOS shows "Always" first, App Review may ask | Check in test-iphone.md L2 |
+| D3b | **Run recovery verified only on a real iPhone:** the Swift plugin is compiled only in CI; relaunch after a swipe needs Always and movement (iOS decides when, usually after about 500 m); a relaunched app has seconds of background time to sign in, call the server and restart tracking; iOS may not relaunch after a force quit on some versions, and never with Background App Refresh or Location Services off | Recovery may be slower than the 2-minute fallback, or not happen | test-iphone.md T5 to T8; if unreliable, the paid plugin (B1) |
 | D4 | Android background tracking needs a foreground-service notification (geolocator `ForegroundNotificationConfig`) and "Allow all the time" flow | Android only | Stage 3 |
 | D5 | The notification permission is asked at first sign-in without an in-app explanation screen (drivers see one in the gate) | Some parents may refuse | Add a pre-permission screen in a later design prompt |
 | D6 | Mid-run loss is detected on the run screen; if the driver is on another screen of the app, the steps show when they come back to the run screen (the server alert still goes after 2 minutes) | Small delay | Move monitoring to the app shell later |
