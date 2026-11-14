@@ -67,6 +67,43 @@ export function scrubValue(value: unknown, depth = 0): unknown {
   return REDACTED;
 }
 
+function scrubMechanism(mechanism: unknown): unknown {
+  if (typeof mechanism !== "object" || mechanism === null) return mechanism;
+  const m = { ...(mechanism as Record<string, unknown>) };
+  if (m.data !== undefined) m.data = scrubValue(m.data, 1);
+  if (typeof m.description === "string") m.description = scrubString(m.description);
+  return m;
+}
+
+function scrubStacktrace(stacktrace: unknown): unknown {
+  if (typeof stacktrace !== "object" || stacktrace === null) return stacktrace;
+  const st = { ...(stacktrace as Record<string, unknown>) };
+  if (Array.isArray(st.frames)) {
+    st.frames = st.frames.map((f) => {
+      if (typeof f !== "object" || f === null) return f;
+      const frame = { ...(f as Record<string, unknown>) };
+      // Local variable values never leave (they may be a phone or a message).
+      delete frame.vars;
+      return frame;
+    });
+  }
+  return st;
+}
+
+/**
+ * Prompt 12: the feature area of a function, as a Sentry tag, so the owner
+ * gets an alert on NEW errors in sign-in, trips and the wallet (Sentry
+ * alert rules, SETUP.md 23.6). Function names only; never request data.
+ */
+export function areaOf(functionName: string): "signin" | "trips" | "wallet" | "privacy" | "other" {
+  const n = functionName.toLowerCase().replace(/[^a-z]/g, "");
+  if (/^(requestcode|verifycode|confirmemail|acceptconsents|block|touchdevice|confirmnewdevice|signoutdevice|listdevices)/.test(n)) return "signin";
+  if (/(trip|handover|selfiecheck|emergency|todaydrivercards|quickmessage|routeonarchive|archiveroute)/.test(n)) return "trips";
+  if (/(wallet|money|transfer|lookupparentid)/.test(n)) return "wallet";
+  if (/(privacy|exportmydata|deletemyaccount|retention|consent|photo)/.test(n)) return "privacy";
+  return "other";
+}
+
 /**
  * Cleans a Sentry event or breadcrumb. Keeps Sentry's structural fields
  * (ids, levels, timestamps, stack frames) and drops request data and every
@@ -85,6 +122,9 @@ export function scrubEvent<T extends object>(event: T): T {
   for (const key of ["extra", "tags", "data", "contexts"]) {
     if (copy[key] !== undefined) copy[key] = scrubValue(copy[key], 1);
   }
+  // A device or computer name often holds a person's name ("Hoda's iPhone").
+  const device = (copy.contexts as Record<string, unknown> | undefined)?.device;
+  if (typeof device === "object" && device !== null) delete (device as Record<string, unknown>).name;
   if (Array.isArray(copy.breadcrumbs)) {
     copy.breadcrumbs = copy.breadcrumbs.map((b) => scrubEvent(b as object));
   }
@@ -95,6 +135,10 @@ export function scrubEvent<T extends object>(event: T): T {
       values: exception.values.map((v) => ({
         ...v,
         value: typeof v.value === "string" ? scrubString(v.value) : v.value,
+        // Prompt 12 (Prompt 1 item 11): the mechanism's data and the local
+        // variables of stack frames can hold request values.
+        ...(v.mechanism !== undefined ? { mechanism: scrubMechanism(v.mechanism) } : {}),
+        ...(v.stacktrace !== undefined ? { stacktrace: scrubStacktrace(v.stacktrace) } : {}),
       })),
     };
   }

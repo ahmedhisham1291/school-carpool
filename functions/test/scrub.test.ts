@@ -4,7 +4,7 @@
 // run here (no npm registry). CI runs `npm test`.
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { REDACTED, isSensitiveKey, scrubEvent, scrubString, scrubValue } from "../src/scrub";
+import { areaOf, REDACTED, isSensitiveKey, scrubEvent, scrubString, scrubValue } from "../src/scrub";
 
 describe("scrubString", () => {
   const cases: Record<string, string> = {
@@ -82,5 +82,49 @@ describe("scrubEvent", () => {
     assert.equal(out.extra.count, 3);
     assert.equal(out.breadcrumbs[0].data.route, "/home");
     assert.equal(out.event_id, "abc");
+  });
+});
+
+describe("Prompt 12: nothing personal reaches Sentry", () => {
+  it("cleans the exception mechanism, frame variables, contexts and breadcrumbs", () => {
+    const phone = "+201001234567";
+    const nid = "29001011234567";
+    const event = {
+      message: `send failed for ${phone}`,
+      user: { id: "uid-1", email: "p@example.com", ip_address: "10.0.0.1" },
+      request: { data: { phone } },
+      contexts: { trip: { lat: 30.0444, lng: 31.2357 }, app: { app_name: "carpool" }, device: { name: "Hoda's iPhone" } },
+      exception: {
+        values: [
+          {
+            type: "Error",
+            value: `bad id ${nid} at 30.0444, 31.2357`,
+            mechanism: { type: "generic", handled: true, data: { phoneNumber: phone, text: "my message", step: 3 }, description: `called ${phone}` },
+            stacktrace: { frames: [{ filename: "flow.js", lineno: 3, vars: { phone, message: "hello there" } }] },
+          },
+        ],
+      },
+      breadcrumbs: [{ message: `opened ${phone}`, data: { text: "secret message", location: { lat: 1, lng: 2 } } }],
+      extra: { body: "message text", national_id: nid },
+    };
+    const out = scrubEvent(event) as unknown as Record<string, unknown>;
+    const json = JSON.stringify(out);
+    for (const secret of ["1001234567", nid, "31.2357", "30.0444", "my message", "hello there", "secret message", "message text", "p@example.com", "10.0.0.1", "Hoda"]) {
+      assert.ok(!json.includes(secret), `${secret} leaked: ${json}`);
+    }
+    assert.ok(json.includes("uid-1"));
+    assert.ok(json.includes('"step":3'), "harmless values stay");
+  });
+
+  it("tags errors by area for the alert rules", () => {
+    assert.equal(areaOf("verifyCode"), "signin");
+    assert.equal(areaOf("requestCode"), "signin");
+    assert.equal(areaOf("startTrip"), "trips");
+    assert.equal(areaOf("tripLocation"), "trips");
+    assert.equal(areaOf("sendMoney"), "wallet");
+    assert.equal(areaOf("walletReconcile"), "wallet");
+    assert.equal(areaOf("lookupParentId"), "wallet");
+    assert.equal(areaOf("exportMyData"), "privacy");
+    assert.equal(areaOf("createCarpool"), "other");
   });
 });

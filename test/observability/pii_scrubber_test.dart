@@ -99,5 +99,37 @@ void main() {
       expect(crumb.data!['route'], '/home');
       expect(out.request, isNull);
     });
+
+    test('Prompt 12: exception mechanism data and app contexts are cleaned too', () {
+      final SentryEvent event = SentryEvent(
+        exceptions: <SentryException>[
+          SentryException(
+            type: 'StateError',
+            value: 'failed',
+            mechanism: Mechanism(
+              type: 'generic',
+              handled: true,
+              description: 'sending to 01012345678',
+              data: <String, dynamic>{'phoneNumber': '+201001234567', 'step': 3},
+            ),
+          ),
+          SentryException(type: 'StateError', value: 'plain', mechanism: Mechanism(type: 'generic', handled: false)),
+        ],
+      );
+      event.contexts['trip'] = <String, dynamic>{'lat': 30.0444, 'note': 'pick up Omar', 'stage': 'arrived'};
+
+      final SentryEvent out = scrubSentryEvent(event, Hint());
+
+      final Mechanism first = out.exceptions!.first.mechanism!;
+      expect(first.data['phoneNumber'], PiiScrubber.redacted);
+      expect(first.data['step'], 3);
+      expect(first.description, isNot(contains('1012345678')));
+      expect(first.handled, isTrue);
+      expect(out.exceptions!.last.mechanism!.handled, isFalse);
+      final Map<String, dynamic> trip = out.contexts['trip'] as Map<String, dynamic>;
+      expect(trip['lat'], PiiScrubber.redacted);
+      expect(trip['note'], PiiScrubber.redacted);
+      expect(trip['stage'], 'arrived');
+    });
   });
 }
