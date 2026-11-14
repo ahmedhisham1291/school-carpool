@@ -18,6 +18,40 @@ this workspace). Expect small analyzer fixes on the first CI run, most
 likely in `lib/features/chat/firestore_chat_provider.dart` and
 `chat_backend.dart` (new files that could not be compiled here).
 
+## After the first CI run (43632098644)
+
+The coordinator merged `main`, refreshed the lock files and fixed two
+analyzer findings. The Flutter job was cancelled before it finished (result
+unknown); the rules tests had 4 failures, all in `own_chat.test.ts`:
+
+1. **"the owner may only mark a chat read": a test bug, the rules were
+   right.** The refused write set `frozen: false` on a row whose `frozen`
+   was already false, so nothing but the three allowed fields changed and
+   the rules correctly let it through. The test now tries real changes
+   (`frozen: true`, `memberCount: 99`). No rule was loosened.
+2. **Chat photo uploads by members were refused (3 subtests).** Two
+   changes, because the emulators cannot be run here to tell the causes
+   apart:
+   - Most likely cause: the Storage emulator answers `firestore.get()`
+     from the project the emulators were started with
+     (`demo-school-carpool`), while the test seeded the member documents
+     in its own project ID. The test now uses `demo-school-carpool` (no
+     other rules test does).
+   - Also removed the ":" from Storage paths, as asked for that case:
+     photos now live in `chatPhotos/{type}/{id}/{uid}/{messageId}` (the
+     chat ID with "/" in place of ":"), in `storage.rules`,
+     `firestore.rules` (the `photoPath` check), the app
+     (`photoPathFor`), the server (`photoFolder`, `photoPathOk`, the
+     ended-chat purge) and every test. The Firestore document ID keeps
+     its ":" (those rules tests passed).
+
+Also re-read the new Dart files for the analyzer: subscriptions are now
+cancelled by a call the lint can see (not a tear-off), the photo cache is
+a plain map literal, one `is Map` got its type arguments.
+
+Functions tests after these changes: 641 pass, 0 fail (run here). Rules
+tests and Flutter: still written, not run here.
+
 ## Plan that was followed
 
 1. **Server** (`functions/src/chat/`): a `firestore` provider behind the
@@ -58,7 +92,7 @@ routes and pushes did not change):
 | `chats/{cid}/messages/{id}` | senderUid, kind (`text`, `photo`, `location`), text or photoPath or lat/lng, createdAt | Current members (50 per query at most) | The sender creates (strict rules); nobody edits; Functions delete |
 | `chats/{cid}/reads/{uid}` | readAt, typingAt (private and carpool chats only) | Current members | The parent, their own only |
 | `userChats/{uid}/summaries/{cid}` (a chat list row) | kind, names, otherUid and otherName (private), `muted` (null = no choice), frozen, `open`, memberCount, `unread`, `readSeq`, readAt, lastAt, last | The parent, open rows only | Functions; the parent may only set unread 0, readAt (server time), readSeq |
-| Storage `chatPhotos/{cid}/{uid}/{messageId}.webp` or `.jpg` | A chat photo (WebP or JPEG, under 3 MB, EXIF removed on the phone) | Current members of that chat | The member, into their own folder, once; Functions delete |
+| Storage `chatPhotos/{type}/{id}/{uid}/{messageId}.webp` or `.jpg` (the chat ID with "/" in place of ":") | A chat photo (WebP or JPEG, under 3 MB, EXIF removed on the phone) | Current members of that chat | The member, into their own folder, once; Functions delete |
 
 Membership as the rules see it is the member document, read on **every**
 request: `active` (in the chat), `cut` (account suspended, banned,

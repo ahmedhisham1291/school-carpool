@@ -27,8 +27,13 @@ export const CHAT_MESSAGES = "messages";
 export const CHAT_READS = "reads";
 export const USER_CHATS = "userChats";
 export const CHAT_SUMMARIES = "summaries";
-/** Storage: chatPhotos/{cid}/{uid}/{messageId}.webp (or .jpg). */
+/** Storage: chatPhotos/{type}/{id}/{uid}/{messageId}.webp (or .jpg); "type:id" is the chat ID. */
 export const CHAT_PHOTOS = "chatPhotos";
+
+/** The Storage folder of a chat's photos: the chat ID with "/" in place of ":" (no ":" in a Storage path). */
+export function photoFolder(cid: string): string {
+  return `${CHAT_PHOTOS}/${cid.replace(":", "/")}`;
+}
 
 export const MESSAGE_KINDS = ["text", "photo", "location"] as const;
 export type MessageKind = (typeof MESSAGE_KINDS)[number];
@@ -164,9 +169,9 @@ export interface ChatData {
   deleteChat(cid: string): Promise<void>;
 }
 
-/** The only place a chat photo may live: chatPhotos/{cid}/{senderUid}/{messageId}.webp or .jpg. */
+/** The only place a chat photo may live: chatPhotos/{type}/{id}/{senderUid}/{messageId}.webp or .jpg. */
 export function photoPathOk(cid: string, senderUid: string, messageId: string, path: string | null): boolean {
   if (path === null) return false;
-  const base = `${CHAT_PHOTOS}/${cid}/${senderUid}/${messageId}`;
+  const base = `${photoFolder(cid)}/${senderUid}/${messageId}`;
   return path === `${base}.webp` || path === `${base}.jpg`;
 }

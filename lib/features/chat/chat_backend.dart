@@ -111,7 +111,7 @@ class FirestoreChatBackend implements ChatBackend {
     if (v is Timestamp) {
       return v.toDate().toUtc();
     }
-    if (v is Map) {
+    if (v is Map<Object?, Object?>) {
       return <String, Object?>{for (final MapEntry<Object?, Object?> e in v.entries) '${e.key}': _plain(e.value)};
     }
     return v;

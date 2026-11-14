@@ -497,7 +497,8 @@ service cloud.firestore {
     // A message as the phone may create it: own uid, server time, one of
     // three kinds with exactly its fields. Text up to 2000 characters
     // (MESSAGE_TEXT_MAX). A photo names the file the sender uploaded under
-    // chatPhotos/{cid}/{uid}/{messageId} (storage.rules). No other field.
+    // chatPhotos/{type}/{id}/{uid}/{messageId} (storage.rules; the chat ID
+    // with "/" in place of ":"). No other field.
     function validText(d) {
       return d.keys().hasOnly(['senderUid', 'kind', 'text', 'createdAt'])
         && d.text is string && d.text.size() > 0 && d.text.size() <= 2000;
@@ -506,8 +507,8 @@ service cloud.firestore {
       return smallChat(cid)
         && d.keys().hasOnly(['senderUid', 'kind', 'photoPath', 'createdAt'])
         && d.photoPath is string
-        && (d.photoPath == 'chatPhotos/' + cid + '/' + request.auth.uid + '/' + messageId + '.webp'
-          || d.photoPath == 'chatPhotos/' + cid + '/' + request.auth.uid + '/' + messageId + '.jpg');
+        && (d.photoPath == 'chatPhotos/' + cid.replace(':', '/') + '/' + request.auth.uid + '/' + messageId + '.webp'
+          || d.photoPath == 'chatPhotos/' + cid.replace(':', '/') + '/' + request.auth.uid + '/' + messageId + '.jpg');
     }
     function validPin(cid, d) {
       return smallChat(cid)

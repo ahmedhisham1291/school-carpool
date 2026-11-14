@@ -177,7 +177,10 @@ List<String> splitText(String text, {int max = kMaxMessageText}) {
 
 /// Where a chat photo is kept: the sender's own folder of that chat, under
 /// the message's ID (firestore.rules and storage.rules allow nothing else).
+///
+/// The folder is the chat ID with "/" in place of its ":" (no ":" in a
+/// Storage path): chatPhotos/cp_carpool/c-abc/`uid`/`messageId`.webp.
 String photoPathFor(String cid, String uid, String messageId, Uint8List bytes) =>
-    'chatPhotos/$cid/$uid/$messageId.${ImageSizing.isWebp(bytes) ? 'webp' : 'jpg'}';
+    'chatPhotos/${cid.replaceFirst(':', '/')}/$uid/$messageId.${ImageSizing.isWebp(bytes) ? 'webp' : 'jpg'}';
 
 String photoContentType(Uint8List bytes) => ImageSizing.isWebp(bytes) ? 'image/webp' : 'image/jpeg';

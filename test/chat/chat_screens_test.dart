@@ -228,7 +228,7 @@ void main() {
     });
 
     testWidgets('a photo from another parent is loaded through the chat provider and shown', (WidgetTester tester) async {
-      const String path = 'chatPhotos/cp_carpool:c-k1/uid-hoda/photomsg0001.webp';
+      const String path = 'chatPhotos/cp_carpool/c-k1/uid-hoda/photomsg0001.webp';
       final (FakeChatProvider chat, FakeChatRepository repo) = _fakes(
         messages: <ChatRef, List<ChatMessage>>{
           carpoolChat: <ChatMessage>[

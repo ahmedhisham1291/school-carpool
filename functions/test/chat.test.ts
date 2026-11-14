@@ -75,6 +75,8 @@ function twoParents() {
 }
 
 const CP = "cp_carpool:c-k1";
+/** Its photo folder in Storage: "/" in place of ":". */
+const CPF = "cp_carpool/c-k1";
 
 /** Two verified parents on the Firestore provider (in-memory documents). */
 function fsSetup() {
@@ -536,7 +538,7 @@ describe("new message fan-out (the trigger on chats/{cid}/messages/{id})", () =>
     assert.deepEqual(s.data.heads.get(CP)?.last, { kind: "location", senderUid: "alice", text: "" });
     assert.ok(!JSON.stringify([...s.data.summaries.values()]).includes("31.2357"));
     assert.ok(!JSON.stringify(s.logs).includes("30.0444"));
-    await send(s, CP, "m3", "bob", { kind: "photo", photoPath: `chatPhotos/${CP}/bob/m3.webp` });
+    await send(s, CP, "m3", "bob", { kind: "photo", photoPath: `chatPhotos/${CPF}/bob/m3.webp` });
     assert.equal(s.data.heads.get(CP)?.last?.kind, "photo");
     assert.equal(s.data.heads.get(CP)?.seq, 3);
   });
@@ -558,16 +560,17 @@ describe("new message fan-out (the trigger on chats/{cid}/messages/{id})", () =>
     await syncParentGroups(s.deps, "alice");
     const cid = "cp_school:s-sch1";
     assert.equal((await send(s, cid, "g1", "alice", { kind: "location", lat: 30, lng: 31 })).reason, "bad-location");
-    assert.equal((await send(s, cid, "g2", "alice", { kind: "photo", photoPath: `chatPhotos/${cid}/alice/g2.jpg` })).reason, "bad-photo");
+    assert.equal((await send(s, cid, "g2", "alice", { kind: "photo", photoPath: `chatPhotos/cp_school/s-sch1/alice/g2.jpg` })).reason, "bad-photo");
     assert.equal(s.data.messageDocs.get(cid)?.length, 0);
     assert.equal(s.data.heads.get(cid)?.seq, 0);
   });
   it("a photo must sit in the sender's own folder of that chat under the message's ID", async () => {
     const s = await fsCarpool();
-    assert.equal((await send(s, CP, "m1", "alice", { kind: "photo", photoPath: `chatPhotos/${CP}/bob/m1.jpg` })).reason, "bad-photo");
+    assert.equal((await send(s, CP, "m1", "alice", { kind: "photo", photoPath: `chatPhotos/${CPF}/bob/m1.jpg` })).reason, "bad-photo");
     assert.equal((await send(s, CP, "m2", "alice", { kind: "photo", photoPath: "verification/bob/cases/c1/id_front.jpg" })).reason, "bad-photo");
-    assert.equal((await send(s, CP, "m3", "alice", { kind: "photo", photoPath: `chatPhotos/${CP}/alice/m3.webp` })).removed, false);
-    assert.equal(photoPathOk(CP, "alice", "m3", `chatPhotos/${CP}/alice/m3.gif`), false);
+    assert.equal((await send(s, CP, "m3", "alice", { kind: "photo", photoPath: `chatPhotos/${CPF}/alice/m3.webp` })).removed, false);
+    assert.equal(photoPathOk(CP, "alice", "m3", `chatPhotos/${CPF}/alice/m3.gif`), false);
+    assert.equal(photoPathOk(CP, "alice", "m3", `chatPhotos/${CP}/alice/m3.webp`), false, "never the chat ID with its colon");
   });
   it("too long, empty or malformed messages and messages from non-members are removed", async () => {
     const s = await fsCarpool();
@@ -790,7 +793,7 @@ describe("reports and admin removal on Firestore data", () => {
   }
   it("a message report reads the message with a little context from Firestore; names come from our records", async () => {
     const s = await chatWithMessages();
-    await send(s, CP, "p1", "bob", { kind: "photo", photoPath: `chatPhotos/${CP}/bob/p1.webp` });
+    await send(s, CP, "p1", "bob", { kind: "photo", photoPath: `chatPhotos/${CPF}/bob/p1.webp` });
     const r = await reportChat(s.deps, me("alice"), { targetType: "message", cid: CP, messageId: "m4", reason: "harassment" });
     const rec = s.store.reports.get(r.reportId);
     assert.ok(rec);
@@ -808,14 +811,14 @@ describe("reports and admin removal on Firestore data", () => {
   });
   it("admin removes the reported message: gone for everyone, its photo too, and the chat list stops showing it", async () => {
     const s = await chatWithMessages();
-    await send(s, CP, "p1", "bob", { kind: "photo", photoPath: `chatPhotos/${CP}/bob/p1.webp` });
+    await send(s, CP, "p1", "bob", { kind: "photo", photoPath: `chatPhotos/${CPF}/bob/p1.webp` });
     const audit: AuditEntry[] = [];
     const adminDeps: ChatAdminDeps = { ...s.deps, audit: async (e) => void audit.push(e) };
     const { reportId } = await reportChat(s.deps, me("alice"), { targetType: "message", cid: CP, messageId: "p1", reason: "inappropriate" });
     const v = await removeReportedMessage(adminDeps, { uid: "adm1", role: "admin" }, { reportId }, null);
     assert.equal(v.outcome, "message-removed");
     assert.equal(await s.data.message(CP, "p1"), null);
-    assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CP}/bob/p1.webp`]);
+    assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CPF}/bob/p1.webp`]);
     assert.deepEqual(s.data.heads.get(CP)?.last, { kind: "deleted", senderUid: "bob", text: "" });
     assert.equal(s.data.summaries.get(`alice|${CP}`)?.last?.kind, "deleted");
     assert.equal(audit.at(-1)?.action, "chat.removeMessage");
@@ -857,7 +860,7 @@ describe("retention, deletion and export (life of the chat + 1 year, run by rete
     const s = await fsCarpool();
     await send(s, CP, "m1", "alice", { text: "hello" });
     await send(s, CP, "m2", "bob", { text: "hi" });
-    await send(s, CP, "m3", "alice", { kind: "photo", photoPath: `chatPhotos/${CP}/alice/m3.webp` });
+    await send(s, CP, "m3", "alice", { kind: "photo", photoPath: `chatPhotos/${CPF}/alice/m3.webp` });
     // Account deletion, chat step: cut off, name becomes an initial.
     await s.fs.deactivateUser("alice");
     await s.fs.upsertUser({ id: "alice", name: "A." });
@@ -867,13 +870,13 @@ describe("retention, deletion and export (life of the chat + 1 year, run by rete
     // Purge step, 1 year after closure.
     await s.fs.deleteUser("alice");
     assert.deepEqual(s.data.messageDocs.get(CP)?.map((m) => m.id), ["m2"]);
-    assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CP}/alice/m3.webp`]);
+    assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CPF}/alice/m3.webp`]);
     assert.equal(s.data.summaries.has(`alice|${CP}`), false);
     assert.equal(s.data.summaries.has(`bob|${CP}`), true);
   });
   it("an ended chat is deleted with its messages, photos, members and chat list rows", async () => {
     const s = await fsCarpool();
-    await send(s, CP, "m1", "alice", { kind: "photo", photoPath: `chatPhotos/${CP}/alice/m1.jpg` });
+    await send(s, CP, "m1", "alice", { kind: "photo", photoPath: `chatPhotos/${CPF}/alice/m1.jpg` });
     await s.fs.setFrozen("cp_carpool", "c-k1", true);
     assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.frozen, true);
     await s.fs.deleteChannel("cp_carpool", "c-k1");
@@ -881,7 +884,7 @@ describe("retention, deletion and export (life of the chat + 1 year, run by rete
     assert.equal(s.data.messageDocs.has(CP), false);
     assert.equal([...s.data.memberDocs.keys()].length, 0);
     assert.equal([...s.data.summaries.keys()].length, 0);
-    assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CP}/alice/m1.jpg`]);
+    assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CPF}/alice/m1.jpg`]);
   });
 });
 

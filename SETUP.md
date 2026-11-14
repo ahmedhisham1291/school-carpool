@@ -986,7 +986,8 @@ How it is built:
   unread counters) and queues the push through our own notification sender
   (section 18). The push text is always "You have a new message".
 - **Photos** (private and carpool chats only) go to
-  `chatPhotos/{cid}/{uid}/{messageId}`; `storage.rules` let only current
+  `chatPhotos/{type}/{id}/{uid}/{messageId}` (the chat ID with "/" in
+  place of ":"); `storage.rules` let only current
   members of that chat read them.
 
 Data model, rules and costs: docs/progress/improve-b.md and docs/COSTS.md.

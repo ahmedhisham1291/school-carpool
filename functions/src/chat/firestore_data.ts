@@ -9,6 +9,7 @@ import {
   CHAT_SUMMARIES,
   CHATS,
   MESSAGE_KINDS,
+  photoFolder,
   USER_CHATS,
   type ChatData,
   type ChatHead,
@@ -384,7 +385,7 @@ export class FirestoreChatData implements ChatData {
         await m.ref.delete();
       }
     }
-    const [files] = await this.bucket().getFiles({ prefix: `${CHAT_PHOTOS}/${cid}/` });
+    const [files] = await this.bucket().getFiles({ prefix: `${photoFolder(cid)}/` });
     for (const f of files) await f.delete({ ignoreNotFound: true });
     // Messages, reads and the head.
     await this.db.recursiveDelete(chat);

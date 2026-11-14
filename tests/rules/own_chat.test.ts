@@ -1,6 +1,6 @@
 // Rules for our own chat on Firestore (F8, F9, F10, F13; improvement B):
 // chats/{cid} with chatMembers, messages and reads, userChats/{uid}/summaries
-// and the chat photos in Storage (chatPhotos/{cid}/{uid}/{name}).
+// and the chat photos in Storage (chatPhotos/{type}/{id}/{uid}/{name}).
 //
 // What these tests prove:
 // - Membership is the member document, read on every request: a member
@@ -62,6 +62,8 @@ const CARPOOL = "cp_carpool:c-k1";
 const PRIVATE = "cp_private:dm-abc";
 const SCHOOL = "cp_school:s-nile";
 const FROZEN = "cp_private:dm-frozen";
+/** A chat's photo folder in Storage: the chat ID with "/" in place of ":". */
+const dir = (cid: string): string => cid.replace(":", "/");
 
 const member = (uid: string, extra: Record<string, unknown> = {}) => ({
   uid,
@@ -100,7 +102,11 @@ const text = (uid: string, value = "hello") => ({ senderUid: uid, kind: "text", 
 
 before(async () => {
   env = await initializeTestEnvironment({
-    projectId: "demo-school-carpool-ownchat",
+    // The SAME project the emulators were started with (package.json
+    // test:emulator, CI): the Storage emulator looks up firestore.get() in
+    // that project, so the member documents must be seeded there. No other
+    // rules test uses this project ID.
+    projectId: "demo-school-carpool",
     firestore: { rules: readFileSync(join(root, "firestore.rules"), "utf8") },
     storage: { rules: readFileSync(join(root, "storage.rules"), "utf8") },
   });
@@ -139,7 +145,7 @@ beforeEach(async () => {
     await db.doc(`userChats/newphone/summaries/${CARPOOL}`).set(summary(CARPOOL));
   });
   await env.withSecurityRulesDisabled(async (ctx) => {
-    await ctx.storage().ref(`chatPhotos/${CARPOOL}/bob/seedphoto001.webp`).putString("fake", "raw", { contentType: "image/webp" }).then(() => undefined);
+    await ctx.storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).putString("fake", "raw", { contentType: "image/webp" }).then(() => undefined);
   });
 });
 
@@ -201,10 +207,10 @@ describe("messages: the sender creates their own, under strict rules", () => {
     await assertSucceeds(db.doc(`chats/${SCHOOL}/messages/alicemsg0001`).set(text("alice")));
     await assertSucceeds(db.doc(`chats/${PRIVATE}/messages/alicemsg0002`).set({ senderUid: "alice", kind: "location", lat: 30.05, lng: 31.25, createdAt: now() }));
     await assertSucceeds(
-      db.doc(`chats/${CARPOOL}/messages/alicemsg0003`).set({ senderUid: "alice", kind: "photo", photoPath: `chatPhotos/${CARPOOL}/alice/alicemsg0003.webp`, createdAt: now() }),
+      db.doc(`chats/${CARPOOL}/messages/alicemsg0003`).set({ senderUid: "alice", kind: "photo", photoPath: `chatPhotos/${dir(CARPOOL)}/alice/alicemsg0003.webp`, createdAt: now() }),
     );
     await assertSucceeds(
-      db.doc(`chats/${CARPOOL}/messages/alicemsg0004`).set({ senderUid: "alice", kind: "photo", photoPath: `chatPhotos/${CARPOOL}/alice/alicemsg0004.jpg`, createdAt: now() }),
+      db.doc(`chats/${CARPOOL}/messages/alicemsg0004`).set({ senderUid: "alice", kind: "photo", photoPath: `chatPhotos/${dir(CARPOOL)}/alice/alicemsg0004.jpg`, createdAt: now() }),
     );
     await assertSucceeds(db.doc(`chats/${CARPOOL}/messages/alicemsg0005`).set(text("alice", "x".repeat(2000))));
   });
@@ -235,12 +241,12 @@ describe("messages: the sender creates their own, under strict rules", () => {
   it("a photo path must be the sender's own folder of that chat under the message's ID", async () => {
     const db = as("alice").firestore();
     const photo = (path: string) => ({ senderUid: "alice", kind: "photo", photoPath: path, createdAt: now() });
-    await assertFails(db.doc(`chats/${CARPOOL}/messages/photomsg001`).set(photo(`chatPhotos/${CARPOOL}/bob/photomsg001.webp`)));
-    await assertFails(db.doc(`chats/${CARPOOL}/messages/photomsg002`).set(photo(`chatPhotos/${PRIVATE}/alice/photomsg002.webp`)));
-    await assertFails(db.doc(`chats/${CARPOOL}/messages/photomsg003`).set(photo(`chatPhotos/${CARPOOL}/alice/othername01.webp`)));
+    await assertFails(db.doc(`chats/${CARPOOL}/messages/photomsg001`).set(photo(`chatPhotos/${dir(CARPOOL)}/bob/photomsg001.webp`)));
+    await assertFails(db.doc(`chats/${CARPOOL}/messages/photomsg002`).set(photo(`chatPhotos/${dir(PRIVATE)}/alice/photomsg002.webp`)));
+    await assertFails(db.doc(`chats/${CARPOOL}/messages/photomsg003`).set(photo(`chatPhotos/${dir(CARPOOL)}/alice/othername01.webp`)));
     await assertFails(db.doc(`chats/${CARPOOL}/messages/photomsg004`).set(photo("verification/bob/cases/c1/id_front.jpg")));
     await assertFails(db.doc(`chats/${CARPOOL}/messages/photomsg005`).set(photo("https://example.com/x.jpg")));
-    await assertFails(db.doc(`chats/${CARPOOL}/messages/photomsg006`).set({ ...photo(`chatPhotos/${CARPOOL}/alice/photomsg006.webp`), text: "caption" }));
+    await assertFails(db.doc(`chats/${CARPOOL}/messages/photomsg006`).set({ ...photo(`chatPhotos/${dir(CARPOOL)}/alice/photomsg006.webp`), text: "caption" }));
   });
   it("a location pin needs real coordinates and nothing else", async () => {
     const db = as("alice").firestore();
@@ -255,7 +261,7 @@ describe("messages: the sender creates their own, under strict rules", () => {
     const db = as("alice").firestore();
     await assertFails(db.doc(`chats/${SCHOOL}/messages/grpmsg00001`).set({ senderUid: "alice", kind: "location", lat: 30, lng: 31, createdAt: now() }));
     await assertFails(
-      db.doc(`chats/${SCHOOL}/messages/grpmsg00002`).set({ senderUid: "alice", kind: "photo", photoPath: `chatPhotos/${SCHOOL}/alice/grpmsg00002.webp`, createdAt: now() }),
+      db.doc(`chats/${SCHOOL}/messages/grpmsg00002`).set({ senderUid: "alice", kind: "photo", photoPath: `chatPhotos/${dir(SCHOOL)}/alice/grpmsg00002.webp`, createdAt: now() }),
     );
   });
   it("a frozen chat takes no new message; a parent muted for sending too fast cannot write until it ends", async () => {
@@ -320,7 +326,8 @@ describe("userChats: the parent's own chat list", () => {
     await assertFails(row.update({ unread: 0, readAt: now(), readSeq: -1 }));
     await assertFails(row.update({ unread: 0, readAt: now(), readSeq: "all" }));
     await assertFails(row.update({ unread: 0, readAt: now(), readSeq: 1, muted: false }));
-    await assertFails(row.update({ unread: 0, readAt: now(), readSeq: 1, frozen: false }));
+    await assertFails(row.update({ unread: 0, readAt: now(), readSeq: 1, frozen: true }));
+    await assertFails(row.update({ unread: 0, readAt: now(), readSeq: 1, memberCount: 99 }));
     await assertFails(row.update({ unread: 0, readAt: now(), readSeq: 1, otherName: "Admin" }));
     await assertFails(row.delete());
     await assertFails(as("alice").firestore().doc("userChats/alice/summaries/cp_private:dm-new").set(summary("cp_private:dm-new")));
@@ -357,39 +364,41 @@ describe("storage.rules: chat photos, members of that chat only", () => {
     ctx.storage().ref(path).putString(body, "raw", meta).then(() => undefined);
 
   it("a member uploads into their own folder and members read it", async () => {
-    await assertSucceeds(put(as("alice"), `chatPhotos/${CARPOOL}/alice/alicemsg0003.webp`));
-    await assertSucceeds(put(as("alice"), `chatPhotos/${PRIVATE}/alice/alicemsg0004.jpg`, "fake-image", jpeg));
-    await assertSucceeds(as("alice").storage().ref(`chatPhotos/${CARPOOL}/bob/seedphoto001.webp`).getMetadata());
-    await assertSucceeds(as("muted").storage().ref(`chatPhotos/${CARPOOL}/bob/seedphoto001.webp`).getMetadata());
+    await assertSucceeds(put(as("alice"), `chatPhotos/${dir(CARPOOL)}/alice/alicemsg0003.webp`));
+    await assertSucceeds(put(as("alice"), `chatPhotos/${dir(PRIVATE)}/alice/alicemsg0004.jpg`, "fake-image", jpeg));
+    await assertSucceeds(as("alice").storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).getMetadata());
+    await assertSucceeds(as("muted").storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).getMetadata());
   });
   it("non-members, removed and cut-off parents, unverified, admins and signed-out users neither read nor upload", async () => {
     for (const [, uid, ctx] of outsiders().filter(([, id]) => id !== "newphone")) {
-      await assertFails(ctx.storage().ref(`chatPhotos/${CARPOOL}/bob/seedphoto001.webp`).getMetadata());
-      await assertFails(ctx.storage().ref(`chatPhotos/${CARPOOL}/bob/seedphoto001.webp`).getDownloadURL());
-      await assertFails(put(ctx, `chatPhotos/${CARPOOL}/${uid}/othermsg0001.webp`));
+      await assertFails(ctx.storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).getMetadata());
+      await assertFails(ctx.storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).getDownloadURL());
+      await assertFails(put(ctx, `chatPhotos/${dir(CARPOOL)}/${uid}/othermsg0001.webp`));
     }
   });
   it("not into another parent's folder, not twice, never deleted, never listed", async () => {
-    await assertFails(put(as("alice"), `chatPhotos/${CARPOOL}/bob/alicemsg0003.webp`));
-    await assertSucceeds(put(as("alice"), `chatPhotos/${CARPOOL}/alice/alicemsg0003.webp`));
-    await assertFails(put(as("alice"), `chatPhotos/${CARPOOL}/alice/alicemsg0003.webp`, "replaced"));
-    await assertFails(as("alice").storage().ref(`chatPhotos/${CARPOOL}/alice/alicemsg0003.webp`).delete());
-    await assertFails(as("bob").storage().ref(`chatPhotos/${CARPOOL}/bob/seedphoto001.webp`).delete());
-    await assertFails(as("alice").storage().ref(`chatPhotos/${CARPOOL}/bob`).listAll());
+    await assertFails(put(as("alice"), `chatPhotos/${dir(CARPOOL)}/bob/alicemsg0003.webp`));
+    // The old one-segment form (the chat ID with its colon) matches nothing.
+    await assertFails(put(as("alice"), `chatPhotos/${CARPOOL}/alice/alicemsg0003.webp`));
+    await assertSucceeds(put(as("alice"), `chatPhotos/${dir(CARPOOL)}/alice/alicemsg0003.webp`));
+    await assertFails(put(as("alice"), `chatPhotos/${dir(CARPOOL)}/alice/alicemsg0003.webp`, "replaced"));
+    await assertFails(as("alice").storage().ref(`chatPhotos/${dir(CARPOOL)}/alice/alicemsg0003.webp`).delete());
+    await assertFails(as("bob").storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).delete());
+    await assertFails(as("alice").storage().ref(`chatPhotos/${dir(CARPOOL)}/bob`).listAll());
   });
   it("only WebP or JPEG under 3 MB with a message-ID name", async () => {
-    await assertFails(put(as("alice"), `chatPhotos/${CARPOOL}/alice/alicemsg0005.webp`, "x".repeat(3 * 1024 * 1024 + 1)));
-    await assertFails(put(as("alice"), `chatPhotos/${CARPOOL}/alice/alicemsg0006.webp`, "fake", { contentType: "image/png" }));
-    await assertFails(put(as("alice"), `chatPhotos/${CARPOOL}/alice/alicemsg0007.png`, "fake", { contentType: "image/png" }));
-    await assertFails(put(as("alice"), `chatPhotos/${CARPOOL}/alice/alicemsg0008.html`, "<script>", { contentType: "text/html" }));
-    await assertFails(put(as("alice"), `chatPhotos/${CARPOOL}/alice/x.webp`));
-    await assertFails(put(as("alice"), `chatPhotos/${CARPOOL}/alice/alicemsg0009.webp`, ""));
+    await assertFails(put(as("alice"), `chatPhotos/${dir(CARPOOL)}/alice/alicemsg0005.webp`, "x".repeat(3 * 1024 * 1024 + 1)));
+    await assertFails(put(as("alice"), `chatPhotos/${dir(CARPOOL)}/alice/alicemsg0006.webp`, "fake", { contentType: "image/png" }));
+    await assertFails(put(as("alice"), `chatPhotos/${dir(CARPOOL)}/alice/alicemsg0007.png`, "fake", { contentType: "image/png" }));
+    await assertFails(put(as("alice"), `chatPhotos/${dir(CARPOOL)}/alice/alicemsg0008.html`, "<script>", { contentType: "text/html" }));
+    await assertFails(put(as("alice"), `chatPhotos/${dir(CARPOOL)}/alice/x.webp`));
+    await assertFails(put(as("alice"), `chatPhotos/${dir(CARPOOL)}/alice/alicemsg0009.webp`, ""));
   });
   it("no photos in a frozen chat, by a muted parent, or in a school group", async () => {
-    await assertFails(put(as("alice"), `chatPhotos/${FROZEN}/alice/alicemsg0010.webp`));
-    await assertFails(put(as("muted"), `chatPhotos/${CARPOOL}/muted/mutedmsg0001.webp`));
-    await assertSucceeds(put(as("wasmuted"), `chatPhotos/${CARPOOL}/wasmuted/mutedmsg0002.webp`));
-    await assertFails(put(as("alice"), `chatPhotos/${SCHOOL}/alice/alicemsg0011.webp`));
-    await assertFails(as("alice").storage().ref(`chatPhotos/${SCHOOL}/alice/alicemsg0011.webp`).getMetadata());
+    await assertFails(put(as("alice"), `chatPhotos/${dir(FROZEN)}/alice/alicemsg0010.webp`));
+    await assertFails(put(as("muted"), `chatPhotos/${dir(CARPOOL)}/muted/mutedmsg0001.webp`));
+    await assertSucceeds(put(as("wasmuted"), `chatPhotos/${dir(CARPOOL)}/wasmuted/mutedmsg0002.webp`));
+    await assertFails(put(as("alice"), `chatPhotos/${dir(SCHOOL)}/alice/alicemsg0011.webp`));
+    await assertFails(as("alice").storage().ref(`chatPhotos/${dir(SCHOOL)}/alice/alicemsg0011.webp`).getMetadata());
   });
 });

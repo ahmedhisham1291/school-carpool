@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:typed_data';
 
 import 'package:school_carpool/features/chat/chat_backend.dart';
@@ -36,7 +35,8 @@ class FirestoreChatProvider implements ChatProvider, ChatPhotoSource {
   final Map<String, Map<String, String>> _names = <String, Map<String, String>>{};
 
   /// The last photos shown, so scrolling back does not download again.
-  final LinkedHashMap<String, Uint8List> _photos = LinkedHashMap<String, Uint8List>();
+  /// (A map literal keeps insertion order: the first key is the oldest.)
+  final Map<String, Uint8List> _photos = <String, Uint8List>{};
   static const int _photoCacheSize = 40;
 
   void _set(ChatConnection s) {
@@ -83,7 +83,9 @@ class FirestoreChatProvider implements ChatProvider, ChatPhotoSource {
   Stream<ChatConnection> get connection => Stream<ChatConnection>.multi((MultiStreamController<ChatConnection> c) {
     c.add(_state);
     final StreamSubscription<ChatConnection> sub = _connection.stream.listen(c.add, onDone: c.close);
-    c.onCancel = sub.cancel;
+    c.onCancel = () async {
+      await sub.cancel();
+    };
   });
 
   _Replay<ChatDocs> get _connected {
@@ -329,7 +331,9 @@ class _FirestoreConversation implements ChatConversation {
           out.add(value);
         }
         final StreamSubscription<T> sub = c.stream.listen(out.add, onError: out.addError, onDone: out.close);
-        out.onCancel = sub.cancel;
+        out.onCancel = () async {
+          await sub.cancel();
+        };
       });
 
   // -------------------------------------------------------------------------

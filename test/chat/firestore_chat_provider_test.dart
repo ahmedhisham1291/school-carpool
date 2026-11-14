@@ -15,6 +15,9 @@ import 'package:school_carpool/features/chat/firestore_chat_provider.dart';
 final DateTime _t0 = DateTime.utc(2026, 11, 16, 10);
 
 const String _carpool = 'cp_carpool:c-k1';
+
+/// Its photo folder in Storage: "/" in place of ":".
+const String _carpoolDir = 'cp_carpool/c-k1';
 const String _school = 'cp_school:s-nile';
 const String _private = 'cp_private:dm-abc';
 
@@ -321,8 +324,8 @@ void main() {
       expect(parts.join(), 'abc\u{1F600}def');
       expect(parts.first, 'abc');
       expect(splitText('x' * (kMaxMessageText + 1)), hasLength(2));
-      expect(photoPathFor(_carpool, 'me', 'msg1', _webp), 'chatPhotos/$_carpool/me/msg1.webp');
-      expect(photoPathFor(_carpool, 'me', 'msg1', _jpeg), 'chatPhotos/$_carpool/me/msg1.jpg');
+      expect(photoPathFor(_carpool, 'me', 'msg1', _webp), 'chatPhotos/$_carpoolDir/me/msg1.webp');
+      expect(photoPathFor(_carpool, 'me', 'msg1', _jpeg), 'chatPhotos/$_carpoolDir/me/msg1.jpg');
       expect(photoContentType(_webp), 'image/webp');
       expect(photoContentType(_jpeg), 'image/jpeg');
     });
@@ -405,7 +408,9 @@ void main() {
       final ChatConversation c = p.open(ref);
       final List<List<ChatMessage>> seen = <List<ChatMessage>>[];
       final StreamSubscription<List<ChatMessage>> sub = c.messages.listen(seen.add);
-      addTearDown(sub.cancel);
+      addTearDown(() async {
+        await sub.cancel();
+      });
       await _settle();
       return (p, c, seen);
     }
@@ -473,7 +478,7 @@ void main() {
       await _settle();
       final ChatMessage m = seen.last.single;
       expect(m.kind, ChatMessageKind.photo);
-      expect(m.photoPath, 'chatPhotos/$_carpool/me/${m.id}.webp');
+      expect(m.photoPath, 'chatPhotos/$_carpoolDir/me/${m.id}.webp');
       expect(backend.photos.keys.single, m.photoPath);
       final int upload = backend.calls.indexWhere((String x) => x.startsWith('upload:'));
       expect(backend.calls[upload], endsWith(':image/webp'));
@@ -516,15 +521,15 @@ void main() {
 
     test('a message removed by an admin disappears; photos of others are fetched once', () async {
       backend.rows[_carpool] = _row();
-      backend.photos['chatPhotos/$_carpool/hoda/m2.webp'] = _webp;
+      backend.photos['chatPhotos/$_carpoolDir/hoda/m2.webp'] = _webp;
       backend.addMessage(_carpool, 'm1', 'hoda', at: _t0.add(const Duration(minutes: 1)));
-      backend.addMessage(_carpool, 'm2', 'hoda', text: '', kind: 'photo', at: _t0.add(const Duration(minutes: 2)), extra: <String, Object?>{'photoPath': 'chatPhotos/$_carpool/hoda/m2.webp'});
+      backend.addMessage(_carpool, 'm2', 'hoda', text: '', kind: 'photo', at: _t0.add(const Duration(minutes: 2)), extra: <String, Object?>{'photoPath': 'chatPhotos/$_carpoolDir/hoda/m2.webp'});
       final (FirestoreChatProvider p, _, List<List<ChatMessage>> seen) = await open(carpool);
       expect(seen.last, hasLength(2));
-      expect(await p.photo('chatPhotos/$_carpool/hoda/m2.webp'), _webp);
-      expect(await p.photo('chatPhotos/$_carpool/hoda/m2.webp'), _webp);
+      expect(await p.photo('chatPhotos/$_carpoolDir/hoda/m2.webp'), _webp);
+      expect(await p.photo('chatPhotos/$_carpoolDir/hoda/m2.webp'), _webp);
       expect(backend.calls.where((String x) => x.startsWith('download:')), hasLength(1));
-      expect(await p.photo('chatPhotos/$_carpool/hoda/gone.webp'), isNull);
+      expect(await p.photo('chatPhotos/$_carpoolDir/hoda/gone.webp'), isNull);
       backend.messages[_carpool]!.removeWhere((ChatDoc d) => d.id == 'm1');
       backend.changed();
       await _settle();

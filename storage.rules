@@ -79,7 +79,9 @@ service firebase.storage {
         && request.resource.contentType == 'image/jpeg';
     }
 
-    // Chat photos (own chat on Firestore): chatPhotos/{cid}/{uid}/{name}.
+    // Chat photos (own chat on Firestore):
+    // chatPhotos/{type}/{id}/{uid}/{name}, where "type:id" is the chat's ID
+    // in Firestore (the ":" is not used in a Storage path).
     // Only private and carpool chats have photos. Membership is the same
     // member document firestore.rules reads, checked on every request
     // (firestore.get: Storage needs the "Firebase Rules Firestore Service
@@ -91,20 +93,27 @@ service firebase.storage {
     function chatMember(cid) {
       return firestore.get(/databases/(default)/documents/chats/$(cid)/chatMembers/$(request.auth.uid)).data;
     }
-    function inChat(cid) {
-      return request.auth != null
-        && request.auth.token.verified == true
-        && cid.matches('cp_(private|carpool):[A-Za-z0-9_-]+')
-        && firestore.exists(/databases/(default)/documents/chats/$(cid)/chatMembers/$(request.auth.uid))
+    function isChatMember(cid) {
+      return firestore.exists(/databases/(default)/documents/chats/$(cid)/chatMembers/$(request.auth.uid))
         && chatMember(cid).active == true
         && chatMember(cid).cut != true;
     }
-    match /chatPhotos/{cid}/{uid}/{name} {
-      allow get: if inChat(cid);
-      allow create: if inChat(cid)
+    function inChat(type, id) {
+      return request.auth != null
+        && request.auth.token.verified == true
+        && type.matches('cp_(private|carpool)')
+        && id.matches('[A-Za-z0-9_-]+')
+        && isChatMember(type + ':' + id);
+    }
+    function mayPost(member) {
+      return member.frozen != true
+        && (!('mutedUntil' in member) || member.mutedUntil == null || member.mutedUntil < request.time);
+    }
+    match /chatPhotos/{type}/{id}/{uid}/{name} {
+      allow get: if inChat(type, id);
+      allow create: if inChat(type, id)
         && request.auth.uid == uid
-        && chatMember(cid).frozen != true
-        && (!('mutedUntil' in chatMember(cid)) || chatMember(cid).mutedUntil == null || chatMember(cid).mutedUntil < request.time)
+        && mayPost(chatMember(type + ':' + id))
         && name.matches('[A-Za-z0-9_-]{8,64}[.](webp|jpg)')
         && request.resource.size > 0
         && request.resource.size < 3 * 1024 * 1024
