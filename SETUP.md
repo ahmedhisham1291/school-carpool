@@ -1307,6 +1307,20 @@ Change them to the partner's limits when the contract is signed.
   how add money (payment page) and withdraw (to which account) work, the
   dispute process, and that transfers between parents carry no fee.
 
+### 21.6 A "stuck" transfer (Prompt 12)
+
+When the partner could neither confirm nor cancel a transfer, admins see an
+"Outcome unknown" alert (admin panel > Wallet). Nothing is guessed and no
+money moves from our side:
+
+1. Ask the partner, in writing, what happened to that request ID (the
+   transfer ID in the alert): it ran, or it was cancelled and will never run.
+2. A super admin records the answer once (it is written to the audit log):
+   `GCLOUD_PROJECT=<project> npm --prefix functions run wallet:settle -- <transferId> done|failed <partnerRef or -> <yourAdminUid>`
+3. The transfer gets its one result (append-only), the day's limit counter
+   is released, both parents are told, and the alert closes as "Settled
+   with partner".
+
 
 ## 22. Trust and yearly checks (Prompt 11)
 
@@ -1395,3 +1409,128 @@ The iPhone is a verified parent in a carpool with the seed's Hoda
 6. **Phone change.** Profile > Phone > new number > code (the fake
    WhatsApp sender logs it in the functions emulator) > selfie. The fake
    face check answers what `config/kyc` says (section 12).
+
+## 23. Privacy and security hardening (Prompt 12)
+
+Code: `functions/src/privacy/`, `lib/features/privacy/`,
+`lib/features/security/app_lock.dart`, `lib/features/analytics/`.
+SECURITY.md has the MASVS checklist, the outside services and the incident
+plan; `docs/restore-test.md` the backup restore test.
+
+### 23.1 Deploy (each cloud project)
+
+- `npm --prefix functions install` picks up **sharp** (server thumbnails).
+- `firebase deploy --only functions,firestore:rules,firestore:indexes,storage`.
+  The deploy asks to delete `purgeVerificationImagesDaily` and
+  `chatRetentionDaily`: answer yes. Both now run inside `retentionDaily`
+  (03:10 Cairo time), so the number of Cloud Scheduler jobs goes down by one.
+- `makePhotoThumbnail` is a Storage trigger on the default bucket; the bucket
+  must be in `europe-west1` like the functions (it is, if it was created with
+  the project in that region; otherwise set the trigger's region to the
+  bucket's).
+- Give the Cloud Functions service account the "Cloud KMS CryptoKey
+  Encrypter/Decrypter" role only if a function writes with an explicit key;
+  with the bucket's default key (23.2) Cloud Storage's own service agent
+  does the encryption and the functions need nothing more.
+- New parameters (optional, defaults in brackets): `OTP_MAX_FAILURES_PER_DAY`
+  (30).
+
+### 23.2 Our own encryption key for the photos (each project, once)
+
+Run `tool/setup_kms.sh <project-id>` (gcloud signed in as owner). It creates
+key ring `school-carpool` and key `private-photos` in `europe-west1` with a
+yearly automatic rotation, lets Cloud Storage use it, and sets it as the
+bucket's default key. Then:
+
+1. Check: `gcloud storage buckets describe gs://<bucket> --format='value(default_kms_key)'`.
+2. Upload a test photo in staging; `gcloud storage objects describe gs://<bucket>/<path> --format='value(kms_key)'`
+   shows the key.
+3. Never destroy the key or its versions: every photo encrypted with it
+   would be lost. Give "Cloud KMS Admin" to the owner only.
+4. Photos uploaded before the key was set keep Google's key until rewritten.
+   To rewrite them once: `gcloud storage objects update gs://<bucket>/verification/** --encryption-key=<key id>`
+   (and the same for `faceRefs/**`, `driverPhotos/**`).
+
+### 23.3 Retention: lifecycle rules and TTL policies (each project, once)
+
+Run `tool/setup_retention.sh <project-id>`. It applies
+`tool/storage_lifecycle.json` (kept photos to Nearline after 30 days and
+Coldline after 180 days; route archives Coldline at once and deleted after
+400 days; exports and live selfies deleted after 2 days), keeps soft delete
+at 7 days, and switches on every Firestore TTL policy (sign-in records,
+place cache, invites, "looking" posts, events, notifications, chat requests
+and pushes, live trip points, privacy requests, abuse counters, sign-ins,
+phones, mail, job reports). Section 12.6's "turn off soft delete" no longer
+applies: photos are now kept, and 7 days of soft delete protect against a
+mistaken deletion.
+
+`retentionDaily` writes `retentionRuns/{date}` (counts only). A failure opens
+a "retentionFailed" security alert and a Sentry error.
+
+### 23.4 Email for "new phone signed in" (owner decision needed)
+
+The functions write the email to the `mail` collection in the format of
+Firebase's **Trigger Email from Firestore** extension. Until the extension is
+installed the messages wait there (30-day TTL) and nothing else breaks. To
+send them (a new tool: owner's OK first, SETUP and COSTS):
+Firebase console > Extensions > Trigger Email from Firestore, collection
+`mail`, an SMTP connection URI from a provider in Secret Manager, a "From"
+address on the app's domain, region `europe-west1`.
+
+The same alert also goes as a push (`new-device`) to the old phone. Its
+WhatsApp template `cp_new_device` is off by default (COST MODE); submit it
+to Meta with the other templates (18.4) only if the owner wants WhatsApp too:
+
+| Template | Text (English; Arabic in functions/src/notifications/texts.ts) |
+| --- | --- |
+| `cp_new_device` | Someone signed in to your account on a new phone, so we signed out the others. If it wasn't you, contact us at once. |
+
+### 23.5 Google Analytics (each project)
+
+Firebase console > Analytics: link or create the Analytics property for the
+project (free). Then Admin > Data settings > **Data retention: 2 months**;
+Data collection: Google signals **off**; Data sharing: all **off**. The app
+sends no user ID and no advertising ID (docs/analytics-events.md).
+
+### 23.6 Sentry alerts on new errors in sign-in, trips and the wallet
+
+Every event carries the tag `area` (`signin`, `trips`, `wallet`, `privacy`,
+`other`), from the route pattern in the app and from the function name in
+Cloud Functions. In Sentry, for each project (app and functions):
+Alerts > Create alert > Issues > "A new issue is created" AND "The event's
+tags match `area` equals `signin`" (then the same for `trips` and `wallet`)
+> send an email to the owner. Keep Sentry's own PII scrubbing ("Data
+scrubber", "Use default scrubbers") on as the second layer.
+
+### 23.7 Point-in-time recovery and backups
+
+Daily backups stay on in prod (section 5). PITR is still off (COST MODE);
+Prompt 12 asks for it on, so the owner decides (progress note question 1).
+To switch it on: `gcloud firestore databases update --database='(default)' --enable-pitr --project=<prod-id>`.
+Run the restore test in `docs/restore-test.md` once now in staging and every
+3 months.
+
+### 23.8 Try it on the iPhone (the "Done when" check)
+
+1. **Export:** Profile > Privacy > Download my data. The JSON opens in
+   Safari (share it to Files to keep it). It has a section for every data
+   type, your chat messages and your wallet history.
+2. **A second phone listed:** sign in with the same number on a second
+   phone (or the simulator). On the iPhone the account gets "New phone"
+   (push), and the first phone signs out at its next start. On the second
+   phone, Profile shows "New phone: take a selfie"; chats and the wallet
+   open after the selfie (the fake face check answers what `config/kyc`
+   says). Profile > Privacy > Phones and sign-ins lists both phones;
+   "Sign out" on the other one.
+3. **App lock:** Profile > Settings > App lock (Face ID asks once). Leave the
+   app for over 30 seconds and come back: it is locked; Face ID opens it.
+4. **Delete a test account:** with an empty wallet, Profile > Privacy >
+   Delete account > Next > tick > Delete my account > Face ID. The app
+   returns to Welcome. In the console: `users/<uid>` is gone,
+   `closedAccounts/<uid>` holds the purge date and an empty `failed` list,
+   `transfers` still hold its transfer records, `bannedIds` keeps the ID's
+   hash only if the account was banned. Photos, run summaries, route
+   archives and consents wait in place until the purge date (owner
+   decision: 1 year after closure).
+5. **Rules tests:** `npm --prefix tests/rules run test:emulator` (CI runs it).
+

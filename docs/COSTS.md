@@ -56,8 +56,8 @@ Limits below are the public free allowances as understood in November 2026.
 ## Verification (Prompt 3)
 
 - Images are compressed on the phone (about 200 to 500 KB each, 5 to 9 per
-  parent) and deleted within 7 days of the decision, so stored volume
-  stays at a few hundred MB even with thousands of parents.
+  parent). Prompt 12 (owner decision): they are kept while the account is
+  open and 1 year after it closes; see "Privacy and security (Prompt 12)".
 - The deletion job is one Cloud Scheduler job (3 free per billing account)
   running once a day, minInstances 0. It lists the `verification/` prefix
   once per run (one Class A operation per 1,000 files).
@@ -332,6 +332,44 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
   code, same limits as sign-in).
 - **Face check:** a phone change runs one face match (Valify, fake until the
   contract).
+
+## Privacy and security (Prompt 12)
+
+- **Photos are now kept** while the account is open and 1 year after it
+  closes (owner decision), compressed on the phone (long edge 1600, JPEG
+  about 80, chat photos WebP). At about 1 to 2 MB per parent, 10,000
+  parents are 10 to 20 GB. Lifecycle rules move them to **Nearline after 30
+  days** and **Coldline after 180 days** (europe-west1, Nov 2026: Standard
+  about USD 0.020, Nearline 0.010, Coldline 0.004 per GB-month; Coldline has
+  a 90-day minimum and a retrieval fee, fine for photos read only for a
+  review or an investigation). Admin lists load 320 px WebP thumbnails, not
+  the photos.
+- **Route archives:** one gzipped track per run (about 1 to 3 KB), Coldline
+  at once, deleted after 1 year. 1,000 runs a day are about 1 GB a year:
+  cents.
+- **Cloud KMS key** for the private bucket: about USD 0.06 a month per key
+  version plus USD 0.03 per 10,000 operations (each photo upload or read is
+  one). Pilot scale: well under USD 1 a month per project.
+- **Cloud Functions:** `makePhotoThumbnail` runs once per kept photo (1 GiB
+  memory, about a second); `archiveRouteOnTripWrite` once per run;
+  `retentionDaily` once a day; `touchDevice` about once per app start;
+  `exportMyData` at most 3 times a day per parent. All inside the free tier
+  at pilot scale.
+- **Cloud Scheduler:** `retentionDaily` replaces `purgeVerificationImagesDaily`
+  and `chatRetentionDaily`: one job fewer.
+- **Google Analytics for Firebase:** free; no cost and no quota that the app
+  can reach.
+- **Email** (new-phone alerts): needs an SMTP provider through the Trigger
+  Email extension; most have a free tier of a few thousand emails a month
+  (owner to choose; SETUP 23.4).
+- **Chat on Stream** is kept for the life of the chat + 1 year (was 180
+  days): message storage on Stream grows; watch Stream's usage page when
+  moving to a paid plan.
+- **Sign-in blocking functions** (`blockClientSignUps`, `blockNonCodeSignIn`,
+  `blockSignInEmails`) run with no warm instance. Identity Platform gives a
+  blocking function about 7 seconds; if a cold start ever makes sign-ins
+  time out, set `minInstances: 1` on them (about USD 3 to 6 a month each;
+  Prompt 2 review, note N2).
 
 ## Open cost questions
 
