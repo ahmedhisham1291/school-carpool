@@ -1,4 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
+import { readReviewAccess } from "./review_access";
 import * as logger from "firebase-functions/logger";
 import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { adminAuth, adminDb } from "../admin";
@@ -98,6 +99,8 @@ function whatsAppSender(): WhatsAppSender {
 export function otpDeps(): OtpDeps {
   const db = adminDb();
   return {
+    // Prompt 13: App Review sign-in, off unless config/reviewAccess is on.
+    review: () => readReviewAccess(db),
     store: new FirestoreOtpStore(db),
     sender: whatsAppSender(),
     accounts: new FirebaseAccountService(adminAuth(), db),

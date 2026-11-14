@@ -2,14 +2,18 @@
 import { strict as assert } from "node:assert";
 import { beforeEach, describe, it } from "node:test";
 import {
+  activeReview,
   DEFAULT_OTP_LIMITS,
   OtpError,
   phoneKey,
   requestCode,
+  reviewAccessFor,
   verifyCode,
   type AccountService,
   type OtpDeps,
+  type ReviewAccess,
 } from "../src/auth/otp_flow";
+import { weakCode } from "../src/auth/review_access";
 import type { Language, WhatsAppSender } from "../src/whatsapp/sender";
 import { MemoryOtpStore } from "./helpers/memory_otp_store";
 
@@ -285,5 +289,91 @@ describe("sign-in codes", () => {
     accounts.suspended = true;
     await ask();
     await expectReason(check("123456"), "suspended");
+  });
+});
+
+describe("App Review sign-in (Prompt 13)", () => {
+  const REVIEW_CODE = "482913";
+  let store: MemoryOtpStore;
+  let sender: RecordingSender;
+  let accounts: FakeAccounts;
+  let now: number;
+  let review: ReviewAccess | null;
+  let deps: OtpDeps;
+
+  beforeEach(() => {
+    store = new MemoryOtpStore();
+    sender = new RecordingSender();
+    accounts = new FakeAccounts();
+    now = 1_800_000_000_000;
+    review = reviewAccessFor(KEY, E164, REVIEW_CODE, now + 7 * 24 * 3600 * 1000);
+    deps = { store, sender, accounts, hmacKey: KEY, now: () => now, newCode: () => "111222", review: async () => review };
+  });
+
+  const ask = (phone: string = PHONE) => requestCode(deps, { phone, deviceId: DEVICE, ip: "10.0.0.1", language: "en" });
+  const check = (code: string, phone: string = PHONE) => verifyCode(deps, { phone, code, deviceId: DEVICE, language: "en" });
+
+  it("the allow-listed number signs in with the fixed code; no WhatsApp is sent", async () => {
+    await ask();
+    assert.equal(sender.sent.length, 0);
+    assert.deepEqual(await check(REVIEW_CODE), { uid: "uid-1", token: "token-for-uid-1" });
+    const stored = JSON.stringify([...store.codes.entries(), ...store.limits.entries(), review]);
+    assert.ok(!stored.includes(REVIEW_CODE), "plain code stored");
+    assert.ok(!stored.includes("1012345678"), "plain phone stored");
+  });
+
+  it("the code is single use, and every limit and lock still applies", async () => {
+    await ask();
+    await check(REVIEW_CODE);
+    await expectReason(check(REVIEW_CODE), "expired");
+    now += 61_000;
+    await ask();
+    for (let i = 0; i < DEFAULT_OTP_LIMITS.maxAttemptsPerCode - 1; i++) await expectReason(check("000000"), "wrong-code");
+    await expectReason(check("000001"), "too-many-attempts");
+  });
+
+  it("any other number gets a normal WhatsApp code; the review code does not work for it", async () => {
+    await ask("01098765432");
+    assert.equal(sender.sent.length, 1);
+    await expectReason(check(REVIEW_CODE, "01098765432"), "wrong-code");
+  });
+
+  it("off, expired, too long, malformed or unreadable: a normal WhatsApp code (fails closed)", async () => {
+    const cases: Array<ReviewAccess | null> = [
+      null,
+      { ...(review as ReviewAccess), enabled: false },
+      { ...(review as ReviewAccess), expiresAtMs: now - 1 },
+      { ...(review as ReviewAccess), expiresAtMs: now + 31 * 24 * 3600 * 1000 },
+      { ...(review as ReviewAccess), codeHash: "not-a-hash" },
+    ];
+    for (const c of cases) {
+      store = new MemoryOtpStore();
+      deps.store = store;
+      review = c;
+      sender.sent.length = 0;
+      await ask();
+      assert.equal(sender.sent.length, 1, JSON.stringify(c));
+      await expectReason(check(REVIEW_CODE), "wrong-code");
+    }
+    deps.review = async () => {
+      throw new Error("firestore down");
+    };
+    store = new MemoryOtpStore();
+    deps.store = store;
+    sender.sent.length = 0;
+    await ask();
+    assert.equal(sender.sent.length, 1);
+  });
+
+  it("activeReview matches only the hashed phone key", () => {
+    const r = review as ReviewAccess;
+    assert.equal(activeReview(r, phoneKey(KEY, E164), now), r);
+    assert.equal(activeReview(r, phoneKey(KEY, "+201098765432"), now), null);
+    assert.equal(activeReview(r, phoneKey("other-key", E164), now), null);
+  });
+
+  it("weak review codes are refused by the script", () => {
+    for (const c of ["000000", "111111", "123456", "234567", "987654"]) assert.equal(weakCode(c), true, c);
+    for (const c of ["482913", "730215"]) assert.equal(weakCode(c), false, c);
   });
 });

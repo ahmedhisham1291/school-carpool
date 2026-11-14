@@ -27,6 +27,7 @@
     "notify:cloud": "npm run build && node lib/scripts/notify.js",
     "chat:setup": "npm run build && node lib/scripts/stream_setup.js",
     "wallet:settle": "npm run build && node lib/scripts/settle_stuck.js",
+    "review-access": "npm run build && node lib/scripts/review_access.js",
     "thumbs:backfill": "npm run build && node lib/scripts/backfill_thumbs.js",
     "deletions:reapply": "npm run build && node lib/scripts/reapply_deletions.js"
   },

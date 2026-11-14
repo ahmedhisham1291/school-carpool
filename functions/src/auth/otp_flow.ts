@@ -102,7 +102,35 @@ export interface AccountService {
   createToken(uid: string): Promise<string>;
 }
 
+/**
+ * Prompt 13 (App Review): one allow-listed test phone may sign in with a
+ * fixed code, so Apple's reviewer can get in without a WhatsApp number.
+ * Off by default. Stored server-side only (config/reviewAccess, closed to
+ * the app by the rules) as keyed hashes: the phone's [phoneKey] and the
+ * code's [codeHash] (for that phone key), never the number or the code.
+ * Every limit and lock of sign-in still applies; no WhatsApp is sent.
+ */
+export interface ReviewAccess {
+  enabled: boolean;
+  phoneKey: string;
+  codeHash: string;
+  expiresAtMs: number;
+}
+
+/** The longest a review window may be open (the script refuses more). */
+export const REVIEW_ACCESS_MAX_DAYS = 30;
+
+/** The review code applies to this phone key now, or null. */
+export function activeReview(review: ReviewAccess | null | undefined, pKey: string, nowMs: number): ReviewAccess | null {
+  if (!review || review.enabled !== true) return null;
+  if (!/^p_[0-9a-f]{64}$/.test(review.phoneKey) || !/^[0-9a-f]{64}$/.test(review.codeHash)) return null;
+  if (!(review.expiresAtMs > nowMs) || review.expiresAtMs - nowMs > REVIEW_ACCESS_MAX_DAYS * DAY_MS) return null;
+  return review.phoneKey === pKey ? review : null;
+}
+
 export interface OtpDeps {
+  /** Prompt 13: the App Review access, if any (read per request). */
+  review?: () => Promise<ReviewAccess | null>;
   store: OtpStore;
   sender: WhatsAppSender;
   accounts: AccountService;
@@ -170,6 +198,12 @@ export function ipKey(hmacKey: string, ip: string): string {
 }
 
 /** Bound to the number's key, so a hash is useless for another number. */
+/** What config/reviewAccess holds for [phoneE164] and [code] (scripts/review_access.ts). */
+export function reviewAccessFor(hmacKey: string, phoneE164: string, code: string, expiresAtMs: number): ReviewAccess {
+  const pKey = phoneKey(hmacKey, phoneE164);
+  return { enabled: true, phoneKey: pKey, codeHash: codeHash(hmacKey, pKey, code), expiresAtMs };
+}
+
 export function codeHash(hmacKey: string, phoneKeyValue: string, code: string): string {
   return hmacHex(hmacKey, `code:${phoneKeyValue}:${code}`);
 }
@@ -224,6 +258,13 @@ export async function requestCode(deps: OtpDeps, input: RequestCodeInput): Promi
   const code = (deps.newCode ?? newSixDigitCode)();
   const windowMs = limits.windowSeconds * 1000;
   const cooldownMs = limits.resendCooldownSeconds * 1000;
+  let review: ReviewAccess | null = null;
+  try {
+    review = activeReview(deps.review ? await deps.review() : null, pKey, deps.now());
+  } catch (error) {
+    // Fails closed: a normal WhatsApp code is sent.
+    deps.reportError?.(error);
+  }
 
   const refusal = await deps.store.run(async (tx): Promise<OtpError | null> => {
     const now = deps.now();
@@ -256,7 +297,7 @@ export async function requestCode(deps: OtpDeps, input: RequestCodeInput): Promi
     tx.setLimit(dKey, { ...deviceRecord, sends: deviceRecord.sends + 1, lastSendMs: now });
     tx.setLimit(iKey, { ...ipRecord, sends: ipRecord.sends + 1, lastSendMs: now });
     tx.setCode(pKey, {
-      codeHash: codeHash(deps.hmacKey, pKey, code),
+      codeHash: review ? review.codeHash : codeHash(deps.hmacKey, pKey, code),
       createdAtMs: now,
       expiresAtMs: now + limits.codeTtlSeconds * 1000,
       attempts: 0,
@@ -265,6 +306,10 @@ export async function requestCode(deps: OtpDeps, input: RequestCodeInput): Promi
   });
   if (refusal) throw refusal;
 
+  if (review) {
+    // App Review: the fixed code is already stored (as its hash); nothing is sent.
+    return { expiresInSeconds: limits.codeTtlSeconds, resendAfterSeconds: limits.resendCooldownSeconds };
+  }
   // Sent after the transaction commits, so a retried transaction never
   // sends twice. The send still counts against the limits if it fails.
   try {
