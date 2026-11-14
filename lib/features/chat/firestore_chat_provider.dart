@@ -708,6 +708,8 @@ class _Replay<T extends Object> {
   final Stream<T> Function() _source;
   final void Function(T value)? onValue;
   final Set<MultiStreamController<T>> _listeners = <MultiStreamController<T>>{};
+  // Cancelled when the last listener leaves and in close().
+  // ignore: cancel_subscriptions
   StreamSubscription<T>? _sub;
   T? _last;
   Object? _error;

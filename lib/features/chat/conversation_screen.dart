@@ -20,7 +20,7 @@ import 'package:url_launcher/url_launcher.dart';
 /// One chat photo by its path (Storage; members of that chat only). Null
 /// when it is gone or may not be read. The chat provider keeps the last few.
 final _chatPhotoProvider = FutureProvider.autoDispose.family<Uint8List?, String>((Ref ref, String path) async {
-  final ChatProvider provider = await ref.watch(chatClientProvider.future);
+  final Object provider = await ref.watch(chatClientProvider.future);
   return provider is ChatPhotoSource ? provider.photo(path) : null;
 });
 
