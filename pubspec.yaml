@@ -104,6 +104,14 @@ dependencies:
   # with named options, LocalAuthException on failure.
   local_auth: ^3.0.0
 
+  # Run recovery on iPhone (Prompt 13, owner request 14 Nov 2026 13:44):
+  # our own small plugin in this repository (no third-party code): a
+  # background activity session during a run and, with the optional
+  # "Always", significant location changes so iOS relaunches the app after
+  # it was closed mid-run. packages/run_recovery.
+  run_recovery:
+    path: packages/run_recovery
+
   # Persists the language, theme mode and dev design direction on the phone.
   # Official Flutter plugin; flagged to the owner in docs/progress/prompt-01.md.
   shared_preferences: ^2.5.3

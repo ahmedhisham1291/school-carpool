@@ -85,6 +85,9 @@ fi
 
 # 3. Packages and generated code -------------------------------------------
 "$FLUTTER" pub get
+# Prompt 13: our local plugin (packages/run_recovery) gets its own package
+# config, so `flutter analyze` at the root can resolve it too.
+(cd packages/run_recovery && "$FLUTTER" pub get)
 "$FLUTTER" gen-l10n
 
 echo "bootstrap: done. Next: flutter run -t lib/main_${FLAVOR}.dart"
