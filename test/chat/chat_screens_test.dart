@@ -1,7 +1,9 @@
 // Chat screens (F8, F9, F10, F13) through the ChatProvider interface, with
 // the in-memory fake chat: no Firebase is needed. The Firestore provider
-// behind the same interface is tested in firestore_chat_provider_test.dart. Written, not run here (no Flutter SDK in the
-// build workspace). CI runs it.
+// behind the same interface is tested in firestore_chat_provider_test.dart.
+// Written, not run here (no Flutter SDK in the build workspace). CI runs it.
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -223,6 +225,24 @@ void main() {
       await tester.tap(find.byKey(const Key('chat.photo.gallery')));
       await tester.pumpAndSettle();
       expect(chat.calls, contains('sendPhoto:${carpoolChat.cid}:68'));
+    });
+
+    testWidgets('a photo from another parent is loaded through the chat provider and shown', (WidgetTester tester) async {
+      const String path = 'chatPhotos/cp_carpool:c-k1/uid-hoda/photomsg0001.webp';
+      final (FakeChatProvider chat, FakeChatRepository repo) = _fakes(
+        messages: <ChatRef, List<ChatMessage>>{
+          carpoolChat: <ChatMessage>[
+            ChatMessage(id: 'p1', authorId: 'uid-hoda', authorName: 'Hoda', kind: ChatMessageKind.photo, createdAt: chatNow, photoPath: path),
+            ChatMessage(id: 'p2', authorId: 'uid-hoda', authorName: 'Hoda', kind: ChatMessageKind.photo, createdAt: chatNow, photoPath: '$path.gone'),
+          ],
+        },
+      );
+      chat.photos[path] = base64Decode(kTinyPng);
+      await _pump(tester, carpoolChat.route, chat: chat, repo: repo);
+      expect(chat.calls, contains('photo:$path'));
+      expect(find.descendant(of: find.byKey(const Key('msg.p1')), matching: find.byType(Image)), findsOneWidget);
+      // Removed, or not readable any more: a broken-image mark, never an error.
+      expect(find.descendant(of: find.byKey(const Key('msg.p2')), matching: find.byIcon(Icons.broken_image_outlined)), findsOneWidget);
     });
 
     testWidgets('no photos and no location pin in school and area groups', (WidgetTester tester) async {

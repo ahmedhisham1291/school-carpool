@@ -27,6 +27,12 @@ abstract interface class ChatProvider {
   ChatConversation open(ChatRef ref);
 }
 
+/// Loads chat photos (Storage, members of the chat only).
+abstract interface class ChatPhotoSource {
+  /// The photo's bytes, or null when it is gone or may not be read.
+  Future<Uint8List?> photo(String path);
+}
+
 /// One open chat.
 abstract interface class ChatConversation {
   Stream<ChatInfo> get info;
@@ -58,7 +64,7 @@ abstract interface class ChatConversation {
 }
 
 /// In-memory chat with a few fake parents (widget tests).
-class FakeChatProvider implements ChatProvider {
+class FakeChatProvider implements ChatProvider, ChatPhotoSource {
   FakeChatProvider({List<ChatSummary>? chats, Map<ChatRef, List<ChatMessage>>? messages, this.me = 'uid-1', DateTime? now})
     : _chats = chats ?? <ChatSummary>[],
       _messages = messages ?? <ChatRef, List<ChatMessage>>{},
@@ -83,6 +89,15 @@ class FakeChatProvider implements ChatProvider {
 
   /// When true, sends stay "sending" (offline queue tests).
   bool offline = false;
+
+  /// Photos other parents sent, by path (tests).
+  final Map<String, Uint8List> photos = <String, Uint8List>{};
+
+  @override
+  Future<Uint8List?> photo(String path) async {
+    calls.add('photo:$path');
+    return photos[path];
+  }
 
   int _next = 1;
 

@@ -7,12 +7,6 @@ import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/chat/chat_provider.dart';
 import 'package:school_carpool/features/chat/firestore_chat_mapping.dart';
 
-/// Loads chat photos (Storage, members of the chat only).
-abstract interface class ChatPhotoSource {
-  /// The photo's bytes, or null when it is gone or may not be read.
-  Future<Uint8List?> photo(String path);
-}
-
 /// Our own chat on Firestore (owner decision 14 Nov 2026; it replaced
 /// Stream). Messages stay in our database; no outside account.
 ///

@@ -12,7 +12,6 @@ import 'package:school_carpool/features/chat/chat_provider.dart';
 import 'package:school_carpool/features/chat/chat_session.dart';
 import 'package:school_carpool/features/chat/chat_sheets.dart';
 import 'package:school_carpool/features/chat/chats_screen.dart';
-import 'package:school_carpool/features/chat/firestore_chat_provider.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/location_service.dart';
 import 'package:school_carpool/l10n/l10n.dart';
