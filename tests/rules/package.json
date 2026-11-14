@@ -1,13 +1,13 @@
 {
   "name": "school-carpool-rules-tests",
   "private": true,
-  "description": "Emulator tests for firestore.rules and storage.rules. Run through `npm run test:emulator` from this folder.",
+  "description": "Emulator tests for firestore.rules and storage.rules. Run through `npm run test:emulator` from this folder. One file at a time (--test-concurrency=1): the Storage emulator is shared by every file (clearStorage empties it for all of them) and its rules look up Firestore in the emulators' own project.",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test \"lib/**/*.test.js\"",
+    "test": "npm run build && node --test --test-concurrency=1 \"lib/**/*.test.js\"",
     "test:emulator": "cd ../.. && firebase emulators:exec --only firestore,storage --project demo-school-carpool \"npm --prefix tests/rules test\""
   },
   "devDependencies": {

@@ -100,6 +100,7 @@ service firebase.storage {
     }
     function inChat(type, id) {
       return request.auth != null
+        && 'verified' in request.auth.token
         && request.auth.token.verified == true
         && type.matches('cp_(private|carpool)')
         && id.matches('[A-Za-z0-9_-]+')
@@ -111,7 +112,10 @@ service firebase.storage {
     }
     match /chatPhotos/{type}/{id}/{uid}/{name} {
       allow get: if inChat(type, id);
+      // "create" alone does not stop a second upload over the same name:
+      // nothing may be there yet (resource == null).
       allow create: if inChat(type, id)
+        && resource == null
         && request.auth.uid == uid
         && mayPost(chatMember(type + ':' + id))
         && name.matches('[A-Za-z0-9_-]{8,64}[.](webp|jpg)')

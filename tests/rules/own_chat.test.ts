@@ -27,7 +27,10 @@
 //   cut-off parent cannot read; never in a school group.
 //
 // Runs only against the emulators (Firestore and Storage together: the
-// Storage rules read the member document). Written, not run here (no npm
+// Storage rules read the member document). The rules test files run one at
+// a time (package.json: --test-concurrency=1): the Storage emulator and
+// this file's project are shared, so files running together would empty
+// each other's data. Written, not run here (no npm
 // registry in the build workspace); CI runs it.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -150,6 +153,10 @@ beforeEach(async () => {
 });
 
 after(async () => {
+  // This file uses the emulators' own project (the Storage rules look
+  // members up there): leave nothing behind for the files that run next.
+  await env?.clearFirestore();
+  await env?.clearStorage();
   await env?.cleanup();
 });
 

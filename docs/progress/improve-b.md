@@ -52,6 +52,31 @@ a plain map literal, one `is Map` got its type arguments.
 Functions tests after these changes: 641 pass, 0 fail (run here). Rules
 tests and Flutter: still written, not run here.
 
+## After the second CI run (43632599130)
+
+`flutter analyze`: no issues. Functions: 641 pass. The project ID change
+fixed the member uploads. The Flutter test step was cancelled again
+(result unknown). Rules: 538 pass, 4 fail, fixed as follows:
+
+- **The rules test files ran at the same time and shared state.** The
+  Storage emulator is one store for every file (`clearStorage` empties it
+  for all), and since the last change `own_chat.test.ts` seeds members in
+  the emulators' own project, which the Storage rules read for EVERY file.
+  So `deny_all` saw Alice as a member of own_chat's chat, and own_chat's
+  seeding raced with other files' resets (failures 1 to 3). Now:
+  `tests/rules/package.json` runs one file at a time
+  (`--test-concurrency=1`); `deny_all` uses a chat ID nobody seeds;
+  `own_chat` clears Firestore and Storage when it ends.
+- **A second upload over the same photo name was allowed** (failure 4): a
+  real gap in `storage.rules`. `allow create` now also requires
+  `resource == null`.
+- `storage.rules` checks that the `verified` claim exists before reading
+  it, so a token without it is refused without an evaluation error. The
+  same error in `firestore.rules` comes from the shared `verifiedParent()`
+  helper every feature uses (it still denies); not changed here.
+
+Not run here: the rules tests (no emulators).
+
 ## Plan that was followed
 
 1. **Server** (`functions/src/chat/`): a `firestore` provider behind the

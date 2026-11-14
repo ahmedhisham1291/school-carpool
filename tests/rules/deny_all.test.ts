@@ -184,9 +184,11 @@ describe("storage.rules deny everything", () => {
       await assertFails(storage.ref("verification/alice/id-front.jpg").delete());
       // Prompt 11: phone-change selfies are never read by the app.
       await assertFails(storage.ref("phoneChecks/alice/selfie.jpg").getDownloadURL());
-      // Chat photos: members of that chat only (own_chat.test.ts); nobody here is one.
-      await assertFails(storage.ref("chatPhotos/cp_carpool/c-k1/bob/seedphoto001.webp").getDownloadURL());
-      await assertFails(storage.ref("chatPhotos/cp_carpool/c-k1/alice/alicemsg0001.webp").putString("x").then(() => undefined));
+      // Chat photos: members of that chat only (own_chat.test.ts); nobody here is one
+      // (a chat ID no other test file seeds members for: the Storage rules look
+      // members up in the emulators' own project, which own_chat.test.ts uses).
+      await assertFails(storage.ref("chatPhotos/cp_carpool/c-denyall/bob/seedphoto001.webp").getDownloadURL());
+      await assertFails(storage.ref("chatPhotos/cp_carpool/c-denyall/alice/alicemsg0001.webp").putString("x").then(() => undefined));
     });
   }
 });
