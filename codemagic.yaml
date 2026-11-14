@@ -21,7 +21,11 @@
 
 definitions:
   env_versions: &env_versions
-    flutter: stable
+    # Same Flutter as FLUTTER_VERSION in .github/workflows/checks.yml (stable
+    # channel). The committed pubspec.lock is made with that version and
+    # tool/bootstrap.sh refuses to build when the lock would change, so
+    # change both numbers together (docs/WORKFLOW.md, "Package versions").
+    flutter: 3.50.0
     node: 22
     java: 21
   cache: &cache

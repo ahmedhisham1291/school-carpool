@@ -26,7 +26,9 @@ right to left.
 ```sh
 tool/bootstrap.sh                     # creates ios/ android/ web/, applies our settings,
                                       # flutter pub get, flutter gen-l10n
-npm install --prefix functions
+npm ci --prefix functions             # the locked versions (docs/WORKFLOW.md,
+                                      # "Package versions"); `npm install` until
+                                      # package-lock.json is committed
 firebase emulators:start --project demo-school-carpool     # terminal 1
 npm --prefix functions run seed:emulator                   # terminal 2: fake data
 flutter run -t lib/main_dev.dart                           # iOS Simulator
@@ -71,7 +73,7 @@ Pass with `--dart-define=NAME=value` (never commit values):
 flutter analyze
 flutter test
 npm test --prefix functions
-npm install --prefix tests/rules
+npm ci --prefix tests/rules
 firebase emulators:exec --only firestore,storage --project demo-school-carpool "npm --prefix tests/rules test"
 ```
 

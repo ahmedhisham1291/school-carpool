@@ -139,7 +139,7 @@ left. Guide: [docs/owner-cloud-shell.md](docs/owner-cloud-shell.md).
 10. **Deploy rules and functions** (dev first):
 
     ```sh
-    npm install --prefix functions
+    npm ci --prefix functions   # locked versions; `npm install` if there is no package-lock.json yet
     # put the functions Sentry DSN (step 6) in functions/.env.dev
     firebase deploy --only firestore:rules,firestore:indexes,storage,functions --project dev
     ```
@@ -221,12 +221,21 @@ daily backups **on in prod only**. Install the Google Cloud CLI (`gcloud`) and l
 
 1. The repository already has `.github/workflows/checks.yml`. On GitHub >
    the repository > **Actions**, allow workflows if GitHub asks.
-2. Every push runs three jobs: Flutter (analyze, tests, screenshots),
+2. A push to `main` runs three jobs: Flutter (analyze, tests, screenshots),
    web/Android compile, and backend (Functions tests, rules tests on the
    emulators). A green check mark next to the commit means all passed.
+   Other branches are checked only when started by hand (Actions > checks >
+   **Run workflow**), to save minutes.
 3. **Screenshots without a Mac:** open a run > scroll to **Artifacts** >
    download **screenshots** (a zip of PNGs: tab shell and gallery in Arabic
    and English, light and dark, design A and B).
+4. **Package versions are locked.** The lock files (`pubspec.lock`,
+   `functions/package-lock.json`) are committed and every build installs
+   exactly those versions. They change only when someone starts the
+   workflow by hand with **update_locks** ticked on a work branch; the
+   steps are in docs/WORKFLOW.md, "Package versions".
+5. **Before the public launch the repository goes private again**, and
+   GitHub then counts the minutes: docs/launch-private-repo.md.
 
 ## 8. Codemagic (iPhone builds)
 
@@ -330,7 +339,11 @@ emulators need none of this.
    gcloud firestore fields ttls update expireAt --collection-group=otpCodes --enable-ttl --project <id>
    gcloud firestore fields ttls update expireAt --collection-group=otpLimits --enable-ttl --project <id>
    ```
-5. **Real WhatsApp (prod; staging only if you want to test it).**
+5. **Real WhatsApp (prod; staging only if you want to test it).** The
+   full owner guide, click by click, with documents, waiting times,
+   limits and prices, is **docs/meta-whatsapp-setup.md**. Start its
+   business verification step first: it is the slowest item of the launch.
+   In short:
    1. business.facebook.com > create a Business portfolio, verify the
       business (needs the operator entity, spec section 7).
    2. developers.facebook.com > create an app of type Business > add
@@ -880,6 +893,10 @@ still sound, but Focus can hold them.
 
 ### 18.4 WhatsApp templates (Meta Business Manager, before the pilot)
 
+Step by step for the owner, with every template's Arabic and English
+text ready to paste and which ones to create first:
+**docs/meta-whatsapp-setup.md**, step G.
+
 Create these **utility** templates, Arabic and English, in WhatsApp
 Manager > Message templates. `{{1}}` is the run ("Mon 16 Nov, to school");
 the others have no parameter. No names, no addresses, no message text.
@@ -1142,6 +1159,7 @@ done
 | --- | --- |
 | `cp_driver_arrived` | The car is outside for the {{1}} run. Send your child now. |
 | `cp_location_stopped` | The car's location stopped during the {{1}} run. |
+| `cp_child_not_coming` | Your child was marked not coming for the {{1}} run. |
 | `cp_emergency` | The driver pressed Emergency on the {{1}} run. Open the app. |
 | `cp_emergency_contact` | {{1}} pressed the emergency button during a school run. Location: {{2}} |
 | `cp_trip_started` | The car is on its way: {{1}}. |
@@ -1154,8 +1172,9 @@ done
 
 Arabic bodies: `functions/src/notifications/texts.ts` (the emergency
 contact one: "ضغط {{1}} زر الطوارئ أثناء مشوار المدرسة. الموقع: {{2}}").
-On by default (COST MODE: urgent only): Arrived and location stopped
-(group "Car outside, location") and Emergency. The others are push only
+On by default (COST MODE: urgent only): Arrived, location stopped, child
+marked not coming and run still on (group "Car outside, location") and
+Emergency. The others are push only
 unless the parent switches "Run updates" on. `cp_emergency_contact` goes to
 a number that is not a parent of the app: the driver saved it and is
 asked to tell that person.
