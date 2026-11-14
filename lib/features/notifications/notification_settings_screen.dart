@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/notifications/notification_labels.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
 import 'package:school_carpool/features/notifications/notification_repository.dart';
@@ -113,6 +114,7 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
       final bool accountOptIn = session is SessionSignedIn && (session.account?.whatsappOptIn ?? false);
       final bool optIn = _optIn ?? accountOptIn;
       final TextStyle? quiet = context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant);
+      final bool walletOn = ref.watch(featureSwitchesProvider).wallet;
       body = ListView(
         key: const Key('notifSettings.list'),
         padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),
@@ -131,17 +133,19 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
             onChanged: _saving ? null : (bool on) => unawaited(_setConsent(on)),
           ),
           for (final WhatsAppGroup g in WhatsAppGroup.values)
-            AppSwitchRow(
-              key: Key('notifSettings.${g.name}'),
-              title: whatsAppGroupTitle(l10n, g),
-              subtitle: optIn && s.whatsappOn(g) ? l10n.notifWhatsAppOn : l10n.notifWhatsAppOff,
-              leadingIcon: g.defaultOn ? Icons.warning_amber_rounded : Icons.chat_outlined,
-              // Without consent nothing goes to WhatsApp: shown off, not changeable.
-              value: optIn && s.whatsappOn(g),
-              onChanged: _saving || !optIn
-                  ? null
-                  : (bool on) => unawaited(_save(s.withWhatsApp(g, on), (NotificationRepository r) => r.setWhatsApp(g, on: on))),
-            ),
+            // Pilot feature switch: no wallet row while the wallet is off.
+            if (g != WhatsAppGroup.wallet || walletOn)
+              AppSwitchRow(
+                key: Key('notifSettings.${g.name}'),
+                title: whatsAppGroupTitle(l10n, g),
+                subtitle: optIn && s.whatsappOn(g) ? l10n.notifWhatsAppOn : l10n.notifWhatsAppOff,
+                leadingIcon: g.defaultOn ? Icons.warning_amber_rounded : Icons.chat_outlined,
+                // Without consent nothing goes to WhatsApp: shown off, not changeable.
+                value: optIn && s.whatsappOn(g),
+                onChanged: _saving || !optIn
+                    ? null
+                    : (bool on) => unawaited(_save(s.withWhatsApp(g, on), (NotificationRepository r) => r.setWhatsApp(g, on: on))),
+              ),
           Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.screenGutter, AppSpacing.s8, AppSpacing.screenGutter, 0),
             child: Text(l10n.notifChatPushOnly, style: quiet),

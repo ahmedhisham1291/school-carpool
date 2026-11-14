@@ -11,6 +11,8 @@ import 'package:school_carpool/features/carpools/carpool_widgets.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_view.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
+import 'package:school_carpool/features/settle_up/settle_up_models.dart';
+import 'package:school_carpool/features/settle_up/settle_up_screen.dart';
 import 'package:school_carpool/features/shell/home_shell.dart';
 import 'package:school_carpool/features/trips/trip_logic.dart';
 import 'package:school_carpool/features/trips/trip_models.dart';
@@ -185,6 +187,9 @@ class GalleryScreen extends ConsumerWidget {
           // Prompt 11B: wallet pieces (fake data only).
           AppSectionHeader(l10n.gallerySectionWallet),
           const _WalletSamples(),
+          // Settle up (F45): the per-person summary and a record row (fake data only).
+          AppSectionHeader(l10n.settleTitle),
+          const _SettleSamples(),
           // Prompt 11: stars for ratings (F17).
           AppSectionHeader(l10n.gallerySectionTrust),
           const _Padded(child: _TrustSamples()),
@@ -253,6 +258,39 @@ class _WalletSamples extends StatelessWidget {
         TransferRow(
           transfer: WalletTransfer(id: 'g3', kind: TransferKind.withdraw, outgoing: true, amount: 5000, status: TransferStatus.failed, createdAt: at),
         ),
+      ],
+    );
+  }
+}
+
+/// Settle up (F45): "you owe / owes you" with one parent and two records.
+class _SettleSamples extends StatelessWidget {
+  const _SettleSamples();
+
+  @override
+  Widget build(BuildContext context) {
+    final String name = context.l10n.sampleChatAuthor;
+    final DateTime at = DateTime.utc(2026, 11, 16, 8, 30);
+    SettleUp record(String id, {required bool iPay, required SettleStatus status}) => SettleUp(
+      id: id,
+      payeeUid: iPay ? 'other' : 'me',
+      payerUid: iPay ? 'me' : 'other',
+      payeeFirstName: name,
+      payerFirstName: name,
+      amount: 15000,
+      reason: SettleReason.contribution,
+      status: status,
+      createdAt: at,
+      updatedAt: at,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _Padded(
+          child: SettleSummaryCard(summary: PersonSummary(uid: 'other', firstName: name, youOwe: 15000, owesYou: 8000, waiting: 6000)),
+        ),
+        SettleRow(record: record('g-s1', iPay: true, status: SettleStatus.open), uid: 'me'),
+        SettleRow(record: record('g-s2', iPay: false, status: SettleStatus.paid), uid: 'me'),
       ],
     );
   }

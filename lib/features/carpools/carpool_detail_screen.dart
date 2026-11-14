@@ -12,6 +12,7 @@ import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
 import 'package:school_carpool/features/chat/chat_models.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/trips/today_section.dart';
 import 'package:school_carpool/features/trust/trust_repository.dart';
 import 'package:school_carpool/features/verification/verification_labels.dart';
@@ -135,6 +136,8 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
     final bool requested = m?.status == MembershipStatus.requested;
     final bool admin = member && (m?.isAdmin ?? false);
     final Contribution? contribution = c.contribution;
+    // Pilot feature switches: how a contribution is paid follows what is on.
+    final String contributionHelper = contributionHelperText(l10n, ref.watch(featureSwitchesProvider));
     final String area = c.kind == CarpoolKind.activity ? c.activityLabel : c.areaName(language);
     final TextStyle? quiet = context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant);
 
@@ -189,7 +192,7 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
         AppListRow(
           key: const Key('detail.contribution'),
           title: contribution == null ? l10n.contributionNone : contributionText(l10n, contribution),
-          subtitle: contribution == null || contribution.note.isEmpty ? l10n.contributionHelper : contribution.note,
+          subtitle: contribution == null || contribution.note.isEmpty ? contributionHelper : contribution.note,
           leadingIcon: Icons.payments_outlined,
           showChevron: false,
         ),
@@ -272,7 +275,7 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
     final _JoinChoice? choice = await showAppSheet<_JoinChoice>(
       context: context,
       title: context.l10n.carpoolAskToJoin,
-      body: _JoinSheet(carpool: c, children: eligible),
+      body: _JoinSheet(carpool: c, children: eligible, contributionHelper: contributionHelperText(context.l10n, ref.read(featureSwitchesProvider))),
     );
     if (choice == null || !mounted) {
       return;
@@ -458,6 +461,9 @@ class _ScheduleLinks extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppLocalizations l10n = context.l10n;
     final Contribution? agreed = contribution;
+    // Pilot feature switches: "Pay contribution" needs the wallet; Settle up
+    // (the pilot's payment feature) has its own row.
+    final FeatureSwitches features = ref.watch(featureSwitchesProvider);
     final List<CarpoolMember>? members = ref.watch(_membersProvider(carpoolId)).value;
     final SessionState session = ref.watch(sessionProvider);
     final String? uid = session is SessionSignedIn ? session.uid : null;
@@ -484,7 +490,15 @@ class _ScheduleLinks extends ConsumerWidget {
           leadingIcon: Icons.forum_outlined,
           onTap: () => context.go(ChatRef.carpool(carpoolId).route),
         ),
-        if (amount != null)
+        if (features.settleUp)
+          AppListRow(
+            key: const Key('detail.settleUp'),
+            title: l10n.settleTitle,
+            subtitle: l10n.settleCarpoolRowHelper,
+            leadingIcon: Icons.payments_outlined,
+            onTap: () => context.go(SettleUpRoutes.homeFor(carpoolId)),
+          ),
+        if (amount != null && features.wallet)
           AppListRow(
             key: const Key('detail.payContribution'),
             title: l10n.walletPayContribution,
@@ -648,10 +662,13 @@ class _JoinChoice {
 /// Ask to join (F6): which children ride, and accepting the rules (F36)
 /// and the contribution (F25). Checks the free seats as the parent picks.
 class _JoinSheet extends StatefulWidget {
-  const _JoinSheet({required this.carpool, required this.children});
+  const _JoinSheet({required this.carpool, required this.children, required this.contributionHelper});
 
   final Carpool carpool;
   final List<ChildRecord> children;
+
+  /// How the contribution is paid (cash, Settle up or the wallet, by what is on).
+  final String contributionHelper;
 
   @override
   State<_JoinSheet> createState() => _JoinSheetState();
@@ -698,7 +715,7 @@ class _JoinSheetState extends State<_JoinSheet> {
           AppCheckRow(
             key: const Key('join.contribution'),
             label: l10n.joinAcceptContribution(contributionText(l10n, contribution)),
-            helperText: l10n.contributionHelper,
+            helperText: widget.contributionHelper,
             value: _contribution,
             onChanged: (bool on) => setState(() => _contribution = on),
           ),
