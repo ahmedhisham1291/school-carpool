@@ -111,6 +111,20 @@ describe("memberships: own only, written by functions", () => {
     await assertSucceeds(as("cara", token).firestore().doc("memberships/k1_cara").get());
   });
 
+  it("a parent reads their own membership ID in a carpool they are not in (no document)", async () => {
+    await assertSucceeds(as("zed").firestore().doc("memberships/k1_zed").get());
+    await assertSucceeds(as("alice").firestore().doc("memberships/k9_alice").get());
+  });
+
+  it("nobody reads another parent's membership ID, existing or missing", async () => {
+    await assertFails(as("zed").firestore().doc("memberships/k1_alice").get());
+    await assertFails(as("zed").firestore().doc("memberships/k1_nobody").get());
+    // An ID that only contains the caller's uid elsewhere is not theirs.
+    await assertFails(as("zed").firestore().doc("memberships/k1_zed_x").get());
+    await assertFails(as("zed").firestore().doc("memberships/zed").get());
+    await assertFails(signedOut().firestore().doc("memberships/k1_zed").get());
+  });
+
   it("nobody reads another parent's membership or lists a carpool's", async () => {
     await assertFails(as("alice").firestore().doc("memberships/k1_bob").get());
     await assertFails(as("alice").firestore().collection("memberships").where("carpoolId", "==", "k1").get());

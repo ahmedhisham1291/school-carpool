@@ -61,6 +61,7 @@ export class MemoryCarpoolStore implements CarpoolStore {
         membership: async (c, u) => clone(this.memberships.get(membershipId(c, u)) ?? null),
         members: async (c) => clone([...this.sub(this.members, c).values()]),
         consents: async (c) => clone([...this.sub(this.consents, c).values()]),
+        requests: async (c) => clone([...this.sub(this.requests, c).values()]),
         putCarpool: (c) => writes.push(() => this.carpools.set(c.id, clone(c))),
         putMembership: (m) => writes.push(() => this.memberships.set(membershipId(m.carpoolId, m.uid), clone(m))),
         putMember: (c, m) => writes.push(() => this.sub(this.members, c).set(m.uid, clone(m))),

@@ -147,6 +147,20 @@
       ]
     },
     {
+      "collectionGroup": "carpoolWanted",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schoolId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "schedule",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
