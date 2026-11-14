@@ -11,7 +11,6 @@ import 'package:school_carpool/features/notifications/notification_models.dart';
 import 'package:school_carpool/features/notifications/notification_repository.dart';
 import 'package:school_carpool/features/notifications/push_messaging.dart';
 import 'package:school_carpool/l10n/l10n.dart';
-import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/settings/app_settings.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
@@ -34,8 +33,28 @@ class NotificationCenter {
   String? _registeredUid;
   bool _syncing = false;
 
-  /// The router of the tab shell (set by HomeShell); the app's router otherwise.
-  GoRouter? router;
+  GoRouter? _router;
+  String? _pendingRoute;
+
+  /// The router of the tab shell (set by HomeShell). A push tapped before
+  /// the shell exists (cold start) opens its screen when it attaches.
+  GoRouter? get router => _router;
+
+  set router(GoRouter? value) {
+    if (value == null) {
+      _router = null;
+      return;
+    }
+    if (identical(_router, value)) {
+      return;
+    }
+    _router = value;
+    final String? pending = _pendingRoute;
+    _pendingRoute = null;
+    if (pending != null) {
+      scheduleMicrotask(() => value.go(pending));
+    }
+  }
   List<AppNotification>? _again;
 
   static const String tokenKey = 'push.token';
@@ -148,7 +167,13 @@ class NotificationCenter {
       unawaited(_guard(() => _repository.markRead(uid, id)));
       unawaited(_guard(() => _alarms.cancel(alarmIdFor(id))));
     }
-    (router ?? _ref.read(routerProvider)).go(NotificationRoutes.safe(route));
+    final String target = NotificationRoutes.safe(route);
+    final GoRouter? shell = _router;
+    if (shell == null) {
+      _pendingRoute = target;
+    } else {
+      shell.go(target);
+    }
   }
 
   void _onAlarmTap(String payload) {

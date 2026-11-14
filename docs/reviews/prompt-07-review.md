@@ -227,3 +227,91 @@ Flutter.
 | Add a holiday | Covered (Days off and times, two steps) |
 | Unit tests for rotation and swaps, including uneven numbers of children | Present and passing in CI (1 and 2 children; 4/3/3; two accepts at once). They miss the new-member and non-driver cases (Blocking 3). |
 | On the iPhone | Not verifiable here. The iOS build is not part of this CI run. |
+
+## Re-review (head `3a30831`, fixes `52a785c..9f79b8a`, main merged)
+
+### Verdict: PASS
+
+### CI
+
+Run 43552329966 on `3a30831`: all three jobs passed.
+
+| Job | Result |
+| --- | --- |
+| Flutter analyze, tests and screenshots | success |
+| Cloud Functions tests and rules tests (emulators) | success |
+| Web, admin panel and Android compile (staging) | success, in 10.8 minutes, with the 45-minute limit and the Gradle cache from main |
+
+### Blocking items
+
+1. **Android CI.** Fixed: the job is green.
+2. **A time change moves the confirm-by time.** Fixed. `reconcile` now
+   calls `retimeRun` (`functions/src/schedule/model.ts`). I probed it in
+   Node against the new code:
+   - **A planned run with the late deadline, moved from 14:00 to 11:00 at
+     09:00:** the confirm-by time becomes 10:00, before the new start.
+   - **The same run moved to 10:00 at 09:30:** it is missed at once, with
+     no driver. `reconcile` expires the open swap and sends the critical
+     `no-driver` alert to every member.
+   - **An open swap moved earlier:** the confirm-by time moves too.
+   - **A planned run moved later:** it keeps the earlier confirm-by time,
+     which is the safe side.
+   - **A confirmed run moved, whether the day before, the same morning or
+     for a Ramadan range weeks ahead:** it goes back to `planned` with the
+     same driver and a new deadline. The driver must confirm again
+     (owner question 2 now has a default).
+   - **A confirmed run moved with less than 60 minutes left:** the driver
+     stays confirmed and gets a critical `time-changed` notice.
+   - **A confirmed run moved into the past:** it is missed with the
+     critical alert and is not counted as completed.
+
+   Unit and flow tests cover these cases (`schedule.test.ts`: "early
+   dismissal on a late-deadline run", "missed at once and everyone is
+   alerted", "asked to confirm again").
+3. **Fairness.** Fixed. Shares now build up run by run
+   (`eligibleFamilies`, `accrueShare`, `share` in the balance). I re-ran
+   the same Node scenarios against the new `proposeWeek`:
+
+   | Scenario | Before | Now |
+   | --- | --- | --- |
+   | 1 child against 2 children, 10 weeks | 34:66 | 33:67 |
+   | Same, plus a family with 3 children and no car, 20 weeks | 83:117 (1:1.4) | **67:133 (1:2)**; the family without a car has share 0 |
+   | Family joins in week 5 (2 families of 1 child) | 20 of 20 runs in weeks 5 and 6 | **4/3/3 per week**, rotating |
+   | Family with 2 children joins in week 10 (families of 1 and 2 children) | not run before | 2/4/4 per week, matching their children |
+   | 3 weeks planned on one day, 3 families of 1 child | 12/9/9 | **10/10/10** (other weeks count) |
+   | 3 families of 1 child, 1 week | 4/3/3 | 4/3/3 (the uid breaks the tie) |
+   | 2 families of 1 child, 1 week | not run before | 5/5 |
+
+   The app's balance screen now orders families by driven minus the
+   server's share, and the "Drove least" badge goes only to a family
+   that drives (`d14d020`).
+
+### Non-blocking items also closed in `52a785c`
+
+- 4: the car is checked on the run date.
+- 6: the plan uses the term of the week being planned.
+- 7: a time change into the past is handled (see above).
+- 9: the tick logs a full page (`backlog`).
+
+### Still open (non-blocking)
+
+- 3: new members' unconsented children leave every run without a driver.
+- 5: confirmed runs are not released when the car expires or the account
+  is suspended.
+- 8: event fan-out.
+- 10: spec section 9 naming.
+- 11: Prompt 6 items 2 (partly done), 3 and 8.
+- 12: the phone's time zone is used for dates and deadlines.
+
+### New notes (non-blocking)
+
+- **Re-confirm notice.** A confirmed driver who is asked to confirm again
+  gets a *non-critical* `time-changed` event. If they miss it, the run is
+  missed at the deadline and every parent is alerted. That is safe, but
+  Prompt 8 should send this notice as a reminder, or make it critical.
+- **Shares for the current week.** Eligibility for a share is worked out
+  from the members and consents at the moment the run is completed.
+  `proposeWeek` instead works out the current week's shares from the
+  members and consents at planning time. The two can differ slightly
+  after someone joins or withdraws consent, and they line up again once
+  the runs complete.

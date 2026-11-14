@@ -35,11 +35,12 @@ Future<GoRouter> _pump(
   required List<Override> overrides,
   Locale locale = AppLocales.english,
   double width = 400,
+  double height = 1600,
   double textScale = 1,
 }) async {
   tester.view
     ..devicePixelRatio = 2
-    ..physicalSize = Size(width * 2, 1600 * 2);
+    ..physicalSize = Size(width * 2, height * 2);
   addTearDown(tester.view.reset);
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -313,11 +314,12 @@ void main() {
               for (final NotificationKind k in NotificationKind.values) testNotification('k-${k.name}', k, read: !k.critical),
             ],
           );
-          await _pump(tester, '/notifications', overrides: _overrides(repo), locale: locale, width: 320, textScale: scale);
+          // A tall screen so every row is built without scrolling the lazy list.
+          await _pump(tester, '/notifications', overrides: _overrides(repo), locale: locale, width: 320, height: 8000, textScale: scale);
           expectOneLine(find.byType(AppBarTitle), 'app bar', allowEllipsis: scale > 1);
           for (final NotificationKind k in NotificationKind.values) {
             final Finder row = find.byKey(Key('notification.k-${k.name}'));
-            await tester.scrollUntilVisible(row, 200, scrollable: find.byType(Scrollable).first);
+            expect(row, findsOneWidget, reason: '${k.name} row');
             expectOneLine(
               find.descendant(of: row, matching: find.byType(OneLineText)).first,
               '${k.name} title',

@@ -45,6 +45,9 @@ class FakeNotificationRepository implements NotificationRepository {
 
   void emit() => _changes.add(0);
 
+  /// Closes the change stream (call from addTearDown).
+  Future<void> dispose() => _changes.close();
+
   Stream<T> _watch<T>(T Function() read) async* {
     final Object? error = streamError;
     if (error != null) {
@@ -142,6 +145,12 @@ class FakePushMessaging implements PushMessaging {
 
   @override
   Stream<PushData> get foreground => const Stream<PushData>.empty();
+
+  /// Closes the test streams (call from addTearDown).
+  Future<void> dispose() async {
+    await tapController.close();
+    await refreshController.close();
+  }
 }
 
 class FakeLocalAlarms implements LocalAlarms {

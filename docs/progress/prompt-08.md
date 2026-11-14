@@ -214,6 +214,15 @@ the gallery under "Alerts".
 - Android notification channels beyond the plugin's own, Android 13
   permission flow and web push (Stage 2 and 3).
 - WhatsApp templates must be created and approved in Meta (SETUP 18.4).
+- **FCM registration by Firebase Installation ID.** firebase_messaging 17
+  deprecates `getToken`/`onTokenRefresh`/`deleteToken` in favour of
+  `register()`/`onRegistered`/`unregister()`. Firebase says tokens and FIDs
+  are both fully supported during the transition, and moving changes the
+  server's send target from `token` to `fid` as well. The three calls keep
+  the token API with `// ignore: deprecated_member_use`
+  (`push_messaging.dart`). The Dart signatures of the new API could not be
+  checked here (the changelog names only "add FID registration APIs"), so
+  the move is one later change: app and `push.ts` together, with tests.
 - Account deletion must delete `notificationSettings`, `pushTokens`,
   `notificationLimits` and `users/{uid}/notifications` (Prompt 12 list).
 - Not verified here: `flutter analyze`, `flutter test`, the rules tests,
