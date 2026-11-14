@@ -12,7 +12,7 @@ to 13, docs/DECISIONS.md.
 | A1 | **Firebase projects** dev, staging, prod: created, Blaze, region, Auth upgrade, App Check (App Attest), APNs key, flutterfire options committed for staging and prod (still placeholders in `lib/firebase/firebase_options_staging.dart` / `_prod.dart`) | TestFlight (staging), pilot (prod) | SETUP.md 3 |
 | A2 | **Codemagic**: `CodemagicASC` integration, `staging_defines` group, `APP_STORE_APPLE_ID` of the staging app in `codemagic.yaml` (still `0000000000`) | TestFlight | docs/testflight.md |
 | A3 | **App Store Connect**: staging app record, internal testing group; later the prod app, privacy answers, privacy policy URL, screenshots, review notes | TestFlight / App Store | docs/testflight.md, docs/app-store-privacy.md, docs/app-review-notes.md |
-| A4 | **WhatsApp Business**: verified business, sender number, every template approved in Arabic and English (`cp_code` and the alert templates in SETUP 18.4, 20.3 incl. new `cp_run_still_on`, 22.3) | Real sign-in codes on staging/prod | SETUP.md 18.4 |
+| A4 | **WhatsApp Business**: verified business (start first: the slowest item), sender number, templates approved in Arabic and English (`login_code` and the alert templates in SETUP 18.4, 20.3 incl. `cp_run_still_on` and `cp_child_not_coming`, 22.3) | Real sign-in codes on prod (prod cannot send a code without it) | **docs/meta-whatsapp-setup.md** (owner guide), SETUP.md 11.5 and 18.4 |
 | A5 | **Valify** contract and keys (ID check and face match). Until then the face match is a stub: every new-phone check and phone change waits for an admin (now possible from the panel, Prompt 13) | Pilot | SETUP.md 12 |
 | A6 | **Wallet partner** (CBE-licensed) contract and API; the wallet stays a fake with test money until then | Pilot with money | SETUP.md 21.5 |
 | A7 | **Google Maps keys** per project (iOS, Android, web, server) with restrictions and caps | Maps on staging | SETUP.md 15.2 |
@@ -24,6 +24,7 @@ to 13, docs/DECISIONS.md.
 | A13 | **Public privacy policy and terms page** (App Store requires a URL) | App Store | Owner + lawyer |
 | A14 | **Admin accounts** with two-step sign-in on staging (to approve verifications during the test) | TestFlight test | SETUP.md 13.1, 13.2 |
 | A15 | Demo account and review code for Apple | App Store review | docs/app-review-notes.md |
+| A16 | **Make the repository private again** (it is public for free CI): secret scan of the whole history, decide about `docs/reviews` and this file, set an Actions budget, switch, re-check Codemagic and the Cloud Shell clone | Before the public launch | **docs/launch-private-repo.md** |
 
 ## B. Owner decisions still open
 
@@ -67,7 +68,7 @@ to 13, docs/DECISIONS.md.
 | D13 | Admin panel screens for security alerts and privacy requests (callables exist) | Admins use the console | Later admin prompt |
 | D14 | Analytics events other than the privacy ones are in the catalog but not yet sent by their screens | Less usage data | One line each when the screens are next touched |
 | D15 | FCM registration by Firebase Installation ID (firebase_messaging 17 deprecates tokens) | Future SDK change | Planned change with the server |
-| D16 | Lockfiles (`pubspec.lock`, `package-lock.json`) not committed (no registry here) | Reproducible builds | Commit from CI |
+| D16 | Lockfiles (`pubspec.lock`, `package-lock.json`): written by the manual CI job and committed on branch `improve-e-docs` (workstream E), all four files; builds on `main` use them once that branch is merged | Reproducible builds | Coordinator: merge `improve-e-docs`. Later updates: docs/WORKFLOW.md "Package versions" |
 | D17 | Website (Stage 2) and Android (Stage 3) platform work | — | Later stages |
 | D18 | Lawyer's answers: all confirmed (DECISIONS.md "Legal" and "Owner updates 12:30"); the retention periods need the privacy policy text updated by the lawyer for the published page (A13) | — | Owner |
 | D19 | **Own chat (improvement B): no automatic image moderation** (Stream's add-on is gone). Photos are only in private and carpool chats; reports and admin removal handle them | Low for the pilot | Later: Cloud Vision SafeSearch in the photo upload trigger (paid per image), if reports show a need |
