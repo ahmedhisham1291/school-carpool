@@ -26,9 +26,10 @@ account in **Sign-In Information** (section 2). Attach the run video
 > run; the run screen shows the steps to turn them on.
 >
 > **"Always" is optional.** Before a driver's first run, one screen offers
-> "Always" so that, if iOS closes the app during a run, the run resumes by
-> itself (significant location changes relaunch the app; it then checks
-> the run is still on and shows "Tracking resumed"). It is used only for
+> "Always" so that, if iOS closes the app during a run, the run usually
+> resumes by itself within a few minutes after the car moves (significant
+> location changes relaunch the app; it then checks the run is still on and
+> shows "Tracking resumed"). It is used only for
 > drivers during school runs they start, with the blue indicator, and ends
 > with the run. Declining changes nothing else: the app works the same and
 > asks the driver to keep the app open during the run.

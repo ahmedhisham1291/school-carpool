@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show HttpClient, HttpClientRequest, HttpClientResponse, HttpException, SocketException;
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
@@ -422,7 +421,10 @@ class GeolocatorTracker implements LocationTracker {
         return;
       }
       // 200 (kept) or 400 (bad points, never resent).
-      _buffer.removeRange(0, math.min(batch.length, _buffer.length));
+      // The exact points sent (by identity): trimming at the cap during the
+      // post can shift the list, so never remove by position.
+      final Set<GeoFix> sent = Set<GeoFix>.identity()..addAll(batch);
+      _buffer.removeWhere(sent.contains);
       await _persist();
     }
   }

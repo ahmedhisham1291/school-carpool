@@ -2000,7 +2000,7 @@
   "adminAuditDeviceOther": "New phone: confirmed other way",
   "alwaysTitle": "Resume runs by itself",
   "alwaysHeading": "Optional: allow location Always",
-  "alwaysBody": "If iPhone closes the app during a run you drive, sharing your location with the parents starts again by itself. It is used only during school runs you start, with the blue indicator, and stops when the run ends.",
+  "alwaysBody": "If iPhone closes the app during a run you drive, sharing your location with the parents usually starts again by itself within a few minutes once the car moves. It is used only during school runs you start, with the blue indicator, and stops when the run ends.",
   "alwaysWithout": "Without it everything still works; just keep the app open during the run.",
   "alwaysAllow": "Allow Always",
   "alwaysNotNow": "Not now",

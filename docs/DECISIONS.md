@@ -146,3 +146,15 @@ paid plugin, no new third-party dependency.
   the parents' "location stopped" alert stay.
 - **Verification:** relaunch behaviour can only be checked on a real iPhone
   (docs/test-iphone.md section 7).
+- **Classic iOS launch (Prompt 13 review, blocker 2):** `flutter create` now
+  makes a UIScene app whose engine and plugins start only when a scene
+  connects, which never happens when iOS relaunches the app in the
+  background for location. `tool/patch_native.py` therefore makes the
+  Runner a classic app-delegate app: the AppDelegate starts the Flutter
+  engine (Dart `main`) and registers the plugins in
+  `didFinishLaunchingWithOptions` (plugins get the real launch options), no
+  scene manifest, the generated SceneDelegate emptied. **To be verified on
+  a real iPhone (docs/test-iphone.md T6):** recovery usually resumes within
+  a few minutes after the car moves. **Revisit** when Apple requires UIScene
+  (announced for an SDK after iOS 26): then the AppDelegate must start a
+  headless engine on a location launch instead.

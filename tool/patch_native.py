@@ -82,8 +82,8 @@ PERMISSION_TEXTS = {
     # Prompt 13 (owner request 13:44): "Always" is OPTIONAL, offered once to
     # drivers so a run resumes if iOS closes the app (run_recovery plugin).
     "NSLocationAlwaysAndWhenInUseUsageDescription":
-        "Optional: with Always, a school run you drive starts sharing your location again by itself "
-        "if iPhone closes the app. Used only during runs you start, with the blue indicator, "
+        "Optional: with Always, a school run you drive usually starts sharing your location again by itself, "
+        "a few minutes after the car moves, if iPhone closes the app. Used only during runs you start, with the blue indicator, "
         "for the parents of the children in your car; it stops when the run ends.",
     "NSFaceIDUsageDescription":
         "Face ID unlocks the app and confirms every wallet transfer.",
