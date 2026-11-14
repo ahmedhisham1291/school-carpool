@@ -62,11 +62,11 @@ What is already in the repository (`codemagic.yaml`, workflow
      (SETUP.md 16.2); only after Associated Domains is ticked in step 1.
    If an old `BG_GEO_LICENSE` variable is there, delete it.
 3. The Firebase options for staging must be generated and committed
-   (`lib/firebase/firebase_options_staging.dart`, SETUP.md 3.6); they are
+   (`lib/firebase/firebase_options_staging.dart`, SETUP.md 3 step 9, "Connect the app"); they are
    not secret.
-4. Staging Firebase project: upload the APNs key (SETUP.md 18.1), deploy
+4. Staging Firebase project: upload the APNs key (SETUP.md 3 step 7 and 18.1), deploy
    the functions, rules and indexes (SETUP.md 23.1), and register App Check
-   with **App Attest** for the iOS app (SETUP.md 3).
+   with **App Attest** for the iOS app (SETUP.md 3 step 8).
 
 ## Every build
 
