@@ -4,6 +4,7 @@ import 'package:school_carpool/app.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/notifications/push_messaging.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/observability/sentry_setup.dart';
@@ -31,6 +32,8 @@ Future<void> bootstrap(Flavor flavor) async {
         runApp(const StartupErrorApp());
         return;
       }
+      // Prompt 8: critical pushes schedule the app's own alarm while it is closed.
+      registerPushBackgroundHandler();
 
       final SettingsStore store = await SharedPrefsSettingsStore.create();
       runApp(

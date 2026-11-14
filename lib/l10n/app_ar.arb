@@ -4494,5 +4494,387 @@
   "scheduleDirToHome": "للبيت",
   "@scheduleDirToHome": {
     "description": "Run row: the afternoon run home"
+  },
+  "notifErrorTooMany": "تغييرات كثيرة اليوم. حاول غدًا.",
+  "@notifErrorTooMany": {
+    "description": "Snackbar: settings change limit reached"
+  },
+  "notifErrorSave": "لم يُحفظ. حاول مرة أخرى.",
+  "@notifErrorSave": {
+    "description": "Snackbar: saving failed"
+  },
+  "notifWhenToSchool": "{day}، للمدرسة",
+  "@notifWhenToSchool": {
+    "description": "Run in a notification: weekday and date, morning run",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "notifWhenHome": "{day}، للبيت",
+  "@notifWhenHome": {
+    "description": "Run in a notification: weekday and date, afternoon run",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "notifWhenSoon": "القادم",
+  "@notifWhenSoon": {
+    "description": "Run in a notification when no date is known"
+  },
+  "notifPlanReadyTitle": "خطة الأسبوع جاهزة",
+  "@notifPlanReadyTitle": {
+    "description": "Notification title (one line)"
+  },
+  "notifPlanReadyBody": "راجع مشاويرك هذا الأسبوع.",
+  "@notifPlanReadyBody": {
+    "description": "Notification text"
+  },
+  "notifNoDriverTitle": "لا يوجد سائق مؤكد",
+  "@notifNoDriverTitle": {
+    "description": "Critical notification title"
+  },
+  "notifNoDriverBody": "لا يوجد سائق لمشوار {run}. يرجى توصيل طفلك بنفسك.",
+  "@notifNoDriverBody": {
+    "description": "Critical notification text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifSwapRequestedTitle": "طلب تبديل",
+  "@notifSwapRequestedTitle": {
+    "description": "Notification title"
+  },
+  "notifSwapRequestedBody": "عضو طلب تبديل مشوار {run}.",
+  "@notifSwapRequestedBody": {
+    "description": "Notification text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifNewDriverTitle": "سائق جديد",
+  "@notifNewDriverTitle": {
+    "description": "Notification title: a run got a driver"
+  },
+  "notifNewDriverBody": "مشوار {run} له سائق الآن.",
+  "@notifNewDriverBody": {
+    "description": "Notification text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifSwapCancelledTitle": "أُلغي التبديل",
+  "@notifSwapCancelledTitle": {
+    "description": "Notification title"
+  },
+  "notifSwapCancelledBody": "أُلغي طلب تبديل مشوار {run}.",
+  "@notifSwapCancelledBody": {
+    "description": "Notification text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifChildAbsentTitle": "غياب طفل",
+  "@notifChildAbsentTitle": {
+    "description": "Notification title"
+  },
+  "notifChildAbsentBody": "طفل لن يركب مشوار {run}.",
+  "@notifChildAbsentBody": {
+    "description": "Notification text (never the child name)",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifChildBackTitle": "عودة طفل",
+  "@notifChildBackTitle": {
+    "description": "Notification title"
+  },
+  "notifChildBackBody": "طفل سيركب مشوار {run} مرة أخرى.",
+  "@notifChildBackBody": {
+    "description": "Notification text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifNeedsDriverTitle": "مشوار بلا سائق",
+  "@notifNeedsDriverTitle": {
+    "description": "Notification title"
+  },
+  "notifNeedsDriverBody": "مشوار {run} يحتاج سائقًا.",
+  "@notifNeedsDriverBody": {
+    "description": "Notification text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifScheduleChangedTitle": "تغيّر الجدول",
+  "@notifScheduleChangedTitle": {
+    "description": "Notification title"
+  },
+  "notifScheduleChangedBody": "تغيّرت الإجازات أو المواعيد في مشوارك.",
+  "@notifScheduleChangedBody": {
+    "description": "Notification text"
+  },
+  "notifDriveEveningTitle": "تقود غدًا",
+  "@notifDriveEveningTitle": {
+    "description": "Reminder title (evening before)"
+  },
+  "notifDriveEveningBody": "أنت سائق مشوار {run}.",
+  "@notifDriveEveningBody": {
+    "description": "Reminder text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDriveHourTitle": "مشوارك بعد قليل",
+  "@notifDriveHourTitle": {
+    "description": "Reminder title (one hour before)"
+  },
+  "notifDriveHourBody": "مشوار {run} يبدأ خلال ساعة.",
+  "@notifDriveHourBody": {
+    "description": "Reminder text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifConfirmTitle": "أكّد القيادة",
+  "@notifConfirmTitle": {
+    "description": "Reminder title: missing driver confirmation"
+  },
+  "notifConfirmBody": "يرجى تأكيد مشوار {run} قبل الموعد.",
+  "@notifConfirmBody": {
+    "description": "Reminder text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
+  },
+  "notifJoinRequestedTitle": "طلب انضمام",
+  "@notifJoinRequestedTitle": {
+    "description": "Notification title"
+  },
+  "notifJoinRequestedBody": "ولي أمر طلب الانضمام إلى مشوارك.",
+  "@notifJoinRequestedBody": {
+    "description": "Notification text"
+  },
+  "notifJoinApprovedTitle": "تم قبول طلبك",
+  "@notifJoinApprovedTitle": {
+    "description": "Notification title"
+  },
+  "notifJoinApprovedBody": "أصبحت عضوًا في المشوار.",
+  "@notifJoinApprovedBody": {
+    "description": "Notification text"
+  },
+  "notifJoinDeclinedTitle": "لم يُقبل طلبك",
+  "@notifJoinDeclinedTitle": {
+    "description": "Notification title"
+  },
+  "notifJoinDeclinedBody": "لم يُقبل طلب انضمامك.",
+  "@notifJoinDeclinedBody": {
+    "description": "Notification text"
+  },
+  "notifApprovedTitle": "تمت الموافقة",
+  "@notifApprovedTitle": {
+    "description": "Notification title: verification result"
+  },
+  "notifApprovedBody": "تمت الموافقة على مستنداتك.",
+  "@notifApprovedBody": {
+    "description": "Notification text"
+  },
+  "notifRejectedTitle": "لم تتم الموافقة",
+  "@notifRejectedTitle": {
+    "description": "Notification title: verification result"
+  },
+  "notifRejectedBody": "افتح حسابي لمعرفة ما يلزم تصحيحه.",
+  "@notifRejectedBody": {
+    "description": "Notification text"
+  },
+  "notifNewParentTitle": "ولي أمر جديد قريب",
+  "@notifNewParentTitle": {
+    "description": "Notification title (F23)"
+  },
+  "notifNewParentBody": "ولي أمر موثّق جديد قرب مدرستك.",
+  "@notifNewParentBody": {
+    "description": "Notification text (no name)"
+  },
+  "notifChildNotConfirmedTitle": "لم يُؤكَّد الاستلام",
+  "@notifChildNotConfirmedTitle": {
+    "description": "Critical notification title (F34)"
+  },
+  "notifChildNotConfirmedBody": "لم يُؤكَّد وصول طفل. يرجى التحقق الآن.",
+  "@notifChildNotConfirmedBody": {
+    "description": "Critical notification text"
+  },
+  "notifChatTitle": "رسالة جديدة",
+  "@notifChatTitle": {
+    "description": "Notification title (chat)"
+  },
+  "notifChatBody": "لديك رسالة جديدة.",
+  "@notifChatBody": {
+    "description": "Notification text (never the message)"
+  },
+  "notifGroupNoDriver": "لا يوجد سائق",
+  "@notifGroupNoDriver": {
+    "description": "Settings row: WhatsApp for no-driver alerts"
+  },
+  "notifGroupChildNotConfirmed": "طفل لم يُؤكَّد",
+  "@notifGroupChildNotConfirmed": {
+    "description": "Settings row"
+  },
+  "notifGroupReminders": "تذكيرات القيادة",
+  "@notifGroupReminders": {
+    "description": "Settings row"
+  },
+  "notifGroupSwaps": "التبديلات",
+  "@notifGroupSwaps": {
+    "description": "Settings row"
+  },
+  "notifGroupAbsences": "الغياب",
+  "@notifGroupAbsences": {
+    "description": "Settings row"
+  },
+  "notifGroupSchedule": "الخطط والتغييرات",
+  "@notifGroupSchedule": {
+    "description": "Settings row"
+  },
+  "notifGroupJoins": "طلبات الانضمام",
+  "@notifGroupJoins": {
+    "description": "Settings row"
+  },
+  "notifGroupVerification": "نتيجة المراجعة",
+  "@notifGroupVerification": {
+    "description": "Settings row"
+  },
+  "notifGroupNewParents": "أولياء أمور جدد",
+  "@notifGroupNewParents": {
+    "description": "Settings row"
+  },
+  "notifEmptyTitle": "لا تنبيهات بعد",
+  "@notifEmptyTitle": {
+    "description": "Empty state title"
+  },
+  "notifEmptyBody": "هنا ستجد طلبات التبديل والانضمام والتذكيرات.",
+  "@notifEmptyBody": {
+    "description": "Empty state text"
+  },
+  "notifNew": "جديدة",
+  "@notifNew": {
+    "description": "Section header: unread"
+  },
+  "notifEarlier": "سابقة",
+  "@notifEarlier": {
+    "description": "Section header: read"
+  },
+  "notifMarkAllRead": "تحديد الكل كمقروء",
+  "@notifMarkAllRead": {
+    "description": "Icon button tooltip"
+  },
+  "notifAllRead": "تم",
+  "@notifAllRead": {
+    "description": "Snackbar after mark all read"
+  },
+  "notifUnread": "غير مقروء",
+  "@notifUnread": {
+    "description": "Screen reader label of the unread dot"
+  },
+  "notifUnreadCount": "{count, plural, =1{تنبيه غير مقروء} =2{تنبيهان غير مقروءين} few{{count} تنبيهات غير مقروءة} many{{count} تنبيهًا غير مقروء} other{{count} تنبيه غير مقروء}}",
+  "@notifUnreadCount": {
+    "description": "Screen reader text of the Alerts tab dot",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifOpen": "فتح",
+  "@notifOpen": {
+    "description": "Button on the critical alert banner"
+  },
+  "notifSettingsTitle": "إعدادات التنبيهات",
+  "@notifSettingsTitle": {
+    "description": "Screen title and Profile row"
+  },
+  "profileNotificationsHelper": "واتساب وساعات الهدوء",
+  "@profileNotificationsHelper": {
+    "description": "Profile row helper"
+  },
+  "notifSettingsIntro": "تصلك التنبيهات دائمًا على الهاتف. اختر ما يصلك أيضًا على واتساب.",
+  "@notifSettingsIntro": {
+    "description": "Settings intro"
+  },
+  "notifWhatsAppSection": "واتساب أيضًا",
+  "@notifWhatsAppSection": {
+    "description": "Section header"
+  },
+  "notifWhatsAppOn": "واتساب وتنبيه الهاتف",
+  "@notifWhatsAppOn": {
+    "description": "Switch subtitle when on"
+  },
+  "notifWhatsAppOff": "تنبيه الهاتف فقط",
+  "@notifWhatsAppOff": {
+    "description": "Switch subtitle when off"
+  },
+  "notifChatPushOnly": "رسائل المحادثة تصل على الهاتف فقط.",
+  "@notifChatPushOnly": {
+    "description": "Note under the WhatsApp switches"
+  },
+  "notifQuietSection": "ساعات الهدوء",
+  "@notifQuietSection": {
+    "description": "Section header"
+  },
+  "notifQuietHours": "هدوء ليلًا",
+  "@notifQuietHours": {
+    "description": "Switch title"
+  },
+  "notifQuietHelper": "{from} إلى {to}، إلا التنبيهات العاجلة",
+  "@notifQuietHelper": {
+    "description": "Switch subtitle",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "gallerySectionAlerts": "التنبيهات",
+  "@gallerySectionAlerts": {
+    "description": "Gallery section header"
+  },
+  "notifTimeChangedTitle": "موعد جديد",
+  "@notifTimeChangedTitle": {
+    "description": "Notification title: a run moved to a new time"
+  },
+  "notifTimeChangedBody": "مشوار {run} له موعد جديد. راجع الخطة.",
+  "@notifTimeChangedBody": {
+    "description": "Notification text",
+    "placeholders": {
+      "run": {
+        "type": "String"
+      }
+    }
   }
 }

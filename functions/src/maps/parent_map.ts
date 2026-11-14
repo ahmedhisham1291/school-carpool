@@ -24,10 +24,10 @@ import { LIMIT_WINDOWS, type MapLimitKind } from "./limits";
  * - parentLocations/{uid} (PublicLocation): what the nearby search uses.
  *   Only the ROUNDED point (about 500 m) and a geohash of that rounded
  *   point. Cloud Functions only: the app never reads it.
- * - newParentEvents/{uid}: one "new parent nearby" event per parent,
- *   created when the parent is verified, has a home and a school, and is
- *   shown on the map. Prompt 8 sends it (and must check the parent is
- *   still verified and shown at that time).
+ * - notificationEvents/new-parent_{hash of uid}: one "new parent nearby" event per
+ *   parent, created when the parent is verified, has a home and a school,
+ *   and is shown on the map. The notification sender (Prompt 8) checks the
+ *   parent is still verified and shown, then tells nearby parents.
  * - mapLimits/{uid}: the rate limits (limits.ts).
  *
  * Exact pickup points for carpools live in

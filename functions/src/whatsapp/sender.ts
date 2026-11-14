@@ -32,6 +32,17 @@ export class FakeWhatsAppSender implements WhatsAppSender {
     // The code is printed on purpose (dev only, Prompt 2). The number is not.
     this.log(`[fake WhatsApp] sign-in code ${code} for ${maskPhone(toE164)} (${language}). Nothing was sent.`);
   }
+
+  /**
+   * Prompt 8: a notification template. Logs the template, the masked number
+   * and the rendered body ([preview]: generic text with at most a date, no
+   * names). Nothing is sent.
+   */
+  async sendTemplate(toE164: string, template: string, language: Language, params: string[], preview: string): Promise<void> {
+    this.log(
+      `[fake WhatsApp] template ${template} (${language}) to ${maskPhone(toE164)} params=${JSON.stringify(params)}: ${preview} Nothing was sent.`,
+    );
+  }
 }
 
 export interface MetaConfig {
@@ -93,8 +104,42 @@ export class MetaWhatsAppSender implements WhatsAppSender {
     };
   }
 
+  /**
+   * Prompt 8: a utility template for a notification, with its body
+   * parameters (at most the date of a run; never names or message text).
+   */
+  buildTemplateRequest(toE164: string, template: string, language: Language, params: string[]): OutgoingRequest {
+    const { apiVersion, phoneNumberId, templateLanguages, accessToken } = this.config;
+    const body = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: toE164.replace(/^\+/, ""),
+      type: "template",
+      template: {
+        name: template,
+        language: { code: templateLanguages[language] },
+        components: params.length === 0 ? [] : [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }],
+      },
+    };
+    return {
+      url: `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(phoneNumberId)}/messages`,
+      init: {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    };
+  }
+
+  async sendTemplate(toE164: string, template: string, language: Language, params: string[]): Promise<void> {
+    await this.post(this.buildTemplateRequest(toE164, template, language, params));
+  }
+
   async sendCode(toE164: string, code: string, language: Language): Promise<void> {
-    const { url, init } = this.buildRequest(toE164, code, language);
+    await this.post(this.buildRequest(toE164, code, language));
+  }
+
+  private async post({ url, init }: OutgoingRequest): Promise<void> {
     const response = await this.fetchFn(url, { ...init, signal: AbortSignal.timeout(this.timeoutMs) });
     if (response.ok) return;
     // Only Meta's numeric error codes go into the message: never the body,
@@ -119,7 +164,7 @@ export interface SenderSettings {
 }
 
 /** Picks the sender from config. The fake sender is refused in prod. */
-export function createWhatsAppSender(settings: SenderSettings, log: (message: string) => void): WhatsAppSender {
+export function createWhatsAppSender(settings: SenderSettings, log: (message: string) => void): FakeWhatsAppSender | MetaWhatsAppSender {
   if (settings.provider === "fake") {
     if (settings.appEnv === "prod") {
       throw new Error("The fake WhatsApp sender is not allowed in prod (set WHATSAPP_PROVIDER=meta)");

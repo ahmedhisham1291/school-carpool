@@ -77,6 +77,13 @@ const paths = [
   "carpools/k1/exceptions/x1",
   "carpools/k1/balances/2026-t1",
   "scheduleEvents/e1",
+  // Prompt 8 (notifications.test.ts): alice reads her own notifications and
+  // settings; bob's, the outbox, tokens and limits stay closed.
+  "users/bob/notifications/n1",
+  "notificationSettings/bob",
+  "notificationEvents/e1",
+  "pushTokens/abc",
+  "notificationLimits/alice",
   "scheduleEntries/e1",
   "wallets/alice",
   "transfers/t1",

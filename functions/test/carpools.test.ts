@@ -381,6 +381,25 @@ describe("join requests and approval (F6, F25, F36)", () => {
     await requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptContribution: true });
   });
 
+  it("Prompt 8: a join request tells the admins, a decision tells the requester (IDs only)", async () => {
+    const { deps, store } = setup();
+    const id = await aliceCarpool(deps);
+    const before = store.events.length;
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptContribution: true });
+    await decideJoinRequest(deps, as("alice"), { carpoolId: id, uid: "bob", approve: true });
+    await decideJoinRequest(deps, as("alice"), { carpoolId: id, uid: "cara", approve: false });
+    const events = store.events.slice(before).map((e) => ({ type: e.type, recipients: e.recipients, carpoolId: e.carpoolId, actorUid: e.actorUid }));
+    assert.deepEqual(events, [
+      { type: "join-requested", recipients: ["alice"], carpoolId: id, actorUid: "bob" },
+      { type: "join-requested", recipients: ["alice"], carpoolId: id, actorUid: "cara" },
+      { type: "join-approved", recipients: ["bob"], carpoolId: id, actorUid: "alice" },
+      { type: "join-declined", recipients: ["cara"], carpoolId: id, actorUid: "alice" },
+    ]);
+    // No names in the events: the app loads the request after it opens.
+    assert.ok(!/Bob|Cara|Alice|Bassel|Celine|Adam/.test(JSON.stringify(store.events)));
+  });
+
   it("no double requests, no joining twice, children of the right school only", async () => {
     const { deps, store } = setup();
     const id = await aliceCarpool(deps);

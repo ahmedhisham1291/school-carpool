@@ -22,7 +22,9 @@
     "test:emulator": "npm run build && node --test \"lib/test/emulator/*.test.js\"",
     "schools:load:emulator": "npm run build && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-school-carpool node lib/scripts/load_schools.js",
     "schools:load:cloud": "npm run build && node lib/scripts/load_schools.js",
-    "schools:algolia": "npm run build && node lib/scripts/algolia_schools.js"
+    "schools:algolia": "npm run build && node lib/scripts/algolia_schools.js",
+    "notify:emulator": "npm run build && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-school-carpool node lib/scripts/notify.js",
+    "notify:cloud": "npm run build && node lib/scripts/notify.js"
   },
   "dependencies": {
     "@sentry/node": "^11.0.0",

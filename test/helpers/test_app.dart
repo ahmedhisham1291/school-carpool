@@ -10,12 +10,16 @@ import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/maps/location_service.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
+import 'package:school_carpool/features/notifications/local_alarms.dart';
+import 'package:school_carpool/features/notifications/notification_repository.dart';
+import 'package:school_carpool/features/notifications/push_messaging.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
 import 'carpool_fakes.dart';
 import 'map_fakes.dart';
+import 'notification_fakes.dart';
 
 /// Dev config for tests: no emulators, no Sentry.
 const FlavorConfig testDevConfig = FlavorConfig(
@@ -180,7 +184,8 @@ class FakeAuthRepository implements AuthRepository {
 /// fake repository, plus the maps fakes (Profile and Home read the
 /// parent's home since Prompt 5; pass [maps] etc. to control them) and the
 /// carpool fakes (Prompt 6; pass [carpools] and [sharer]) and the schedule
-/// fake (Prompt 7; pass [schedule]). The number of
+/// fake (Prompt 7; pass [schedule]) and the notification fakes (Prompt 8;
+/// pass [notifications], [push] and [alarms]). The number of
 /// overrides is the same for every call (one ProviderScope per test).
 List<Override> authOverrides({
   SessionState session = testVerifiedSession,
@@ -191,9 +196,13 @@ List<Override> authOverrides({
   CarpoolRepository? carpools,
   LinkSharer? sharer,
   ScheduleRepository? schedule,
+  NotificationRepository? notifications,
+  PushMessaging? push,
+  LocalAlarms? alarms,
 }) => <Override>[
   sessionProvider.overrideWithValue(session),
   authRepositoryProvider.overrideWithValue(repository ?? FakeAuthRepository()),
   ...mapOverrides(maps: maps, places: places, location: location),
   ...carpoolOverrides(carpools: carpools, sharer: sharer, schedule: schedule),
+  ...notificationOverrides(notifications: notifications, push: push, alarms: alarms),
 ];

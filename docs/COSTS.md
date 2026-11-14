@@ -190,11 +190,45 @@ No new paid service.
 - **Limits per parent** (server settings): 20 plans a day
   (`SCHEDULE_PLANS_PER_DAY`), 100 other schedule changes a day
   (`SCHEDULE_CHANGES_PER_DAY`).
-- **Alert events** (`scheduleEvents`) wait for Prompt 8's sender; they
-  carry IDs only and expire after 30 days (TTL, SETUP.md 17.2). WhatsApp
-  costs start with Prompt 8: only the critical "no driver" alert goes to
-  WhatsApp by default.
+- **Alert events** go to the notification outbox (`notificationEvents`
+  since Prompt 8); they carry IDs only and expire after 30 days (TTL,
+  SETUP.md 18.5). WhatsApp costs: see Notifications below.
 - **Upgrade when:** never on its own; it counts toward the Firebase row above.
+
+## Notifications (Prompt 8)
+
+No new paid service. FCM (push, through APNs on the iPhone) is free.
+
+- **WhatsApp:** one **utility** template message per WhatsApp notification,
+  billed by Meta per message (Egypt rates in WhatsApp Manager). COST MODE
+  default: only the two critical groups ("no driver", "child not
+  confirmed") go to WhatsApp, and only to parents who agreed to WhatsApp at
+  sign-up. Every other group is push only until the parent switches it on
+  (Settings > Alert settings). Chat is never WhatsApp. In quiet hours
+  (default 22:00 to 06:00 Cairo) non-critical WhatsApp messages are not
+  sent at all. Rough worst case for a carpool of 5 families: one missed
+  run a week = 5 messages a week. Track in WhatsApp Manager > Insights;
+  the dispatcher logs one line per event with counts.
+- **Cloud Functions:** `sendNotification` runs once per event (a schedule
+  change, a join request, a reminder, a decision), a few reads and writes
+  per recipient (account, settings, phones, record, two small
+  transactions). `notificationTick` runs every 5 minutes: about 8,700 runs
+  a month, three small collection group queries each (runs tomorrow, runs
+  in the next hour, runs to confirm) plus the alarm query. Both are far
+  inside the free 2 million invocations. No warm instances.
+- **Cloud Scheduler:** `notificationTick` is the third job
+  (`purgeVerificationImagesDaily`, `scheduleTick`, `notificationTick`): the
+  3 free jobs per billing account are used up. Each further job costs
+  USD 0.10 a month; with dev, staging and prod on one billing account it is
+  already 9 jobs (about USD 0.60 a month).
+- **Firestore:** one in-app record per recipient (expires after 60 days,
+  TTL), one outbox event per notification (30 days). The Notifications tab
+  listens to at most 50 records. Phones: one small document per phone.
+- **Limits per parent:** 30 phone registrations and 100 settings changes a
+  day (`NOTIFY_DEVICE_CHANGES_PER_DAY`, `NOTIFY_SETTINGS_CHANGES_PER_DAY`);
+  signing out is never limited.
+- **Upgrade when:** WhatsApp spend passes the owner's monthly budget: then
+  keep critical only and ask parents to rely on push.
 
 ## Open cost questions
 

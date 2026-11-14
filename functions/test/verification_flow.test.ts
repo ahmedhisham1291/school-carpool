@@ -254,6 +254,17 @@ describe("decideVerification", () => {
     assert.deepEqual(store.audit.at(-1), { actorUid: "admin1", action: "verification.approved", target: `verifications/${caseId}` });
   });
 
+  it("Prompt 8: the decision writes one outbox event for the parent, with a fixed ID", async () => {
+    const caseId = await submitted();
+    await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
+    assert.equal(store.notifications.length, 1);
+    const e = store.notifications[0];
+    assert.equal(e.id, `verification_${caseId}`);
+    assert.equal(e.type, "verification-approved");
+    assert.deepEqual(e.recipients, ["alice"]);
+    assert.equal(e.status, "pending");
+  });
+
   it("reject: rejected status with reason, claim cleared, ID released so the parent can resubmit", async () => {
     const caseId = await submitted();
     await decideVerification(deps, "admin1", { caseId, decision: "reject", reasonCode: "photo_unclear" });

@@ -38,7 +38,7 @@ import {
   type WantedSuggestion,
 } from "./model";
 import { DEFAULT_DEADLINES, type BalanceRecord, type DeadlineSettings, type ExceptionRecord, type RunRecord, type ScheduleEvent, type SwapRecord } from "../schedule/model";
-import { releaseAfterLeave, releaseAfterWithdraw } from "../schedule/release";
+import { event, releaseAfterLeave, releaseAfterWithdraw } from "../schedule/release";
 
 /**
  * Carpool flows (F5, F6, F25, F26, F31, F32, F36, F39) over a [CarpoolStore].
@@ -614,6 +614,8 @@ export async function requestToJoin(deps: CarpoolDeps, caller: Caller, data: unk
     if (carpool.kind === "school" && children.some((c) => c.schoolId !== carpool.schoolId)) throw new CarpoolError("wrong-school");
     if (!input.acceptRules || (carpool.contribution && !input.acceptContribution)) throw new CarpoolError("must-accept");
     if (children.length > seatsLeft(carpool)) throw new CarpoolError("no-seats");
+    // Prompt 8: the carpool's admins are told (IDs only; they open the request in the app).
+    const admins = (await tx.members(input.carpoolId)).filter((m) => m.role === "admin").map((m) => m.uid);
     const nowMs = deps.now();
     tx.putMembership({
       carpoolId: input.carpoolId,
@@ -632,6 +634,7 @@ export async function requestToJoin(deps: CarpoolDeps, caller: Caller, data: unk
       updatedAtMs: nowMs,
     });
     tx.putRequest(input.carpoolId, { uid: caller.uid, firstName: account.firstName, children: childRefs(children), car, requestedAtMs: nowMs });
+    if (admins.length > 0) tx.addEvent(event("join-requested", input.carpoolId, admins, nowMs, { actorUid: caller.uid }));
     return { status: "requested" as const };
   });
 }
@@ -674,6 +677,7 @@ export async function decideJoinRequest(deps: CarpoolDeps, caller: Caller, data:
     tx.deleteRequest(carpoolId, uid);
     if (!approve) {
       tx.putMembership({ ...m, status: "declined", decidedAtMs: nowMs, decidedBy: caller.uid, updatedAtMs: nowMs });
+      tx.addEvent(event("join-declined", carpoolId, [uid], nowMs, { actorUid: caller.uid }));
       return { status: "declined" as const };
     }
     if (!requester || requester.status !== "verified") throw new CarpoolError("not-verified");
@@ -687,6 +691,7 @@ export async function decideJoinRequest(deps: CarpoolDeps, caller: Caller, data:
       memberCount: carpool.memberCount + 1,
       updatedAtMs: nowMs,
     });
+    tx.addEvent(event("join-approved", carpoolId, [uid], nowMs, { actorUid: caller.uid }));
     return { status: "approved" as const };
   });
 }

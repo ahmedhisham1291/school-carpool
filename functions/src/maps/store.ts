@@ -1,6 +1,8 @@
 import { GeoPoint, Timestamp, type DocumentData, type Firestore } from "firebase-admin/firestore";
 import { USERS } from "../auth/accounts";
 import { SCHOOLS } from "../admin_panel/store";
+import { NOTIFICATION_EVENTS, outboxDoc } from "../notifications/outbox";
+import { newParentEvent } from "../notifications/producers";
 import { CHILDREN } from "../verification/store";
 import { DEFAULT_RADIUS_KM, type LatLng } from "./geo";
 import { takeFromWindow, type MapLimitKind, type WindowCounter } from "./limits";
@@ -9,6 +11,7 @@ import type { PlaceCache, PlaceDetails } from "./places";
 
 export const HOMES = "homes";
 export const PARENT_LOCATIONS = "parentLocations";
+/** Prompt 5 only; since Prompt 8 the event goes to notificationEvents. Kept closed in firestore.rules. */
 export const NEW_PARENT_EVENTS = "newParentEvents";
 export const MAP_LIMITS = "mapLimits";
 export const PLACE_CACHE = "placeCache";
@@ -184,17 +187,15 @@ export class FirestoreMapStore implements MapStore {
     return out;
   }
 
+  /**
+   * Prompt 8: the event goes to the notification outbox with a fixed ID
+   * (new-parent_{hash of uid}), so it is created once per parent ever. Only the
+   * rounded point and the school IDs; no name.
+   */
   async createNewParentEvent(event: NewParentEvent): Promise<boolean> {
+    const outbox = newParentEvent(event.uid, event.schoolIds, event.point, event.createdAtMs);
     try {
-      await this.db.collection(NEW_PARENT_EVENTS).doc(event.uid).create({
-        uid: event.uid,
-        firstName: event.firstName,
-        schoolIds: event.schoolIds,
-        point: new GeoPoint(event.point.lat, event.point.lng),
-        geohash: event.geohash,
-        status: event.status,
-        createdAt: Timestamp.fromMillis(event.createdAtMs),
-      });
+      await this.db.collection(NOTIFICATION_EVENTS).doc(outbox.id).create(outboxDoc(outbox));
       return true;
     } catch (error) {
       const code = (error as { code?: unknown }).code;

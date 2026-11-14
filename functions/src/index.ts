@@ -113,3 +113,14 @@ export {
   setDrivingDays,
   takeRun,
 } from "./schedule/callables";
+
+// Notifications (Prompt 8: F12, F23): ONE sender (sendNotification) for
+// every event in notificationEvents, the reminder and alarm tick, phones
+// and settings.
+export {
+  notificationTick,
+  registerPushDevice,
+  sendNotification,
+  unregisterPushDevice,
+  updateNotificationSettings,
+} from "./notifications/callables";

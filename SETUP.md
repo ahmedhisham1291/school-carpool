@@ -813,3 +813,122 @@ recovery off for now. The schedule lives in Firestore under
 `carpools/{id}/schedule`, `swaps`, `exceptions` and `balances`, so the
 daily backup covers it.
 
+
+## 18. Notifications: push and WhatsApp (Prompt 8)
+
+One Cloud Function, `sendNotification`, sends every notification. Every
+producer (schedule flows, join requests, verification decisions, the
+new-parent event, the reminder and alarm tick) writes an event to
+`notificationEvents`; the function writes the in-app record
+(`users/{uid}/notifications/{eventId}`), sends the push to each of the
+parent's phones and, when that group is on, the WhatsApp template.
+
+### 18.1 Push on the iPhone: APNs key (each cloud project, once)
+
+1. Apple Developer > Identifiers: the three App IDs already have **Push
+   Notifications** (step 1.2). Nothing to add.
+2. Apple Developer > Keys: the APNs `.p8` key from step 1.3 works for every
+   App ID of the team. Keep the Key ID and Team ID.
+3. Firebase console, **for each project (dev, staging, prod)** > Project
+   settings > Cloud Messaging > Apple app configuration > the iOS app of
+   that project > **APNs Authentication Key > Upload**: the `.p8`, its Key
+   ID and the Team ID. (Same as step 3.7; check it is done in all three.)
+4. Without this, FCM accepts the token but nothing reaches the iPhone.
+
+### 18.2 Functions settings (each cloud project)
+
+In `functions/.env.dev`, `.env.staging`, `.env.prod`:
+
+| Setting | Value | Notes |
+| --- | --- | --- |
+| `PUSH_PROVIDER` | `fcm` in dev (cloud), staging and prod; `fake` on the emulators | `fake` logs the push (type, level, number of phones; never the token) and is refused in prod |
+| `WHATSAPP_PROVIDER` | as section 9 (`fake` until the Meta account is live) | the fake logs the template, the masked number and the generic text |
+| `NOTIFY_ALARM_DELAY_MIN` | 15 | critical alert unread this long: the alarm sounds |
+| `REMINDER_EVENING_AT` | `19:00` | Cairo time of the "you drive tomorrow" reminder |
+| `NOTIFY_DEVICE_CHANGES_PER_DAY`, `NOTIFY_SETTINGS_CHANGES_PER_DAY` | 30, 100 | limits per parent |
+
+Deploy rules, indexes and functions:
+`firebase deploy --only firestore:rules,firestore:indexes,functions --project dev`.
+The first deploy creates the collection group index on `notifications`
+(alarmState + alarmAt) and the Cloud Scheduler job of `notificationTick`
+(every 5 minutes, Africa/Cairo).
+
+### 18.3 Time Sensitive Notifications (iPhone, optional but recommended)
+
+Critical alerts ("no driver", "child not confirmed") are sent with the
+iOS interruption level **time-sensitive**, so they break through Focus.
+That needs the capability:
+
+1. Apple Developer > Identifiers > each App ID > tick **Time Sensitive
+   Notifications** > Save. Regenerate the provisioning profiles (Codemagic
+   does it on the next build).
+2. Set `TIME_SENSITIVE_ALERTS=1` in the Codemagic environment group (and
+   in your shell when you run `tool/bootstrap.sh` on the Mac).
+   `tool/patch_native.py` then adds the entitlement
+   `com.apple.developer.usernotifications.time-sensitive`.
+
+Leave it unset until step 1 is done: signing fails when the entitlement is
+present but the App ID lacks the capability. Without it, critical alerts
+still sound, but Focus can hold them.
+
+### 18.4 WhatsApp templates (Meta Business Manager, before the pilot)
+
+Create these **utility** templates, Arabic and English, in WhatsApp
+Manager > Message templates. `{{1}}` is the run ("Mon 16 Nov, to school");
+the others have no parameter. No names, no addresses, no message text.
+
+| Template | English body |
+| --- | --- |
+| `cp_no_driver` | No driver for {{1}}. Please take your own child. |
+| `cp_child_not_confirmed` | A drop-off was not confirmed. Please check now. |
+| `cp_drive_tomorrow` | You drive the {{1}} run. |
+| `cp_drive_soon` | Your {{1}} run starts within the hour. |
+| `cp_confirm_drive` | Please confirm the {{1}} run before the deadline. |
+| `cp_swap_requested` | A member asked for a swap: {{1}}. |
+| `cp_new_driver` | The {{1}} run has a driver now. |
+| `cp_swap_cancelled` | The swap for {{1}} was taken back. |
+| `cp_needs_driver` | The {{1}} run needs a driver. |
+| `cp_child_absent` | A child is away for the {{1}} run. |
+| `cp_child_back` | A child is back for the {{1}} run. |
+| `cp_plan_ready` | Check your runs this week. |
+| `cp_schedule_changed` | Days off or times changed in your carpool. |
+| `cp_time_changed` | The {{1}} run has a new time. Check the plan. |
+| `cp_join_requested` | A parent asked to join your carpool. |
+| `cp_join_approved` | You are now in the carpool. |
+| `cp_join_declined` | Your request to join was declined. |
+| `cp_review_approved` | Your documents were approved. |
+| `cp_review_rejected` | Open the app to see what to fix. |
+| `cp_new_parent` | A new verified parent near your school. |
+
+The Arabic bodies are in `functions/src/notifications/texts.ts`. Add
+"Open the app for details." as the footer. Only `cp_no_driver` and
+`cp_child_not_confirmed` (and `cp_time_changed` when a run moved with no
+time left to confirm: it follows the "No driver" switch) are sent by
+default (COST MODE); the others only
+for parents who switch that group on, and only to parents who agreed to
+WhatsApp at sign-up.
+
+### 18.5 Expiry (each cloud project)
+
+Firestore > TTL policies: collection group `notificationEvents`, field
+`expiresAt` (30 days), and collection group `notifications`, field
+`expiresAt` (in-app records, 60 days). The old `scheduleEvents` policy
+from section 17.2 can stay; nothing writes there any more.
+
+### 18.6 On the emulators and on the iPhone
+
+- **Emulators:** the functions emulator runs `sendNotification` whenever an
+  event is written. With `PUSH_PROVIDER` and `WHATSAPP_PROVIDER` at `fake`,
+  the emulator log shows `[fake push] ...` and `[fake WhatsApp] template
+  cp_... to +20*******01 ...`. The emulators do not run scheduled
+  functions: run the reminders and alarms by hand with
+  `npm --prefix functions run carpool:emulator -- remind --as any`, or
+  send one test event with
+  `npm --prefix functions run notify:emulator -- <uid> <type> [carpoolId] [YYYY-MM-DD]`.
+- **A real push on the iPhone** needs the deployed dev project (FCM cannot
+  reach a phone from the emulators: the app on the emulators uses a demo
+  project with no push sender). Do 18.1 and 18.2 for dev, deploy, run the
+  dev build **without** `EMULATOR_HOST`, sign in, allow notifications,
+  then `GCLOUD_PROJECT=<dev project id> npm --prefix functions run notify:cloud -- <your uid> drive-hour`
+  (needs `gcloud auth application-default login`; refuses any project
+  that does not end in `-dev`).

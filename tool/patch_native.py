@@ -25,6 +25,13 @@ What it changes
            fails unless the App ID has the Associated Domains capability
            (SETUP.md section 16). Flutter deep linking is switched on in
            Info.plist so go_router gets the /c/<code> path.
+  Alerts   (Prompt 8) flutter_local_notifications: AppDelegate sets the
+           notification center delegate (alarms show while the app is
+           open); Android gets core library desugaring and the plugin's
+           scheduled-notification receivers. When TIME_SENSITIVE_ALERTS=1
+           the Time Sensitive Notifications entitlement is added (the App
+           ID needs that capability first, SETUP.md section 18.3; without
+           it critical alerts still sound but do not break through Focus).
 """
 
 from __future__ import annotations
@@ -140,6 +147,7 @@ def patch_ios(bundle_id: str, display_name: str) -> None:
     entitlements = ios / "Runner" / "Runner.entitlements"
     shutil.copyfile(IOS_OVERRIDES / "Runner.entitlements", entitlements)
     patch_associated_domains(entitlements)
+    patch_time_sensitive(entitlements)
 
     # Localized permission texts and display name.
     for lang in ("ar", "en"):
@@ -169,6 +177,21 @@ def patch_associated_domains(entitlements: Path) -> None:
     with entitlements.open("wb") as f:
         plistlib.dump(data, f, sort_keys=False)
     log("associated domains: " + (f"applinks:{domain}" if domain else "none (INVITE_LINK_DOMAIN not set)"))
+
+
+def patch_time_sensitive(entitlements: Path) -> None:
+    """Adds the Time Sensitive Notifications entitlement when TIME_SENSITIVE_ALERTS=1 (Prompt 8)."""
+    on = os.environ.get("TIME_SENSITIVE_ALERTS", "").strip() == "1"
+    with entitlements.open("rb") as f:
+        data = plistlib.load(f)
+    key = "com.apple.developer.usernotifications.time-sensitive"
+    if on:
+        data[key] = True
+    else:
+        data.pop(key, None)
+    with entitlements.open("wb") as f:
+        plistlib.dump(data, f, sort_keys=False)
+    log("time sensitive notifications: " + ("on" if on else "off (TIME_SENSITIVE_ALERTS not 1)"))
 
 
 def display_name_for(lang: str, english_name: str) -> str:
@@ -337,6 +360,76 @@ def patch_maps_web() -> None:
     patch_text(index, html)
 
 
+# --------------------------------------------------------------------------
+# Alerts (Prompt 8): flutter_local_notifications
+# --------------------------------------------------------------------------
+
+ALERTS_MARKER = "school-carpool: local alerts"
+APP_DELEGATE_ALERTS_BLOCK = (
+    "    // " + ALERTS_MARKER + " (critical-alert alarms show while the app is open).\n"
+    "    UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate\n"
+)
+
+
+def patch_alerts_ios() -> None:
+    delegate = ROOT / "ios" / "Runner" / "AppDelegate.swift"
+    if not delegate.exists():
+        return
+
+    def swift(text: str) -> str:
+        if ALERTS_MARKER in text:
+            return text
+        if "import UserNotifications" not in text:
+            text = re.sub(r"^import UIKit$", "import UIKit\nimport UserNotifications", text, count=1, flags=re.M)
+        match = re.search(r"didFinishLaunchingWithOptions[^{]*\{\n", text)
+        if not match:
+            log("WARNING: could not find didFinishLaunchingWithOptions in AppDelegate.swift (SETUP.md section 18)")
+            return text
+        return text[: match.end()] + APP_DELEGATE_ALERTS_BLOCK + text[match.end():]
+
+    patch_text(delegate, swift)
+
+
+DESUGAR_MARKER = "// school-carpool: desugaring for flutter_local_notifications"
+DESUGAR_DEPENDENCY = 'coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")'
+LOCAL_NOTIFICATION_RECEIVERS = (
+    '        <!-- ' + ALERTS_MARKER + ' -->\n'
+    '        <receiver android:exported="false" '
+    'android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />\n'
+    '        <receiver android:exported="false" '
+    'android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">\n'
+    '            <intent-filter>\n'
+    '                <action android:name="android.intent.action.BOOT_COMPLETED"/>\n'
+    '                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>\n'
+    '                <action android:name="android.intent.action.QUICKBOOT_POWERON" />\n'
+    '                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>\n'
+    '            </intent-filter>\n'
+    '        </receiver>\n'
+)
+
+
+def patch_alerts_android() -> None:
+    gradle = ROOT / "android" / "app" / "build.gradle.kts"
+    if gradle.exists():
+        def kts(text: str) -> str:
+            if DESUGAR_MARKER in text:
+                return text
+            if "isCoreLibraryDesugaringEnabled" not in text:
+                text = re.sub(r"(compileOptions\s*\{\n)", r"\1        isCoreLibraryDesugaringEnabled = true\n", text, count=1)
+            return text.rstrip("\n") + "\n\n" + DESUGAR_MARKER + "\ndependencies {\n    " + DESUGAR_DEPENDENCY + "\n}\n"
+        patch_text(gradle, kts)
+    manifest = ROOT / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
+    if manifest.exists():
+        def xml(text: str) -> str:
+            if ALERTS_MARKER in text:
+                return text
+            perm = "android.permission.RECEIVE_BOOT_COMPLETED"
+            if perm not in text:
+                text = re.sub(r"(<manifest[^>]*>\n)", rf'\1    <uses-permission android:name="{perm}" />\n', text, count=1)
+            return re.sub(r"(<application[^>]*>\n)", lambda m: m.group(1) + LOCAL_NOTIFICATION_RECEIVERS, text, count=1)
+        patch_text(manifest, xml)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ios-bundle-id", required=True)
@@ -349,6 +442,8 @@ def main() -> int:
     patch_android(args.android_app_id)
     patch_maps_android()
     patch_maps_web()
+    patch_alerts_ios()
+    patch_alerts_android()
     return 0
 
 

@@ -151,6 +151,15 @@ focused and hovered controls get a veil of their label color at
   success, Needs driver and Own trip error, No school and Done neutral.
   Driver actions in the run sheet are large buttons
   (`AppButtonSize.large`), one primary at a time, with no typing.
+- **Alerts** (Prompt 8, in the gallery under "Alerts"): `AppUnreadDot` (an
+  8 dp accent dot with a screen-reader label; on notification rows and on
+  the Alerts tab icon while something is unread) and `AppAlertBanner` (an
+  error-toned card with a hairline border, one-line title, one sentence
+  and one Open button, pinned above the tabs while a critical alert is
+  unopened). The Notifications tab reuses `AppListRow` (group icon,
+  one-line title, the sentence as subtitle, time and dot trailing) under
+  "New" and "Earlier" section headers; alert settings reuse
+  `AppSwitchRow`. Notification text never names a child or parent.
 - New component: add it to the gallery first, then use it.
 
 ## One-line wording
