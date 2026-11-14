@@ -4,7 +4,7 @@ import { USERS } from "../auth/accounts";
 import { takeFromWindow, type WindowCounter } from "../maps/limits";
 import { publicFromDoc } from "../maps/store";
 import { asLanguage } from "../whatsapp/sender";
-import { isNotificationType } from "./catalog";
+import { isNotificationType, isPushOnlyId } from "./catalog";
 import { NOTIFICATION_EVENTS, outboxDoc } from "./outbox";
 import {
   MAX_DEVICES,
@@ -24,6 +24,9 @@ import type { DeviceStore, NotificationLimitKind } from "./devices";
 import type { RunLite, TickStore } from "./tick";
 
 export const NOTIFICATIONS = "notifications";
+/** Prompt 9: delivery records of chat pushes (push only, not in the Notifications tab). */
+export const CHAT_PUSHES = "chatPushes";
+const CHAT_PUSH_TTL_DAYS = 2;
 export const NOTIFICATION_SETTINGS = "notificationSettings";
 export const PUSH_TOKENS = "pushTokens";
 export const NOTIFICATION_LIMITS = "notificationLimits";
@@ -139,7 +142,7 @@ export class FirestoreNotifyStore implements NotifyStore, TickStore, DeviceStore
   }
 
   private recordRef(uid: string, id: string) {
-    return this.db.collection(USERS).doc(uid).collection(NOTIFICATIONS).doc(id);
+    return this.db.collection(USERS).doc(uid).collection(isPushOnlyId(id) ? CHAT_PUSHES : NOTIFICATIONS).doc(id);
   }
 
   async recipient(uid: string): Promise<Recipient | null> {
@@ -207,7 +210,10 @@ export class FirestoreNotifyStore implements NotifyStore, TickStore, DeviceStore
   async ensureRecord(record: NotificationRecord): Promise<NotificationRecord> {
     const ref = this.recordRef(record.uid, record.id);
     try {
-      await ref.create(recordToDoc(record));
+      const doc = recordToDoc(record);
+      // Chat pushes: kept only long enough to stop a retried webhook pushing twice.
+      if (isPushOnlyId(record.id)) doc.expiresAt = ts(record.createdAtMs + CHAT_PUSH_TTL_DAYS * DAY);
+      await ref.create(doc);
       return record;
     } catch (error) {
       if (!isAlreadyExists(error)) throw error;

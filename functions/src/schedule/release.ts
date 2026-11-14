@@ -117,3 +117,30 @@ export async function releaseAfterWithdraw(
     tx.addEvent({ ...released.event, actorUid: parentUid });
   }
 }
+
+/**
+ * Urgent report (Prompt 9, spec section 6): [driverUid]'s driving days pause
+ * at once. Every future run they drive in this carpool loses its driver and
+ * becomes open for the group to take (or missed with the "take your own
+ * child" alert when it is too late). The group is told only that the
+ * driver is unavailable: the event never says why. Returns the runs freed.
+ */
+export async function releaseAfterPause(
+  tx: CarpoolTx,
+  carpoolId: string,
+  driverUid: string,
+  members: MemberRecord[],
+  today: string,
+  nowMs: number,
+  settings: DeadlineSettings,
+): Promise<number> {
+  let freed = 0;
+  for (const run of await liveRuns(tx, carpoolId, today, nowMs)) {
+    if (run.driverUid !== driverUid) continue;
+    const released = releaseRun(run, uids(members), nowMs, settings, null);
+    tx.putRun(released.run);
+    tx.addEvent({ ...released.event, actorUid: driverUid });
+    freed += 1;
+  }
+  return freed;
+}

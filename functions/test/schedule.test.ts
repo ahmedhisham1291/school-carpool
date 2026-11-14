@@ -12,6 +12,7 @@ import {
 } from "../src/carpools/flow";
 import { deadlineSettings } from "../src/carpools/callables";
 import { CarpoolError, type ConsentRecord, type MemberRecord } from "../src/carpools/model";
+import { pauseDriverRuns } from "../src/schedule/pause";
 import { addDays, cairoOffsetMinutes, cairoToUtcMs, termOf, weekdayOf, weekStartOf } from "../src/schedule/cairo";
 import {
   cancelSwap,
@@ -919,5 +920,39 @@ describe("the Done-when flow", () => {
     await setChildAbsent(deps, as("alice"), { carpoolId: k, date: "2026-11-16", childId: "a1", absent: true });
     await saveException(deps, as("alice"), { carpoolId: k, kind: "noSchool", reason: "holiday", from: "2026-11-19" });
     assert.equal(store.runs.get(k)?.get(runId("2026-11-19", "toSchool"))?.status, "cancelled");
+  });
+});
+
+describe("urgent report pauses driving (Prompt 9, spec section 6)", () => {
+  it("every future run of the driver opens for the group, who are told only that the driver is unavailable", async () => {
+    const { deps, store } = setup();
+    const k = await readyCarpool(deps);
+    await planWeek(deps, as("alice"), { carpoolId: k, weekStart: WEEK });
+    const bobs = runsOf(store, k).filter((r) => r.driverUid === "bob");
+    assert.ok(bobs.length > 0);
+    const before = store.events.length;
+    const result = await pauseDriverRuns(deps, "bob");
+    assert.deepEqual(result, { carpools: 1, runs: bobs.length });
+    for (const r of bobs) {
+      const after = store.runs.get(k)?.get(r.id) as RunRecord;
+      assert.equal(after.status, "open");
+      assert.equal(after.driverUid, null);
+    }
+    const events = store.events.slice(before);
+    assert.equal(events.length, bobs.length);
+    assert.ok(events.every((e) => e.type === "driver-unavailable" && e.actorUid === "bob"));
+    // Alice's runs keep their driver.
+    assert.ok(runsOf(store, k).filter((r) => r.driverUid === "alice").length > 0);
+  });
+
+  it("a paused driver (status paused) cannot take an open run", async () => {
+    const { deps, store } = setup();
+    const k = await readyCarpool(deps);
+    await planWeek(deps, as("alice"), { carpoolId: k, weekStart: WEEK });
+    await pauseDriverRuns(deps, "bob");
+    store.accounts.set("bob", { status: "paused", firstName: "Bob" });
+    const open = runsOf(store, k).find((r) => r.status === "open") as RunRecord;
+    await assert.rejects(takeRun(deps, as("bob"), { carpoolId: k, runId: open.id }));
+    assert.equal(store.runs.get(k)?.get(open.id)?.driverUid, null);
   });
 });
