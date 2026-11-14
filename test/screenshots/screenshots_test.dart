@@ -51,8 +51,8 @@ import 'package:school_carpool/features/schools/school_picker_screen.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
 import 'package:school_carpool/features/trips/trip_models.dart';
 import 'package:school_carpool/features/trips/trip_repository.dart';
-import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/features/trust/trust_models.dart';
+import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/features/wallet/wallet_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
@@ -70,8 +70,8 @@ import '../helpers/schedule_fakes.dart';
 import '../helpers/school_fakes.dart';
 import '../helpers/test_app.dart';
 import '../helpers/trip_fakes.dart';
-import '../helpers/verification_fakes.dart';
 import '../helpers/trust_fakes.dart';
+import '../helpers/verification_fakes.dart';
 import '../helpers/wallet_fakes.dart';
 
 Future<void> _pumpScreen(
