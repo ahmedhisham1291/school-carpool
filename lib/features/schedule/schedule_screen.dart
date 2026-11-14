@@ -10,6 +10,7 @@ import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
 import 'package:school_carpool/features/schedule/schedule_labels.dart';
+import 'package:school_carpool/features/schedule/offline_confirmations.dart';
 import 'package:school_carpool/features/schedule/schedule_logic.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
@@ -295,6 +296,35 @@ class _RunSheetState extends ConsumerState<RunSheet> {
 
   ScheduleRun get _run => widget.run;
 
+  /// Prompt 12: offline, the confirmation waits on the phone and is sent
+  /// once when the connection is back (offline_confirmations.dart).
+  Future<void> _confirm(ScheduleRepository repo, String carpoolId) async {
+    final AppLocalizations l10n = context.l10n;
+    final NavigatorState navigator = Navigator.of(context);
+    final ConfirmationQueue queue = ref.read(confirmationQueueProvider.notifier);
+    setState(() {
+      _busy = 'confirm';
+      _error = null;
+    });
+    try {
+      await repo.confirmRun(carpoolId, _run.id);
+      showAppSnackBarOn(widget.messenger, l10n.scheduleConfirmedSnack);
+      navigator.pop();
+    } on CarpoolFailure catch (failure) {
+      if (failure.kind == CarpoolFailureKind.offline) {
+        await queue.add(carpoolId, _run.id);
+        showAppSnackBarOn(widget.messenger, l10n.scheduleConfirmQueued);
+        navigator.pop();
+      } else if (mounted) {
+        setState(() => _error = failure.message(l10n));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = null);
+      }
+    }
+  }
+
   Future<void> _do(String key, Future<void> Function() action, String done, {String? confirmTitle, String? confirmBody, String? confirmLabel}) async {
     final AppLocalizations l10n = context.l10n;
     if (confirmTitle != null) {
@@ -422,7 +452,7 @@ class _RunSheetState extends ConsumerState<RunSheet> {
             size: AppButtonSize.large,
             expand: true,
             loading: _busy == 'confirm',
-            onPressed: _busy != null ? null : () => unawaited(_do('confirm', () => repo.confirmRun(id, _run.id), l10n.scheduleConfirmedSnack)),
+            onPressed: _busy != null ? null : () => unawaited(_confirm(repo, id)),
           ),
         if (action == RunAction.take)
           AppButton(

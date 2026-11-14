@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/chat/chat_provider.dart';
+import 'package:school_carpool/features/verification/image_compressor.dart';
 import 'package:stream_chat_flutter_core/stream_chat_flutter_core.dart' as sc;
 import 'package:stream_chat_persistence/stream_chat_persistence.dart' as scp;
 
@@ -358,7 +359,9 @@ class _StreamConversation implements ChatConversation {
   @override
   Future<void> sendPhoto(Uint8List jpeg) async {
     await _ready;
-    final sc.AttachmentFile file = sc.AttachmentFile(size: jpeg.length, bytes: jpeg, name: 'photo.jpg');
+    // Prompt 12: chat photos are WebP on the phone (JPEG on the web).
+    final String name = ImageSizing.isWebp(jpeg) ? 'photo.webp' : 'photo.jpg';
+    final sc.AttachmentFile file = sc.AttachmentFile(size: jpeg.length, bytes: jpeg, name: name);
     await _channel.sendMessage(sc.Message(attachments: <sc.Attachment>[sc.Attachment(type: 'image', file: file)]));
   }
 

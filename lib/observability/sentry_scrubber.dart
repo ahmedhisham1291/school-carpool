@@ -1,4 +1,5 @@
 import 'package:school_carpool/observability/pii_scrubber.dart';
+import 'package:school_carpool/observability/sentry_area.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// `beforeSend` hook: strips personal data from every event.
@@ -47,10 +48,8 @@ SentryEvent scrubSentryEvent(SentryEvent event, Hint hint) {
   final String? userId = event.user?.id;
   event.user = userId == null ? null : SentryUser(id: userId);
 
-  final Map<String, String>? tags = event.tags;
-  if (tags != null) {
-    event.tags = PiiScrubber.scrubStringMap(tags);
-  }
+  // Prompt 12: the feature area for the owner's alert rules (a fixed word).
+  event.tags = PiiScrubber.scrubStringMap(<String, String>{...?event.tags, 'area': SentryArea.current});
 
   // ignore: deprecated_member_use
   final Map<String, dynamic>? extra = event.extra;

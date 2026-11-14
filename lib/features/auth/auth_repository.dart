@@ -116,6 +116,8 @@ class FirebaseAuthRepository implements AuthRepository {
       'code': code,
       'deviceId': _installId,
       'language': language,
+      // Prompt 12: shown in the parent's list of phones.
+      'platform': platformName(),
     });
     final Object? token = data['token'];
     if (token is! String || token.isEmpty) {

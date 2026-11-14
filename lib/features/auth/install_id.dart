@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
@@ -32,3 +33,12 @@ final Provider<String> installIdProvider = Provider<String>((Ref ref) {
   unawaited(store.write(InstallId.storageKey, id));
   return id;
 });
+
+/// "ios", "android" or "web": shown in the parent's list of phones
+/// (Prompt 12). Never a model name or a hardware ID.
+String platformName() {
+  if (kIsWeb) {
+    return 'web';
+  }
+  return defaultTargetPlatform == TargetPlatform.android ? 'android' : 'ios';
+}

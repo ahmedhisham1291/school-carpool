@@ -35,6 +35,7 @@ class Account {
     this.verification,
     this.claimsUpdatedAtMs,
     this.whatsappOptIn = false,
+    this.newDeviceCheck = false,
   });
 
   factory Account.fromMap(Map<String, dynamic> data) => Account(
@@ -52,6 +53,10 @@ class Account {
       _ => null,
     },
     whatsappOptIn: data['whatsappOptIn'] == true,
+    newDeviceCheck: switch (data['newDeviceCheck']) {
+      final Map<Object?, Object?> check => check['required'] == true,
+      _ => false,
+    },
   );
 
   /// Public 8-character parent ID (F44).
@@ -79,6 +84,11 @@ class Account {
   /// settings). Without it no notification goes to WhatsApp (Prompt 8).
   final bool whatsappOptIn;
 
+  /// Prompt 12: signed in on a new phone. Chats, the wallet and child data
+  /// stay closed until a fresh selfie matches (set and cleared by Cloud
+  /// Functions only; firestore.rules keep child records closed meanwhile).
+  final bool newDeviceCheck;
+
   /// True while a submission waits for review: nothing new can be sent.
   bool get reviewPending => verification?.status == ReviewStatus.pending || status == AccountStatus.pending;
 
@@ -104,9 +114,21 @@ class Account {
       other.language == language &&
       other.firstName == firstName &&
       other.verification == verification &&
-      other.claimsUpdatedAtMs == claimsUpdatedAtMs;
+      other.claimsUpdatedAtMs == claimsUpdatedAtMs &&
+      other.newDeviceCheck == newDeviceCheck;
 
   @override
-  int get hashCode =>
-      Object.hash(parentId, status, phone, email, emailVerified, termsAccepted, language, firstName, verification, claimsUpdatedAtMs);
+  int get hashCode => Object.hash(
+    parentId,
+    status,
+    phone,
+    email,
+    emailVerified,
+    termsAccepted,
+    language,
+    firstName,
+    verification,
+    claimsUpdatedAtMs,
+    newDeviceCheck,
+  );
 }
