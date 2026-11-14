@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_carpool/settings/settings_store.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 /// The app's own alarm for critical alerts (spec section 11: "sound an
@@ -35,6 +36,23 @@ int alarmIdFor(String notificationId) {
     hash = (hash * 0x01000193) & 0xffffffff;
   }
   return hash & 0x7fffffff;
+}
+
+/// IDs of critical alerts whose alarm this phone already rang or scheduled
+/// (newest last, at most [kRungAlarmsKept]), so an old unread alert never
+/// rings again when the app opens. IDs only; no personal data.
+const String kRungAlarmsKey = 'alarms.rung';
+const int kRungAlarmsKept = 50;
+
+Set<String> rungAlarmIds(SettingsStore store) {
+  final String? raw = store.read(kRungAlarmsKey);
+  return raw == null || raw.isEmpty ? <String>{} : raw.split(',').toSet();
+}
+
+Future<void> rememberAlarm(SettingsStore store, String notificationId) async {
+  final List<String> ids = <String>[...rungAlarmIds(store).where((String x) => x != notificationId), notificationId];
+  final int drop = ids.length > kRungAlarmsKept ? ids.length - kRungAlarmsKept : 0;
+  await store.write(kRungAlarmsKey, ids.skip(drop).join(','));
 }
 
 /// "notificationId|route": what a tapped alarm opens.

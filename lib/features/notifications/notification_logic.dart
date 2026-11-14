@@ -20,9 +20,14 @@ class AlarmPlan {
   bool get isEmpty => schedule.isEmpty && ringNow.isEmpty && cancel.isEmpty;
 }
 
+/// An alarm whose time passed longer ago than this does not ring when the
+/// app opens: the run it was about is over (the banner still shows it).
+const Duration kAlarmRingWindow = Duration(hours: 2);
+
 /// Plans the app's alarms (spec section 11) from the notifications list:
 /// every unread critical alert has an alarm at its alarm time; when that
-/// time has passed it rings once (per app run, [rung]); an opened alert's
+/// time has passed it rings once ever ([rung] is kept on the phone), and
+/// only within [kAlarmRingWindow] of the alarm time; an opened alert's
 /// alarm is cancelled. [pending] are the alarms the phone still holds.
 AlarmPlan planAlarms(List<AppNotification> notifications, {required DateTime now, required Set<int> pending, required Set<String> rung}) {
   final List<AppNotification> schedule = <AppNotification>[];
@@ -39,7 +44,7 @@ AlarmPlan planAlarms(List<AppNotification> notifications, {required DateTime now
       if (!pending.contains(id)) {
         schedule.add(n);
       }
-    } else if (!rung.contains(n.id)) {
+    } else if (!rung.contains(n.id) && now.difference(at) <= kAlarmRingWindow) {
       ring.add(n);
     }
   }

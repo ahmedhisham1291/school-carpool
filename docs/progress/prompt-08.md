@@ -227,3 +227,39 @@ the gallery under "Alerts".
   `notificationLimits` and `users/{uid}/notifications` (Prompt 12 list).
 - Not verified here: `flutter analyze`, `flutter test`, the rules tests,
   the iOS build with the new plugin.
+
+## Follow-ups after review (branch `prompt-08-followups`)
+
+Fixed (docs/reviews/prompt-08-review.md):
+
+1. **Old alarms no longer ring at every start.** An alarm rings only within
+   two hours of its alarm time (`kAlarmRingWindow`), and the IDs of alarms
+   the phone rang or scheduled are kept on the phone (`alarms.rung`, at most
+   50, IDs only; also written by the background handler; cleared at sign
+   out), so none rings twice.
+2. **WhatsApp consent after sign-up.** Alert settings has a "WhatsApp
+   messages" switch. Off ("You chose no WhatsApp"): every group switch shows
+   off and is locked. Turning it on asks first, then
+   `setWhatsAppNotifications` adds a `whatsapp` consent record (source
+   `settings`) and sets `whatsappOptIn`; turning it off sets `withdrawnAt`
+   on the open record. Counted with the settings changes.
+3. **Reminder IDs include the run's time** (confirm-by for the confirm
+   reminder, start for the drive reminders): a moved or re-asked run gets
+   new reminders; the same time never two.
+4. Smaller items: no query for tomorrow's runs before 19:00 (item 6); "Mark
+   all read" falls back to one-by-one when one row was read meanwhile
+   (item 7); the settings screen follows the stream again after a save,
+   including changes from another phone (item 8); HomeShell hands its
+   router over after the frame (item 10).
+
+Left as is, with reasons: two sounds at the alarm time on a phone where the
+app ran (item 4: accepted, spec section 11 prefers a second sound to none);
+the new-parent record ID stays a hash of the uid (item 5: the push names no
+one; an HMAC needs a secret bound to the map triggers, planned with the
+privacy prompt); `messaging/invalid-argument` is not treated as a dead
+token (it also means a bad payload); FID migration (item 9) as above.
+
+Tests: Functions run here (381 pass): moved/re-asked reminders, the evening
+gate, consent accept/withdraw/limit. Dart tests written, not run here:
+ring window, kept IDs (limit 50), alarms across starts, declined WhatsApp
+(locked switches, consent asks first, cancel, withdraw).

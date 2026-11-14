@@ -34,6 +34,7 @@ class Account {
     this.firstName,
     this.verification,
     this.claimsUpdatedAtMs,
+    this.whatsappOptIn = false,
   });
 
   factory Account.fromMap(Map<String, dynamic> data) => Account(
@@ -50,6 +51,7 @@ class Account {
       final Timestamp t => t.toDate().millisecondsSinceEpoch,
       _ => null,
     },
+    whatsappOptIn: data['whatsappOptIn'] == true,
   );
 
   /// Public 8-character parent ID (F44).
@@ -72,6 +74,10 @@ class Account {
   /// Set by Cloud Functions right after they change this account's custom
   /// claims ("verified"). The app refreshes its ID token when it changes.
   final int? claimsUpdatedAtMs;
+
+  /// The parent agreed to WhatsApp messages (at sign-up or later in Alert
+  /// settings). Without it no notification goes to WhatsApp (Prompt 8).
+  final bool whatsappOptIn;
 
   /// True while a submission waits for review: nothing new can be sent.
   bool get reviewPending => verification?.status == ReviewStatus.pending || status == AccountStatus.pending;

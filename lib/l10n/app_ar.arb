@@ -4876,5 +4876,29 @@
         "type": "String"
       }
     }
+  },
+  "notifConsentRow": "رسائل واتساب",
+  "@notifConsentRow": {
+    "description": "Switch: agree to WhatsApp messages"
+  },
+  "notifConsentOn": "وافقت على رسائل واتساب",
+  "@notifConsentOn": {
+    "description": "Switch subtitle when on"
+  },
+  "notifConsentOff": "اخترت عدم استخدام واتساب",
+  "@notifConsentOff": {
+    "description": "Switch subtitle when off (also after declining at sign-up)"
+  },
+  "notifConsentTitle": "تنبيهات واتساب أيضًا؟",
+  "@notifConsentTitle": {
+    "description": "Confirmation dialog title"
+  },
+  "notifConsentBody": "نرسل التنبيهات التي تختارها إلى رقمك على واتساب. يمكنك الإيقاف في أي وقت.",
+  "@notifConsentBody": {
+    "description": "Confirmation dialog text (consent)"
+  },
+  "notifConsentConfirm": "موافق",
+  "@notifConsentConfirm": {
+    "description": "Confirmation button"
   }
 }

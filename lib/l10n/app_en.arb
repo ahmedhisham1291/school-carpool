@@ -1111,5 +1111,11 @@
   "notifQuietHelper": "{from} to {to}, except urgent alerts",
   "gallerySectionAlerts": "Alerts",
   "notifTimeChangedTitle": "New run time",
-  "notifTimeChangedBody": "The {run} run has a new time. Check the plan."
+  "notifTimeChangedBody": "The {run} run has a new time. Check the plan.",
+  "notifConsentRow": "WhatsApp messages",
+  "notifConsentOn": "You agreed to WhatsApp",
+  "notifConsentOff": "You chose no WhatsApp",
+  "notifConsentTitle": "Alerts by WhatsApp too?",
+  "notifConsentBody": "We send the alerts you choose to your number on WhatsApp. You can stop any time.",
+  "notifConsentConfirm": "I agree"
 }

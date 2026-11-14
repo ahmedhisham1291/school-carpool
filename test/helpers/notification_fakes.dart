@@ -102,6 +102,9 @@ class FakeNotificationRepository implements NotificationRepository {
   }
 
   @override
+  Future<void> setWhatsAppConsent({required bool accept}) => _maybeFail('consent:$accept');
+
+  @override
   Future<void> registerDevice({required String token, required String platform, String? previousToken}) async {
     calls.add('register:$token:$platform:${previousToken ?? '-'}');
   }
