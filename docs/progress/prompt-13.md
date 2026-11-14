@@ -170,7 +170,7 @@ note and review (open items).
 
 ## Tests
 
-- Functions: **run here: 630 pass, 0 fail** (`node --test` with the
+- Functions: **run here: 632 pass, 0 fail** (after the review round) (`node --test` with the
   workspace's type stubs; `tsc` shows only the known stub noise, no new
   errors). New: run-still-on and reportTrackingLost (trips), review
   sign-in (otp_flow), trip retention and the admin device decision
@@ -185,8 +185,10 @@ note and review (open items).
   `home_location_steps_*` (AR/EN, light/dark; rendered only with
   `--update-goldens` in CI). `flutter analyze` not run here.
 - Rules: no rules change in Prompt 13 (`config/` is already deny-all).
-- Swift (`packages/run_recovery`): **not compiled here**; compiles in the
-  Codemagic iOS build only.
+- Swift (`packages/run_recovery`, the patched AppDelegate): **not compiled
+  here**; compiles in the Codemagic iOS build only.
+- Python: `python3 -m unittest discover -s tool -p 'test_*.py'`: **9 pass**
+  (run here).
 
 ## Only verifiable on a real iPhone
 
@@ -201,6 +203,29 @@ note and review (open items).
 - The first location prompt shows "While Using" (L2); the Always upgrade
   prompt appears once from the optional screen.
 - Low Power Mode and battery (T8, T10).
+
+## Review round (docs/reviews/prompt-13.md, FAIL with 2 blockers)
+
+| Finding | Fix |
+| --- | --- |
+| Blocker 1: `AuthorizationStatus.deniedPermanently` missing (compile error) | `FcmNotificationStatus.fromFcm` lists every value of firebase_messaging 17; unit test over all values. The other switches over package enums (`LocationPermission`) were already exhaustive. |
+| Blocker 2: UIScene template, no Dart on a background relaunch | `tool/patch_native.py` `patch_ios_launch`: classic AppDelegate (FlutterAppDelegate) that starts its FlutterEngine (Dart `main`) and registers the plugins in `didFinishLaunchingWithOptions`, builds the window; no scene manifest, no main storyboard key, SceneDelegate.swift emptied; idempotent, runs before the Maps/alerts patches. Python tests: scene template -> classic, old classic -> explicit engine, already patched -> unchanged, later patches still apply (9 pass). The run_recovery plugin (FlutterApplicationLifeCycleDelegate) reads the real launch options and exposes `launchedForLocation`. **Must be verified on a real iPhone (T6)**; revisit when Apple requires UIScene (DECISIONS). |
+| 1 Mid-run steps required notifications | Location-only blocking steps during a run; closing them after fixing location restarts tracking. Tests. |
+| 2, 3 Trip retention too early; orphan starvation | `keptUntilMs` (closure + 1 year) stored when a parent is anonymised; trips kept until then; the orphan query reads only due trips (new index); passed values cleared. Tests (632 functions tests pass). |
+| 4 Always prompt could spin 30 s | Answered when the app becomes active after the prompt ("Keep Only While Using"), 10 s fallback, per-request timers. |
+| 5 Admin photos opened with a default reason | Reason first, then "Show photos" (one logged access); reason locked afterwards. |
+| 6 Stream receives the account ID | docs/app-store-privacy.md fixed. |
+| 7 No driver push after a reported loss | Recorded (open-items D9). |
+| 8 Stale text | SETUP 20.4/20.6 and the listed comments fixed. |
+| 9 Buffer | Trim-during-flush bug fixed (points removed by identity); storage location recorded (D9b). |
+| 10 Review code window | Docs keep 14 days. |
+| 11 No Package.swift | Recorded (D9c). |
+| 12 Rules tests | `config/reviewAccess` added to the server-only list (written, not run here). |
+| 13 tsc stub noise | 157 lines here, same as the branch start; real types in CI. |
+
+Wording is honest everywhere: with "Always" the run **usually resumes within
+a few minutes after the car moves; to be confirmed on the device** (Always
+screen, purpose strings, App Review notes, T6, SETUP).
 
 ## Not done
 
