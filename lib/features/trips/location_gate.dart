@@ -158,14 +158,19 @@ abstract interface class NotificationStatus {
 class FcmNotificationStatus implements NotificationStatus {
   const FcmNotificationStatus();
 
+  /// Every value of firebase_messaging 17's AuthorizationStatus (exhaustive:
+  /// a new value in a later version must be added here, the compiler says
+  /// so). Provisional (quiet) notifications count as allowed.
+  static NotificationAccess fromFcm(fcm.AuthorizationStatus status) => switch (status) {
+    fcm.AuthorizationStatus.authorized || fcm.AuthorizationStatus.provisional => NotificationAccess.allowed,
+    fcm.AuthorizationStatus.notDetermined => NotificationAccess.notAsked,
+    fcm.AuthorizationStatus.denied || fcm.AuthorizationStatus.deniedPermanently => NotificationAccess.denied,
+  };
+
   @override
   Future<NotificationAccess> status() async {
     final fcm.NotificationSettings s = await fcm.FirebaseMessaging.instance.getNotificationSettings();
-    return switch (s.authorizationStatus) {
-      fcm.AuthorizationStatus.authorized || fcm.AuthorizationStatus.provisional => NotificationAccess.allowed,
-      fcm.AuthorizationStatus.notDetermined => NotificationAccess.notAsked,
-      fcm.AuthorizationStatus.denied => NotificationAccess.denied,
-    };
+    return fromFcm(s.authorizationStatus);
   }
 
   @override

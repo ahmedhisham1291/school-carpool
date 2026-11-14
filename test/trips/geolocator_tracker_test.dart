@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:firebase_messaging/firebase_messaging.dart' as fcm;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:material_ui/material_ui.dart' show TargetPlatform;
@@ -386,6 +387,17 @@ void main() {
       expect(source.requests, 0);
       await readiness.openSettings(serviceOff: false);
       expect(source.appSettings, 1);
+    });
+
+    test('every notification status of firebase_messaging is mapped', () {
+      expect(FcmNotificationStatus.fromFcm(fcm.AuthorizationStatus.authorized), NotificationAccess.allowed);
+      expect(FcmNotificationStatus.fromFcm(fcm.AuthorizationStatus.provisional), NotificationAccess.allowed);
+      expect(FcmNotificationStatus.fromFcm(fcm.AuthorizationStatus.notDetermined), NotificationAccess.notAsked);
+      expect(FcmNotificationStatus.fromFcm(fcm.AuthorizationStatus.denied), NotificationAccess.denied);
+      expect(FcmNotificationStatus.fromFcm(fcm.AuthorizationStatus.deniedPermanently), NotificationAccess.denied);
+      for (final fcm.AuthorizationStatus s in fcm.AuthorizationStatus.values) {
+        expect(FcmNotificationStatus.fromFcm(s), isA<NotificationAccess>(), reason: s.name);
+      }
     });
 
     test('a check that fails counts as missing', () async {
