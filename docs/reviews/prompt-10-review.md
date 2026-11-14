@@ -372,3 +372,118 @@ plugin, the background modes, the heartbeat or the release licence.
     location or motion prompt at launch.
 12. **Trip docs never expire.** They hold children's first names, handover
     names and stop times. Add them to the retention schedule (Prompt 12).
+
+## Re-review (fixes `c6fbc2e`, `39b90b4`; main merged at `c927c6a`)
+
+### Verdict: CHANGES NEEDED
+
+Items 1 to 5 are fixed. Item 6 is fixed in a way that breaks a privacy
+rule, and the item 5 fix added a regression that stops live location
+during a run.
+
+### CI
+
+Run 43569492481 on `c927c6a`: **all green**.
+
+| Job | Result |
+| --- | --- |
+| Cloud Functions tests and rules tests (emulators) | success |
+| Flutter analyze, tests and screenshots | success |
+| Web, admin panel and Android compile (staging) | success |
+
+The Android compile with flutter_background_geolocation 5.9.2 now passes.
+Nothing ran on a real iPhone.
+
+### Earlier blocking items
+
+1. **CI: fixed.**
+2. **Selfie check before the driver is checked: fixed.**
+   - `runForDriver` refuses anyone who is not the driver before any
+     record is written.
+   - The check is keyed `{tripId}_{uid}`, so a swap gets its own decision.
+   - Tests cover a non-driver calling first and a swap.
+3. **Live selfies left in Storage: fixed.**
+   - The selfie is deleted in a `finally` on every path.
+   - `tripTick` deletes `selfieChecks/` files older than 1 hour.
+   - Storage accepts only names in the run-ID format, and the rules test
+     covers it.
+4. **No way to end tracking after a no-show: fixed.**
+   - Not coming asks first, tells the parent and closes the stop.
+   - End run asks first and is refused while a child is in the car.
+   - A run with no riders cannot start (`no-children`).
+5. **Tracking after sign-out or suspension: fixed on the server.**
+   - Sign-out calls `stopMyTrips` and stops the tracker.
+   - Uploads re-check the driver's account once a minute and answer 410
+     when it is no longer verified.
+   - `endTripsOnUserWrite` ends live trips on suspension, ban or deletion,
+     and the run's parents get "location stopped".
+6. **Opt-out selfie check: the requirement is fixed**: there is no start
+   without a face reference. **But the new face reference breaks a
+   privacy rule** (new item B below).
+
+The earlier non-blocking items 1, 2, 3, 5 and 7 are also fixed: the
+Arrived limits, the traffic-tolerant staleness, the licence named in
+Codemagic, `prepareTrip`, and the emergency time window.
+
+### Blocking
+
+A. **The tracker guard stops a live run on every cold start.**
+   - Where: `lib/features/trips/tracker_guard.dart:16` and `:31`.
+   - Problem: the guard runs with `fireImmediately: true`, and on launch
+     the session is `SessionLoading`. Later it can be `SessionFailed`
+     (offline), or `SessionSignedIn` with `account == null` while the
+     record loads. In all three cases `allowed` is false, so the guard
+     calls `tracker.stop()`. That also runs `destroyLocations`, which
+     deletes points not sent yet.
+   - Effect: when the driver reopens the app during a run, or iOS
+     relaunches it in the background (`stopOnTerminate: false`), tracking
+     stops. The server still sees the trip as active, so parents get
+     "location stopped" and the car disappears from their map. This
+     breaks F15 and the Done-when line "lock the phone, and a second
+     device shows the car moving".
+   - Fix:
+     - Stop only on `SessionSignedOut`, on a different uid, or on a
+       loaded account whose status is not verified (suspended, banned,
+       deleted).
+     - Ignore `SessionLoading`, `SessionFailed` and a `null` account. The
+       server's once-a-minute account re-check covers those cases.
+     - Add tests for the guard: loading at start keeps tracking; sign-out,
+       another uid or a suspended account stops it.
+
+B. **The identity selfie is now kept indefinitely, against spec section 7
+   and CLAUDE.md PRIVACY.**
+   - Where: `functions/src/verification/flow.ts:423-428` copies the
+     identity selfie to `faceRefs/{uid}/selfie.jpg` when an account is
+     approved; `trips/flow.ts:300` uses it.
+   - Problem:
+     - The spec says "Delete ID and selfie images after review; keep only
+       status, date and reviewer".
+     - CLAUDE.md says selfie images "are deleted by the scheduled job
+       after review".
+     - The lawyer cleared keeping ID images for 7 days only
+       (DECISIONS.md).
+   - The progress note lists this as a legal question, but the code
+     already does it. CLAUDE.md says: "If the spec and a prompt disagree,
+     stop and ask".
+   - Fix (choose one):
+     - Recommended: drop `faceRefs` and require the driver photo. F33
+       already needs it "approved during verification" for the driver
+       card, so the only kept face image is one the spec calls for.
+       `faceReference` then returns only `driverPhotoPath`. Update the
+       tests and SETUP.
+     - Or keep `faceRefs` only after the owner records the lawyer's
+       approval in DECISIONS.md, with its retention limit and deletion on
+       ban, rejection and account deletion.
+
+### Non-blocking (new)
+
+1. Every driver verified before this prompt is blocked from driving until
+   their driver photo is reviewed. Before rollout, plan an admin review
+   window, or a notice to drivers a few days ahead.
+2. `tripTick` lists the whole `selfieChecks/` prefix every minute. In
+   `europe-west1` that is about 43,000 Class A operations a month, a few
+   US cents. Optionally list every 15 minutes, or rely on the lifecycle
+   rule.
+
+The earlier non-blocking items 4, 6, 8 to 12 are still open, as recorded
+in the progress note.
