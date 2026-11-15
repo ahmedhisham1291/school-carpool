@@ -52,9 +52,9 @@ class AppDropdownMenu<T> extends StatefulWidget {
 
   /// Items whose label matches [filter] (normalized; every word of the
   /// filter must start a word of the label), then [pinned].
-  static List<AppDropdownItem<T>> filter<T>(List<AppDropdownItem<T>> items, String filter, {AppDropdownItem<T>? pinned}) {
+  static List<AppDropdownItem<E>> filter<E>(List<AppDropdownItem<E>> items, String filter, {AppDropdownItem<E>? pinned}) {
     final List<String> words = normalizeText(filter).split(' ').where((String w) => w.isNotEmpty).toList();
-    bool matches(AppDropdownItem<T> item) {
+    bool matches(AppDropdownItem<E> item) {
       if (words.isEmpty) {
         return true;
       }
@@ -64,7 +64,7 @@ class AppDropdownMenu<T> extends StatefulWidget {
       );
     }
 
-    return <AppDropdownItem<T>>[...items.where(matches), ?pinned];
+    return <AppDropdownItem<E>>[...items.where(matches), ?pinned];
   }
 
   @override
