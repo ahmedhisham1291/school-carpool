@@ -6,11 +6,13 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/data/admin_api.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
+import 'package:school_carpool/admin/data/admin_places.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/admin/widgets/admin_labels.dart';
 import 'package:school_carpool/admin/widgets/admin_widgets.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/places/place_models.dart' show sortByName;
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// A paged list of schools by status, with an optional governorate filter.
@@ -27,6 +29,28 @@ class SchoolList extends ConsumerStatefulWidget {
 
 class _SchoolListState extends ConsumerState<SchoolList> {
   String? _governorate;
+
+  /// City -> Area filter (placeAreas): loaded when a city is chosen.
+  String? _areaId;
+  List<AdminPlace> _areas = const <AdminPlace>[];
+
+  Future<void> _loadAreas(String? governorate) async {
+    setState(() {
+      _areas = const <AdminPlace>[];
+      _areaId = null;
+    });
+    if (governorate == null) {
+      return;
+    }
+    try {
+      final List<AdminPlace> areas = await ref.read(adminPlacesApiProvider).areas(governorate);
+      if (mounted && governorate == _governorate) {
+        setState(() => _areas = areas);
+      }
+    } on Object {
+      // The area filter is optional: the list still works by city.
+    }
+  }
   AsyncValue<List<School>> _schools = const AsyncLoading<List<School>>();
   String? _next;
   bool _loadingMore = false;
@@ -49,7 +73,7 @@ class _SchoolListState extends ConsumerState<SchoolList> {
     try {
       final PagedResult<School> page = await ref
           .read(adminApiProvider)
-          .schools(status: widget.status, governorate: _governorate, afterId: more ? _next : null);
+          .schools(status: widget.status, governorate: _governorate, afterId: more ? _next : null, placeAreaId: _areaId);
       if (!mounted) {
         return;
       }
@@ -88,10 +112,30 @@ class _SchoolListState extends ConsumerState<SchoolList> {
             value: _governorate ?? '',
             onChanged: (String g) {
               setState(() => _governorate = g.isEmpty ? null : g);
+              unawaited(_loadAreas(_governorate));
               unawaited(_load());
             },
           ),
         ),
+        if (_governorate != null && _areas.isNotEmpty)
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.screenGutter, 0, AppSpacing.screenGutter, AppSpacing.s16),
+            // '' stands for every area of the city.
+            child: AppSelectField<String>(
+              key: const Key('schools.area'),
+              label: l10n.placeAreaLabel,
+              options: <(String, String)>[
+                ('', l10n.adminAllAreas),
+                for (final AdminPlace a in sortByName(_areas, (AdminPlace a) => a.name(Localizations.localeOf(context).languageCode)))
+                  (a.id, a.name(Localizations.localeOf(context).languageCode)),
+              ],
+              value: _areaId ?? '',
+              onChanged: (String id) {
+                setState(() => _areaId = id.isEmpty ? null : id);
+                unawaited(_load());
+              },
+            ),
+          ),
         Expanded(
           child: AdminAsyncView<List<School>>(
             value: _schools,
@@ -117,7 +161,15 @@ class _SchoolListState extends ConsumerState<SchoolList> {
                 return AppListRow(
                   key: Key('schools.${s.id}'),
                   title: arabic ? s.nameAr : s.nameEn,
-                  subtitle: '${governorateLabel(l10n, s.governorate)} · ${s.city}',
+                  subtitle: <String>[
+                    governorateLabel(l10n, s.governorate),
+                    // The Area column (City -> Area); "no area" when unknown.
+                    if ((arabic ? s.placeAreaNameAr : s.placeAreaNameEn) case final String area when area.isNotEmpty)
+                      area
+                    else
+                      l10n.adminNoArea,
+                    if (s.city.isNotEmpty) s.city,
+                  ].join(' · '),
                   leadingIcon: s.pin == null ? Icons.location_off_outlined : Icons.location_on_outlined,
                   onTap: () => widget.onOpen(s),
                 );

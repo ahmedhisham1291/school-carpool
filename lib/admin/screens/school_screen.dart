@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/data/admin_api.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
+import 'package:school_carpool/admin/data/admin_places.dart';
 import 'package:school_carpool/admin/data/geo_pin_input.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/admin/widgets/admin_labels.dart';
@@ -13,6 +14,7 @@ import 'package:school_carpool/admin/widgets/admin_widgets.dart';
 import 'package:school_carpool/design/bidi.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/places/place_models.dart' show sortByName;
 import 'package:school_carpool/l10n/l10n.dart';
 
 final _schoolProvider = FutureProvider.autoDispose.family<(School, List<Area>), String>(
@@ -205,6 +207,23 @@ class _SchoolFormState extends ConsumerState<_SchoolForm> {
     });
   }
 
+  Future<void> _moveArea() async {
+    final School? school = widget.school;
+    if (school == null) {
+      return;
+    }
+    final AppLocalizations l10n = context.l10n;
+    final bool? moved = await showAppSheet<bool>(
+      context: context,
+      title: l10n.adminMoveArea,
+      body: _MoveAreaForm(school: school),
+    );
+    if ((moved ?? false) && mounted) {
+      showAppSnackBar(context, l10n.adminSchoolMoved);
+      ref.invalidate(_schoolProvider(school.id));
+    }
+  }
+
   Future<void> _editArea([Area? area]) async {
     final School? school = widget.school;
     if (school == null) {
@@ -301,6 +320,31 @@ class _SchoolFormState extends ConsumerState<_SchoolForm> {
           ),
         ],
         if (editing) ...<Widget>[
+          // City -> Area (placeAreas, F4): where the school is listed when browsing.
+          const SizedBox(height: AppSpacing.s32),
+          Row(
+            children: <Widget>[
+              Expanded(child: AppSectionHeader(l10n.adminSchoolPlace)),
+              AppButton(
+                key: const Key('school.moveArea'),
+                label: l10n.adminMoveArea,
+                icon: Icons.drive_file_move_outline,
+                variant: AppButtonVariant.tertiary,
+                onPressed: () => unawaited(_moveArea()),
+              ),
+            ],
+          ),
+          AppInlineMessage(
+            key: const Key('school.area'),
+            message: switch (widget.school) {
+              final School s when (arabic ? s.placeAreaNameAr : s.placeAreaNameEn).isNotEmpty =>
+                arabic ? s.placeAreaNameAr : s.placeAreaNameEn,
+              final School s when s.placeAreaNameAr.isNotEmpty || s.placeAreaNameEn.isNotEmpty =>
+                s.placeAreaNameAr.isNotEmpty ? s.placeAreaNameAr : s.placeAreaNameEn,
+              _ => l10n.adminNoArea,
+            },
+            icon: Icons.map_outlined,
+          ),
           const SizedBox(height: AppSpacing.s32),
           Row(
             children: <Widget>[
@@ -542,6 +586,130 @@ class _AreaFormState extends ConsumerState<_AreaForm> {
           expand: true,
           loading: _busy,
           onPressed: valid && !_busy ? () => unawaited(_save(pin)) : null,
+        ),
+      ],
+    );
+  }
+}
+
+
+/// Move a school to another area of its city (and optionally a district).
+class _MoveAreaForm extends ConsumerStatefulWidget {
+  const _MoveAreaForm({required this.school});
+
+  final School school;
+
+  @override
+  ConsumerState<_MoveAreaForm> createState() => _MoveAreaFormState();
+}
+
+class _MoveAreaFormState extends ConsumerState<_MoveAreaForm> {
+  late final Future<List<AdminPlace>> _areas = ref.read(adminPlacesApiProvider).areas(widget.school.governorate);
+  Future<List<AdminPlace>>? _districts;
+  String? _areaId;
+  String? _districtId;
+  bool _busy = false;
+  AdminFailure? _failure;
+
+  void _pickArea(String id) {
+    if (id == _areaId) {
+      return;
+    }
+    // A new area clears the district.
+    setState(() {
+      _areaId = id;
+      _districtId = null;
+      _districts = ref.read(adminPlacesApiProvider).districts(id);
+    });
+  }
+
+  Future<void> _save() async {
+    final String? areaId = _areaId;
+    if (areaId == null) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _failure = null;
+    });
+    try {
+      await ref.read(adminPlacesApiProvider).moveSchool(schoolId: widget.school.id, areaId: areaId, districtId: _districtId);
+      if (mounted) {
+        Navigator.of(context).pop(true);
+      }
+    } on AdminFailure catch (failure) {
+      if (mounted) {
+        setState(() => _failure = failure);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    final String language = Localizations.localeOf(context).languageCode;
+    final AdminFailure? failure = _failure;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        FutureBuilder<List<AdminPlace>>(
+          future: _areas,
+          builder: (BuildContext context, AsyncSnapshot<List<AdminPlace>> snap) {
+            if (snap.hasError) {
+              return AppInlineMessage(message: AdminFailure.from(snap.error!).message(l10n), tone: AppStateTone.error);
+            }
+            final List<AdminPlace>? areas = snap.data;
+            if (areas == null) {
+              return const AdminSkeletonList(rows: 2);
+            }
+            return AppDropdownMenu<String>(
+              key: const Key('move.area'),
+              label: l10n.placeAreaLabel,
+              hintText: l10n.placeAreaHint,
+              value: _areaId,
+              items: <AppDropdownItem<String>>[
+                for (final AdminPlace a in sortByName(areas.where((AdminPlace a) => a.active), (AdminPlace a) => a.name(language)))
+                  AppDropdownItem<String>(a.id, a.name(language)),
+              ],
+              onSelected: areas.isEmpty ? null : _pickArea,
+            );
+          },
+        ),
+        const SizedBox(height: AppSpacing.s16),
+        FutureBuilder<List<AdminPlace>>(
+          key: ValueKey<String?>(_areaId),
+          future: _districts,
+          builder: (BuildContext context, AsyncSnapshot<List<AdminPlace>> snap) {
+            final List<AdminPlace> districts = snap.data ?? const <AdminPlace>[];
+            return AppDropdownMenu<String>(
+              key: Key('move.district.${_areaId ?? ''}'),
+              label: l10n.placeDistrictLabel,
+              hintText: l10n.placeDistrictOptional,
+              value: _districtId,
+              items: <AppDropdownItem<String>>[
+                for (final AdminPlace d in sortByName(districts.where((AdminPlace d) => d.active), (AdminPlace d) => d.name(language)))
+                  AppDropdownItem<String>(d.id, d.name(language)),
+              ],
+              onSelected: districts.isEmpty ? null : (String id) => setState(() => _districtId = id),
+            );
+          },
+        ),
+        if (failure != null) ...<Widget>[
+          const SizedBox(height: AppSpacing.s16),
+          AppInlineMessage(message: failure.message(l10n), tone: AppStateTone.error),
+        ],
+        const SizedBox(height: AppSpacing.s24),
+        AppButton(
+          key: const Key('move.save'),
+          label: l10n.adminMoveArea,
+          expand: true,
+          loading: _busy,
+          onPressed: _areaId != null && !_busy ? () => unawaited(_save()) : null,
         ),
       ],
     );

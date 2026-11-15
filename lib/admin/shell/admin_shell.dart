@@ -35,6 +35,7 @@ List<AdminSection> adminSections({required bool superAdmin}) => <AdminSection>[
     Icons.add_location_alt,
     (AppLocalizations l) => l.adminNavOther,
   ),
+  AdminSection(AdminRoutes.places, Icons.map_outlined, Icons.map, (AppLocalizations l) => l.adminNavPlaces),
   AdminSection(AdminRoutes.reports, Icons.flag_outlined, Icons.flag, (AppLocalizations l) => l.adminNavReports),
   AdminSection(
     AdminRoutes.wallets,

@@ -9,6 +9,7 @@ import 'package:school_carpool/admin/data/admin_api.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_features.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
+import 'package:school_carpool/admin/data/admin_places.dart';
 import 'package:school_carpool/admin/data/admin_trust.dart';
 import 'package:school_carpool/admin/data/admin_wallet.dart';
 import 'package:school_carpool/admin/router/admin_router.dart';
@@ -19,6 +20,7 @@ import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/settings/app_settings.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
+import 'place_fakes.dart';
 import 'test_app.dart';
 
 /// Fake data only.
@@ -114,6 +116,9 @@ const List<School> sampleOtherSchools = <School>[
 
 /// Records calls; answers with the sample data. [failure] makes every call fail.
 class FakeAdminApi implements AdminApi {
+  /// The area filter of each schools() call.
+  final List<String?> schoolAreaFilters = <String?>[];
+
   final List<String> calls = <String>[];
   final List<Map<String, Object?>> decisions = <Map<String, Object?>>[];
   final List<SchoolInput> savedSchools = <SchoolInput>[];
@@ -213,7 +218,8 @@ class FakeAdminApi implements AdminApi {
   }
 
   @override
-  Future<PagedResult<School>> schools({required SchoolStatus status, String? governorate, String? afterId}) async {
+  Future<PagedResult<School>> schools({required SchoolStatus status, String? governorate, String? afterId, String? placeAreaId}) async {
+    schoolAreaFilters.add(placeAreaId);
     await _maybeFail('schools:${status.code}');
     return PagedResult<School>(status == SchoolStatus.active ? sampleSchools : sampleOtherSchools, null);
   }
@@ -429,6 +435,7 @@ Future<GoRouter> pumpAdminPanel(
   FakeAdminWalletApi? wallet,
   FakeAdminTrustApi? trust,
   FakeAdminFeaturesApi? features,
+  FakeAdminPlacesApi? places,
   String locale = 'ar',
   String themeMode = 'light',
   Size size = const Size(1280, 800),
@@ -459,6 +466,7 @@ Future<GoRouter> pumpAdminPanel(
         adminWalletApiProvider.overrideWithValue(wallet ?? FakeAdminWalletApi()),
         adminTrustApiProvider.overrideWithValue(trust ?? FakeAdminTrustApi()),
         adminFeaturesApiProvider.overrideWithValue(features ?? FakeAdminFeaturesApi()),
+        adminPlacesApiProvider.overrideWithValue(places ?? FakeAdminPlacesApi()),
         ...extraOverrides,
       ],
       child: const AdminApp(),

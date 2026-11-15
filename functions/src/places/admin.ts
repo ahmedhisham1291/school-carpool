@@ -249,9 +249,16 @@ export async function moveSchoolArea(deps: PlacesAdminDeps, caller: AdminCaller,
   return { id: schoolId };
 }
 
-/** {} -> { requests } (open "district not listed" requests, oldest first). */
-export async function listPlaceRequests(deps: PlacesAdminDeps): Promise<{ requests: PlaceRequestItem[] }> {
-  return { requests: await deps.store.listRequests(100) };
+/** {} -> { requests } (open "district not listed" requests, oldest first, with the area's names). */
+export async function listPlaceRequests(
+  deps: PlacesAdminDeps,
+): Promise<{ requests: Array<PlaceRequestItem & { areaNameAr: string; areaNameEn: string }> }> {
+  const requests = await deps.store.listRequests(100);
+  const names = new Map<string, PlaceArea | null>();
+  for (const id of new Set(requests.map((r) => r.areaId))) names.set(id, await deps.store.area(id));
+  return {
+    requests: requests.map((r) => ({ ...r, areaNameAr: names.get(r.areaId)?.nameAr ?? "", areaNameEn: names.get(r.areaId)?.nameEn ?? "" })),
+  };
 }
 
 /**

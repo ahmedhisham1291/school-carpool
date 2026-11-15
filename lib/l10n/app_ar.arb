@@ -9762,5 +9762,265 @@
         "type": "String"
       }
     }
+  },
+  "placeCityLabel": "المحافظة",
+  "@placeCityLabel": {
+    "description": "City (governorate) dropdown label, F4/F46"
+  },
+  "placeCityHint": "اختر أو اكتب",
+  "@placeCityHint": {
+    "description": "Hint inside a place dropdown"
+  },
+  "placeAreaLabel": "المنطقة",
+  "@placeAreaLabel": {
+    "description": "Area (qism, markaz or new city) dropdown label"
+  },
+  "placeAreaHint": "اختر أو اكتب",
+  "@placeAreaHint": {
+    "description": "Hint inside the area dropdown"
+  },
+  "placeAreaWaitCity": "اختر المحافظة أولًا",
+  "@placeAreaWaitCity": {
+    "description": "Area dropdown helper while no city is chosen"
+  },
+  "placeAreasLoading": "جارٍ تحميل المناطق…",
+  "@placeAreasLoading": {
+    "description": "Area dropdown helper while loading"
+  },
+  "placeAreasNone": "لا مناطق لهذه المحافظة بعد. استخدم البحث.",
+  "@placeAreasNone": {
+    "description": "Area dropdown helper when the city has no areas"
+  },
+  "placeLoadError": "تعذّر تحميل القائمة.",
+  "@placeLoadError": {
+    "description": "Error loading areas or districts"
+  },
+  "placeDistrictLabel": "الحي",
+  "@placeDistrictLabel": {
+    "description": "District (neighbourhood) dropdown label"
+  },
+  "placeDistrictOptional": "اختياري",
+  "@placeDistrictOptional": {
+    "description": "Hint: the district is optional (admin move)"
+  },
+  "placeAreasHeader": "المناطق",
+  "@placeAreasHeader": {
+    "description": "Section header: areas of a city"
+  },
+  "placeDistrictsOf": "أحياء {area}",
+  "@placeDistrictsOf": {
+    "description": "Section header: districts of an area",
+    "placeholders": {
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "schoolBrowseTitle": "تصفّح حسب المنطقة",
+  "@schoolBrowseTitle": {
+    "description": "Browse schools screen title"
+  },
+  "schoolBrowseChip": "حسب المنطقة",
+  "@schoolBrowseChip": {
+    "description": "Chip in the school picker opening Browse by area"
+  },
+  "schoolBrowseHint": "اختر المحافظة ثم المنطقة لترى مدارسها.",
+  "@schoolBrowseHint": {
+    "description": "Browse screen hint before an area is chosen"
+  },
+  "schoolBrowseEmptyTitle": "لا مدارس هنا بعد",
+  "@schoolBrowseEmptyTitle": {
+    "description": "Browse: the area has no schools"
+  },
+  "schoolBrowseEmptyBody": "ابحث بالاسم، أو أضف مدرستك من «أخرى».",
+  "@schoolBrowseEmptyBody": {
+    "description": "Browse: what to do when the area has no schools"
+  },
+  "schoolBrowseCount": "{count, plural, =0{لا مدارس} =1{مدرسة واحدة} =2{مدرستان} few{{count} مدارس} many{{count} مدرسة} other{{count} مدرسة}}",
+  "@schoolBrowseCount": {
+    "description": "Browse: number of schools in the area",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "schoolBrowseMore": "لا تظهر كل مدارس المنطقة هنا. ابحث بالاسم لتجد الباقي.",
+  "@schoolBrowseMore": {
+    "description": "Browse: the area has more schools than the list shows"
+  },
+  "adminNavPlaces": "الأماكن",
+  "@adminNavPlaces": {
+    "description": "Admin navigation: City > Area > District"
+  },
+  "adminPlacesTitle": "الأماكن",
+  "@adminPlacesTitle": {
+    "description": "Admin Places page title"
+  },
+  "adminPlacesTab": "المحافظات والمناطق",
+  "@adminPlacesTab": {
+    "description": "Admin Places tab"
+  },
+  "adminPlaceRequestsTab": "أحياء جديدة",
+  "@adminPlaceRequestsTab": {
+    "description": "Admin Places tab: districts typed by parents"
+  },
+  "adminPlacesHint": "اختر محافظة لترى مناطقها وأحياءها.",
+  "@adminPlacesHint": {
+    "description": "Admin Places: before a city is chosen"
+  },
+  "adminPlacesEmptyTitle": "لا مناطق بعد",
+  "@adminPlacesEmptyTitle": {
+    "description": "Admin Places: city without areas"
+  },
+  "adminPlacesEmptyBody": "حمّل المدارس من Cloud Shell أو أضف منطقة.",
+  "@adminPlacesEmptyBody": {
+    "description": "Admin Places: how to get areas"
+  },
+  "adminDistrictsEmptyTitle": "لا أحياء بعد",
+  "@adminDistrictsEmptyTitle": {
+    "description": "Admin Places: area without districts"
+  },
+  "adminDistrictsEmptyBody": "أضف حيًا، أو اقبل حيًا كتبه ولي أمر.",
+  "@adminDistrictsEmptyBody": {
+    "description": "Admin Places: how to get districts"
+  },
+  "adminAddDistrict": "إضافة حي",
+  "@adminAddDistrict": {
+    "description": "Admin: add a district"
+  },
+  "adminRenamePlace": "تعديل الاسم",
+  "@adminRenamePlace": {
+    "description": "Admin: rename an area or district"
+  },
+  "adminDeactivatePlace": "إيقاف",
+  "@adminDeactivatePlace": {
+    "description": "Admin: deactivate an area or district"
+  },
+  "adminActivatePlace": "تفعيل",
+  "@adminActivatePlace": {
+    "description": "Admin: activate an area or district"
+  },
+  "adminDeactivatePlaceTitle": "إيقاف هذا المكان؟",
+  "@adminDeactivatePlaceTitle": {
+    "description": "Confirm dialog title"
+  },
+  "adminDeactivatePlaceBody": "لن يظهر في القوائم للأولياء. تبقى المدارس والعناوين المرتبطة به كما هي.",
+  "@adminDeactivatePlaceBody": {
+    "description": "Confirm dialog body"
+  },
+  "adminMergePlace": "دمج في…",
+  "@adminMergePlace": {
+    "description": "Admin: merge a duplicate place"
+  },
+  "adminMergePlaceTitle": "دمج {name} في",
+  "@adminMergePlaceTitle": {
+    "description": "Sheet title: pick the place to merge into",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminMergePlaceConfirmBody": "تنتقل مدارس وعناوين {from} إلى {into}، ويُوقف {from}. لا يمكن التراجع.",
+  "@adminMergePlaceConfirmBody": {
+    "description": "Confirm dialog body for merging places",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "into": {
+        "type": "String"
+      }
+    }
+  },
+  "adminPlaceMerged": "تم الدمج",
+  "@adminPlaceMerged": {
+    "description": "Snack bar after merging places"
+  },
+  "adminPlaceCounts": "{schools} مدرسة · {addresses} عنوان",
+  "@adminPlaceCounts": {
+    "description": "Counts of an area or district",
+    "placeholders": {
+      "schools": {
+        "type": "int"
+      },
+      "addresses": {
+        "type": "int"
+      }
+    }
+  },
+  "adminPlaceInactive": "موقوف",
+  "@adminPlaceInactive": {
+    "description": "Place status"
+  },
+  "adminPlaceAddedByAdmin": "أضافه مشرف",
+  "@adminPlaceAddedByAdmin": {
+    "description": "Place source"
+  },
+  "adminPlaceActions": "إجراءات",
+  "@adminPlaceActions": {
+    "description": "Tooltip of the place actions menu"
+  },
+  "adminPlaceNameError": "من حرفين إلى 80 حرفًا.",
+  "@adminPlaceNameError": {
+    "description": "Place name validation"
+  },
+  "adminPlaceRequestsEmptyTitle": "لا أحياء جديدة",
+  "@adminPlaceRequestsEmptyTitle": {
+    "description": "Requests tab empty"
+  },
+  "adminPlaceRequestsEmptyBody": "ستظهر هنا الأحياء التي يكتبها الأولياء.",
+  "@adminPlaceRequestsEmptyBody": {
+    "description": "Requests tab empty body"
+  },
+  "adminPlaceRequestAdd": "إضافة كحي جديد",
+  "@adminPlaceRequestAdd": {
+    "description": "Request action"
+  },
+  "adminPlaceRequestMap": "نفس حي موجود…",
+  "@adminPlaceRequestMap": {
+    "description": "Request action"
+  },
+  "adminPlaceRequestDismiss": "تجاهل",
+  "@adminPlaceRequestDismiss": {
+    "description": "Request action"
+  },
+  "adminPlaceRequestMapTitle": "«{text}» هو",
+  "@adminPlaceRequestMapTitle": {
+    "description": "Sheet title: pick the district a typed one is",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "adminPlaceRequestDismissTitle": "تجاهل هذا الحي؟",
+  "@adminPlaceRequestDismissTitle": {
+    "description": "Confirm dialog title"
+  },
+  "adminPlaceRequestDismissBody": "يبقى النص الذي كتبه ولي الأمر في عنوانه، ولا يُضاف إلى القائمة.",
+  "@adminPlaceRequestDismissBody": {
+    "description": "Confirm dialog body"
+  },
+  "adminAllAreas": "كل المناطق",
+  "@adminAllAreas": {
+    "description": "Admin schools filter: every area of the city"
+  },
+  "adminNoArea": "بلا منطقة",
+  "@adminNoArea": {
+    "description": "Admin: school without an area"
+  },
+  "adminSchoolPlace": "المنطقة",
+  "@adminSchoolPlace": {
+    "description": "Admin school page: section with the school's area"
+  },
+  "adminMoveArea": "نقل إلى منطقة",
+  "@adminMoveArea": {
+    "description": "Admin: move a school to another area"
+  },
+  "adminSchoolMoved": "تم نقل المدرسة",
+  "@adminSchoolMoved": {
+    "description": "Snack bar after moving a school"
   }
 }

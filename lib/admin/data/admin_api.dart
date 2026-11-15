@@ -35,7 +35,8 @@ abstract interface class AdminApi {
     String? note,
   });
 
-  Future<PagedResult<School>> schools({required SchoolStatus status, String? governorate, String? afterId});
+  /// [placeAreaId] narrows to one area of the city (placeAreas).
+  Future<PagedResult<School>> schools({required SchoolStatus status, String? governorate, String? afterId, String? placeAreaId});
   Future<(School, List<Area>)> school(String id);
   Future<String> saveSchool(SchoolInput input);
   Future<String> saveArea({
@@ -154,11 +155,12 @@ class FirebaseAdminApi implements AdminApi {
   }
 
   @override
-  Future<PagedResult<School>> schools({required SchoolStatus status, String? governorate, String? afterId}) async {
+  Future<PagedResult<School>> schools({required SchoolStatus status, String? governorate, String? afterId, String? placeAreaId}) async {
     final Json j = await _call('adminListSchools', <String, Object?>{
       'status': status.code,
       'governorate': ?governorate,
       'afterId': ?afterId,
+      'placeAreaId': ?placeAreaId,
     });
     return PagedResult<School>(j.list('schools').map(School.fromJson).toList(), j.strOrNull('nextAfterId'));
   }

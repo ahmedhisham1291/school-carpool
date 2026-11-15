@@ -16,6 +16,9 @@ class SchoolOption {
     this.cityAr = '',
     this.pending = false,
     this.location,
+    this.placeAreaId = '',
+    this.placeAreaNameAr = '',
+    this.placeAreaNameEn = '',
   });
 
   /// From Firestore (schools/{id}) or an Algolia hit (same field names).
@@ -34,6 +37,9 @@ class SchoolOption {
       cityAr: text('cityAr'),
       pending: data['status'] == 'awaiting_review',
       location: _locationOf(data['location']) ?? _locationOf(data['_geoloc']),
+      placeAreaId: text('placeAreaId'),
+      placeAreaNameAr: text('placeAreaNameAr'),
+      placeAreaNameEn: text('placeAreaNameEn'),
     );
   }
 
@@ -67,6 +73,17 @@ class SchoolOption {
   /// The school's pin set by the admin (F40), or null.
   final GeoPin? location;
 
+  /// City -> Area (placeAreas id, F4 browse), or empty when unknown.
+  final String placeAreaId;
+  final String placeAreaNameAr;
+  final String placeAreaNameEn;
+
+  /// The area's name in the app's language, or empty.
+  String areaName(String languageCode) {
+    final String preferred = languageCode == 'ar' ? placeAreaNameAr : placeAreaNameEn;
+    return preferred.isNotEmpty ? preferred : (languageCode == 'ar' ? placeAreaNameEn : placeAreaNameAr);
+  }
+
   /// The name in the app's language, falling back to the other one.
   String name(String languageCode) {
     final String preferred = languageCode == 'ar' ? nameAr : nameEn;
@@ -90,10 +107,12 @@ class SchoolOption {
       other.city == city &&
       other.cityAr == cityAr &&
       other.pending == pending &&
+      other.placeAreaId == placeAreaId &&
       Geo.same(other.location, location);
 
   @override
-  int get hashCode => Object.hash(id, nameAr, nameEn, governorate, city, cityAr, pending, location?.lat, location?.lng);
+  int get hashCode =>
+      Object.hash(id, nameAr, nameEn, governorate, city, cityAr, pending, location?.lat, location?.lng, placeAreaId);
 }
 
 /// The shortest query that is searched (one letter matches too much).
@@ -125,7 +144,7 @@ class SchoolMatcher {
     return <SchoolOption>[for (final (double _, SchoolOption s) in withPin.take(limit)) s];
   }
 
-  List<SchoolOption> search(String query, {String? governorate, int limit = kMaxSchoolResults}) {
+  List<SchoolOption> search(String query, {String? governorate, String? areaId, int limit = kMaxSchoolResults}) {
     final List<String> words = normalizeText(query).split(' ').where((String w) => w.isNotEmpty).toList();
     if (words.isEmpty) {
       return const <SchoolOption>[];
@@ -133,6 +152,9 @@ class SchoolMatcher {
     final List<(int, _Entry)> hits = <(int, _Entry)>[];
     for (final _Entry entry in _entries) {
       if (governorate != null && entry.school.governorate != governorate) {
+        continue;
+      }
+      if (areaId != null && entry.school.placeAreaId != areaId) {
         continue;
       }
       final int? score = entry.score(words);

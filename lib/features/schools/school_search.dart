@@ -23,8 +23,9 @@ import 'package:school_carpool/firebase/firebase_setup.dart';
 ///   "fake"): [FirestoreSchoolSearch] reads the emulator's schools and
 ///   matches on the phone. No Algolia account is needed.
 abstract interface class SchoolSearch {
-  /// Throws [SchoolSearchFailure].
-  Future<List<SchoolOption>> search(String query, {String? governorate});
+  /// Throws [SchoolSearchFailure]. [areaId] narrows to one area of a city
+  /// (placeAreas, F4 browse).
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId});
 
   /// Schools nearest to [around] (the parent's home), nearest first
   /// (Prompt 5). Throws [SchoolSearchFailure].
@@ -51,8 +52,8 @@ class InMemorySchoolSearch implements SchoolSearch {
   final SchoolMatcher _matcher;
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) async =>
-      _matcher.search(query, governorate: governorate);
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) async =>
+      _matcher.search(query, governorate: governorate, areaId: areaId);
 
   @override
   Future<List<SchoolOption>> nearest(GeoPin around) async => _matcher.nearest(around);
@@ -117,8 +118,8 @@ class FirestoreSchoolSearch implements SchoolSearch {
   }
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) async =>
-      (await _current()).search(query, governorate: governorate);
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) async =>
+      (await _current()).search(query, governorate: governorate, areaId: areaId);
 
   @override
   Future<List<SchoolOption>> nearest(GeoPin around) async => (await _current()).nearest(around);
@@ -220,12 +221,17 @@ class AlgoliaSchoolSearch implements SchoolSearch {
   }
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) {
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) {
     final String normalized = normalizeText(query);
-    return _cached('$normalized|${governorate ?? ''}', <String, String>{
+    final String filters = <String>[
+      if (governorate != null) 'governorate:$governorate',
+      // Area IDs are letters, digits, "-" and "_": quoted for Algolia's filter syntax.
+      if (areaId != null) 'placeAreaId:"$areaId"',
+    ].join(' AND ');
+    return _cached('$normalized|${governorate ?? ''}|${areaId ?? ''}', <String, String>{
       'query': normalized,
       'hitsPerPage': '$kMaxSchoolResults',
-      if (governorate != null) 'filters': 'governorate:$governorate',
+      if (filters.isNotEmpty) 'filters': filters,
     });
   }
 
@@ -282,7 +288,7 @@ class UnavailableSchoolSearch implements SchoolSearch {
   const UnavailableSchoolSearch();
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) =>
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) =>
       Future<List<SchoolOption>>.error(const SchoolSearchFailure(SchoolSearchFailureKind.unavailable));
 
   @override
@@ -302,8 +308,8 @@ class ServerSelectedSchoolSearch implements SchoolSearch {
   SchoolSearch? _chosen;
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) async =>
-      (await _choose()).search(query, governorate: governorate);
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) async =>
+      (await _choose()).search(query, governorate: governorate, areaId: areaId);
 
   @override
   Future<List<SchoolOption>> nearest(GeoPin around) async => (await _choose()).nearest(around);
