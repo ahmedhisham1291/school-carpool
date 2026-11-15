@@ -61,11 +61,19 @@ class InMemorySchoolSearch implements SchoolSearch {
 /// The fake search for development: loads the active schools from
 /// Firestore once (the emulator's seed and the sample import, at most
 /// [limit], as firestore.rules allow) and matches on the phone.
+///
+/// With [requireComplete] (a cloud project whose server still says "fake")
+/// a list of [limit] schools or more is refused with
+/// [SchoolSearchFailureKind.unavailable]: the phone would see only the
+/// first [limit] of a real list, and a parent would wrongly think their
+/// school is missing. Staging with the real list needs Algolia
+/// (docs/algolia-setup.md).
 class FirestoreSchoolSearch implements SchoolSearch {
-  FirestoreSchoolSearch(this._db, {this._now = DateTime.now});
+  FirestoreSchoolSearch(this._db, {this._now = DateTime.now, this.requireComplete = false});
 
   final FirebaseFirestore _db;
   final DateTime Function() _now;
+  final bool requireComplete;
 
   /// The most a list query may read (firestore.rules).
   static const int limit = 200;
@@ -83,14 +91,29 @@ class FirestoreSchoolSearch implements SchoolSearch {
           .where('status', isEqualTo: 'active')
           .limit(limit)
           .get();
-      return SchoolMatcher(<SchoolOption>[
-        for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in snap.docs) SchoolOption.fromMap(doc.id, doc.data()),
-      ]);
+      return matcherFromLoaded(<(String, Map<String, Object?>)>[
+        for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in snap.docs) (doc.id, doc.data()),
+      ], requireComplete: requireComplete);
     } on FirebaseException catch (error) {
       throw SchoolSearchFailure(
         error.code == 'unavailable' ? SchoolSearchFailureKind.offline : SchoolSearchFailureKind.unavailable,
       );
     }
+  }
+
+  /// The matcher over the loaded documents. Hidden sample schools
+  /// (`searchHidden`, set once a real list is loaded) are skipped; with
+  /// [requireComplete], [limit] documents or more is an incomplete list and
+  /// throws [SchoolSearchFailure] (unavailable) instead of partial results.
+  @visibleForTesting
+  static SchoolMatcher matcherFromLoaded(List<(String, Map<String, Object?>)> docs, {required bool requireComplete}) {
+    if (requireComplete && docs.length >= limit) {
+      throw const SchoolSearchFailure(SchoolSearchFailureKind.unavailable);
+    }
+    return SchoolMatcher(<SchoolOption>[
+      for (final (String id, Map<String, Object?> data) in docs)
+        if (data['searchHidden'] != true) SchoolOption.fromMap(id, data),
+    ]);
   }
 
   @override
@@ -289,6 +312,11 @@ class ServerSelectedSchoolSearch implements SchoolSearch {
     SchoolSearch? chosen = _chosen;
     if (chosen == null) {
       final SearchKey first = await fetchKey();
+      if (first.provider == 'algolia' && !first.isAlgolia) {
+        // The server chose Algolia but sent no usable key: an error, never
+        // a silent switch to the (partial) fake search.
+        throw const SchoolSearchFailure(SchoolSearchFailureKind.unavailable);
+      }
       bool used = false;
       chosen = _chosen = first.isAlgolia
           ? AlgoliaSchoolSearch(
@@ -339,13 +367,17 @@ Future<SearchKey> fetchSearchKey(FirebaseFunctions functions) async {
 }
 
 final Provider<SchoolSearch> schoolSearchProvider = Provider<SchoolSearch>((Ref ref) {
-  final FirestoreSchoolSearch fake = FirestoreSchoolSearch(ref.watch(firestoreProvider));
   if (ref.watch(flavorConfigProvider).useEmulators) {
-    return fake;
+    return FirestoreSchoolSearch(ref.watch(firestoreProvider));
   }
   final FirebaseFunctions functions = functionsClient();
   return ServerSelectedSchoolSearch(
     fetchKey: () => fetchSearchKey(functions),
-    fallback: ref.watch(flavorConfigProvider).isProd ? const UnavailableSchoolSearch() : fake,
+    // Staging before Algolia is set up: the Firestore list, but only while
+    // it is complete (the hand-written sample); a real list says
+    // "unavailable" instead of showing the first 200 schools.
+    fallback: ref.watch(flavorConfigProvider).isProd
+        ? const UnavailableSchoolSearch()
+        : FirestoreSchoolSearch(ref.watch(firestoreProvider), requireComplete: true),
   );
 });

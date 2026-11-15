@@ -151,6 +151,42 @@ void main() {
       );
     });
 
+    test('"algolia" without a usable key is an error, not a silent fallback', () async {
+      final FakeSchoolSearch fake = FakeSchoolSearch();
+      final ServerSelectedSchoolSearch search = ServerSelectedSchoolSearch(
+        fetchKey: () async => const SearchKey(provider: 'algolia', appId: 'APP'),
+        fallback: fake,
+      );
+      await expectLater(
+        search.search('Nile'),
+        throwsA(isA<SchoolSearchFailure>().having((SchoolSearchFailure f) => f.isOffline, 'offline', isFalse)),
+      );
+      expect(fake.queries, isEmpty);
+    });
+
+    test('the Firestore list outside the emulators refuses a partial list', () {
+      final List<(String, Map<String, Object?>)> sample = <(String, Map<String, Object?>)>[
+        ('a', <String, Object?>{'nameAr': 'مدرسة النيل', 'nameEn': 'Nile School', 'governorate': 'cairo', 'status': 'active'}),
+        (
+          'hidden',
+          <String, Object?>{'nameAr': 'مدرسة النيل', 'nameEn': 'Nile School', 'governorate': 'cairo', 'status': 'active', 'searchHidden': true},
+        ),
+      ];
+      // A complete list (the sample): searchable, hidden sample entries skipped.
+      final SchoolMatcher matcher = FirestoreSchoolSearch.matcherFromLoaded(sample, requireComplete: true);
+      expect(matcher.search('Nile').map((SchoolOption s) => s.id), <String>['a']);
+      // 200 or more read: the rest of the list is missing, so no partial answer.
+      final List<(String, Map<String, Object?>)> full = <(String, Map<String, Object?>)>[
+        for (int i = 0; i < FirestoreSchoolSearch.limit; i++) ('s$i', sample.first.$2),
+      ];
+      expect(
+        () => FirestoreSchoolSearch.matcherFromLoaded(full, requireComplete: true),
+        throwsA(isA<SchoolSearchFailure>().having((SchoolSearchFailure f) => f.kind, 'kind', SchoolSearchFailureKind.unavailable)),
+      );
+      // The emulators keep the old behaviour.
+      expect(FirestoreSchoolSearch.matcherFromLoaded(full, requireComplete: false).search('Nile'), isNotEmpty);
+    });
+
     test('the server picks the fake search until Algolia is set up', () async {
       final FakeSchoolSearch fake = FakeSchoolSearch();
       final ServerSelectedSchoolSearch search = ServerSelectedSchoolSearch(
