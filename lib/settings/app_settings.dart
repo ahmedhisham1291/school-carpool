@@ -4,12 +4,19 @@ import 'package:school_carpool/design/theme/design_direction.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
+/// The language shown before the person has chosen one. Arabic for the app;
+/// the admin panel starts in English (owner decision, 15 Nov 2026).
+final Provider<Locale> defaultLocaleProvider = Provider<Locale>((Ref ref) => AppLocales.arabic);
+
 /// App language. Arabic by default; the choice is saved on the phone.
 class LocaleController extends Notifier<Locale> {
   static const String storageKey = 'settings.locale';
 
   @override
-  Locale build() => AppLocales.fromCode(ref.watch(settingsStoreProvider).read(storageKey));
+  Locale build() {
+    final String? saved = ref.watch(settingsStoreProvider).read(storageKey);
+    return saved == null ? ref.watch(defaultLocaleProvider) : AppLocales.fromCode(saved);
+  }
 
   Future<void> setLocale(Locale locale) async {
     final Locale next = AppLocales.fromCode(locale.languageCode);

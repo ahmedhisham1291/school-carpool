@@ -8,6 +8,7 @@ import 'package:school_carpool/design/bidi.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
+import 'package:school_carpool/settings/app_settings.dart';
 
 /// "ABCD EFGH ..." so the setup key is easier to type.
 String groupedSetupKey(String key) {
@@ -202,6 +203,14 @@ class _TwoStepSetupScreenState extends ConsumerState<TwoStepSetupScreen> {
                       label: l10n.profileSignOut,
                       variant: AppButtonVariant.tertiary,
                       onPressed: () => unawaited(ref.read(adminAuthRepositoryProvider).signOut()),
+                    ),
+                    const SizedBox(height: AppSpacing.s8),
+                    AppButton(
+                      key: const Key('admin.language'),
+                      label: ref.watch(localeProvider) == AppLocales.arabic ? l10n.languageEnglish : l10n.languageArabic,
+                      icon: Icons.translate,
+                      variant: AppButtonVariant.tertiary,
+                      onPressed: () => unawaited(ref.read(localeProvider.notifier).toggle()),
                     ),
                   ],
                 ),

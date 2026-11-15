@@ -7,7 +7,9 @@ import 'package:school_carpool/admin/admin_app.dart';
 import 'package:school_carpool/bootstrap.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
+import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/observability/sentry_setup.dart';
+import 'package:school_carpool/settings/app_settings.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -47,6 +49,7 @@ Future<void> adminBootstrap(Flavor flavor) async {
           overrides: [
             flavorConfigProvider.overrideWithValue(config),
             settingsStoreProvider.overrideWithValue(store),
+            defaultLocaleProvider.overrideWithValue(AppLocales.english),
           ],
           child: const AdminApp(),
         ),

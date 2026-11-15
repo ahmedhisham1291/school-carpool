@@ -226,3 +226,9 @@ revised list ("implement all your suggestions"):
   may still reject `cp_emergency_contact`; see docs/meta-whatsapp-setup.md.)
 - **Settle up records:** kept while either parent's account is active, plus
   1 year (confirmed; same rule as trips).
+
+## Owner update (15 Nov 2026, 14:53)
+
+- **Admin panel language:** starts in English (the parents' app stays Arabic
+  by default). A language button is on the sign-in and two-step setup
+  screens as well as inside the panel.
