@@ -549,14 +549,16 @@ void main() {
   // dropdowns, street and building, the pin), Arabic and English, light and
   // dark; the place step also at 320 dp with 200 percent text.
   Future<void> pickIn(WidgetTester tester, Key key, String label) async {
+    // As the widget tests do (test/helpers/dropdown.dart): the menu opens
+    // over a few frames, so settle before and after each tap; long menus
+    // (27 cities) scroll to the item first.
     await tester.tap(find.byKey(key));
-    await tester.pump(const Duration(milliseconds: 300));
-    // Long menus (27 cities) scroll: bring the item into view first.
+    await tester.pumpAndSettle();
     final Finder item = find.text(label).last;
     await tester.ensureVisible(item);
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
     await tester.tap(item);
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
   }
 
   for (final String locale in locales) {
@@ -586,14 +588,14 @@ void main() {
           }
           if (step == 'address_street' || step == 'address_pin') {
             await tester.tap(find.byKey(const Key('address.next1')));
-            await tester.pump(const Duration(milliseconds: 300));
+            await tester.pumpAndSettle();
             await tester.enterText(find.byKey(const Key('address.street')), ar ? 'شارع 9' : 'Road 9');
             await tester.enterText(find.byKey(const Key('address.building')), '12');
             await tester.pump();
           }
           if (step == 'address_pin') {
             await tester.tap(find.byKey(const Key('address.next2')));
-            await tester.pump(const Duration(milliseconds: 300));
+            await tester.pumpAndSettle();
           }
           await tester.pump(const Duration(milliseconds: 300));
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));

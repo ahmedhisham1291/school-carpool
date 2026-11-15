@@ -128,33 +128,56 @@ Screenshots and the web, admin and Android builds run only with
   per-school `areas` are untouched. The Algolia `search` keeps its
   signature, plus an optional `areaId`.
 
+## Coordinator follow-ups (resolved on the branch, commits fa10407, 416daa8 and 6362415)
+
+- **N1. Outlines are server only (spec section 9).** Outlines, boxes, OSM
+  level, source, address counts and admin fields moved from `placeAreas`
+  and `placeDistricts` to a new collection, `placeInternal`, with document
+  IDs `area_<id>` and `district_<id>`.
+  - The rules deny every client read and write of it, including an
+    admin's. `tests/rules/places.test.ts` covers this.
+  - The app's documents now hold only names, IDs, parent IDs, centre,
+    school count, `active` and `mergedInto` (the menus filter on the last
+    two).
+  - Point-in-polygon stays on the server. `FirestorePlaceLocator`,
+    `rebuildIndex` and the loader read both documents.
+  - Older documents still read: when `placeInternal` lacks a field, it is
+    taken from the place document. The loader moves leftover fields to
+    `placeInternal` once and deletes them from the place document. A
+    unit test covers the merge and the fallback.
+  - The loader's place batches are halved, because each write now
+    touches two documents.
+  - Spec section 9 and COSTS.md are updated. Lookups read about twice the
+    documents (usually under 100).
+- **N2. Address counts are admin only.**
+  - `addressCount` is now only in `placeInternal`. The app sees only
+    `schoolCount`, and the admin panel gets address counts through its
+    functions.
+  - These all update the internal count: an address change
+    (`setHomeAddress`), an accepted "district isn't listed" request, and
+    a merge (it moves the count and zeroes the merged place).
+  - Account deletion has a new flow step, `places`, before the records
+    step. In one transaction it takes the address out of its area's and
+    district's counts and removes the address from the home, so a retry
+    never counts twice. `NOT_DELETED` lists `placeInternal`.
+- **N3. The pin must be in the chosen area.** `setHomeAddress` refuses a
+  pin that is more than 300 m outside the chosen area's outline.
+  - The check is `checkPinInArea`, using point-in-polygon and then the
+    distance to the nearest edge.
+  - An area without an outline accepts any pin. A pin outside Egypt still
+    gets `outside-egypt`.
+  - The error is `pin-outside-area`, with the area's Arabic and English
+    names in the details.
+  - The app keeps the parent on the pin step and says "The pin is outside
+    {area}. Move it or change the area." (Arabic: «الدبوس خارج {area}.
+    حرّكه أو غيّر المنطقة.»). It shows a "Change area" button that goes
+    back to step 1. Moving the map clears the error.
+  - Tests: functions tests (190 m outside is accepted, 480 m and another
+    area are refused, no outline is accepted, distance), and a widget
+    test for the message and "Change area".
+
 ## Notes (not blocking)
 
-- **N1. Spec deviation: outlines can be read by the app.** The spec's data
-  model says an area outline is "simplified, server only". The `rings` are
-  stored on the `placeAreas` and `placeDistricts` documents themselves,
-  which any signed-in user can list.
-  - This is public OpenStreetMap geometry, so it is not a privacy issue.
-  - But each City -> Area menu downloads every area's outline: perhaps
-    5 to 15 KB per area after the 30 m simplification, so several hundred
-    KB for Cairo. That costs time on mobile data and Firestore network
-    traffic.
-  - Recommended follow-up: move `rings` to a server-only collection
-    (`placeShapes/{id}`, closed in the rules), read by
-    `FirestorePlaceLocator` and the loader. Otherwise, the owner can amend
-    the spec.
-- **N2. `addressCount` drifts and is visible.**
-  - Deleting an account does not decrement the counts of its area and
-    district.
-  - The count can be read by every signed-in user. A district showing 1
-    tells others that one parent lives there.
-  - Possible fixes: decrement the counts in `account_deletion`, and keep
-    the counts in an admin-only field or collection.
-- **N3. The server does not check that the pin is inside the chosen
-  area.** `setHomeAddress` accepts any pin in Egypt with any valid area.
-  OSM boundaries are imperfect, so a strict check could refuse real
-  homes. A loose check (within a few km of the area) would keep
-  `parentLocations.placeAreaId` honest for carpool matching.
 - **N4. Areas and districts that admins add have no centre, box or
   outline.** `placeForPoint` never finds them. For `geocodeAddress` the
   pin starts at the district's centre or Cairo, and it is marked
