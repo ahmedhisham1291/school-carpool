@@ -571,6 +571,8 @@ describe("account deletion", () => {
     assert.equal(res.purgeAtMs, NOW + 365 * DAY_MS);
     assert.deepEqual(r.ran.slice(0, 6), ["flow:trips", "flow:carpools", "flow:anonymise", "flow:chat", "flow:trust", "flow:identity"]);
     assert.ok(r.ran.includes("homes/u1"));
+    // F46: the address leaves the place counts before the home is deleted.
+    assert.ok(r.ran.includes("flow:places") && r.ran.indexOf("flow:places") < r.ran.indexOf("homes/u1"));
     assert.ok(r.ran.includes("children.ownerUid"));
     assert.ok(r.ran.includes("ratings.rateeUid"));
     assert.ok(r.ran.includes("guardianLinks.guardianUid"));

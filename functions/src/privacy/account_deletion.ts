@@ -143,6 +143,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   placeAreas: "not personal (public place names and outlines)",
   placeDistricts: "not personal (public place names; a district an admin added from a request carries no uid)",
   placeIndex: "not personal (the areas' boxes)",
+  placeInternal: "not personal (outlines and address counts; the places step takes the parent's address out of the counts)",
   placeCache: "not personal (place details)",
   carpools: "the group stays for the other members (the parent's names become initials); a closed carpool is deleted 1 year after it closed",
   carpoolInvites: "carpool links (no personal data)",
@@ -191,7 +192,11 @@ export const SUBCOLLECTIONS: Readonly<Record<string, string>> = {
  * "carpools" (future runs released) and before "records" (memberships,
  * used to find the carpools, are deleted there).
  */
-export const FLOW_STEPS = ["trips", "carpools", "anonymise", "chat", "trust", "identity", "wallet", "records", "auth"] as const;
+/**
+ * places (F46): the parent's address leaves its area's and district's
+ * address counts (placeInternal), before "records" deletes homes/{uid}.
+ */
+export const FLOW_STEPS = ["trips", "carpools", "anonymise", "chat", "trust", "identity", "wallet", "places", "records", "auth"] as const;
 export type FlowStep = (typeof FLOW_STEPS)[number];
 /** routes: the parent's archived routes (files and records); stream: the Stream user and messages. */
 /**

@@ -18,9 +18,11 @@ import {
   type SchoolPlace,
 } from "../src/places/admin";
 import {
+  INTERNAL_FIELDS,
   buildIndex,
   candidates,
   countSchools,
+  internalId,
   locate,
   parsePlacesFile,
   placeKey,
@@ -33,7 +35,7 @@ import {
   type PlaceDistrict,
   type Ring,
 } from "../src/places/catalog";
-import { placeOfPoint, type PlaceLocator } from "../src/places/store";
+import { areaFromDoc, placeOfPoint, type PlaceLocator } from "../src/places/store";
 import { searchRecordFrom } from "../src/schools/catalog";
 import { addOtherSchool, type OtherSchoolsStore, type PendingSchool } from "../src/schools/other";
 
@@ -132,6 +134,24 @@ describe("places: geometry and lookup", () => {
     assert.equal(doc[0].p.length, 10);
     assert.deepEqual(ringsFromDoc(doc), maadi.rings);
     assert.deepEqual(ringsFromDoc([{ p: [1, 2, 3] }, "x"]), []);
+  });
+
+  it("the outline and address count come from the server-only document; older documents still read (N1, N2)", () => {
+    const app = { governorate: "cairo", nameAr: "المعادي", nameEn: "Maadi", centre: { latitude: 29.96, longitude: 31.25 }, schoolCount: 3, active: true };
+    const internal = { kind: "area", placeId: "osm-r1", level: 7, source: "osm", bbox: maadi.bbox, rings: ringsToDoc(maadi.rings), addressCount: 5 };
+    const a = areaFromDoc("osm-r1", app, internal);
+    assert.deepEqual(a.rings, maadi.rings);
+    assert.equal(a.addressCount, 5);
+    assert.equal(a.schoolCount, 3);
+    assert.equal(a.level, 7);
+    // Before the split the fields were on the app's document.
+    const legacy = areaFromDoc("osm-r1", { ...app, rings: ringsToDoc(maadi.rings), bbox: maadi.bbox, level: 7, addressCount: 2 });
+    assert.deepEqual(legacy.rings, maadi.rings);
+    assert.equal(legacy.addressCount, 2);
+    // The server-only document wins over a leftover field.
+    assert.equal(areaFromDoc("osm-r1", { ...app, addressCount: 2 }, internal).addressCount, 5);
+    assert.deepEqual(INTERNAL_FIELDS.slice().sort(), ["addressCount", "adminEdited", "bbox", "level", "rings", "source"]);
+    assert.equal(internalId("district", "osm-n1"), "district_osm-n1");
   });
 
   it("placeOfPoint returns the area's names", async () => {

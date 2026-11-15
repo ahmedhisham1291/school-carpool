@@ -1,7 +1,8 @@
 // Rules for City -> Area -> District (F4 grouping, F46 addresses). Signed-in
 // users read areas and districts (lists at most 500 at a time); nobody
-// writes them from the app; the server's index and the "district not
-// listed" requests are closed to every client. Runs only against the
+// writes them from the app; the outlines and address counts
+// (placeInternal), the server's index and the "district not listed"
+// requests are closed to every client. Runs only against the
 // emulators. Written, not run here (no npm registry in the build
 // workspace); CI runs it.
 import { readFileSync } from "node:fs";
@@ -38,6 +39,8 @@ beforeEach(async () => {
     await db.doc("placeAreas/osm-r1").set({ governorate: "cairo", nameAr: "المعادي", nameEn: "Maadi", active: true, schoolCount: 3 });
     await db.doc("placeDistricts/osm-n1").set({ areaId: "osm-r1", governorate: "cairo", nameAr: "دجلة", nameEn: "Degla", active: true });
     await db.doc("placeIndex/areas").set({ areas: [{ id: "osm-r1", governorate: "cairo" }] });
+    await db.doc("placeInternal/area_osm-r1").set({ kind: "area", placeId: "osm-r1", rings: [{ p: [29.9, 31.2, 29.9, 31.3, 30.0, 31.3, 29.9, 31.2] }], addressCount: 4 });
+    await db.doc("placeInternal/district_osm-n1").set({ kind: "district", placeId: "osm-n1", areaId: "osm-r1", addressCount: 1 });
     await db.doc("placeRequests/r1").set({ uid: "alice", areaId: "osm-r1", text: "الحي الجديد", status: "open" });
   });
 });
@@ -68,6 +71,16 @@ describe("places: reading", () => {
     await assertFails(db.collection("placeDistricts").limit(10).get());
   });
 
+  it("outlines and address counts (placeInternal) are closed, even to an admin's client", async () => {
+    for (const ctx of [asAlice(), asAdmin(), signedOut()]) {
+      const db = ctx.firestore();
+      await assertFails(db.doc("placeInternal/area_osm-r1").get());
+      await assertFails(db.doc("placeInternal/district_osm-n1").get());
+      await assertFails(db.collection("placeInternal").where("kind", "==", "area").limit(10).get());
+      await assertFails(db.collection("placeInternal").limit(10).get());
+    }
+  });
+
   it("the index and the requests are closed, even to an admin's client", async () => {
     for (const ctx of [asAlice(), asAdmin()]) {
       const db = ctx.firestore();
@@ -88,6 +101,9 @@ describe("places: writing", () => {
       await assertFails(db.doc("placeDistricts/osm-n1").update({ areaId: "other" }));
       await assertFails(db.doc("placeDistricts/new").set({ areaId: "osm-r1", nameAr: "x" }));
       await assertFails(db.doc("placeIndex/areas").set({ areas: [] }));
+      await assertFails(db.doc("placeInternal/area_osm-r1").set({ addressCount: 0 }));
+      await assertFails(db.doc("placeInternal/area_new").set({ kind: "area", rings: [] }));
+      await assertFails(db.doc("placeInternal/district_osm-n1").delete());
       await assertFails(db.doc("placeRequests/r2").set({ uid: "alice", text: "x" }));
     }
   });

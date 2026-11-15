@@ -7,6 +7,7 @@ import {
   addressFromDoc,
   checkAddress,
   countMoves,
+  distanceToRingsKm,
   geocodeQuery,
   parseAddress,
   startPoint,
@@ -186,6 +187,37 @@ describe("F46 address: flows", () => {
     await rejectsWith(setHomeAddressFlow(d, "alice", { address: { ...input, governorate: "giza" }, location: { lat: 29.95, lng: 31.25 } }), "invalid-area");
     await rejectsWith(setHomeAddressFlow(d, "alice", { address: input, location: { lat: 48.8, lng: 2.35 } }), "outside-egypt");
     assert.equal(store.homes.size, 0);
+  });
+
+  it("the pin must be in the chosen area's outline, or within 300 m of it (N3)", async () => {
+    const { d, store } = deps();
+    // About 190 m east of Maadi's edge: accepted (outlines are simplified).
+    await setHomeAddressFlow(d, "alice", { address: input, location: { lat: 29.96, lng: 31.272 } });
+    assert.equal(store.homes.get("alice")?.address?.placeAreaId, "osm-r1");
+    // About 480 m east: refused, with the area's names for the message.
+    await assert.rejects(
+      setHomeAddressFlow(d, "alice", { address: input, location: { lat: 29.96, lng: 31.275 } }),
+      (e: unknown) => e instanceof AddressError && e.reason === "pin-outside-area" && e.details.areaNameEn === "Maadi" && e.details.areaNameAr === "المعادي",
+    );
+    // A pin in Sheikh Zayed with Maadi chosen: refused, nothing saved over the first address.
+    await rejectsWith(setHomeAddressFlow(d, "alice", { address: input, location: { lat: 30.04, lng: 30.98 } }), "pin-outside-area");
+    assert.deepEqual(store.homes.get("alice")?.location, { lat: 29.96, lng: 31.272 });
+  });
+
+  it("an area without an outline (added by an admin) accepts any pin in Egypt", async () => {
+    const { d, store } = deps();
+    const added: PlaceArea = { ...MAADI, id: "adm-1", level: 0, source: "admin", centre: null, bbox: null, rings: [] };
+    d.places = { ...locator, area: async (id) => (id === "adm-1" ? added : locator.area(id)), district: async () => null };
+    await setHomeAddressFlow(d, "alice", {
+      address: { ...input, placeAreaId: "adm-1", placeDistrictId: null, districtText: "الحي الجديد" },
+      location: { lat: 30.04, lng: 30.98 },
+    });
+    assert.equal(store.homes.get("alice")?.address?.placeAreaId, "adm-1");
+  });
+
+  it("distance to an outline", () => {
+    assert.ok(Math.abs(distanceToRingsKm({ lat: 29.96, lng: 31.275 }, MAADI.rings) - 0.482) < 0.01);
+    assert.ok(distanceToRingsKm({ lat: 29.96, lng: 31.25 }, MAADI.rings) > 1, "inside: the nearest edge is 2 km away");
   });
 
   it("where a point is: the area and district for the prefill", async () => {

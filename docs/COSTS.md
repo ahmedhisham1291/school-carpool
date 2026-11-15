@@ -148,15 +148,18 @@ Limits below are the public free allowances as understood in November 2026.
   school.
 - **Lookups (`placeForPoint`, `setHomeAddress`, an "Other" school, an
   admin-saved school):** one read of `placeIndex/areas` per function
-  instance every 10 minutes, then 1 to 3 area documents and the districts
-  of one area (usually under 50 reads). `placeForPoint` counts against the
+  instance every 10 minutes, then 1 to 3 areas and the districts of one
+  area, each with its server-only outline document (placeInternal), so
+  about twice the documents (usually under 100 reads). `placeForPoint` counts against the
   parent's address-search limit (60 an hour).
 - **Address pin (`geocodeAddress`):** one Places Autocomplete request and
   one Place Details (Essentials, cached 30 days) per address, inside the
   existing per-parent limits and the free monthly calls; no new SKU.
 - **App reads:** the City -> Area -> District menus read the areas of one
   city (at most 500) and the districts of one area; browsing reads at
-  most 200 schools of one area.
+  most 200 schools of one area. These documents hold names, centre and
+  school count only (a few hundred bytes each); the outlines stay in
+  placeInternal, which the app never reads.
 
 ## Maps (Prompt 5)
 

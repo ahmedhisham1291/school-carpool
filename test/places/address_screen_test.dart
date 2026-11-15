@@ -7,6 +7,7 @@ import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/places/address_models.dart';
+import 'package:school_carpool/features/places/address_repository.dart';
 import 'package:school_carpool/features/places/address_screen.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -124,6 +125,31 @@ void main() {
     expect(saved.building, '12B');
     expect(saved.landmark, 'Opposite the pharmacy');
     expect(pin, const GeoPin(29.9602, 31.2569));
+  });
+
+  testWidgets('a pin outside the chosen area: says so by name, and Change area goes back to step 1', (WidgetTester tester) async {
+    final FakeAddressRepository repo = await _pump(tester);
+    await _fillPlace(tester);
+    await tester.tap(find.byKey(const Key('address.next1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('address.street')), 'Road 9');
+    await tester.enterText(find.byKey(const Key('address.building')), '12');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('address.next2')));
+    await tester.pumpAndSettle();
+
+    repo.saveFailure = const AddressFailure(AddressFailureKind.pinOutsideArea, areaNameAr: 'المعادي', areaNameEn: 'Maadi');
+    await tester.tap(find.byKey(const Key('address.save')));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 3 of 3'), findsOneWidget);
+    expect(find.text('The pin is outside Maadi. Move it or change the area.'), findsOneWidget);
+    expect(repo.saved, isEmpty);
+
+    await tester.ensureVisible(find.byKey(const Key('address.changeArea')));
+    await tester.tap(find.byKey(const Key('address.changeArea')));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 1 of 3'), findsOneWidget);
+    expect(dropdownText(tester, const Key('address.area.cairo')), 'Maadi');
   });
 
   testWidgets('nothing found: the pin starts at the district and says to move it', (WidgetTester tester) async {

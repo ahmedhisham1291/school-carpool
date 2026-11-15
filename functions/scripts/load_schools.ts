@@ -31,7 +31,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { initializeApp } from "firebase-admin/app";
-import { FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, getFirestore, type DocumentData, type QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { SCHOOLS } from "../src/admin_panel/store";
 import { parseImportedSchool, planImport, planSampleHiding, type ImportedSchool } from "../src/schools/catalog";
 import { importedFields, newImportedDoc, readExistingSchools } from "../src/schools/store";
@@ -40,8 +40,11 @@ import {
   PLACE_DISTRICTS,
   PLACE_INDEX,
   PLACE_INDEX_AREAS,
+  PLACE_INTERNAL,
+  INTERNAL_FIELDS,
   buildIndex,
   countSchools,
+  internalId,
   parsePlacesFile,
   planPlaces,
   ringsToDoc,
@@ -195,9 +198,21 @@ async function loadPlaces(
   counts: { areas: Map<string, number>; districts: Map<string, number> },
 ): Promise<void> {
   const places = parsePlacesFile(JSON.parse(readFileSync(path, "utf-8")));
-  const [areaSnap, districtSnap] = await Promise.all([db.collection(PLACE_AREAS).get(), db.collection(PLACE_DISTRICTS).get()]);
-  const existingAreas: PlaceArea[] = areaSnap.docs.map((d: QueryDocumentSnapshot) => areaFromDoc(d.id, d.data()));
-  const existingDistricts: PlaceDistrict[] = districtSnap.docs.map((d: QueryDocumentSnapshot) => districtFromDoc(d.id, d.data()));
+  const [areaSnap, districtSnap, internalSnap] = await Promise.all([
+    db.collection(PLACE_AREAS).get(),
+    db.collection(PLACE_DISTRICTS).get(),
+    db.collection(PLACE_INTERNAL).get(),
+  ]);
+  // Outlines, boxes, address counts and admin fields are in placeInternal
+  // (server only, spec section 9); the app's documents hold names, centre,
+  // school count and state.
+  const internal = new Map<string, DocumentData>(internalSnap.docs.map((d: QueryDocumentSnapshot) => [d.id, d.data()]));
+  const existingAreas: PlaceArea[] = areaSnap.docs.map((d: QueryDocumentSnapshot) =>
+    areaFromDoc(d.id, d.data(), internal.get(internalId("area", d.id))),
+  );
+  const existingDistricts: PlaceDistrict[] = districtSnap.docs.map((d: QueryDocumentSnapshot) =>
+    districtFromDoc(d.id, d.data(), internal.get(internalId("district", d.id))),
+  );
   const areaPlan = planPlaces<ImportedArea, PlaceArea>(places.areas, existingAreas);
   const districtPlan = planPlaces<ImportedDistrict, PlaceDistrict>(
     places.districts,
@@ -212,41 +227,56 @@ async function loadPlaces(
 
   type Batch = ReturnType<typeof db.batch>;
   const now = FieldValue.serverTimestamp();
-  const areaFields = (a: ImportedArea) => ({
-    governorate: a.governorate,
-    nameAr: a.nameAr,
-    nameEn: a.nameEn,
-    level: a.level,
-    centre: geoPoint(a.centre),
-    bbox: a.bbox,
-    rings: ringsToDoc(a.rings),
-    updatedAt: now,
+  const areaFields = (a: ImportedArea) => ({ governorate: a.governorate, nameAr: a.nameAr, nameEn: a.nameEn, centre: geoPoint(a.centre), updatedAt: now });
+  const areaInternal = (a: ImportedArea) => ({
+    kind: "area", placeId: a.id, level: a.level, bbox: a.bbox, rings: ringsToDoc(a.rings), updatedAt: now,
   });
   const districtFields = (d: ImportedDistrict) => ({
-    areaId: d.areaId,
-    governorate: d.governorate,
-    nameAr: d.nameAr,
-    nameEn: d.nameEn,
-    centre: geoPoint(d.centre),
-    bbox: d.bbox,
-    rings: ringsToDoc(d.rings),
-    updatedAt: now,
+    areaId: d.areaId, governorate: d.governorate, nameAr: d.nameAr, nameEn: d.nameEn, centre: geoPoint(d.centre), updatedAt: now,
   });
+  const districtInternal = (d: ImportedDistrict) => ({
+    kind: "district", placeId: d.id, areaId: d.areaId, source: d.source, bbox: d.bbox, rings: ringsToDoc(d.rings), updatedAt: now,
+  });
+  const internalRef = (kind: "area" | "district", id: string) => db.collection(PLACE_INTERNAL).doc(internalId(kind, id));
+
+  // Places loaded before the split carry the internal fields on the app's
+  // document: move them to placeInternal (once) and take them off.
+  const legacy: Array<(b: Batch) => void> = [];
+  for (const [kind, snap] of [["area", areaSnap], ["district", districtSnap]] as const) {
+    for (const d of snap.docs) {
+      const data = d.data();
+      const moved = INTERNAL_FIELDS.filter((k) => data[k] !== undefined);
+      if (moved.length === 0) continue;
+      const have = internal.get(internalId(kind, d.id)) ?? {};
+      const copy: DocumentData = { kind, placeId: d.id, ...(kind === "district" ? { areaId: data.areaId ?? null } : {}) };
+      for (const k of moved) if (have[k] === undefined) copy[k] = data[k];
+      const off: DocumentData = Object.fromEntries(moved.map((k) => [k, FieldValue.delete()]));
+      legacy.push((b: Batch) => {
+        b.set(internalRef(kind, d.id), copy, { merge: true });
+        b.update(d.ref, off);
+      });
+    }
+  }
+  if (legacy.length) console.log(`  moved outlines and counts to the server-only documents: ${legacy.length}`);
+
   const writes: Array<(b: Batch) => void> = [
-    ...areaPlan.creates.map((a) => (b: Batch) =>
-      b.create(db.collection(PLACE_AREAS).doc(a.id), {
-        ...areaFields(a), source: "osm", schoolCount: 0, addressCount: 0, active: true, mergedInto: null, adminEdited: false,
-        createdAt: now,
-      }),
-    ),
-    ...areaPlan.updates.map((a) => (b: Batch) => b.update(db.collection(PLACE_AREAS).doc(a.id), areaFields(a))),
-    ...districtPlan.creates.map((d) => (b: Batch) =>
-      b.create(db.collection(PLACE_DISTRICTS).doc(d.id), {
-        ...districtFields(d), source: d.source, schoolCount: 0, addressCount: 0, active: true, mergedInto: null, adminEdited: false,
-        createdAt: now,
-      }),
-    ),
-    ...districtPlan.updates.map((d) => (b: Batch) => b.update(db.collection(PLACE_DISTRICTS).doc(d.id), districtFields(d))),
+    ...legacy,
+    ...areaPlan.creates.map((a) => (b: Batch) => {
+      b.create(db.collection(PLACE_AREAS).doc(a.id), { ...areaFields(a), schoolCount: 0, active: true, mergedInto: null, createdAt: now });
+      b.set(internalRef("area", a.id), { ...areaInternal(a), source: "osm", addressCount: 0, adminEdited: false });
+    }),
+    ...areaPlan.updates.map((a) => (b: Batch) => {
+      b.update(db.collection(PLACE_AREAS).doc(a.id), areaFields(a));
+      b.set(internalRef("area", a.id), areaInternal(a), { merge: true });
+    }),
+    ...districtPlan.creates.map((d) => (b: Batch) => {
+      b.create(db.collection(PLACE_DISTRICTS).doc(d.id), { ...districtFields(d), schoolCount: 0, active: true, mergedInto: null, createdAt: now });
+      b.set(internalRef("district", d.id), { ...districtInternal(d), addressCount: 0, adminEdited: false });
+    }),
+    ...districtPlan.updates.map((d) => (b: Batch) => {
+      b.update(db.collection(PLACE_DISTRICTS).doc(d.id), districtFields(d));
+      b.set(internalRef("district", d.id), districtInternal(d), { merge: true });
+    }),
   ];
   // School counts: written only where they changed.
   const allAreaIds = new Set([...existingAreas.map((a) => a.id), ...places.areas.map((a) => a.id)]);
@@ -261,13 +291,16 @@ async function loadPlaces(
     const n = counts.districts.get(id) ?? 0;
     if ((oldDistrictCount.get(id) ?? 0) !== n) writes.push((b: Batch) => b.set(db.collection(PLACE_DISTRICTS).doc(id), { schoolCount: n }, { merge: true }));
   }
-  for (let i = 0; i < writes.length; i += BATCH_SIZE) {
-    const chunk = writes.slice(i, i + BATCH_SIZE);
+  // Each place write is up to two operations (its document and its
+  // placeInternal document): half a schools batch keeps under Firestore's 500.
+  const PLACE_BATCH = BATCH_SIZE / 2;
+  for (let i = 0; i < writes.length; i += PLACE_BATCH) {
+    const chunk = writes.slice(i, i + PLACE_BATCH);
     await commitWithRetry(() => {
       const batch = db.batch();
       for (const write of chunk) write(batch);
       return batch.commit();
-    }, `places batch ${i / BATCH_SIZE + 1}`);
+    }, `places batch ${i / PLACE_BATCH + 1}`);
   }
   // The index: every active area with a shape (the server's first read for a point).
   const byId = new Map<string, PlaceArea>(existingAreas.map((a) => [a.id, a]));
@@ -280,7 +313,7 @@ async function loadPlaces(
   }
   const index = buildIndex([...byId.values()]);
   await db.collection(PLACE_INDEX).doc(PLACE_INDEX_AREAS).set({ areas: index, updatedAt: now });
-  console.log(`load_places: done. areas ${places.areas.length}, districts ${places.districts.length}, index ${index.length} areas, count changes ${writes.length - areaPlan.creates.length - areaPlan.updates.length - districtPlan.creates.length - districtPlan.updates.length}`);
+  console.log(`load_places: done. areas ${places.areas.length}, districts ${places.districts.length}, index ${index.length} areas, count changes ${writes.length - legacy.length - areaPlan.creates.length - areaPlan.updates.length - districtPlan.creates.length - districtPlan.updates.length}`);
 }
 
 main().catch((error) => {

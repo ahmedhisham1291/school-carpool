@@ -163,6 +163,9 @@ class FakeAddressRepository implements AddressRepository {
   GeoPin? found = const GeoPin(29.9602, 31.2569);
   AddressFailure? failure;
 
+  /// Only save fails with this, when set (e.g. the pin is outside the area).
+  AddressFailure? saveFailure;
+
   void _check() {
     final AddressFailure? f = failure;
     if (f != null) {
@@ -187,6 +190,10 @@ class FakeAddressRepository implements AddressRepository {
   @override
   Future<GeoPin> save(HomeAddress address, GeoPin location) async {
     _check();
+    final AddressFailure? f = saveFailure;
+    if (f != null) {
+      throw f;
+    }
     saved.add((address, location));
     return const GeoPin(29.9625, 31.2575);
   }

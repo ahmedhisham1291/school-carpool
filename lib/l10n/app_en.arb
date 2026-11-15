@@ -2279,5 +2279,7 @@
   "addressSaved": "Address saved",
   "addressErrorArea": "This area is no longer listed. Choose another.",
   "addressErrorDistrict": "This district is no longer listed. Choose another.",
-  "addressUseThisPlace": "Use this place"
+  "addressUseThisPlace": "Use this place",
+  "addressPinOutsideArea": "The pin is outside {area}. Move it or change the area.",
+  "addressChangeArea": "Change area"
 }

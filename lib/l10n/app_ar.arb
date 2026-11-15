@@ -10182,5 +10182,19 @@
   "addressUseThisPlace": "استخدم هذا المكان",
   "@addressUseThisPlace": {
     "description": "F46: Search instead confirm button"
+  },
+  "addressPinOutsideArea": "الدبوس خارج {area}. حرّكه أو غيّر المنطقة.",
+  "@addressPinOutsideArea": {
+    "description": "F46 server: the confirmed pin is outside the chosen area (more than 300 m from its outline)",
+    "placeholders": {
+      "area": {
+        "type": "String",
+        "example": "الشيخ زايد"
+      }
+    }
+  },
+  "addressChangeArea": "غيّر المنطقة",
+  "@addressChangeArea": {
+    "description": "F46: button on the pin step that goes back to City, Area and District"
   }
 }

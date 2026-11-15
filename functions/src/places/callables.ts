@@ -14,13 +14,14 @@ import {
   ADDRESS_ERROR_CODES,
   AddressError,
   checkAddress,
+  checkPinInArea,
   countMoves,
   geocodeQuery,
   parseAddress,
   startPoint,
   type HomeAddress,
 } from "./address";
-import { PLACE_AREAS, PLACE_DISTRICTS, PLACE_REQUESTS, type LatLng } from "./catalog";
+import { PLACE_INTERNAL, PLACE_REQUESTS, internalId, type LatLng } from "./catalog";
 import { FirestorePlaceLocator, type PlaceLocator } from "./store";
 
 /**
@@ -69,6 +70,12 @@ export function addressLabel(a: HomeAddress, language: "ar" | "en" = "ar"): stri
 export async function setHomeAddressFlow(deps: AddressDeps, uid: string, data: unknown): Promise<{ approximate: LatLng }> {
   const raw = obj(data);
   const address = await checked(deps, raw.address);
+  // The pin must be in the chosen area (N3). A pin that is not a point in
+  // Egypt is refused by the home flow below with its own reason.
+  if (isValidPoint(raw.location) && inEgypt(raw.location)) {
+    const area = await deps.places.area(address.placeAreaId);
+    if (area) checkPinInArea(area, raw.location);
+  }
   const before = (await deps.map.store.home(uid))?.address ?? null;
   const result = await setHome(deps.map, uid, { location: raw.location, label: addressLabel(address) }, address);
   await deps.moveCounts(countMoves(before, address));
@@ -165,7 +172,12 @@ class FirestoreAddressSide {
     if (moves.length === 0) return;
     const batch = this.db.batch();
     for (const m of moves) {
-      batch.set(this.db.collection(m.kind === "area" ? PLACE_AREAS : PLACE_DISTRICTS).doc(m.id), { addressCount: FieldValue.increment(m.by) }, { merge: true });
+      // Address counts are admin only: kept in the server-only document (placeInternal).
+      batch.set(
+        this.db.collection(PLACE_INTERNAL).doc(internalId(m.kind, m.id)),
+        { kind: m.kind, placeId: m.id, addressCount: FieldValue.increment(m.by) },
+        { merge: true },
+      );
     }
     await batch.commit();
   }
@@ -204,7 +216,7 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     if (error instanceof AddressError) {
-      throw new HttpsError(ADDRESS_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
+      throw new HttpsError(ADDRESS_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason, ...error.details });
     }
     if (error instanceof MapError) {
       throw new HttpsError(MAP_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, {

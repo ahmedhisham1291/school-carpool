@@ -90,6 +90,9 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
   bool _saving = false;
   String? _saveError;
 
+  /// The pin is outside the chosen area (server check): offer to change the area.
+  bool _pinOutside = false;
+
   /// Set once the saved address was put in the form (or the parent started typing).
   bool _prefilled = false;
 
@@ -358,6 +361,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
     setState(() {
       _saving = true;
       _saveError = null;
+      _pinOutside = false;
     });
     try {
       await ref.read(addressRepositoryProvider).save(draft, pin);
@@ -371,6 +375,8 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
       }
       setState(() {
         _saveError = failure.message(l10n);
+        // The pin step stays: move the pin, or "Change area" goes to step 1.
+        _pinOutside = failure.kind == AddressFailureKind.pinOutsideArea;
         // Take the parent to the part to fix.
         if (failure.kind == AddressFailureKind.area || failure.kind == AddressFailureKind.district) {
           _step = 1;
@@ -658,6 +664,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
                     onCameraIdle: (GeoPin center) => setState(() {
                       _pin = center;
                       _saveError = null;
+                      _pinOutside = false;
                     }),
                   ),
                 ),
@@ -700,6 +707,21 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
               if (saveError != null) ...<Widget>[
                 const SizedBox(height: AppSpacing.s16),
                 AppInlineMessage(key: const Key('address.error'), message: saveError, tone: AppStateTone.error),
+                if (_pinOutside)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: AppButton(
+                      key: const Key('address.changeArea'),
+                      label: l10n.addressChangeArea,
+                      icon: Icons.map_outlined,
+                      variant: AppButtonVariant.tertiary,
+                      onPressed: () => setState(() {
+                        _step = 1;
+                        _saveError = null;
+                        _pinOutside = false;
+                      }),
+                    ),
+                  ),
               ],
               const SizedBox(height: AppSpacing.s16),
               AppButton(

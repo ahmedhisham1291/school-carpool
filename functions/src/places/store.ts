@@ -4,7 +4,10 @@ import {
   PLACE_DISTRICTS,
   PLACE_INDEX,
   PLACE_INDEX_AREAS,
+  PLACE_INTERNAL,
+  INTERNAL_FIELDS,
   candidates,
+  internalId,
   locate,
   ringsFromDoc,
   type BBox,
@@ -35,42 +38,97 @@ function bbox(v: unknown): BBox | null {
   return ["minLat", "minLng", "maxLat", "maxLng"].every((k) => typeof o[k] === "number") ? (o as unknown as BBox) : null;
 }
 
-export function areaFromDoc(id: string, d: DocumentData): PlaceArea {
+/**
+ * A place from its app document [d] and its server-only document [internal]
+ * (placeInternal). A document loaded before the split still carries the
+ * internal fields itself: they are used when [internal] lacks them.
+ */
+function internalOf(d: DocumentData, internal: DocumentData | undefined): DocumentData {
+  const out: DocumentData = {};
+  for (const k of INTERNAL_FIELDS) out[k] = internal && internal[k] !== undefined ? internal[k] : d[k];
+  return out;
+}
+
+export function areaFromDoc(id: string, d: DocumentData, internal?: DocumentData): PlaceArea {
+  const i = internalOf(d, internal);
   return {
     id,
     governorate: str(d.governorate),
     nameAr: str(d.nameAr),
     nameEn: str(d.nameEn),
-    level: num(d.level),
-    source: str(d.source) || "osm",
+    level: num(i.level),
+    source: str(i.source) || "osm",
     centre: latLng(d.centre),
-    bbox: bbox(d.bbox),
-    rings: ringsFromDoc(d.rings),
+    bbox: bbox(i.bbox),
+    rings: ringsFromDoc(i.rings),
     schoolCount: num(d.schoolCount),
-    addressCount: num(d.addressCount),
+    addressCount: num(i.addressCount),
     active: d.active !== false,
     mergedInto: typeof d.mergedInto === "string" ? d.mergedInto : null,
-    adminEdited: d.adminEdited === true,
+    adminEdited: i.adminEdited === true,
   };
 }
 
-export function districtFromDoc(id: string, d: DocumentData): PlaceDistrict {
+export function districtFromDoc(id: string, d: DocumentData, internal?: DocumentData): PlaceDistrict {
+  const i = internalOf(d, internal);
   return {
     id,
     areaId: str(d.areaId),
     governorate: str(d.governorate),
     nameAr: str(d.nameAr),
     nameEn: str(d.nameEn),
-    source: str(d.source) || "osm",
+    source: str(i.source) || "osm",
     centre: latLng(d.centre),
-    bbox: bbox(d.bbox),
-    rings: ringsFromDoc(d.rings),
+    bbox: bbox(i.bbox),
+    rings: ringsFromDoc(i.rings),
     schoolCount: num(d.schoolCount),
-    addressCount: num(d.addressCount),
+    addressCount: num(i.addressCount),
     active: d.active !== false,
     mergedInto: typeof d.mergedInto === "string" ? d.mergedInto : null,
-    adminEdited: d.adminEdited === true,
+    adminEdited: i.adminEdited === true,
   };
+}
+
+/** The app's document and the server-only document of each place, in one read. */
+export async function readPlaces(
+  db: Firestore,
+  kind: "area" | "district",
+  ids: string[],
+): Promise<Array<{ id: string; data: DocumentData; internal: DocumentData | undefined }>> {
+  if (ids.length === 0) return [];
+  const col = db.collection(kind === "area" ? PLACE_AREAS : PLACE_DISTRICTS);
+  const snaps = await db.getAll(
+    ...ids.map((id) => col.doc(id)),
+    ...ids.map((id) => db.collection(PLACE_INTERNAL).doc(internalId(kind, id))),
+  );
+  const out: Array<{ id: string; data: DocumentData; internal: DocumentData | undefined }> = [];
+  ids.forEach((id, n) => {
+    const pub = snaps[n];
+    const internal = snaps[ids.length + n];
+    if (pub.exists) out.push({ id, data: pub.data() ?? {}, internal: internal.exists ? internal.data() : undefined });
+  });
+  return out;
+}
+
+/** Areas (or districts) read with their server-only documents. */
+export async function areasWithInternal(db: Firestore, docs: QueryDocumentSnapshot[]): Promise<PlaceArea[]> {
+  const internal = await readInternal(db, "area", docs.map((d) => d.id));
+  return docs.map((d) => areaFromDoc(d.id, d.data(), internal.get(d.id)));
+}
+
+export async function districtsWithInternal(db: Firestore, docs: QueryDocumentSnapshot[]): Promise<PlaceDistrict[]> {
+  const internal = await readInternal(db, "district", docs.map((d) => d.id));
+  return docs.map((d) => districtFromDoc(d.id, d.data(), internal.get(d.id)));
+}
+
+async function readInternal(db: Firestore, kind: "area" | "district", ids: string[]): Promise<Map<string, DocumentData>> {
+  const out = new Map<string, DocumentData>();
+  if (ids.length === 0) return out;
+  const snaps = await db.getAll(...ids.map((id) => db.collection(PLACE_INTERNAL).doc(internalId(kind, id))));
+  snaps.forEach((snap: DocumentSnapshot, n: number) => {
+    if (snap.exists) out.set(ids[n], snap.data() ?? {});
+  });
+  return out;
 }
 
 export function geoPoint(p: LatLng | null): GeoPoint | null {
@@ -99,7 +157,8 @@ export interface PlaceLocator {
 /**
  * Reads placeIndex/areas once per instance for INDEX_TTL_MS (one document
  * read), then only the 1 to 3 areas whose box holds the point and their
- * districts. A cold project without places answers "no area".
+ * districts, each with its server-only document (outline). A cold project
+ * without places answers "no area".
  */
 export class FirestorePlaceLocator implements PlaceLocator {
   private static index: { entries: IndexEntry[]; at: number } | null = null;
@@ -129,28 +188,21 @@ export class FirestorePlaceLocator implements PlaceLocator {
   async locate(p: LatLng): Promise<Located> {
     const ids = candidates(await this.loadIndex(), p).slice(0, 10);
     if (ids.length === 0) return { governorate: null, areaId: null, districtId: null };
-    const snaps = await this.db.getAll(...ids.map((id) => this.db.collection(PLACE_AREAS).doc(id)));
-    const areas: PlaceArea[] = snaps
-      .filter((s: DocumentSnapshot) => s.exists)
-      .map((s: DocumentSnapshot) => areaFromDoc(s.id, s.data() ?? {}));
+    const areas: PlaceArea[] = (await readPlaces(this.db, "area", ids)).map((r) => areaFromDoc(r.id, r.data, r.internal));
     const hit = locate(p, areas, []);
     if (!hit.areaId) return hit;
     const districts = await this.db.collection(PLACE_DISTRICTS).where("areaId", "==", hit.areaId).limit(500).get();
-    return locate(
-      p,
-      areas,
-      districts.docs.map((d: QueryDocumentSnapshot) => districtFromDoc(d.id, d.data())),
-    );
+    return locate(p, areas, await districtsWithInternal(this.db, districts.docs));
   }
 
   async area(id: string): Promise<PlaceArea | null> {
-    const snap = await this.db.collection(PLACE_AREAS).doc(id).get();
-    return snap.exists ? areaFromDoc(id, snap.data() ?? {}) : null;
+    const [r] = await readPlaces(this.db, "area", [id]);
+    return r ? areaFromDoc(r.id, r.data, r.internal) : null;
   }
 
   async district(id: string): Promise<PlaceDistrict | null> {
-    const snap = await this.db.collection(PLACE_DISTRICTS).doc(id).get();
-    return snap.exists ? districtFromDoc(id, snap.data() ?? {}) : null;
+    const [r] = await readPlaces(this.db, "district", [id]);
+    return r ? districtFromDoc(r.id, r.data, r.internal) : null;
   }
 
   /** Tests and the loader: forget the cached index. */

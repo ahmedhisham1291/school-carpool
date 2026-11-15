@@ -1,4 +1,4 @@
-import { isGovernorate, isPlaceId, shapeContains, type LatLng, type PlaceArea, type PlaceDistrict } from "./catalog";
+import { isGovernorate, isPlaceId, ringContains, shapeContains, type LatLng, type PlaceArea, type PlaceDistrict, type Ring } from "./catalog";
 
 /**
  * F46: the structured home address (City -> Area -> District, street,
@@ -41,10 +41,15 @@ export type AddressErrorReason =
   | "invalid-district"
   | "invalid-street"
   | "invalid-building"
-  | "invalid-extra";
+  | "invalid-extra"
+  | "pin-outside-area";
 
 export class AddressError extends Error {
-  constructor(readonly reason: AddressErrorReason) {
+  constructor(
+    readonly reason: AddressErrorReason,
+    /** Sent to the app with the reason (pin-outside-area: the area's names). */
+    readonly details: Record<string, string> = {},
+  ) {
     super(reason);
     this.name = "AddressError";
   }
@@ -58,6 +63,7 @@ export const ADDRESS_ERROR_CODES: Record<AddressErrorReason, string> = {
   "invalid-street": "invalid-argument",
   "invalid-building": "invalid-argument",
   "invalid-extra": "invalid-argument",
+  "pin-outside-area": "failed-precondition",
 };
 
 /** Letters of any script, digits, spaces and the punctuation addresses use. */
@@ -178,6 +184,43 @@ function km(a: LatLng, b: LatLng): number {
     Math.sin(((b.lat - a.lat) * rad) / 2) ** 2 +
     Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2;
   return 2 * 6371.0088 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** How far outside the chosen area's outline a confirmed pin may be (OSM outlines are simplified). */
+export const PIN_SLACK_KM = 0.3;
+
+/** Distance in km from [p] to the nearest edge of [rings] (local flat projection; fine at a few km). */
+export function distanceToRingsKm(p: LatLng, rings: Ring[]): number {
+  const kmLat = 110.574;
+  const kmLng = 111.32 * Math.cos((p.lat * Math.PI) / 180);
+  let best = Infinity;
+  for (const ring of rings) {
+    for (let i = 0; i + 1 < ring.length; i++) {
+      const ax = (ring[i][1] - p.lng) * kmLng;
+      const ay = (ring[i][0] - p.lat) * kmLat;
+      const bx = (ring[i + 1][1] - p.lng) * kmLng;
+      const by = (ring[i + 1][0] - p.lat) * kmLat;
+      const dx = bx - ax;
+      const dy = by - ay;
+      const len = dx * dx + dy * dy;
+      const t = len === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len));
+      best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+    }
+  }
+  return best;
+}
+
+/**
+ * N3: the confirmed pin must lie in the chosen area's outline, or within
+ * [slackKm] of it. An area without an outline (added by an admin) accepts
+ * any pin. Throws pin-outside-area with the area's names (the app says
+ * "the pin is outside <area>: move it or change the area").
+ */
+export function checkPinInArea(area: PlaceArea, pin: LatLng, slackKm = PIN_SLACK_KM): void {
+  if (area.rings.length === 0) return;
+  if (area.rings.some((r) => ringContains(r, pin))) return;
+  if (distanceToRingsKm(pin, area.rings) <= slackKm) return;
+  throw new AddressError("pin-outside-area", { areaNameAr: area.nameAr, areaNameEn: area.nameEn });
 }
 
 /** Address counts to move when a parent's address changes area or district. */

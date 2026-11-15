@@ -6,11 +6,11 @@ import 'package:school_carpool/features/places/address_models.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
-enum AddressFailureKind { area, district, street, building, extra, outsideEgypt, rateLimited, offline, unknown }
+enum AddressFailureKind { area, district, street, building, extra, pinOutsideArea, outsideEgypt, rateLimited, offline, unknown }
 
 /// Why an address call failed (functions/src/places/address.ts and the maps reasons).
 class AddressFailure implements Exception {
-  const AddressFailure(this.kind);
+  const AddressFailure(this.kind, {this.areaNameAr = '', this.areaNameEn = ''});
 
   factory AddressFailure.from(Object error) {
     if (error is AddressFailure) {
@@ -30,6 +30,13 @@ class AddressFailure implements Exception {
           return const AddressFailure(AddressFailureKind.building);
         case 'invalid-extra':
           return const AddressFailure(AddressFailureKind.extra);
+        case 'pin-outside-area':
+          final Map<Object?, Object?> d = details is Map<Object?, Object?> ? details : const <Object?, Object?>{};
+          return AddressFailure(
+            AddressFailureKind.pinOutsideArea,
+            areaNameAr: d['areaNameAr'] is String ? d['areaNameAr']! as String : '',
+            areaNameEn: d['areaNameEn'] is String ? d['areaNameEn']! as String : '',
+          );
       }
     }
     final MapFailure map = MapFailure.from(error);
@@ -43,6 +50,10 @@ class AddressFailure implements Exception {
 
   final AddressFailureKind kind;
 
+  /// pinOutsideArea: the chosen area's names (from the server).
+  final String areaNameAr;
+  final String areaNameEn;
+
   bool get isOffline => kind == AddressFailureKind.offline;
 
   String message(AppLocalizations l10n) => switch (kind) {
@@ -51,11 +62,18 @@ class AddressFailure implements Exception {
     AddressFailureKind.street => l10n.addressStreetError,
     AddressFailureKind.building => l10n.addressBuildingError,
     AddressFailureKind.extra => l10n.addressExtraError,
+    AddressFailureKind.pinOutsideArea => l10n.addressPinOutsideArea(_areaName(l10n)),
     AddressFailureKind.outsideEgypt => l10n.mapErrorOutsideEgypt,
     AddressFailureKind.rateLimited => l10n.mapErrorTooMany,
     AddressFailureKind.offline => l10n.errorOfflineShort,
     AddressFailureKind.unknown => l10n.errorGeneric,
   };
+
+  String _areaName(AppLocalizations l10n) {
+    final bool arabic = l10n.localeName.startsWith('ar');
+    final String first = arabic ? areaNameAr : areaNameEn;
+    return first.isNotEmpty ? first : (arabic ? areaNameEn : areaNameAr);
+  }
 
   @override
   String toString() => 'AddressFailure(${kind.name})';

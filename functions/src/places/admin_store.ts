@@ -3,8 +3,19 @@ import { AUDIT_LOG, SCHOOLS, auditDoc } from "../admin_panel/store";
 import type { AuditEntry } from "../admin_panel/types";
 import { HOMES, PARENT_LOCATIONS } from "../maps/store";
 import type { PlaceKind, PlaceRequestItem, PlacesAdminStore, SchoolPlace } from "./admin";
-import { PLACE_AREAS, PLACE_DISTRICTS, PLACE_INDEX, PLACE_INDEX_AREAS, PLACE_REQUESTS, buildIndex, type PlaceArea, type PlaceDistrict } from "./catalog";
-import { FirestorePlaceLocator, areaFromDoc, districtFromDoc } from "./store";
+import {
+  PLACE_AREAS,
+  PLACE_DISTRICTS,
+  PLACE_INDEX,
+  PLACE_INDEX_AREAS,
+  PLACE_INTERNAL,
+  PLACE_REQUESTS,
+  buildIndex,
+  internalId,
+  type PlaceArea,
+  type PlaceDistrict,
+} from "./catalog";
+import { FirestorePlaceLocator, areaFromDoc, areasWithInternal, districtFromDoc, districtsWithInternal, readPlaces } from "./store";
 
 /**
  * Firestore side of the admin "Places" section (admin.ts). Big moves
@@ -26,28 +37,33 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
     return this.db.collection(kind === "area" ? PLACE_AREAS : PLACE_DISTRICTS);
   }
 
+  /** The server-only document of a place (outline, address count, admin fields). */
+  private internal(kind: PlaceKind, id: string) {
+    return this.db.collection(PLACE_INTERNAL).doc(internalId(kind, id));
+  }
+
   newId(kind: PlaceKind): string {
     return `adm-${this.col(kind).doc().id}`.slice(0, 64);
   }
 
   async listAreas(governorate: string): Promise<PlaceArea[]> {
     const snap = await this.db.collection(PLACE_AREAS).where("governorate", "==", governorate).limit(500).get();
-    return snap.docs.map((d: QueryDocumentSnapshot) => areaFromDoc(d.id, d.data()));
+    return areasWithInternal(this.db, snap.docs);
   }
 
   async listDistricts(areaId: string): Promise<PlaceDistrict[]> {
     const snap = await this.db.collection(PLACE_DISTRICTS).where("areaId", "==", areaId).limit(500).get();
-    return snap.docs.map((d: QueryDocumentSnapshot) => districtFromDoc(d.id, d.data()));
+    return districtsWithInternal(this.db, snap.docs);
   }
 
   async area(id: string): Promise<PlaceArea | null> {
-    const snap = await this.db.collection(PLACE_AREAS).doc(id).get();
-    return snap.exists ? areaFromDoc(id, snap.data() ?? {}) : null;
+    const [r] = await readPlaces(this.db, "area", [id]);
+    return r ? areaFromDoc(r.id, r.data, r.internal) : null;
   }
 
   async district(id: string): Promise<PlaceDistrict | null> {
-    const snap = await this.db.collection(PLACE_DISTRICTS).doc(id).get();
-    return snap.exists ? districtFromDoc(id, snap.data() ?? {}) : null;
+    const [r] = await readPlaces(this.db, "district", [id]);
+    return r ? districtFromDoc(r.id, r.data, r.internal) : null;
   }
 
   /** Updates every document of [query] in batches; [first] adds the audit entry to the first batch. */
@@ -72,9 +88,11 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
     if (isNew) {
       const b = this.db.batch();
       b.create(ref, {
-        governorate: area.governorate, nameAr: area.nameAr, nameEn: area.nameEn, level: 0, source: "admin",
-        centre: null, bbox: null, rings: [], schoolCount: 0, addressCount: 0, active: true, mergedInto: null,
-        adminEdited: true, createdAt: now, updatedAt: now,
+        governorate: area.governorate, nameAr: area.nameAr, nameEn: area.nameEn,
+        centre: null, schoolCount: 0, active: true, mergedInto: null, createdAt: now, updatedAt: now,
+      });
+      b.set(this.internal("area", area.id), {
+        kind: "area", placeId: area.id, level: 0, source: "admin", bbox: null, rings: [], addressCount: 0, adminEdited: true, updatedAt: now,
       });
       b.create(this.db.collection(AUDIT_LOG).doc(), auditDoc(audit));
       await b.commit();
@@ -87,7 +105,8 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
       schools.docs,
       { placeAreaNameAr: area.nameAr, placeAreaNameEn: area.nameEn, updatedAt: now },
       (b) => {
-        b.update(ref, { nameAr: area.nameAr, nameEn: area.nameEn, adminEdited: true, updatedAt: now });
+        b.update(ref, { nameAr: area.nameAr, nameEn: area.nameEn, updatedAt: now });
+        b.set(this.internal("area", area.id), { kind: "area", placeId: area.id, adminEdited: true, updatedAt: now }, { merge: true });
         b.create(this.db.collection(AUDIT_LOG).doc(), auditDoc({ ...audit, details: { ...audit.details, schools: schools.size } }));
       },
     );
@@ -106,12 +125,16 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
     const b = this.db.batch();
     if (isNew) {
       b.create(ref, {
-        areaId: d.areaId, governorate: d.governorate, nameAr: d.nameAr, nameEn: d.nameEn, source: d.source,
-        centre: null, bbox: null, rings: [], schoolCount: 0, addressCount: 0, active: true, mergedInto: null,
-        adminEdited: true, createdAt: now, updatedAt: now,
+        areaId: d.areaId, governorate: d.governorate, nameAr: d.nameAr, nameEn: d.nameEn,
+        centre: null, schoolCount: 0, active: true, mergedInto: null, createdAt: now, updatedAt: now,
+      });
+      b.set(this.internal("district", d.id), {
+        kind: "district", placeId: d.id, areaId: d.areaId, source: d.source, bbox: null, rings: [], addressCount: 0, adminEdited: true,
+        updatedAt: now,
       });
     } else {
-      b.update(ref, { nameAr: d.nameAr, nameEn: d.nameEn, adminEdited: true, updatedAt: now });
+      b.update(ref, { nameAr: d.nameAr, nameEn: d.nameEn, updatedAt: now });
+      b.set(this.internal("district", d.id), { kind: "district", placeId: d.id, adminEdited: true, updatedAt: now }, { merge: true });
     }
     b.create(this.db.collection(AUDIT_LOG).doc(), auditDoc(audit));
     await b.commit();
@@ -124,7 +147,8 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
 
   async setActive(kind: PlaceKind, id: string, active: boolean, audit: AuditEntry): Promise<void> {
     const b = this.db.batch();
-    b.update(this.col(kind).doc(id), { active, adminEdited: true, updatedAt: FieldValue.serverTimestamp() });
+    b.update(this.col(kind).doc(id), { active, updatedAt: FieldValue.serverTimestamp() });
+    b.set(this.internal(kind, id), { kind, placeId: id, adminEdited: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     b.create(this.db.collection(AUDIT_LOG).doc(), auditDoc(audit));
     await b.commit();
     if (kind === "area") await this.rebuildIndex();
@@ -133,6 +157,9 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
   async merge(kind: PlaceKind, fromId: string, intoId: string, audit: AuditEntry): Promise<number> {
     const now = FieldValue.serverTimestamp();
     const [from, into] = await Promise.all([this.col(kind).doc(fromId).get(), this.col(kind).doc(intoId).get()]);
+    // The address count lives in the server-only document (or, before the split, on the place itself).
+    const fromPlace = kind === "area" ? await this.area(fromId) : await this.district(fromId);
+    const fromAddresses = fromPlace?.addressCount ?? 0;
     const schoolField = kind === "area" ? "placeAreaId" : "placeDistrictId";
     const schools = await this.db.collection(SCHOOLS).where(schoolField, "==", fromId).get();
     const homes = await this.db.collection(HOMES).where(`address.${schoolField}`, "==", fromId).get();
@@ -143,12 +170,14 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
       schoolFields.placeAreaNameEn = String(into.get("nameEn") ?? "");
     }
     await this.updateAll(schools.docs, schoolFields, (b) => {
-      b.update(from.ref, { active: false, mergedInto: intoId, adminEdited: true, updatedAt: now });
-      b.update(into.ref, {
-        schoolCount: FieldValue.increment(Number(from.get("schoolCount") ?? 0)),
-        addressCount: FieldValue.increment(Number(from.get("addressCount") ?? 0)),
-        updatedAt: now,
-      });
+      b.update(from.ref, { active: false, mergedInto: intoId, updatedAt: now });
+      b.set(this.internal(kind, fromId), { kind, placeId: fromId, adminEdited: true, addressCount: 0, updatedAt: now }, { merge: true });
+      b.update(into.ref, { schoolCount: FieldValue.increment(Number(from.get("schoolCount") ?? 0)), updatedAt: now });
+      b.set(
+        this.internal(kind, intoId),
+        { kind, placeId: intoId, addressCount: FieldValue.increment(fromAddresses), updatedAt: now },
+        { merge: true },
+      );
       b.create(
         this.db.collection(AUDIT_LOG).doc(),
         auditDoc({ ...audit, details: { ...audit.details, schools: schools.size, addresses: homes.size } }),
@@ -166,6 +195,13 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
     if (kind === "area") {
       const districts = await this.db.collection(PLACE_DISTRICTS).where("areaId", "==", fromId).get();
       await this.updateAll(districts.docs, { areaId: intoId, updatedAt: now });
+      for (let i = 0; i < districts.docs.length; i += BATCH) {
+        const b = this.db.batch();
+        for (const d of districts.docs.slice(i, i + BATCH)) {
+          b.set(this.internal("district", d.id), { kind: "district", placeId: d.id, areaId: intoId }, { merge: true });
+        }
+        await b.commit();
+      }
       await this.rebuildIndex();
     }
     return schools.size;
@@ -260,7 +296,11 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
           "address.districtText": "",
           updatedAt: FieldValue.serverTimestamp(),
         });
-        tx.update(this.db.collection(PLACE_DISTRICTS).doc(districtId), { addressCount: FieldValue.increment(1) });
+        tx.set(
+          this.internal("district", districtId),
+          { kind: "district", placeId: districtId, addressCount: FieldValue.increment(1) },
+          { merge: true },
+        );
         if (pub && pubSnap?.exists) tx.update(pub, { placeDistrictId: districtId });
       }
       tx.create(this.db.collection(AUDIT_LOG).doc(), auditDoc(audit));
@@ -269,8 +309,13 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
 
   /** placeIndex/areas from every area (after a deactivation or a merge). */
   async rebuildIndex(): Promise<void> {
-    const snap = await this.db.collection(PLACE_AREAS).get();
-    const areas = snap.docs.map((d: QueryDocumentSnapshot) => areaFromDoc(d.id, d.data()));
+    // Every area with its server-only document (the box and outline).
+    const [snap, internal] = await Promise.all([
+      this.db.collection(PLACE_AREAS).get(),
+      this.db.collection(PLACE_INTERNAL).where("kind", "==", "area").get(),
+    ]);
+    const byId = new Map<string, DocumentData>(internal.docs.map((d: QueryDocumentSnapshot) => [String(d.get("placeId") ?? ""), d.data()]));
+    const areas = snap.docs.map((d: QueryDocumentSnapshot) => areaFromDoc(d.id, d.data(), byId.get(d.id)));
     await this.db.collection(PLACE_INDEX).doc(PLACE_INDEX_AREAS).set({ areas: buildIndex(areas), updatedAt: Timestamp.now() });
     FirestorePlaceLocator.forget();
   }

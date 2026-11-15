@@ -7,21 +7,28 @@ import { normalizeText } from "../text/normalize";
  *
  * City is the governorate (27 codes, admin_panel/schools.ts GOVERNORATES).
  * Firestore (written only by the loader and Cloud Functions; signed-in
- * users read placeAreas and placeDistricts, firestore.rules):
+ * users read placeAreas and placeDistricts, firestore.rules). The app's
+ * documents hold only what the menus need (spec section 9: outlines are
+ * server only, address counts are admin only):
  *
  *   placeAreas/{id}      qism / markaz / new city: governorate, nameAr,
- *                        nameEn, level (OSM admin_level, 0 for an admin's),
- *                        source (osm | admin), centre, bbox, rings
+ *                        nameEn, centre, schoolCount, active, mergedInto,
+ *                        createdAt, updatedAt
+ *   placeDistricts/{id}  neighbourhood: areaId, governorate, nameAr,
+ *                        nameEn, centre, schoolCount, active, mergedInto
+ *   placeInternal/{area_<id> | district_<id>}  Cloud Functions only: kind,
+ *                        placeId, areaId (districts), level (OSM
+ *                        admin_level, 0 for an admin's), source (osm |
+ *                        admin | osm-boundary | osm-place), bbox, rings
  *                        ([{p: [lat, lng, lat, lng, ...]}], simplified
  *                        outer rings, for the server's point-in-polygon),
- *                        schoolCount, addressCount, active, mergedInto,
- *                        adminEdited, updatedAt
- *   placeDistricts/{id}  neighbourhood: areaId, governorate, nameAr,
- *                        nameEn, source (osm-boundary | osm-place | admin |
- *                        parent), centre, bbox?, rings?, schoolCount,
- *                        addressCount, active, mergedInto, adminEdited
+ *                        addressCount, adminEdited, updatedAt
  *   placeIndex/areas     every active area's id, governorate and bbox (one
  *                        read finds the candidate areas for a point)
+ *
+ * Documents loaded before the split may still carry the internal fields on
+ * the public document; readers fall back to them and the loader moves them
+ * (load_schools.ts).
  *   placeRequests/{id}   "my district isn't listed" (F46): uid, areaId,
  *                        governorate, text, status open | done; admins only
  *
@@ -34,6 +41,15 @@ export const PLACE_DISTRICTS = "placeDistricts";
 export const PLACE_INDEX = "placeIndex";
 export const PLACE_INDEX_AREAS = "areas";
 export const PLACE_REQUESTS = "placeRequests";
+export const PLACE_INTERNAL = "placeInternal";
+
+/** The fields of a place that live in placeInternal (never on the app's documents). */
+export const INTERNAL_FIELDS = ["level", "source", "bbox", "rings", "addressCount", "adminEdited"] as const;
+
+/** placeInternal document ID of an area or a district. */
+export function internalId(kind: "area" | "district", id: string): string {
+  return `${kind}_${id}`;
+}
 
 export interface LatLng {
   lat: number;
