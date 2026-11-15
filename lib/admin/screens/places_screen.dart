@@ -12,15 +12,22 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/places/place_models.dart' show sortByName;
 import 'package:school_carpool/l10n/l10n.dart';
 
+/// No automatic retry (Riverpod 3): the screen shows its own Retry, and
+/// offline shows at once instead of a long loading state.
+Duration? _noRetry(int retryCount, Object error) => null;
+
 final _areasProvider = FutureProvider.autoDispose.family<List<AdminPlace>, String>(
+  retry: _noRetry,
   (Ref ref, String governorate) => ref.watch(adminPlacesApiProvider).areas(governorate),
 );
 
 final _districtsProvider = FutureProvider.autoDispose.family<List<AdminPlace>, String>(
+  retry: _noRetry,
   (Ref ref, String areaId) => ref.watch(adminPlacesApiProvider).districts(areaId),
 );
 
 final _requestsProvider = FutureProvider.autoDispose<List<AdminPlaceRequest>>(
+  retry: _noRetry,
   (Ref ref) => ref.watch(adminPlacesApiProvider).requests(),
 );
 
