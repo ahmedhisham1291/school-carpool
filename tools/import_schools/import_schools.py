@@ -24,7 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import places_import  # noqa: E402
-from schools_import import report_markdown, run, schools_json, summary_text  # noqa: E402
+from schools_import import CATEGORIES_FILE, load_categories, report_markdown, run, schools_json, summary_text  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,11 +37,22 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="timestamp written into the output (default: now, UTC); fix it to compare two runs byte for byte",
     )
+    parser.add_argument(
+        "--categories",
+        type=Path,
+        default=None,
+        help="which categories count (default: categories.json in --input, else data/schools/categories.json)",
+    )
     args = parser.parse_args(argv)
 
     if not args.input.is_dir():
         print(f"No folder {args.input}. Put the HDX export there (SETUP.md, 'Schools list').", file=sys.stderr)
         return 2
+    categories_path = args.categories or (
+        args.input / CATEGORIES_FILE if (args.input / CATEGORIES_FILE).exists() else repo / "data" / "schools" / CATEGORIES_FILE
+    )
+    categories = load_categories(categories_path)
+    print("Categories: " + ", ".join(f"{k} {'on' if v else 'off'}" for k, v in categories.items()))
     generated_at = args.generated_at or dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     result = run(args.input)
     if not result.files:
