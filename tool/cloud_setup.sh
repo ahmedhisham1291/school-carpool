@@ -457,9 +457,13 @@ ALG_APP="$(env_value ALGOLIA_APP_ID "")"
 ALG_HAVE_KEYS=""
 if is_real_key "${ALG_W}" && is_real_key "${ALG_S}"; then ALG_HAVE_KEYS=1; fi
 ALG_W=""; ALG_S=""
-if [ -n "${ALG_HAVE_KEYS}" ] && [ -z "${REPLACE_ALGOLIA}" ] && [ -n "${ALG_APP}" ]; then
+if [ -n "${ALG_HAVE_KEYS}" ] && [ -n "${ALG_APP}" ] && { [ -z "${REPLACE_ALGOLIA}" ] || ! [ -t 0 ]; }; then
   ALGOLIA_ON=1
-  ok "Algolia keys already in Secret Manager (kept; --replace-algolia to change them)"
+  if [ -n "${REPLACE_ALGOLIA}" ]; then
+    todo "Algolia: --replace-algolia needs an interactive Cloud Shell to type the keys; the stored keys were kept."
+  else
+    ok "Algolia keys already in Secret Manager (kept; --replace-algolia to change them)"
+  fi
 elif [ -t 0 ]; then
   echo
   echo "  ALGOLIA (school search over every school). Guide: docs/algolia-setup.md"
