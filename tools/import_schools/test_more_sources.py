@@ -42,6 +42,33 @@ class BroadQueryTest(unittest.TestCase):
         self.assertTrue(q.endswith(");\nout center;\n"))
         self.assertEqual(sum(q.count(f'nwr["{k}"~') for k in osm.NAME_KEYS), 9)  # 3 name regexes x 3 name keys
 
+    def test_a_download_by_another_query_is_not_reused(self) -> None:
+        import datetime as dt
+
+        recent = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            old = osm.schools_geojson({"elements": []}, recent, "x")
+            del old["query"]  # the first version wrote no query id
+            osm.write_json_atomic(out / osm.SCHOOLS_FILE, old)
+            self.assertEqual(osm.query_of(out / osm.SCHOOLS_FILE), "")
+            calls: list[str] = []
+            original = osm.overpass
+
+            def failing(*args, **kwargs):
+                calls.append("asked")
+                raise osm.FetchError("offline in tests")
+
+            osm.overpass = failing
+            try:
+                code = osm.main(["--out", str(out), "--boundaries-out", str(out / "b"), "--max-age-days", "7"])
+            finally:
+                osm.overpass = original
+            self.assertEqual(code, 1)  # it tried to download again (broad, then narrow)
+            self.assertEqual(calls, ["asked", "asked"])
+            osm.write_json_atomic(out / osm.SCHOOLS_FILE, osm.schools_geojson({"elements": []}, recent, "x"))
+            self.assertEqual(osm.query_of(out / osm.SCHOOLS_FILE), osm.QUERY_ID)
+
     def test_narrow_fallback_is_the_original_query(self) -> None:
         q = osm.schools_query(broad=False)
         self.assertIn('nwr["amenity"~"^(school|kindergarten)$"](area.eg);', q)

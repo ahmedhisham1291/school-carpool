@@ -104,6 +104,9 @@ def schools_query(timeout_s: int = QUERY_TIMEOUT_S, broad: bool = True) -> str:
 
 
 SCHOOLS_QUERY = schools_query()
+# Stored in the download: a download made by another query (the narrow one
+# of the first version, or the fallback) is never reused as "recent".
+QUERY_ID = "broad-2"
 NARROW_SCHOOLS_QUERY = schools_query(broad=False)
 
 # Governorates are admin_level 4 in Egypt and carry ISO3166-2=EG-xx; the tag
@@ -245,7 +248,7 @@ def element_point(element: dict) -> tuple[float, float] | None:
     return None
 
 
-def schools_geojson(answer: dict, fetched_at: str, endpoint: str) -> dict:
+def schools_geojson(answer: dict, fetched_at: str, endpoint: str, query_id: str = QUERY_ID) -> dict:
     """Overpass JSON -> a GeoJSON FeatureCollection shaped like the HDX
     OpenStreetMap export: properties are the OSM tags plus osm_id and
     osm_type (and "@id", e.g. "way/123", which the importer reads first so a
@@ -276,6 +279,7 @@ def schools_geojson(answer: dict, fetched_at: str, endpoint: str) -> dict:
         "type": "FeatureCollection",
         "name": "Egypt schools and kindergartens from OpenStreetMap (Overpass API)",
         "fetched_at": fetched_at,
+        "query": query_id,
         "source": endpoint,
         "license": ATTRIBUTION,
         "features": features,
@@ -424,6 +428,18 @@ def write_json_atomic(path: Path, doc: dict) -> None:
     os.replace(tmp, path)
 
 
+def query_of(path: Path) -> str:
+    """The "query" id of an earlier download ("" for the first version)."""
+    try:
+        with path.open("rb") as f:
+            head = f.read(4096).decode("utf-8", "ignore")
+        marker = '"query":"'
+        start = head.index(marker) + len(marker)
+        return head[start : head.index('"', start)]
+    except (OSError, ValueError):
+        return ""
+
+
 def fetched_at_of(path: Path) -> dt.datetime | None:
     """When an earlier download was made (its "fetched_at"), or None."""
     try:
@@ -485,7 +501,7 @@ def main(argv: list[str] | None = None) -> int:
     now = dt.datetime.now(dt.timezone.utc)
     if args.max_age_days > 0:
         last = fetched_at_of(schools_path)
-        if last is not None and now - last < dt.timedelta(days=args.max_age_days):
+        if last is not None and now - last < dt.timedelta(days=args.max_age_days) and query_of(schools_path) == QUERY_ID:
             print(f"OpenStreetMap schools: the download of {last:%Y-%m-%d %H:%M} UTC is recent; kept (no new download).")
             return 0
     fetched_at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -502,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
         except FetchError as error2:
             print(f"OpenStreetMap schools: {error2}", file=sys.stderr)
             return 1
-    collection = schools_geojson(answer, fetched_at, endpoint)
+    collection = schools_geojson(answer, fetched_at, endpoint, QUERY_ID if query_kind == "broad" else "narrow")
     school_counts = counts(collection, answer)
     if school_counts["features"] < MIN_EXPECTED_SCHOOLS:
         print(

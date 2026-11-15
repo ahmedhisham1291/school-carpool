@@ -17,7 +17,9 @@
 #   ADMIN_NAME      name of the first super admin (default "Owner")
 #   SKIP_ADMIN_WEB=1  do not download Flutter / build the admin panel
 #   FLUTTER_HOME    where to keep the Flutter SDK (default ~/flutter)
-#   SKIP_SCHOOLS_FETCH=1  do not download the OpenStreetMap schools list
+#   WIKIDATA_CONTACT  email or web page put in the User-Agent of the Wikidata
+#                   download (Wikimedia's User-Agent policy asks for one)
+#   SKIP_SCHOOLS_FETCH=1  do not download the OpenStreetMap and Wikidata schools lists
 #                   (the last download, if any, is used; a download newer
 #                   than 7 days is never repeated)
 #
@@ -757,9 +759,10 @@ fi
 ok "rules, indexes, storage rules and all functions deployed to ${REGION}"
 
 # ============================================================== 12. schools
-step "12. Schools: OpenStreetMap list, import, load, search index"
-# Every school and kindergarten in Egypt from OpenStreetMap (owner decision
-# 15 Nov 2026), plus any owner CSV lists in data/schools; SETUP.md 14.
+step "12. Schools: OpenStreetMap and Wikidata lists, import, load, search index"
+# Every school and kindergarten in Egypt from OpenStreetMap and Wikidata
+# (owner decision 15 Nov 2026), plus any owner CSV lists in data/schools;
+# SETUP.md 14.
 # Safe to rerun: a download newer than 7 days is reused, the loader writes
 # only new or changed schools, the index sync sends the same records again.
 # A failure here never stops the rest of the setup (to-do lines instead).
@@ -775,9 +778,15 @@ else
   else
     todo "OpenStreetMap download failed (servers busy?). Run this script again later; the last download, if any, is used meanwhile."
   fi
+  run_step python3 tools/import_schools/fetch_wikidata_schools.py --max-age-days 7
+  if [ "${STEP_RC}" -eq 0 ]; then
+    ok "Wikidata schools: $(sed -n 's/^- Result rows: //p' data/schools/wikidata/fetch_report.md 2>/dev/null | head -1)"
+  else
+    todo "Wikidata download failed (see above). Run this script again later; the import goes on without it."
+  fi
 fi
 shopt -s nullglob
-REAL_INPUTS=(data/schools/osm/*.geojson data/schools/*.csv data/schools/*.geojson data/schools/*.json data/schools/*.zip)
+REAL_INPUTS=(data/schools/osm/*.geojson data/schools/wikidata/*.geojson data/schools/*.csv data/schools/*.geojson data/schools/*.json data/schools/*.zip)
 shopt -u nullglob
 import_schools() {
   python3 tools/import_schools/import_schools.py >"${SCHOOLS_OUT}/import.txt"
@@ -839,7 +848,7 @@ else
   todo "school search: Algolia is off, so search covers only 200 schools; with the real list the app says 'search unavailable'. Set it up: docs/algolia-setup.md, then run this script again."
 fi
 if [ -s "${SCHOOLS_OUT}/import.txt" ]; then
-  printf '\n  Schools import summary (per governorate, dropped and why):\n'
+  printf '\n  Schools import summary (per source, kept, dropped and why, per governorate):\n'
   sed 's/^/    /' "${SCHOOLS_OUT}/import.txt"
 fi
 
