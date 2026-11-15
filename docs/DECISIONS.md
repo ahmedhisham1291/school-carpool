@@ -233,6 +233,27 @@ revised list ("implement all your suggestions"):
   by default). A language button is on the sign-in and two-step setup
   screens as well as inside the panel.
 
+## Owner decisions (16 Nov 2026): what counts as a school, more sources
+
+- **Schools, kindergartens and nurseries only.** Universities, colleges and
+  higher institutes are not in the list. The import keeps a switch for
+  them (`data/schools/categories.json`, `"university": false`); switched
+  on, they would be kept with kind `university` (the server and the search
+  index accept it; the app and admin type filter is not built). Nurseries
+  (حضانة, OSM `amenity=childcare`, Overture day-care places named like a
+  nursery) are kept with the kindergartens.
+- **Al-Azhar institutes are schools:** معهد أزهري ابتدائي / إعدادي / ثانوي
+  (and "Al-Azhar Institute ...") are kept as schools however they are
+  tagged; Al-Azhar University and its faculties are not.
+- **Overture Maps Places is the third source** (after OpenStreetMap and
+  Wikidata): CDLA Permissive 2.0 / Apache 2.0 / CC0 by provider, attribution
+  in open item D24; same keep/drop rules, merged into an OSM or Wikidata
+  school with the same name within 300 m, never the main entry when another
+  source has the school (coordinator, 16 Nov 2026).
+- **The OpenStreetMap download runs per governorate** (27 queries of at most
+  180 s) because the one-country query timed out on every public server;
+  a governorate that fails keeps its older file (its date is reported).
+
 ## Owner decisions (16 Nov 2026): places and addresses
 
 - **City -> Area -> District, option 1 (keep both):** the per-school `areas`

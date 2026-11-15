@@ -587,6 +587,21 @@ this section is what it does, for a Mac or for prod.
    in the app's licences screen before the public launch (open item).
    With this download you do not need the HDX files of step 1 (if both are
    there, the HDX copies are listed as "same source ID twice").
+   **Per governorate (since 16 Nov 2026):** the broad query for all of Egypt
+   timed out on every public server, so it runs once per governorate (27
+   parts, `[timeout:180]` each, search area = the governorate's boundary
+   relation, failover between the servers, a second pass for the parts that
+   failed). Each part is kept in `data/schools/osm/governorates/EG-xx.geojson`
+   with its own date; a part newer than `--max-age-days` is not asked again,
+   and a part that still fails keeps its older file (the report lists the
+   status and date per governorate; "NO data" means it has never been
+   downloaded). The narrow amenity-only query for all of Egypt runs as a
+   safety net, and everything is merged with each OSM object once.
+   `--max-minutes` (default 75) caps the time spent on new requests. The
+   places download (14.6) is split the same way.
+   **What counts:** `data/schools/categories.json` (owner decision 16 Nov
+   2026: schools, kindergartens and nurseries; universities off; Al-Azhar
+   institutes are schools).
    **Wikidata (second source):**
    `python3 tools/import_schools/fetch_wikidata_schools.py` asks the
    Wikidata Query Service (query.wikidata.org) for items of class school
@@ -605,6 +620,32 @@ this section is what it does, for a Mac or for prod.
    `WIKIDATA_CONTACT` (an email or web page) is set; run by hand, set
    `WIKIDATA_CONTACT` yourself. A 403 answer means the service refused
    the request.
+   **Overture Maps Places (third source):**
+   `python3 -m pip install --user duckdb` once, then
+   `python3 tools/import_schools/fetch_overture_schools.py --max-age-days 30`.
+   Reads Overture's latest release (named by
+   <https://stac.overturemaps.org/catalog.json>) straight from its public
+   S3 bucket with DuckDB, only Egypt's box, places whose taxonomy category
+   is a school, kindergarten, preschool or nursery (or has one as an
+   alternate), confidence at least 0.2. Writes the raw rows to
+   `data/schools/overture/raw/` and, for the import, those with confidence
+   at least `--min-confidence` (default 0.5), not permanently closed and
+   not in another country, to `data/schools/overture/egypt_schools_overture.geojson`
+   (all git-ignored). `--from-raw --min-confidence 0.7` converts again with
+   another threshold without downloading. The report counts rows per
+   category, confidence band and upstream dataset. The importer applies the
+   OSM keep/drop rules plus a name check (a "school" category whose name
+   says courses, centre or university is dropped) and merges an Overture
+   place into the OSM or Wikidata school with the same name within 300 m.
+   Licence: CDLA Permissive 2.0 (most providers), Apache 2.0 (Foursquare),
+   CC0 (AllThePlaces); the attribution is open item D24.
+   **Why is a school missing?**
+   `python3 tools/import_schools/why_missing.py "<name>" ...` (or
+   `--file names.txt`) runs the import on the downloads and says, for each
+   name, which source has it and whether it was kept, merged into another
+   entry, or dropped (and why), or that no source has it. Step 12 runs it on
+   `data/schools/check_names.txt` when that file exists (one name per line;
+   see `data/schools/check_names.example.txt`).
 1. **OpenStreetMap schools (HDX).** Open
    <https://data.humdata.org/dataset/hotosm_egy_education_facilities>
    ("Egypt Education Facilities (OpenStreetMap Export)", by the
