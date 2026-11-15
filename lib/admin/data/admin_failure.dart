@@ -87,7 +87,11 @@ class AdminFailure implements Exception {
       // message, which can hold an address) so the admin can report it.
       return AdminFailure(kind, code: kind == AdminFailureKind.unknown ? error.code : null);
     }
-    return const AdminFailure(AdminFailureKind.unknown);
+    // Anything else: keep a short, address-free description so the admin can
+    // report what the browser said instead of a bare "something went wrong".
+    final String raw = error is FirebaseException ? '${error.plugin}/${error.code}' : error.toString();
+    final String safe = raw.replaceAll(RegExp(r'\S+@\S+'), '...').replaceAll(RegExp(r'\s+'), ' ').trim();
+    return AdminFailure(AdminFailureKind.unknown, code: safe.length > 140 ? safe.substring(0, 140) : safe);
   }
 
   final AdminFailureKind kind;
