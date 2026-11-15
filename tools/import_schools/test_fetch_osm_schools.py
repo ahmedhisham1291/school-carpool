@@ -215,7 +215,8 @@ class OverpassTest(unittest.TestCase):
         # "out center;" keeps node coordinates ("out tags" would drop them).
         self.assertIn("\nout center;", f.SCHOOLS_QUERY)
         self.assertNotIn("out center tags", f.SCHOOLS_QUERY)
-        self.assertTrue(f.SCHOOLS_QUERY.startswith("[out:json][timeout:900];"))
+        self.assertTrue(f.SCHOOLS_QUERY.startswith(f"[out:json][timeout:{f.QUERY_TIMEOUT_S}];"))
+        self.assertLessEqual(f.QUERY_TIMEOUT_S, 600)  # main server policy: at most 10 minutes
         self.assertIn("out geom;", f.BOUNDARIES_QUERY)
 
 

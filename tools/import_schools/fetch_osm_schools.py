@@ -50,8 +50,12 @@ ENDPOINTS: tuple[str, ...] = (
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 )
 
-# The server-side limit: 15 minutes is the most public servers accept.
-QUERY_TIMEOUT_S = 900
+# The server-side limit. The main server's usage policy (wiki "Overpass
+# API", read 15 Nov 2026) asks that "your requests are processed in no more
+# than 10 minutes"; a higher timeout also makes a busy server more likely
+# to refuse the query up front. The schools query normally takes well
+# under two minutes.
+QUERY_TIMEOUT_S = 540
 USER_AGENT = "school-carpool-schools-import/1.0 (OpenStreetMap schools list; Python urllib)"
 
 EGYPT_AREA = 'area["ISO3166-1"="EG"][admin_level=2]->.eg;'
