@@ -31,6 +31,11 @@ class VerdictTest(unittest.TestCase):
         self.assertIn("no hourly limit", algolia_keys.verdict("search", 200, {"acl": ["search"]})[1])
         self.assertEqual(algolia_keys.verdict("search", 200, {"acl": WRITE_ACL})[0], 1)
         self.assertEqual(algolia_keys.verdict("search", 200, {"acl": ["browse"]})[0], 1)
+        # Read-only rights beyond search are refused too: the app's keys inherit them.
+        for extra in ("logs", "analytics", "browse", "usage", "listIndexes"):
+            code, message = algolia_keys.verdict("search", 200, {"acl": ["search", extra]})
+            self.assertEqual(code, 1, extra)
+            self.assertIn(extra, message)
         self.assertEqual(algolia_keys.verdict("search", 403, {"message": "Method not allowed with this API key"})[0], 2)
 
     def test_unknown_key(self):

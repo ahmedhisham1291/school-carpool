@@ -12,8 +12,9 @@ right) and says on one line whether it fits:
   write   must be able to add and delete records and change settings
           (the dashboard's "Write API Key"); used by Cloud Functions and the
           index sync.
-  search  must be able to search and must NOT be able to write: the app's
-          one-hour keys are made from it and inherit its rights.
+  search  must have the "search" right and no other (no writes, no logs,
+          analytics or browse): the app's one-hour keys are made from it and
+          inherit its rights.
 
 Exit codes: 0 fits, 1 does not fit (reason printed), 2 could not check
 (network, or a write key without the "search" right: then the first index
@@ -29,7 +30,10 @@ import urllib.parse
 import urllib.request
 
 WRITE_RIGHTS = ("addObject", "deleteObject", "editSettings")
-FORBIDDEN_FOR_SEARCH = ("addObject", "deleteObject", "deleteIndex", "editSettings")
+# The search key may hold only these rights: the app's one-hour keys inherit
+# every right of it, and rights such as "logs" (other people's queries and
+# IP addresses), "analytics", "usage" or "browse" do not belong on a phone.
+ALLOWED_FOR_SEARCH = ("search",)
 
 
 def verdict(kind: str, status: int, body: dict) -> tuple[int, str]:
@@ -44,9 +48,9 @@ def verdict(kind: str, status: int, body: dict) -> tuple[int, str]:
             return 0, "Write API key accepted"
         if "search" not in acl:
             return 1, "this key cannot search: paste the Search-only API Key"
-        writes = [r for r in FORBIDDEN_FOR_SEARCH if r in acl]
-        if writes:
-            return 1, "this key can also change data (" + ", ".join(writes) + "): paste the Search-only API Key"
+        extra = [r for r in acl if r not in ALLOWED_FOR_SEARCH]
+        if extra:
+            return 1, "this key can do more than search (" + ", ".join(extra) + "): paste the Search-only API Key, or make a key with only the search right (docs/algolia-setup.md, section 4)"
         limit = body.get("maxQueriesPerIPPerHour") or 0
         hint = "" if limit else " (no hourly limit on it; see docs/algolia-setup.md, optional step)"
         return 0, "Search-only API key accepted" + hint

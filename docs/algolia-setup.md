@@ -64,6 +64,9 @@ lines (they are not secret) to the developer so they are committed.
   unavailable".
 - A key you typed wrongly: the script says why and stores nothing; run it
   again.
+- The search key must have the `search` right and nothing else (no
+  `browse`, `logs`, `analytics`...). If the script says "this key can do
+  more than search", make a search-only key as in section 4 and give that.
 - To change keys later: add `--replace-algolia` at the end of the command.
   Without it, stored keys are never replaced.
 
