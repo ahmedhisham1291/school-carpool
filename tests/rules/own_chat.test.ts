@@ -3,7 +3,10 @@
 // and the chat photos in Storage (chatPhotos/{type}/{id}/{uid}/{name}).
 //
 // What these tests prove:
-// - Membership is the member document, read on every request: a member
+// - Members never list each other and never read an access document
+//   (chatAccess: active, cut, frozen, mutedUntil), their own included; a
+//   member document shows a first name only (review B2, N2).
+// - Membership is the access document, read on every request: a member
 //   reads the head, the members' first names and the messages; a parent who
 //   is not a member, was removed (active false), is cut off (suspended,
 //   banned, deleted: cut true), is unverified, signed out, or in a new-phone
@@ -75,17 +78,25 @@ const fresh = (name: string): string => `${name}${Date.now().toString(36)}${name
 /** A chat's photo folder in Storage: the chat ID with "/" in place of ":". */
 const dir = (cid: string): string => cid.replace(":", "/");
 
-const member = (uid: string, extra: Record<string, unknown> = {}) => ({
+/** chatMembers/{uid}: what members may read of each other (the first name). */
+const member = (uid: string) => ({ uid, firstName: uid, joinedAt: at(T), updatedAt: at(T) });
+
+/** chatAccess/{uid}: what only the rules read. */
+const access = (uid: string, extra: Record<string, unknown> = {}) => ({
   uid,
-  firstName: uid,
   active: true,
   cut: false,
   frozen: false,
   mutedUntil: null,
-  joinedAt: at(T),
   updatedAt: at(T),
   ...extra,
 });
+
+/** A member as Cloud Functions write one: the name and the access document. */
+async function seedMember(db: firebase.firestore.Firestore, cid: string, uid: string, extra: Record<string, unknown> = {}): Promise<void> {
+  await db.doc(`chats/${cid}/chatMembers/${uid}`).set(member(uid));
+  await db.doc(`chats/${cid}/chatAccess/${uid}`).set(access(uid, extra));
+}
 
 const summary = (cid: string, extra: Record<string, unknown> = {}) => ({
   cid,
@@ -130,20 +141,21 @@ beforeEach(async () => {
     const head = (kind: string, frozen = false) => ({ kind, nameAr: "مدرسة", nameEn: "School", memberCount: 2, frozen, seq: 1, lastAt: at(T), last: null, lastMessageId: "seedmsg0001" });
     for (const [cid, kind] of [[CARPOOL, "carpool"], [PRIVATE, "private"], [SCHOOL, "school"]] as const) {
       await db.doc(`chats/${cid}`).set(head(kind));
-      await db.doc(`chats/${cid}/chatMembers/alice`).set(member("alice"));
-      await db.doc(`chats/${cid}/chatMembers/bob`).set(member("bob"));
+      await seedMember(db, cid, "alice");
+      await seedMember(db, cid, "bob");
       await db.doc(`chats/${cid}/messages/seedmsg0001`).set({ senderUid: "bob", kind: "text", text: "seed", createdAt: at(T) });
     }
     // In the carpool chat: removed, cut off (suspended), muted now, muted long ago.
-    await db.doc(`chats/${CARPOOL}/chatMembers/removed`).set(member("removed", { active: false }));
-    await db.doc(`chats/${CARPOOL}/chatMembers/cut`).set(member("cut", { cut: true }));
-    await db.doc(`chats/${CARPOOL}/chatMembers/muted`).set(member("muted", { mutedUntil: at(Date.now() + 10 * 60_000) }));
-    await db.doc(`chats/${CARPOOL}/chatMembers/wasmuted`).set(member("wasmuted", { mutedUntil: at(Date.now() - 60_000) }));
+    await seedMember(db, CARPOOL, "removed", { active: false });
+    await seedMember(db, CARPOOL, "cut", { cut: true });
+    await seedMember(db, CARPOOL, "muted", { mutedUntil: at(Date.now() + 10 * 60_000) });
+    // Muted until one second ago: may write again (N12).
+    await seedMember(db, CARPOOL, "wasmuted", { mutedUntil: at(Date.now() - 1_000) });
     await db.doc(`chats/${CARPOOL}/reads/bob`).set({ readAt: at(T), typingAt: null });
     // A private chat where one parent blocked the other.
     await db.doc(`chats/${FROZEN}`).set(head("private", true));
-    await db.doc(`chats/${FROZEN}/chatMembers/alice`).set(member("alice", { frozen: true }));
-    await db.doc(`chats/${FROZEN}/chatMembers/bob`).set(member("bob", { frozen: true }));
+    await seedMember(db, FROZEN, "alice", { frozen: true });
+    await seedMember(db, FROZEN, "bob", { frozen: true });
     await db.doc(`chats/${FROZEN}/messages/seedmsg0001`).set({ senderUid: "bob", kind: "text", text: "before the block", createdAt: at(T) });
     // Chat lists.
     await db.doc(`userChats/alice/summaries/${CARPOOL}`).set(summary(CARPOOL));
@@ -151,7 +163,10 @@ beforeEach(async () => {
     await db.doc(`userChats/bob/summaries/${CARPOOL}`).set(summary(CARPOOL));
     // A parent in a new-phone check (Prompt 12): chats stay closed.
     await db.doc("users/newphone").set({ status: "verified", newDeviceCheck: { required: true } });
-    await db.doc(`chats/${CARPOOL}/chatMembers/newphone`).set(member("newphone"));
+    await seedMember(db, CARPOOL, "newphone");
+    // A parent who pressed "sign out my phones" an hour ago (Prompt 12).
+    await db.doc("users/stale").set({ status: "verified", sessionsValidAfter: Math.floor(Date.now() / 1000) - 3600 });
+    await seedMember(db, CARPOOL, "stale");
     await db.doc(`userChats/newphone/summaries/${CARPOOL}`).set(summary(CARPOOL));
   });
   await env.withSecurityRulesDisabled(async (ctx) => {
@@ -183,16 +198,44 @@ describe("chats: reading needs a current member document", () => {
     const db = as("alice").firestore();
     await assertSucceeds(db.doc(`chats/${CARPOOL}`).get());
     await assertSucceeds(db.doc(`chats/${CARPOOL}/chatMembers/bob`).get());
-    await assertSucceeds(db.collection(`chats/${CARPOOL}/chatMembers`).limit(50).get());
     await assertSucceeds(db.doc(`chats/${CARPOOL}/messages/seedmsg0001`).get());
     await assertSucceeds(db.collection(`chats/${CARPOOL}/messages`).orderBy("createdAt", "desc").limit(30).get());
     await assertSucceeds(db.collection(`chats/${SCHOOL}/messages`).orderBy("createdAt", "desc").limit(30).get());
   });
-  it("never all messages or all members at once, and never a list of chats", async () => {
+  it("never a list of members (review B2), never anybody's access document (N2), not even your own", async () => {
+    const db = as("alice").firestore();
+    await assertFails(db.collection(`chats/${CARPOOL}/chatMembers`).limit(50).get());
+    await assertFails(db.collection(`chats/${CARPOOL}/chatMembers`).limit(1).get());
+    await assertFails(db.collection(`chats/${SCHOOL}/chatMembers`).where("uid", "==", "bob").limit(1).get());
+    await assertFails(db.doc(`chats/${CARPOOL}/chatAccess/muted`).get());
+    await assertFails(db.doc(`chats/${CARPOOL}/chatAccess/cut`).get());
+    await assertFails(db.doc(`chats/${CARPOOL}/chatAccess/alice`).get());
+    await assertFails(db.collection(`chats/${CARPOOL}/chatAccess`).limit(10).get());
+    await assertFails(db.collectionGroup("chatAccess").where("uid", "==", "alice").limit(10).get());
+    await assertFails(db.doc(`chats/${CARPOOL}/fanned/seedmsg0001`).get());
+    await assertFails(db.doc(`chats/${CARPOOL}/fanned/seedmsg0001`).set({ counted: true }));
+    // The member document a member may read holds a name, no sanction.
+    const bob = await db.doc(`chats/${CARPOOL}/chatMembers/muted`).get();
+    const keys = Object.keys(bob.data() ?? {}).sort();
+    if (keys.join(",") !== "firstName,joinedAt,uid,updatedAt") throw new Error(`member document shows: ${keys.join(",")}`);
+  });
+  it("a token from before 'sign out my phones' reads and writes nothing (N12)", async () => {
+    const old = as("stale", { ...verified, auth_time: Math.floor(Date.now() / 1000) - 7200 });
+    await assertFails(old.firestore().collection(`chats/${CARPOOL}/messages`).orderBy("createdAt", "desc").limit(30).get());
+    await assertFails(old.firestore().doc(`chats/${CARPOOL}/messages/stalemsg0001`).set(text("stale")));
+    await assertFails(old.storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).getMetadata());
+    await assertFails(old.storage().ref(`chatPhotos/${dir(CARPOOL)}/stale/${fresh("stalemsg")}.webp`).putString("fake", "raw", { contentType: "image/webp" }).then(() => undefined));
+    // The same parent after signing in again.
+    const again = as("stale", { ...verified, auth_time: Math.floor(Date.now() / 1000) });
+    await assertSucceeds(again.firestore().collection(`chats/${CARPOOL}/messages`).orderBy("createdAt", "desc").limit(30).get());
+    await assertSucceeds(again.storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).getMetadata());
+  });
+  it("never all messages at once, never a list of chats, no collection-group reads", async () => {
     const db = as("alice").firestore();
     await assertFails(db.collection(`chats/${CARPOOL}/messages`).get());
     await assertFails(db.collection(`chats/${CARPOOL}/messages`).limit(51).get());
-    await assertFails(db.collection(`chats/${SCHOOL}/chatMembers`).limit(51).get());
+    await assertFails(db.collectionGroup("summaries").where("open", "==", true).limit(10).get());
+    await assertFails(db.collectionGroup("reads").limit(10).get());
     await assertFails(db.collection("chats").limit(10).get());
     await assertFails(db.collectionGroup("messages").where("senderUid", "==", "alice").limit(10).get());
     await assertFails(db.collectionGroup("chatMembers").where("uid", "==", "alice").limit(10).get());
@@ -300,14 +343,18 @@ describe("the app never writes membership or the head", () => {
     for (const ctx of [as("alice"), as("stranger"), as("admin1", adminClaim)]) {
       const db = ctx.firestore();
       await assertFails(db.doc(`chats/${CARPOOL}/chatMembers/stranger`).set(member("stranger")));
-      await assertFails(db.doc(`chats/${CARPOOL}/chatMembers/alice`).update({ mutedUntil: null }));
-      await assertFails(db.doc(`chats/${FROZEN}/chatMembers/alice`).update({ frozen: false }));
-      await assertFails(db.doc(`chats/${CARPOOL}/chatMembers/removed`).update({ active: true }));
+      await assertFails(db.doc(`chats/${CARPOOL}/chatAccess/stranger`).set(access("stranger")));
+      await assertFails(db.doc(`chats/${CARPOOL}/chatMembers/alice`).update({ firstName: "School admin" }));
+      await assertFails(db.doc(`chats/${CARPOOL}/chatAccess/alice`).update({ mutedUntil: null }));
+      await assertFails(db.doc(`chats/${FROZEN}/chatAccess/alice`).update({ frozen: false }));
+      await assertFails(db.doc(`chats/${CARPOOL}/chatAccess/removed`).update({ active: true }));
+      await assertFails(db.doc(`chats/${CARPOOL}/chatAccess/bob`).delete());
       await assertFails(db.doc(`chats/${CARPOOL}/chatMembers/bob`).delete());
       await assertFails(db.doc(`chats/${CARPOOL}`).update({ frozen: false, nameEn: "Mine" }));
       await assertFails(db.doc(`chats/${CARPOOL}`).delete());
       await assertFails(db.doc("chats/cp_private:dm-new").set({ kind: "private" }));
       await assertFails(db.doc("chats/cp_private:dm-new/chatMembers/alice").set(member("alice")));
+      await assertFails(db.doc("chats/cp_private:dm-new/chatAccess/alice").set(access("alice")));
     }
   });
 });
@@ -384,7 +431,8 @@ describe("storage.rules: chat photos, members of that chat only", () => {
     await assertSucceeds(as("muted").storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).getMetadata());
   });
   it("non-members, removed and cut-off parents, unverified, admins and signed-out users neither read nor upload", async () => {
-    for (const [, uid, ctx] of outsiders().filter(([, id]) => id !== "newphone")) {
+    // The new-phone check closes photos too (N3), like everything else.
+    for (const [, uid, ctx] of outsiders()) {
       await assertFails(ctx.storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).getMetadata());
       await assertFails(ctx.storage().ref(`chatPhotos/${dir(CARPOOL)}/bob/seedphoto001.webp`).getDownloadURL());
       await assertFails(put(ctx, `chatPhotos/${dir(CARPOOL)}/${uid}/othermsg0001.webp`));

@@ -98,6 +98,8 @@ const paths = [
   // here is a member, and the chat list rows are another parent's.
   "chats/cp_carpool:c-k1",
   "chats/cp_carpool:c-k1/chatMembers/bob",
+  "chats/cp_carpool:c-k1/chatAccess/bob",
+  "chats/cp_carpool:c-k1/fanned/seedmsg0001",
   "chats/cp_carpool:c-k1/messages/seedmsg0001",
   "chats/cp_carpool:c-k1/reads/bob",
   "userChats/bob/summaries/cp_carpool:c-k1",

@@ -468,18 +468,22 @@ service cloud.firestore {
     // Own chat: the documents the phone reads and writes
     // (functions/src/chat/data.ts).
     //
-    // MEMBERSHIP is the member document chats/{cid}/chatMembers/{uid},
-    // written only by Cloud Functions and read here on EVERY request: a
-    // parent who was removed (active false), suspended, banned or deleted
-    // (cut true) loses read and write at once, not when a token expires. A
-    // frozen chat (block, closed carpool) and a parent who sent too fast
-    // (mutedUntil in the future) can still read but not write.
+    // MEMBERSHIP is the access document chats/{cid}/chatAccess/{uid},
+    // written only by Cloud Functions and read here on EVERY new request:
+    // a parent who was removed (active false), suspended, banned or deleted
+    // (cut true) is refused at once, not when a token expires. A frozen
+    // chat (block, closed carpool) and a parent who sent too fast
+    // (mutedUntil in the future) can still read but not write. Nobody
+    // reads an access document from the app, not even its owner: no member
+    // can see who was suspended or muted. (Whether a listener that is
+    // ALREADY open stops at once is checked on real phones:
+    // docs/test-iphone.md 8.10.)
     //
     // The kind of chat is the first part of its ID: only private and
     // carpool chats ("small" chats) take photos, the location pin, read
     // marks and typing; school and area groups are text only.
     function chatMemberPath(cid) {
-      return /databases/$(database)/documents/chats/$(cid)/chatMembers/$(request.auth.uid);
+      return /databases/$(database)/documents/chats/$(cid)/chatAccess/$(request.auth.uid);
     }
     function inChat(cid) {
       return verifiedParent() && deviceChecked()
@@ -546,12 +550,21 @@ service cloud.firestore {
       allow get: if chatId(cid) && inChat(cid);
       allow list, create, update, delete: if false;
 
-      // First names of the members (for message authors). Functions only
-      // write; members read one, or up to 50 at a time.
+      // First names of the members (for message authors): a member reads
+      // one by its ID. NEVER a list (a school group has thousands of
+      // parents; the app does not need one). Functions only write.
       match /chatMembers/{uid} {
         allow get: if inChat(cid);
-        allow list: if inChat(cid) && request.query.limit <= 50;
+        allow list: if false;
         allow create, update, delete: if false;
+      }
+      // What each member may do (active, cut, frozen, mutedUntil): read by
+      // these rules only. And the message trigger's markers.
+      match /chatAccess/{uid} {
+        allow read, write: if false;
+      }
+      match /fanned/{messageId} {
+        allow read, write: if false;
       }
       // Messages: members read (at most 50 per query); the sender creates
       // their own; nobody edits or deletes from the app (admins remove

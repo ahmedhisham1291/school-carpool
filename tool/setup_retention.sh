@@ -59,6 +59,8 @@ ttl expiresAt notifications
 # its life + 1 year and then deleted whole by retentionDaily (docs/DECISIONS.md).
 ttl expiresAt chatRequests
 ttl expiresAt chatPushes
+# The message trigger's per-message markers (2 days)
+ttl expiresAt fanned
 # Trips (Prompt 10): live points within 24 hours
 ttl expiresAt points
 ttl expiresAt eta

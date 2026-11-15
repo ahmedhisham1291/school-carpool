@@ -83,7 +83,7 @@ service firebase.storage {
     // chatPhotos/{type}/{id}/{uid}/{name}, where "type:id" is the chat's ID
     // in Firestore (the ":" is not used in a Storage path).
     // Only private and carpool chats have photos. Membership is the same
-    // member document firestore.rules reads, checked on every request
+    // access document firestore.rules read, checked on every request
     // (firestore.get: Storage needs the "Firebase Rules Firestore Service
     // Agent" role, SETUP.md 19): a removed, suspended or blocked-out parent
     // can neither read nor upload at once. A member uploads only into
@@ -91,12 +91,31 @@ service firebase.storage {
     // JPEG, at most 3 MB (the app re-encodes to far less and removes EXIF).
     // Cloud Functions delete (admin removal, retention).
     function chatMember(cid) {
-      return firestore.get(/databases/(default)/documents/chats/$(cid)/chatMembers/$(request.auth.uid)).data;
+      return firestore.get(/databases/(default)/documents/chats/$(cid)/chatAccess/$(request.auth.uid)).data;
     }
     function isChatMember(cid) {
-      return firestore.exists(/databases/(default)/documents/chats/$(cid)/chatMembers/$(request.auth.uid))
+      return firestore.exists(/databases/(default)/documents/chats/$(cid)/chatAccess/$(request.auth.uid))
         && chatMember(cid).active == true
         && chatMember(cid).cut != true;
+    }
+    // The same two checks firestore.rules make on users/{uid} (the second
+    // of the two Firestore documents a Storage rule may read): a token from
+    // before "sign out my phones" is refused at once, and nothing opens
+    // during a new-phone check. A signed-in parent always has the record.
+    function userRecord() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+    function sessionAndPhoneOk() {
+      return !firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        || sessionAndPhoneOkFor(userRecord());
+    }
+    function sessionAndPhoneOkFor(record) {
+      return (!('sessionsValidAfter' in record)
+          || (request.auth.token.auth_time is int
+            && request.auth.token.auth_time >= record.sessionsValidAfter))
+        && (!('newDeviceCheck' in record)
+          || record.newDeviceCheck == null
+          || record.newDeviceCheck.required != true);
     }
     function inChat(type, id) {
       return request.auth != null
@@ -104,7 +123,8 @@ service firebase.storage {
         && request.auth.token.verified == true
         && type.matches('cp_(private|carpool)')
         && id.matches('[A-Za-z0-9_-]+')
-        && isChatMember(type + ':' + id);
+        && isChatMember(type + ':' + id)
+        && sessionAndPhoneOk();
     }
     function mayPost(member) {
       return member.frozen != true

@@ -595,8 +595,22 @@
       ]
     },
     {
-      "collectionGroup": "chatMembers",
+      "collectionGroup": "chatAccess",
       "fieldPath": "uid",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "fanned",
+      "fieldPath": "expiresAt",
       "indexes": [
         {
           "order": "ASCENDING",
