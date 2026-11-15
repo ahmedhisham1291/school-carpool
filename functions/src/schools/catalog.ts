@@ -17,7 +17,9 @@ import { normalizeText } from "../text/normalize";
  *   searchHidden (true: kept as a document, so anything pointing at it
  *   still works, but left out of search; set by the loader on the
  *   hand-written sample once a real list is loaded, planSampleHiding),
- *   mergedInto, createdAt, updatedAt, importedAt.
+ *   mergedInto, createdAt, updatedAt, importedAt,
+ *   placeAreaId, placeAreaNameAr, placeAreaNameEn, placeDistrictId (City ->
+ *   Area -> District, places/catalog.ts; null/"" when unknown).
  */
 
 export type SchoolKind = "school" | "kindergarten";
@@ -34,6 +36,11 @@ export interface ImportedSchool {
   city: string;
   cityAr: string;
   location: { lat: number; lng: number } | null;
+  /** Area and district (tools/import_schools/places_import.py); "" / null when unknown. */
+  placeAreaId?: string;
+  placeAreaNameAr?: string;
+  placeAreaNameEn?: string;
+  placeDistrictId?: string | null;
 }
 
 /** What the loader reads of a school already in Firestore. */
@@ -51,6 +58,10 @@ export interface ExistingSchool {
   location: { lat: number; lng: number } | null;
   /** Out of search (sample schools after a real load). */
   searchHidden?: boolean;
+  placeAreaId?: string;
+  placeAreaNameAr?: string;
+  placeAreaNameEn?: string;
+  placeDistrictId?: string | null;
 }
 
 export type ImportSkipReason = "admin-edited" | "merged" | "not-active" | "same-target";
@@ -100,6 +111,10 @@ export function parseImportedSchool(value: unknown): ImportedSchool {
     city: typeof raw.city === "string" ? raw.city.trim().slice(0, 80) : "",
     cityAr: typeof raw.cityAr === "string" ? raw.cityAr.trim().slice(0, 80) : "",
     location,
+    placeAreaId: typeof raw.placeAreaId === "string" && DOC_ID.test(raw.placeAreaId) ? raw.placeAreaId : "",
+    placeAreaNameAr: typeof raw.placeAreaNameAr === "string" ? raw.placeAreaNameAr.trim().slice(0, 80) : "",
+    placeAreaNameEn: typeof raw.placeAreaNameEn === "string" ? raw.placeAreaNameEn.trim().slice(0, 80) : "",
+    placeDistrictId: typeof raw.placeDistrictId === "string" && DOC_ID.test(raw.placeDistrictId) ? raw.placeDistrictId : null,
   };
 }
 
@@ -117,6 +132,10 @@ function unchanged(incoming: ImportedSchool, existing: ExistingSchool): boolean 
     incoming.city === existing.city &&
     incoming.cityAr === existing.cityAr &&
     sameLocation(incoming.location, existing.location) &&
+    (incoming.placeAreaId ?? "") === (existing.placeAreaId ?? "") &&
+    (incoming.placeAreaNameAr ?? "") === (existing.placeAreaNameAr ?? "") &&
+    (incoming.placeAreaNameEn ?? "") === (existing.placeAreaNameEn ?? "") &&
+    (incoming.placeDistrictId ?? null) === (existing.placeDistrictId ?? null) &&
     incoming.sourceKeys.every((k) => existing.sourceKeys.includes(k))
   );
 }
@@ -215,6 +234,10 @@ export interface SchoolSearchRecord {
   governorate: string;
   city: string;
   cityAr: string;
+  /** City -> Area (filterOnly facet) and the area's names for the picker. */
+  placeAreaId?: string;
+  placeAreaNameAr?: string;
+  placeAreaNameEn?: string;
   _geoloc?: { lat: number; lng: number };
 }
 
@@ -234,6 +257,11 @@ export function searchRecordFrom(id: string, data: Record<string, unknown> | und
     city: typeof data.city === "string" ? data.city : "",
     cityAr: typeof data.cityAr === "string" ? data.cityAr : "",
   };
+  if (typeof data.placeAreaId === "string" && data.placeAreaId) {
+    record.placeAreaId = data.placeAreaId;
+    record.placeAreaNameAr = typeof data.placeAreaNameAr === "string" ? data.placeAreaNameAr : "";
+    record.placeAreaNameEn = typeof data.placeAreaNameEn === "string" ? data.placeAreaNameEn : "";
+  }
   const loc = data.location as { latitude?: unknown; longitude?: unknown } | null | undefined;
   if (loc && typeof loc.latitude === "number" && typeof loc.longitude === "number") {
     record._geoloc = { lat: loc.latitude, lng: loc.longitude };

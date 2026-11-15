@@ -737,6 +737,50 @@ queue, visible only to that parent. Approve it (fix the names, add the
 city and pin) or merge it into an existing school; once approved it is
 indexed and every parent finds it.
 
+### 14.6 City -> Area -> District (F4 grouping, F46 addresses)
+
+Owner decision 16 Nov 2026 (docs/DECISIONS.md): schools and home addresses
+use City (governorate) -> Area (qism, markaz or new city) -> District
+(neighbourhood). Not the per-school `areas` of carpools, which stay.
+
+1. **Download** (step 12 does it, after the schools, starting with the
+   Overpass server that just answered):
+   `python3 tools/import_schools/fetch_osm_places.py` writes every
+   administrative boundary of `admin_level` 5 to 10 inside Egypt and every
+   named `place=suburb|quarter|neighbourhood` to `data/schools/places/`
+   (git-ignored), shapes simplified to about 30 m.
+2. **Which level is which is measured, not assumed:** the import counts,
+   for each level, the share of schools inside its polygons (report.md,
+   "Places"). Area = the finest of levels 5 to 7 covering at least half
+   the schools (else the best covered); where it has no polygon, a coarser
+   level is used, then a finer one. District = the finest of 8 to 10
+   covering 30 % (same fallback); where no district boundary holds a
+   point, the nearest named place of that area within 1.5 km. A list entry
+   without a pin gets its area from its district column ("قسم"/"مركز"
+   ignored). Each school gets `placeAreaId`, the area's names and
+   `placeDistrictId`; `build/schools/places.json` lists the areas and
+   districts.
+3. **Load:** `schools:load:cloud` also loads `places.json` (next to
+   `schools.json`, or `--places <file>`) into `placeAreas`,
+   `placeDistricts` and `placeIndex/areas` (the server's lookup table):
+   new and changed places only, admin edits kept, school counts
+   recomputed. Rules: signed-in users read areas and districts; nobody
+   writes them from a client.
+4. **Admin panel > Places:** City -> Area -> District with school and
+   address counts; add, rename, deactivate, merge duplicates; the "new
+   districts" queue (parents' "My district isn't listed"). Schools list:
+   City and Area filters and an Area column; a school's page: "Move to
+   area". Every change is in the audit log.
+5. **App:** the school picker has "By area" (City -> Area -> the area's
+   schools); search can be narrowed to an area (Algolia `placeAreaId`
+   filter, set by `schools:algolia -- settings`/`sync`). The home address
+   (F46) uses the same dropdowns: no setup beyond the deploy
+   (`setHomeAddress`, `geocodeAddress`, `placeForPoint`); the address
+   search uses the existing Places key and limits.
+
+Dev and tests use the hand-written sample in `data/schools/sample/places`
+(rough boxes, not real borders).
+
 ## 15. Maps, home and nearby parents (Prompt 5)
 
 Keys are never committed. Each Firebase project (dev, staging, prod) is a

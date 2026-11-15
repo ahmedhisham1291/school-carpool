@@ -483,6 +483,9 @@ class School {
     required this.pin,
     required this.status,
     required this.source,
+    this.placeAreaId = '',
+    this.placeAreaNameAr = '',
+    this.placeAreaNameEn = '',
   });
 
   factory School.fromJson(Json j) => School(
@@ -494,6 +497,9 @@ class School {
     pin: GeoPin.fromJson(j.child('location')),
     status: SchoolStatus.fromCode(j.str('status')),
     source: j.str('source'),
+    placeAreaId: j.str('placeAreaId'),
+    placeAreaNameAr: j.str('placeAreaNameAr'),
+    placeAreaNameEn: j.str('placeAreaNameEn'),
   );
 
   final String id;
@@ -506,6 +512,11 @@ class School {
   final GeoPin? pin;
   final SchoolStatus status;
   final String source;
+
+  /// City -> Area (placeAreas), or empty.
+  final String placeAreaId;
+  final String placeAreaNameAr;
+  final String placeAreaNameEn;
 }
 
 @immutable

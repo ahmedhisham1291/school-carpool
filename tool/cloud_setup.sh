@@ -784,6 +784,16 @@ else
   else
     todo "OpenStreetMap download failed (servers busy?). Run this script again later; the last download, if any, is used meanwhile."
   fi
+  # City -> Area -> District (F4 grouping, F46 addresses): boundaries below
+  # the governorate and named neighbourhoods, from the Overpass server that
+  # just answered.
+  OSM_SERVER="$(sed -n 's/^- Server: \(https:[^ ]*\).*/\1/p' data/schools/osm/fetch_report.md 2>/dev/null | head -1)"
+  run_step python3 tools/import_schools/fetch_osm_places.py --max-age-days 7 ${OSM_SERVER:+--prefer "${OSM_SERVER}"}
+  if [ "${STEP_RC}" -eq 0 ]; then
+    ok "OpenStreetMap places: $(sed -n 's/^- Boundaries per admin_level: //p' data/schools/places/fetch_report.md 2>/dev/null | head -1)"
+  else
+    todo "OpenStreetMap places download failed (servers busy?). Schools get no area until it works; run this script again later."
+  fi
   # Wikimedia's User-Agent policy asks for a contact: the admin email
   # argument unless WIKIDATA_CONTACT is set (sent only in the header).
   run_step env WIKIDATA_CONTACT="${WIKIDATA_CONTACT:-${ADMIN_EMAIL}}" \
@@ -818,6 +828,9 @@ if [ "${#REAL_INPUTS[@]}" -gt 0 ]; then
     if [ "${STEP_RC}" -eq 0 ]; then
       SCHOOLS_LOADED=1
       ok "Firestore 'schools': $(sed -n 's/^load_schools: done\. //p' "${SCHOOLS_OUT}/load.txt" | tail -1) (sample schools kept as documents, out of search)"
+      if grep -q '^load_places: done' "${SCHOOLS_OUT}/load.txt"; then
+        ok "Firestore places: $(sed -n 's/^load_places: done\. //p' "${SCHOOLS_OUT}/load.txt" | tail -1)"
+      fi
     else
       todo "schools load stopped (see above). Run this script again: what was written is kept and not written twice."
     fi
@@ -857,7 +870,7 @@ else
   todo "school search: Algolia is off, so search covers only 200 schools; with the real list the app says 'search unavailable'. Set it up: docs/algolia-setup.md, then run this script again."
 fi
 if [ -s "${SCHOOLS_OUT}/import.txt" ]; then
-  printf '\n  Schools import summary (per source, kept, dropped and why, per governorate):\n'
+  printf '\n  Schools import summary (per source, kept, dropped and why, per city, places and top areas):\n'
   sed 's/^/    /' "${SCHOOLS_OUT}/import.txt"
 fi
 

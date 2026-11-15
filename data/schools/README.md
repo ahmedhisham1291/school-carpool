@@ -13,6 +13,11 @@ Put the files for the schools import (F4) here. They are not committed
 - `wikidata/`: Wikidata's schools in Egypt from
   `python3 tools/import_schools/fetch_wikidata_schools.py` (step 12 runs
   it too), plus `fetch_report.md`. Wikidata data is CC0.
+- `places/`: City -> Area -> District from
+  `python3 tools/import_schools/fetch_osm_places.py` (step 12 runs it):
+  OSM boundaries of admin_level 5 to 10 and named suburbs, quarters and
+  neighbourhoods. The import measures which level is an Area and which a
+  District (SETUP.md 14.6).
 - `boundaries/`: governorate borders for an exact governorate per school:
   the OpenStreetMap ones from the same script
   (`egypt_governorates_osm.geojson`) or HDX admin level 1 GeoJSON.

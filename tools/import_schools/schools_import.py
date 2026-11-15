@@ -579,9 +579,25 @@ class School:
     match_en: tuple[str, ...] = ()
     stages: frozenset[str] = frozenset()
     genders: frozenset[str] = frozenset()
+    # City -> Area -> District (places_import.py); empty without places data.
+    place_area_id: str = ""
+    place_area_name_ar: str = ""
+    place_area_name_en: str = ""
+    place_district_id: str = ""
 
     def to_json(self) -> dict:
+        place = (
+            {
+                "placeAreaId": self.place_area_id,
+                "placeAreaNameAr": self.place_area_name_ar,
+                "placeAreaNameEn": self.place_area_name_en,
+                "placeDistrictId": self.place_district_id or None,
+            }
+            if self.place_area_id
+            else {}
+        )
         return {
+            **place,
             "id": self.id,
             "source": self.source,
             "sourceId": self.source_id,
@@ -1254,6 +1270,7 @@ class Result:
     # each recovered name came from.
     read_by_source: dict[str, int] = field(default_factory=dict)
     names_recovered: dict[str, int] = field(default_factory=dict)
+    boundaries: Boundaries | None = None
 
 
 def run(folder: Path) -> Result:
@@ -1267,7 +1284,7 @@ def run(folder: Path) -> Result:
         read_by_source[fam] = read_by_source.get(fam, 0) + 1
         if e.name_from:
             recovered[e.name_from] = recovered.get(e.name_from, 0) + 1
-    return Result(merged, dropped, groups, likely, files, problems, len(entries), read_by_source, recovered)
+    return Result(merged, dropped, groups, likely, files, problems, len(entries), read_by_source, recovered, boundaries)
 
 
 def source_family(source: str) -> str:

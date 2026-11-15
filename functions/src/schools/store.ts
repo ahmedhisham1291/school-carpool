@@ -71,6 +71,10 @@ export class FirestoreOtherSchoolsStore implements OtherSchoolsStore {
       source: "parent",
       sourceId: school.id,
       sourceKeys: [],
+      placeAreaId: school.placeAreaId ?? "",
+      placeAreaNameAr: school.placeAreaNameAr ?? "",
+      placeAreaNameEn: school.placeAreaNameEn ?? "",
+      placeDistrictId: school.placeDistrictId ?? null,
       addedBy: school.addedBy,
       mergedInto: null,
       createdAt: Timestamp.fromMillis(school.createdAtMs),
@@ -110,6 +114,10 @@ export async function readExistingSchools(db: Firestore, pageSize = 5000): Promi
       cityAr: text(d.cityAr),
       location: point(d.location),
       searchHidden: d.searchHidden === true,
+      placeAreaId: text(d.placeAreaId),
+      placeAreaNameAr: text(d.placeAreaNameAr),
+      placeAreaNameEn: text(d.placeAreaNameEn),
+      placeDistrictId: typeof d.placeDistrictId === "string" ? d.placeDistrictId : null,
     };
   });
 }
@@ -126,6 +134,10 @@ export function importedFields(school: ImportedSchool, importedAt: Timestamp): D
     cityAr: school.cityAr,
     location: school.location ? new GeoPoint(school.location.lat, school.location.lng) : null,
     sourceKeys: school.sourceKeys,
+    placeAreaId: school.placeAreaId ?? "",
+    placeAreaNameAr: school.placeAreaNameAr ?? "",
+    placeAreaNameEn: school.placeAreaNameEn ?? "",
+    placeDistrictId: school.placeDistrictId ?? null,
     importedAt,
     updatedAt: FieldValue.serverTimestamp(),
   };

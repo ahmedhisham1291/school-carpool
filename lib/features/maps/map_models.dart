@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:school_carpool/features/maps/geo.dart';
+import 'package:school_carpool/features/places/address_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 String _text(Object? value) => value is String ? value : '';
@@ -39,6 +40,7 @@ class HomeLocation {
     this.notifyNewParents = true,
     this.radiusKm = Geo.defaultRadiusKm,
     this.drivingSchools = const <SchoolRef>[],
+    this.address,
   });
 
   factory HomeLocation.fromMap(Map<String, Object?> data) {
@@ -57,6 +59,7 @@ class HomeLocation {
             if (s is Map<Object?, Object?> && _text(s['id']).isNotEmpty)
               SchoolRef(id: _text(s['id']), nameAr: _text(s['nameAr']), nameEn: _text(s['nameEn'])),
       ],
+      address: HomeAddress.fromMap(data['address']),
     );
   }
 
@@ -68,6 +71,9 @@ class HomeLocation {
   final int radiusKm;
   final List<SchoolRef> drivingSchools;
 
+  /// F46: the structured address, or null (a home set before F46, or none).
+  final HomeAddress? address;
+
   bool get hasHome => location != null;
 
   HomeLocation copyWith({bool? showOnMap, bool? notifyNewParents, int? radiusKm, List<SchoolRef>? drivingSchools}) =>
@@ -78,6 +84,7 @@ class HomeLocation {
         notifyNewParents: notifyNewParents ?? this.notifyNewParents,
         radiusKm: radiusKm ?? this.radiusKm,
         drivingSchools: drivingSchools ?? this.drivingSchools,
+        address: address,
       );
 }
 

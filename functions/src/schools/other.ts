@@ -46,6 +46,11 @@ export interface PendingSchool {
   location: { lat: number; lng: number } | null;
   addedBy: string;
   createdAtMs: number;
+  /** City -> Area -> District of the pin, found on the server (none without a pin). */
+  placeAreaId?: string;
+  placeAreaNameAr?: string;
+  placeAreaNameEn?: string;
+  placeDistrictId?: string | null;
 }
 
 export interface OtherSchoolsStore {
@@ -105,7 +110,12 @@ export interface OtherSchoolResult {
  * waiting (a retry or a second child never makes two).
  */
 export async function addOtherSchool(
-  deps: { store: OtherSchoolsStore; now: () => number },
+  deps: {
+    store: OtherSchoolsStore;
+    now: () => number;
+    /** The area of a pin (places/store.ts); optional so older callers and tests work. */
+    placeOf?: (p: { lat: number; lng: number }) => Promise<Pick<PendingSchool, "placeAreaId" | "placeAreaNameAr" | "placeAreaNameEn" | "placeDistrictId">>;
+  },
   uid: string,
   data: unknown,
 ): Promise<OtherSchoolResult> {
@@ -129,6 +139,7 @@ export async function addOtherSchool(
     location: input.location,
     addedBy: uid,
     createdAtMs: deps.now(),
+    ...(input.location && deps.placeOf ? await deps.placeOf(input.location) : {}),
   };
   await deps.store.create(school);
   return { id: school.id, nameAr: school.nameAr, nameEn: school.nameEn, governorate: school.governorate, status: "awaiting_review" };

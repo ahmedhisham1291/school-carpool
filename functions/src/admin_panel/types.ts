@@ -107,6 +107,11 @@ export interface SchoolRecord {
   addedBy: string | null;
   mergedInto: string | null;
   createdAtMs: number;
+  /** City -> Area -> District (places/catalog.ts); "" / null when unknown. */
+  placeAreaId?: string;
+  placeAreaNameAr?: string;
+  placeAreaNameEn?: string;
+  placeDistrictId?: string | null;
 }
 
 export interface AreaRecord {
@@ -120,7 +125,14 @@ export interface AreaRecord {
 export interface SchoolsStore {
   newId(collection: "schools" | "areas"): string;
   getSchool(id: string): Promise<SchoolRecord | undefined>;
-  listSchools(query: { status: SchoolStatus; governorate: string | null; afterId: string | null; limit: number }): Promise<SchoolRecord[]>;
+  listSchools(query: {
+    status: SchoolStatus;
+    governorate: string | null;
+    afterId: string | null;
+    limit: number;
+    /** City -> Area filter (placeAreas id). */
+    placeAreaId?: string | null;
+  }): Promise<SchoolRecord[]>;
   saveSchool(school: SchoolRecord, isNew: boolean, audit: AuditEntry): Promise<void>;
   listAreas(schoolId: string): Promise<AreaRecord[]>;
   getArea(id: string): Promise<AreaRecord | undefined>;

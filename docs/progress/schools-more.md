@@ -101,36 +101,54 @@ and the step-12 summary will give the real numbers. Getting near complete
 coverage needs an official list (ministry or governorate CSV), which the
 importer already accepts.
 
-## Stopped: City → Area → District (two later requests)
+## City -> Area -> District and F46 (branch places-address, off schools-more)
 
-Not started, by the rule "if the spec and a prompt disagree, stop and
-ask":
+The owner chose option 1 (keep both, 16 Nov 2026): the per-school `areas`
+and carpools are unchanged; the new hierarchy is `placeAreas` and
+`placeDistricts` (City = governorate). Commits on `places-address`:
 
-- The spec (section 7 data model, F4/F5/F9/F32) and the code already have
-  an **`areas` collection with a different meaning**: an area belongs to
-  ONE school (id, schoolId, name, centre), managed by admins, and carpools
-  (`areaId`), carpool search, chat area groups and the admin panel use it.
-  The new requests define `areas` as qism/markaz/new city inside a
-  governorate. Reusing the name would break carpools; renaming either
-  changes the spec.
-- The address request changes the home-address model (today
-  `homes/{uid}` with a Places-picked point and a rounded public record)
-  and adds a feature (next free ID would be F46).
+1. **Data** (`tools/import_schools`): `fetch_osm_places.py` downloads every
+   admin boundary of level 5 to 10 and every named
+   place=suburb|quarter|neighbourhood in Egypt (shapes simplified to about
+   30 m). `places_import.py` **measures** per level the share of schools
+   inside its polygons (no level assumed): Area = finest of 5-7 covering
+   at least 50 %, District = finest of 8-10 covering 30 %, falling back
+   to coarser then finer levels where a level has no polygon, and named
+   places as districts where no district boundary exists. Schools get
+   `placeAreaId`, the area's names and `placeDistrictId`; owner-CSV entries
+   without a pin get their area from the district column. Report and
+   summary: coverage per level, schools per city, top areas, schools
+   without an area.
+2. **Server:** loader writes `placeAreas`, `placeDistricts`,
+   `placeIndex/areas` (idempotent, admin edits kept, counts recomputed);
+   rules (read when signed in, lists <= 500, no client writes; index and
+   requests closed) with emulator tests; Algolia facet `placeAreaId`;
+   "Other" and admin-saved schools get their area from the pin; audited
+   admin functions (list, add, rename, deactivate, merge, move a school,
+   district requests); requests deleted with the account.
+3. **App and admin panel:** design-system `AppDropdownMenu` (M3
+   DropdownMenu, filterable, one-line 48 dp items, pinned last item; in the
+   gallery); school picker "By area" (City -> Area -> schools A-Z); search
+   narrowed by area; admin Places section, Area filter and column on the
+   schools list, "Move to area".
+4. **F46** (next free ID after F45): the home address in three steps
+   (dropdowns; street and building; pin on the map), "Search instead"
+   prefill, server checks and geocoding, private address, area-only public
+   fields. Spec section 4 and 9, DESIGN, DECISIONS, SETUP 14.6, COSTS.
 
-Question for the owner (one answer unblocks both commits):
+Not done / notes: street suggestions (no street data yet, plain text);
+carpool matching not changed (the public record carries the area and
+district for a later filter); onboarding does not ask for an address
+today, so the entry points are Profile, the Home tab and the nearby map;
+CLAUDE.md still lists F1-F45 (owner edits that file).
 
-1. Keep the existing per-school `areas` and add the new hierarchy under
-   new names: `placeAreas` (qism/markaz/new city) and `placeDistricts`,
-   with schools getting `placeAreaId`/`districtId`; carpools keep their
-   school areas. **Or**
-2. Replace per-school areas by the new governorate areas (carpools,
-   search and chat groups would use governorate areas/districts; a
-   migration of staging's fake carpools; spec F4/F5/F9/F32 and section 7
-   change).
+Sources checked: OSM wiki Tag:place=quarter (suburb > quarter >
+neighbourhood); Key:place, taginfo and the Egypt boundary pages were not
+reachable here, hence the run-time measurement.
 
-Prepared facts for either answer: Egypt's governorates are
-`admin_level=4` with `ISO3166-2=EG-*`; the admin level of qism/markaz and
-of neighbourhoods in Egypt could not be verified here (taginfo and the
-Egypt boundary pages are not reachable from this workspace), so the
-fetch must measure coverage per level at run time rather than assume 5,
-6 or 8.
+Tests here: Python 72 pass (incl. 8 new places tests and the sample run);
+Functions 794 pass (incl. places and address tests); bash -n and
+shellcheck clean. Written, not run: Flutter widget tests (dropdown
+dependency, browse, address steps, admin Places), goldens (browse,
+address steps AR/EN light/dark, 320 dp at 200 %, admin Places), rules
+tests for places and addresses.

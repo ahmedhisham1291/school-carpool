@@ -535,6 +535,60 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "schools",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "placeAreaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameAr",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "schools",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "governorate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "placeAreaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameAr",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "placeRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

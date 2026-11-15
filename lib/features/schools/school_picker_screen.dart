@@ -9,6 +9,7 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/maps/map_view.dart';
+import 'package:school_carpool/features/schools/browse_schools_screen.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
 import 'package:school_carpool/features/schools/school_repository.dart';
@@ -182,6 +183,13 @@ class _SchoolPickerScreenState extends ConsumerState<SchoolPickerScreen> {
     unawaited(_search());
   }
 
+  Future<void> _browse() async {
+    final SchoolOption? chosen = await openBrowseSchools(context, governorate: _governorate);
+    if (chosen != null && mounted) {
+      Navigator.of(context).pop(chosen);
+    }
+  }
+
   Future<void> _addOther() async {
     final SchoolOption? added = await openOtherSchoolForm(
       context,
@@ -214,6 +222,7 @@ class _SchoolPickerScreenState extends ConsumerState<SchoolPickerScreen> {
       final String where = <String>[
         if (home != null && at != null) l10n.schoolDistanceKm(Geo.distanceKm(home, at).toStringAsFixed(1)),
         if (place.isNotEmpty) place,
+        if (school.areaName(language) case final String area when area.isNotEmpty && area != place) area,
         governorateLabel(l10n, school.governorate),
       ].join(' · ');
       return AppListRow(
@@ -331,12 +340,25 @@ class _SchoolPickerScreenState extends ConsumerState<SchoolPickerScreen> {
               padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.screenGutter, 0, AppSpacing.screenGutter, AppSpacing.s8),
               child: Align(
                 alignment: AlignmentDirectional.centerStart,
-                child: AppChip(
-                  key: const Key('school.governorate'),
-                  label: gov == null ? l10n.schoolAllGovernorates : governorateLabel(l10n, gov),
-                  icon: Icons.place_outlined,
-                  selected: gov != null,
-                  onSelected: (bool _) => unawaited(_chooseGovernorate()),
+                child: Wrap(
+                  spacing: AppSpacing.s8,
+                  runSpacing: AppSpacing.s8,
+                  children: <Widget>[
+                    AppChip(
+                      key: const Key('school.governorate'),
+                      label: gov == null ? l10n.schoolAllGovernorates : governorateLabel(l10n, gov),
+                      icon: Icons.place_outlined,
+                      selected: gov != null,
+                      onSelected: (bool _) => unawaited(_chooseGovernorate()),
+                    ),
+                    // F4: the second path, City -> Area -> the area's schools.
+                    AppChip(
+                      key: const Key('school.browse'),
+                      label: l10n.schoolBrowseChip,
+                      icon: Icons.account_tree_outlined,
+                      onSelected: (bool _) => unawaited(_browse()),
+                    ),
+                  ],
                 ),
               ),
             ),

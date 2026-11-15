@@ -336,12 +336,15 @@ class SampleRunTest(unittest.TestCase):
             self.assertEqual(code, 0)
             data = json.loads((Path(tmp) / "schools.json").read_text(encoding="utf-8"))
             self.assertEqual(data["format"], "school-carpool-schools/1")
-            first = data["schools"][0]
-            self.assertEqual(
-                sorted(first),
-                sorted(["id", "source", "sourceId", "sourceKeys", "nameAr", "nameEn", "kind", "governorate",
-                        "governorateMethod", "city", "cityAr", "location"]),
-            )
+            base = ["id", "source", "sourceId", "sourceKeys", "nameAr", "nameEn", "kind", "governorate",
+                    "governorateMethod", "city", "cityAr", "location"]
+            place = ["placeAreaId", "placeAreaNameAr", "placeAreaNameEn", "placeDistrictId"]
+            for school in data["schools"]:
+                # The sample has places (data/schools/sample/places): a school
+                # inside an area gets the four place fields, the others none.
+                expected = base + place if "placeAreaId" in school else base
+                self.assertEqual(sorted(school), sorted(expected))
+            self.assertTrue((Path(tmp) / "places.json").exists())
             self.assertTrue((Path(tmp) / "report.md").exists())
 
 

@@ -22,7 +22,12 @@ import 'package:school_carpool/l10n/l10n.dart';
 /// States: loading (skeleton map and card), empty (no home yet: Cairo and
 /// a hint to move the map), error and offline (full screen with retry).
 class HomeLocationScreen extends ConsumerStatefulWidget {
-  const HomeLocationScreen({super.key});
+  const HomeLocationScreen({super.key, this.pickOnly = false});
+
+  /// F46 "Search instead": the chosen place comes back as a [PlaceResult]
+  /// (the address screen fills City, Area and District from it); nothing
+  /// is saved here.
+  final bool pickOnly;
 
   @override
   ConsumerState<HomeLocationScreen> createState() => _HomeLocationScreenState();
@@ -231,6 +236,10 @@ class _HomeLocationScreenState extends ConsumerState<HomeLocationScreen> {
     }
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final NavigatorState navigator = Navigator.of(context);
+    if (widget.pickOnly) {
+      navigator.pop(PlaceResult(placeId: '', label: _label, location: center));
+      return;
+    }
     setState(() {
       _saving = true;
       _saveError = null;
@@ -385,7 +394,7 @@ class _HomeLocationScreenState extends ConsumerState<HomeLocationScreen> {
               const SizedBox(height: AppSpacing.s16),
               AppButton(
                 key: const Key('home.save'),
-                label: l10n.homeSave,
+                label: widget.pickOnly ? l10n.addressUseThisPlace : l10n.homeSave,
                 icon: Icons.check_rounded,
                 expand: true,
                 loading: _saving,
