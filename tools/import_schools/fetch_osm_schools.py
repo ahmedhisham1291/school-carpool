@@ -60,16 +60,51 @@ USER_AGENT = "school-carpool-schools-import/1.0 (OpenStreetMap schools list; Pyt
 
 EGYPT_AREA = 'area["ISO3166-1"="EG"][admin_level=2]->.eg;'
 
-# `out center;` (verbosity "body" plus centres), not `out center tags;`:
-# per the Overpass QL documentation, "tags" prints "only ids and tags ...
-# and not coordinates", and "center" adds a centre only to ways and
-# relations, so nodes would come back without a position. "body" adds the
-# node list of each way (a few MB more for all of Egypt), which we ignore.
-SCHOOLS_QUERY = f"""[out:json][timeout:{QUERY_TIMEOUT_S}];
-{EGYPT_AREA}
-nwr["amenity"~"^(school|kindergarten)$"](area.eg);
-out center;
-"""
+# What the broad query asks for. The download is deliberately wider than
+# what we keep: tools/import_schools/schools_import.py (classify_tags) is
+# the single place that decides what counts as a school or kindergarten
+# and why anything else is dropped. Tags checked on the OpenStreetMap wiki
+# (Tag:amenity=school, Proposal:Education_tag approved Feb 2025, Item for
+# education=kindergarten), 16 Nov 2026.
+#
+# - amenity=school|kindergarten: the main tags (all of them, named or not;
+#   an unnamed one may carry its name in official_name, alt_name, ...);
+# - education=school|kindergarten: the approved 2025 key, same meaning;
+# - building=school|kindergarten, school=*, isced:level=*: only with a name
+#   (a nameless building cannot be searched);
+# - any feature whose name, name:ar or name:en looks like a school
+#   (starts with مدرس / مدارس / روض / حضان, optionally after "ال" or
+#   "مجمع ", or contains school / kindergarten, or the word KG), except
+#   streets (highway=*: "شارع المدرسة" is a street named after a school).
+NAME_KEYS: tuple[str, ...] = ("name", "name:ar", "name:en")
+ARABIC_NAME_RE = "^(مجمع )?(ال)?(مدرس|مدارس)|^(روض|حضان)"
+LATIN_NAME_RE = "school|kindergarten"
+KG_NAME_RE = "(^|[^A-Za-z])KG([^A-Za-z]|$)"
+
+
+def schools_query(timeout_s: int = QUERY_TIMEOUT_S, broad: bool = True) -> str:
+    """The Overpass QL query for schools in Egypt. `out center;` (verbosity
+    "body" plus centres), not `out center tags;`: per the Overpass QL
+    documentation "tags" prints no coordinates and "center" adds a centre
+    only to ways and relations. [broad]=False is the original narrow query
+    (amenity only), used as a fallback if the broad one fails everywhere."""
+    clauses = ['nwr["amenity"~"^(school|kindergarten)$"](area.eg);']
+    if broad:
+        clauses.append('nwr["education"~"^(school|kindergarten)$"](area.eg);')
+        for key in NAME_KEYS:
+            clauses.append(f'nwr["building"~"^(school|kindergarten)$"]["{key}"](area.eg);')
+            clauses.append(f'nwr["school"]["{key}"](area.eg);')
+            clauses.append(f'nwr["isced:level"]["{key}"](area.eg);')
+        for key in NAME_KEYS:
+            clauses.append(f'nwr["{key}"~"{ARABIC_NAME_RE}"][!"highway"](area.eg);')
+            clauses.append(f'nwr["{key}"~"{LATIN_NAME_RE}",i][!"highway"](area.eg);')
+            clauses.append(f'nwr["{key}"~"{KG_NAME_RE}"][!"highway"](area.eg);')
+    body = "\n".join(f"  {c}" for c in clauses)
+    return f"[out:json][timeout:{timeout_s}];\n{EGYPT_AREA}\n(\n{body}\n);\nout center;\n"
+
+
+SCHOOLS_QUERY = schools_query()
+NARROW_SCHOOLS_QUERY = schools_query(broad=False)
 
 # Governorates are admin_level 4 in Egypt and carry ISO3166-2=EG-xx; the tag
 # filter keeps the neighbours' provinces out (they touch the border).
@@ -139,35 +174,51 @@ def check_answer(data: bytes) -> dict:
     return doc
 
 
+def ordered_endpoints(endpoints: Iterable[str], prefer: str | None) -> list[str]:
+    """[endpoints] with [prefer] (the server that just answered) first."""
+    items = list(dict.fromkeys(endpoints))
+    if prefer and prefer in items:
+        items.remove(prefer)
+        items.insert(0, prefer)
+    return items
+
+
 def overpass(
     query: str,
     endpoints: Iterable[str] = ENDPOINTS,
     *,
     post: Post = http_post,
     sleep: Callable[[float], None] = time.sleep,
-    attempts_per_endpoint: int = 2,
+    rounds: int = 2,
+    prefer: str | None = None,
     log: Callable[[str], None] = print,
 ) -> tuple[dict, str]:
-    """Runs [query] on the first server that answers; returns (answer, server)."""
+    """Runs [query] on the first server that answers; returns (answer, server).
+
+    Each round asks every server once, starting with [prefer]. A busy
+    answer (502, 503, 504, a network error) moves on to the next server at
+    once instead of waiting on the same one; only when every server failed
+    does it pause (30 s, then 60 s) and try a new round. The main server's
+    policy asks for 30 s after 429 or 406, which the pause covers."""
     body = urllib.parse.urlencode({"data": query}).encode("utf-8")
     failures: list[str] = []
-    for url in endpoints:
-        host = urllib.parse.urlparse(url).netloc
-        for attempt in range(1, attempts_per_endpoint + 1):
+    order = ordered_endpoints(endpoints, prefer)
+    for round_no in range(1, rounds + 1):
+        for url in order:
+            host = urllib.parse.urlparse(url).netloc
             try:
-                log(f"  asking {host} (attempt {attempt} of {attempts_per_endpoint}; can take several minutes)...")
+                log(f"  asking {host} (round {round_no} of {rounds}; can take several minutes)...")
                 return check_answer(post(url, body, QUERY_TIMEOUT_S + 60)), url
             except urllib.error.HTTPError as error:
-                # 429: too many requests, 504: busy, 406: refused. Pause, as the policy asks.
-                reason, wait = f"HTTP {error.code}", (30.0 if error.code in (429, 406) else 15.0) * attempt
+                reason = f"HTTP {error.code}"
             except _Retryable as error:
-                reason, wait = str(error), error.wait_s * attempt
+                reason = str(error)
             except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as error:
-                reason, wait = f"network error ({type(error).__name__})", 10.0 * attempt
+                reason = f"network error ({type(error).__name__})"
             failures.append(f"{host}: {reason}")
-            log(f"  {host}: {reason}")
-            if attempt < attempts_per_endpoint:
-                sleep(wait)
+            log(f"  {host}: {reason}; trying the next server")
+        if round_no < rounds:
+            sleep(30.0 * round_no)
     raise FetchError(
         "no Overpass server gave a complete answer:\n  "
         + "\n  ".join(failures)
@@ -385,17 +436,19 @@ def fetched_at_of(path: Path) -> dt.datetime | None:
         return None
 
 
-def report_text(fetched_at: str, endpoint: str, school_counts: dict[str, int], boundary_note: str) -> str:
+def report_text(fetched_at: str, endpoint: str, school_counts: dict[str, int], boundary_note: str, query_kind: str = "broad") -> str:
     lines = [
         "# OpenStreetMap schools download",
         "",
         f"- Downloaded: {fetched_at} (UTC)",
-        f"- Server: {endpoint} (Overpass API)",
+        f"- Server: {endpoint} (Overpass API), query: {query_kind}",
         f"- Elements in the answer: {school_counts['elements']}",
         f"- Written to {SCHOOLS_FILE}: {school_counts['features']}"
         f" (nodes {school_counts.get('type:node', 0)}, ways {school_counts.get('type:way', 0)},"
         f" relations {school_counts.get('type:relation', 0)})",
-        f"- amenity=school: {school_counts.get('amenity:school', 0)}, amenity=kindergarten: {school_counts.get('amenity:kindergarten', 0)}",
+        f"- amenity=school: {school_counts.get('amenity:school', 0)}, amenity=kindergarten: {school_counts.get('amenity:kindergarten', 0)},"
+        f" other (building, education, school, isced:level or a school-like name; the import decides): "
+        f"{school_counts['features'] - school_counts.get('amenity:school', 0) - school_counts.get('amenity:kindergarten', 0)}",
         f"- Without any name (the import drops them): {school_counts.get('no_name', 0)}",
         f"- Without a position (left out): {school_counts['no_position']}",
         f"- Governorate boundaries: {boundary_note}",
@@ -437,12 +490,18 @@ def main(argv: list[str] | None = None) -> int:
             return 0
     fetched_at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    print("OpenStreetMap schools: downloading every school and kindergarten in Egypt...")
+    print("OpenStreetMap schools: downloading every school and kindergarten in Egypt (broad query)...")
+    query_kind = "broad"
     try:
         answer, endpoint = overpass(SCHOOLS_QUERY, endpoints)
     except FetchError as error:
-        print(f"OpenStreetMap schools: {error}", file=sys.stderr)
-        return 1
+        print(f"OpenStreetMap schools: the broad query failed ({error}); trying the narrow one (amenity only)...", file=sys.stderr)
+        query_kind = "narrow (amenity=school|kindergarten only; the broad query failed)"
+        try:
+            answer, endpoint = overpass(NARROW_SCHOOLS_QUERY, endpoints)
+        except FetchError as error2:
+            print(f"OpenStreetMap schools: {error2}", file=sys.stderr)
+            return 1
     collection = schools_geojson(answer, fetched_at, endpoint)
     school_counts = counts(collection, answer)
     if school_counts["features"] < MIN_EXPECTED_SCHOOLS:
@@ -457,8 +516,11 @@ def main(argv: list[str] | None = None) -> int:
 
     boundary_note = "not downloaded (--no-boundaries)"
     if not args.no_boundaries:
-        boundary_note = fetch_boundaries(endpoints, fetched_at, boundaries_path)
-    (args.out / REPORT_FILE).write_text(report_text(fetched_at, endpoint, school_counts, boundary_note), encoding="utf-8")
+        # The server that just answered goes first (it is the one not busy).
+        boundary_note = fetch_boundaries(tuple(ordered_endpoints(endpoints, endpoint)), fetched_at, boundaries_path)
+    (args.out / REPORT_FILE).write_text(
+        report_text(fetched_at, endpoint, school_counts, boundary_note, query_kind), encoding="utf-8"
+    )
     print(f"  boundaries: {boundary_note}")
     print(f"  {ATTRIBUTION}")
     return 0
