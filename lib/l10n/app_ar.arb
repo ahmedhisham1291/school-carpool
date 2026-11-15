@@ -10196,5 +10196,119 @@
   "addressChangeArea": "غيّر المنطقة",
   "@addressChangeArea": {
     "description": "F46: button on the pin step that goes back to City, Area and District"
+  },
+  "adminSchoolsSearchLabel": "ابحث بالاسم",
+  "@adminSchoolsSearchLabel": {
+    "description": "Admin schools list: search field label"
+  },
+  "adminSchoolsSearchHint": "بالعربية أو الإنجليزية",
+  "@adminSchoolsSearchHint": {
+    "description": "Admin schools list: search field hint"
+  },
+  "adminAllCities": "كل المدن",
+  "@adminAllCities": {
+    "description": "Admin schools list: City filter, no city chosen"
+  },
+  "adminAllDistricts": "كل الأحياء",
+  "@adminAllDistricts": {
+    "description": "Admin schools list: District filter, no district chosen"
+  },
+  "adminSchoolsShowAll": "اعرض المخفية وغير المعتمدة",
+  "@adminSchoolsShowAll": {
+    "description": "Admin schools list: switch that also lists hidden, sample, awaiting review and merged schools"
+  },
+  "adminSchoolsShowAllHelp": "والعينة وبانتظار المراجعة والمدمجة",
+  "@adminSchoolsShowAllHelp": {
+    "description": "Admin schools list: help under the show-all switch"
+  },
+  "adminSchoolStatusLabel": "الحالة",
+  "@adminSchoolStatusLabel": {
+    "description": "Admin schools list: status filter and column"
+  },
+  "adminAnyStatus": "أي حالة",
+  "@adminAnyStatus": {
+    "description": "Admin schools list: status filter, no status chosen"
+  },
+  "adminSchoolStatusActive": "نشطة",
+  "@adminSchoolStatusActive": {
+    "description": "Admin: school status active"
+  },
+  "adminSchoolStatusAwaiting": "بانتظار المراجعة",
+  "@adminSchoolStatusAwaiting": {
+    "description": "Admin: school status awaiting review (a parent's Other school)"
+  },
+  "adminSchoolStatusMerged": "مدمجة",
+  "@adminSchoolStatusMerged": {
+    "description": "Admin: school status merged into another school"
+  },
+  "adminVisibilityLabel": "في بحث الأهالي",
+  "@adminVisibilityLabel": {
+    "description": "Admin schools list: visibility filter label"
+  },
+  "adminAnyVisibility": "الكل",
+  "@adminAnyVisibility": {
+    "description": "Admin schools list: visibility filter, no choice"
+  },
+  "adminVisibilityInSearch": "ظاهرة",
+  "@adminVisibilityInSearch": {
+    "description": "Admin schools list: school shown in the parents' search"
+  },
+  "adminVisibilityHidden": "مخفية",
+  "@adminVisibilityHidden": {
+    "description": "Admin schools list: school taken out of the parents' search (sample)"
+  },
+  "adminSourceLabel": "المصدر",
+  "@adminSourceLabel": {
+    "description": "Admin schools list: source filter and column"
+  },
+  "adminAnySource": "أي مصدر",
+  "@adminAnySource": {
+    "description": "Admin schools list: source filter, no source chosen"
+  },
+  "adminSortLabel": "الترتيب حسب",
+  "@adminSortLabel": {
+    "description": "Admin schools list: sort dropdown"
+  },
+  "adminSortNameAr": "الاسم بالعربية",
+  "@adminSortNameAr": {
+    "description": "Admin schools list: sort by / column Arabic name"
+  },
+  "adminSortNameEn": "الاسم بالإنجليزية",
+  "@adminSortNameEn": {
+    "description": "Admin schools list: sort by / column English name"
+  },
+  "adminClearFilters": "امسح الفلاتر",
+  "@adminClearFilters": {
+    "description": "Admin schools list: clear the search and every filter"
+  },
+  "adminSchoolsCount": "{count, plural, =0{لا مدارس} =1{مدرسة واحدة} =2{مدرستان} few{{count} مدارس} many{{count} مدرسة} other{{count} مدرسة}}",
+  "@adminSchoolsCount": {
+    "description": "Admin schools list: how many schools match",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminSchoolsCountAtLeast": "{count} مدرسة على الأقل",
+  "@adminSchoolsCountAtLeast": {
+    "description": "Admin schools list: count when the search stopped early (a lower bound)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminSchoolsDegraded": "تم البحث بطريقة أبطأ، وقد يكون العدد أقل من الحقيقي.",
+  "@adminSchoolsDegraded": {
+    "description": "Admin schools list: a Firestore index was missing"
+  },
+  "adminSchoolsNoMatchTitle": "لا توجد مدارس مطابقة",
+  "@adminSchoolsNoMatchTitle": {
+    "description": "Admin schools list: empty title when filtered"
+  },
+  "adminSchoolsNoMatchBody": "جرّب كتابة أخرى، أو امسح الفلاتر.",
+  "@adminSchoolsNoMatchBody": {
+    "description": "Admin schools list: empty body when filtered"
   }
 }

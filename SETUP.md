@@ -781,6 +781,30 @@ use City (governorate) -> Area (qism, markaz or new city) -> District
 Dev and tests use the hand-written sample in `data/schools/sample/places`
 (rough boxes, not real borders).
 
+### 14.7 Admin schools search (each cloud project, once)
+
+The panel's Schools list searches Firestore (every school, hidden and
+unapproved too; docs/COSTS.md explains why not Algolia). After the deploy
+that adds `adminSearchSchools` and `syncSchoolAdminGrams`:
+
+1. Deploy the indexes: `firebase deploy --only firestore:indexes
+   --project <alias>` (14 new composite indexes on `schools`; they build
+   in a few minutes; the search works meanwhile in a slower mode and says
+   so).
+2. Fill the search grams of the schools already loaded (one read per
+   school, a write only where needed; safe to run again):
+
+```bash
+SCHOOLS_PROJECT=<project-id> npm --prefix functions run schools:admin-grams -- --dry-run
+SCHOOLS_PROJECT=<project-id> npm --prefix functions run schools:admin-grams -- --yes
+```
+
+New and changed schools get their grams on every write (panel, import,
+"Other" schools, seed) and the `syncSchoolAdminGrams` trigger repairs any
+other writer. On the emulators: `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
+GCLOUD_PROJECT=demo-school-carpool npm --prefix functions run
+schools:admin-grams` (the seed already writes them).
+
 ## 15. Maps, home and nearby parents (Prompt 5)
 
 Keys are never committed. Each Firebase project (dev, staging, prod) is a

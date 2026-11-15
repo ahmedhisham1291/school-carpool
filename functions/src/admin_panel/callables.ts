@@ -9,6 +9,8 @@ import { createAdmin as createAdminFlow, listAdmins as listAdminsFlow, setAdminD
 import { ADMIN_ERROR_CODES, AdminError } from "./errors";
 import type { AdminCaller } from "./guard";
 import { listAuditLog as listAuditFlow, listReports as listReportsFlow } from "./lists";
+import { searchSchools as searchSchoolsFlow, type SchoolSearchDeps } from "./school_search";
+import { FirestoreSchoolSearchStore } from "./school_search_store";
 import {
   getReport as getReportFlow,
   liftDrivingPause as liftPauseFlow,
@@ -116,6 +118,17 @@ function schoolsDeps(): SchoolsDeps {
   return { store: new FirestoreSchoolsStore(adminDb()), now: () => Date.now(), places: new FirestorePlaceLocator(adminDb()) };
 }
 
+function schoolSearchDeps(): SchoolSearchDeps {
+  return {
+    store: new FirestoreSchoolSearchStore(adminDb()),
+    now: () => Date.now(),
+    report: async (problem) => {
+      logger.error(problem);
+      await reportError(new Error(problem));
+    },
+  };
+}
+
 function placesDeps(): PlacesAdminDeps {
   return { store: new FirestorePlacesAdminStore(adminDb()) };
 }
@@ -149,6 +162,19 @@ export const adminModerateUser = adminCall("adminModerateUser", (caller, request
 
 /** { status?: active | awaiting_review, governorate?, placeAreaId?, afterId? } -> { schools, nextAfterId } */
 export const adminListSchools = adminCall("adminListSchools", (_caller, request) => listSchoolsFlow(schoolsDeps(), request.data));
+
+/**
+ * Every school (hidden, sample, awaiting review and merged too), searched
+ * by name (Arabic and English, spelling variants, small typos) and
+ * filtered by City -> Area -> District, status, visibility and source.
+ * Firestore only (school_search.ts explains why). Rate limited; the first
+ * page of each search is in the audit log (kinds of filters, never the text).
+ * { query?, includeAll?, status?, visibility?, governorate?, placeAreaId?, placeDistrictId?, source?, sort?, afterId? }
+ * -> { schools, nextAfterId, total, totalExact, degraded }
+ */
+export const adminSearchSchools = adminCall("adminSearchSchools", (caller, request) =>
+  searchSchoolsFlow(schoolSearchDeps(), caller, request.data, ipOf(request)),
+);
 
 /** { id } -> { school, areas } */
 export const adminGetSchool = adminCall("adminGetSchool", (_caller, request) => getSchoolFlow(schoolsDeps(), request.data));

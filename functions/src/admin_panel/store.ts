@@ -11,6 +11,7 @@ import {
 import { errorCode, USERS } from "../auth/accounts";
 import { normalizeText } from "../text/normalize";
 import { AdminError } from "./errors";
+import { schoolSearchGrams } from "./school_search";
 import type { AdminRole } from "./guard";
 import type {
   AccountStatus,
@@ -289,6 +290,8 @@ export class FirestoreSchoolsStore implements SchoolsStore {
       nameEn: school.nameEn,
       // Spelling-tolerant matching (Prompt 4B search uses the same normalization).
       searchKeys: [normalizeText(school.nameAr), normalizeText(school.nameEn)],
+      // Admin panel search (school_search.ts).
+      adminSearchGrams: schoolSearchGrams(school.nameAr, school.nameEn),
       governorate: school.governorate,
       city: school.city,
       location: school.location ? new GeoPoint(school.location.lat, school.location.lng) : null,

@@ -2,6 +2,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
+import 'package:school_carpool/admin/data/school_filters.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
@@ -37,6 +38,11 @@ abstract interface class AdminApi {
 
   /// [placeAreaId] narrows to one area of the city (placeAreas).
   Future<PagedResult<School>> schools({required SchoolStatus status, String? governorate, String? afterId, String? placeAreaId});
+
+  /// Every school (hidden and unapproved too with [SchoolFilters.includeAll]),
+  /// by name and City -> Area -> District; 50 a page. [languageCode] picks
+  /// the default sort.
+  Future<SchoolSearchPage> searchSchools(SchoolFilters filters, {required String languageCode, String? afterId});
   Future<(School, List<Area>)> school(String id);
   Future<String> saveSchool(SchoolInput input);
   Future<String> saveArea({
@@ -163,6 +169,19 @@ class FirebaseAdminApi implements AdminApi {
       'placeAreaId': ?placeAreaId,
     });
     return PagedResult<School>(j.list('schools').map(School.fromJson).toList(), j.strOrNull('nextAfterId'));
+  }
+
+  @override
+  Future<SchoolSearchPage> searchSchools(SchoolFilters filters, {required String languageCode, String? afterId}) async {
+    final Json j = await _call('adminSearchSchools', filters.toRequest(languageCode: languageCode, afterId: afterId));
+    final Object? total = j.map['total'];
+    return SchoolSearchPage(
+      items: j.list('schools').map(School.fromJson).toList(),
+      nextAfterId: j.strOrNull('nextAfterId'),
+      total: total is num ? total.toInt() : null,
+      totalExact: j.map['totalExact'] != false,
+      degraded: j.flag('degraded'),
+    );
   }
 
   @override

@@ -9,6 +9,7 @@ import {
 } from "firebase-admin/firestore";
 import { USERS } from "../auth/accounts";
 import { SCHOOLS } from "../admin_panel/store";
+import { schoolSearchGrams } from "../admin_panel/school_search";
 import { searchKeysFor, type ExistingSchool, type ImportedSchool } from "./catalog";
 import type { OtherSchoolsStore, PendingSchool } from "./other";
 
@@ -62,6 +63,7 @@ export class FirestoreOtherSchoolsStore implements OtherSchoolsStore {
       nameAr: school.nameAr,
       nameEn: school.nameEn,
       searchKeys: searchKeysFor(school.nameAr, school.nameEn),
+      adminSearchGrams: schoolSearchGrams(school.nameAr, school.nameEn),
       kind: "school",
       governorate: school.governorate,
       city: "",
@@ -128,6 +130,7 @@ export function importedFields(school: ImportedSchool, importedAt: Timestamp): D
     nameAr: school.nameAr,
     nameEn: school.nameEn,
     searchKeys: searchKeysFor(school.nameAr, school.nameEn),
+    adminSearchGrams: schoolSearchGrams(school.nameAr, school.nameEn),
     kind: school.kind,
     governorate: school.governorate,
     city: school.city,
