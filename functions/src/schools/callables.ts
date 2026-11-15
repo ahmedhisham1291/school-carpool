@@ -17,6 +17,7 @@ import { syncAction } from "./catalog";
 import { addOtherSchool as addOtherFlow, OTHER_SCHOOL_ERROR_CODES, OtherSchoolError } from "./other";
 import { consumeKeyQuotaFirestore, issueSearchKey, SEARCH_KEY_ERROR_CODES, SearchKeyError } from "./search_key";
 import { FirestoreOtherSchoolsStore } from "./store";
+import { FirestorePlaceLocator, placeOfPoint } from "../places/store";
 import { sessionCall } from "../privacy/device_gate";
 
 /**
@@ -54,7 +55,11 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
  */
 export const addOtherSchool = sessionCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("addOtherSchool", () =>
-    addOtherFlow({ store: new FirestoreOtherSchoolsStore(adminDb()), now: () => Date.now() }, requireUid(request), request.data),
+    addOtherFlow(
+      { store: new FirestoreOtherSchoolsStore(adminDb()), now: () => Date.now(), placeOf: (p) => placeOfPoint(new FirestorePlaceLocator(adminDb()), p) },
+      requireUid(request),
+      request.data,
+    ),
   ),
 );
 

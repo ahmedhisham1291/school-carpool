@@ -244,6 +244,10 @@ function schoolFromDoc(id: string, data: DocumentData): SchoolRecord {
     addedBy: str(data.addedBy),
     mergedInto: str(data.mergedInto),
     createdAtMs: millis(data.createdAt),
+    placeAreaId: typeof data.placeAreaId === "string" ? data.placeAreaId : "",
+    placeAreaNameAr: typeof data.placeAreaNameAr === "string" ? data.placeAreaNameAr : "",
+    placeAreaNameEn: typeof data.placeAreaNameEn === "string" ? data.placeAreaNameEn : "",
+    placeDistrictId: typeof data.placeDistrictId === "string" ? data.placeDistrictId : null,
   };
 }
 
@@ -269,9 +273,10 @@ export class FirestoreSchoolsStore implements SchoolsStore {
     return snap.exists ? schoolFromDoc(id, snap.data() ?? {}) : undefined;
   }
 
-  async listSchools(q: { status: SchoolStatus; governorate: string | null; afterId: string | null; limit: number }) {
+  async listSchools(q: { status: SchoolStatus; governorate: string | null; afterId: string | null; limit: number; placeAreaId?: string | null }) {
     let query: Query = this.db.collection(SCHOOLS).where("status", "==", q.status);
     if (q.governorate) query = query.where("governorate", "==", q.governorate);
+    if (q.placeAreaId) query = query.where("placeAreaId", "==", q.placeAreaId);
     query = await after(this.db, SCHOOLS, query.orderBy("nameAr"), q.afterId);
     const snap = await query.limit(q.limit).get();
     return snap.docs.map((doc) => schoolFromDoc(doc.id, doc.data()));
@@ -291,6 +296,14 @@ export class FirestoreSchoolsStore implements SchoolsStore {
       mergedInto: school.mergedInto,
       updatedAt: FieldValue.serverTimestamp(),
     };
+    // The area found from the pin (admin_panel/schools.ts placeFor); left
+    // as it is when the flow found none.
+    if (school.placeAreaId) {
+      fields.placeAreaId = school.placeAreaId;
+      fields.placeAreaNameAr = school.placeAreaNameAr ?? "";
+      fields.placeAreaNameEn = school.placeAreaNameEn ?? "";
+      fields.placeDistrictId = school.placeDistrictId ?? null;
+    }
     if (!isNew) {
       // The schools import (Prompt 4B) never overwrites an admin's edit;
       // an approved "Other" school drops the parent's uid (addedBy null).

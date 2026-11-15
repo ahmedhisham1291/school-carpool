@@ -200,6 +200,29 @@ service cloud.firestore {
       allow list: if signedIn() && request.query.limit <= 200 && schoolVisible();
       allow create, update, delete: if false;
     }
+    // City -> Area -> District (F4 grouping, F46 addresses; owner decision
+    // 16 Nov 2026). Public place names and outlines (from OpenStreetMap or
+    // added by admins), read by signed-in users to browse schools and fill
+    // an address; at most 500 at a time. Written only by Cloud Functions
+    // (the loader and the admin panel). Not the per-school `areas` below.
+    // placeIndex (the server's lookup table) and placeRequests ("my district
+    // isn't listed", with the parent's uid) are Cloud Functions only.
+    match /placeAreas/{id} {
+      allow get: if signedIn();
+      allow list: if signedIn() && request.query.limit <= 500;
+      allow create, update, delete: if false;
+    }
+    match /placeDistricts/{id} {
+      allow get: if signedIn();
+      allow list: if signedIn() && request.query.limit <= 500;
+      allow create, update, delete: if false;
+    }
+    match /placeIndex/{id} {
+      allow read, write: if false;
+    }
+    match /placeRequests/{id} {
+      allow read, write: if false;
+    }
     // Prompt 4B (F4): school search keys issued per parent per day.
     // Cloud Functions only.
     match /searchKeyLimits/{uid} {
