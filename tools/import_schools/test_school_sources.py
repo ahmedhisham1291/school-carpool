@@ -251,6 +251,19 @@ class OvertureTest(unittest.TestCase):
         self.assertEqual(result.read_by_source["overture"], 4)
         self.assertIn("overture 4 / 2 / 1 / 2", si.summary_text(result))
 
+    def test_overture_is_never_the_main_entry(self) -> None:
+        def school(source: str, sid: str, lat: float | None) -> si.School:
+            return si.School(
+                f"{source}-{sid}", source, sid, [f"{source}:{sid}"], "مدرسة النيل", "", "school",
+                "cairo", "given", "", "", lat, None if lat is None else 31.2,
+            )
+
+        merged = si._merge([school("overture", "08f9", 30.0), school("wikidata", "Q1", None)])
+        self.assertEqual(merged.source, "wikidata")
+        self.assertEqual(merged.lat, 30.0)  # the Overture pin is still used
+        merged = si._merge([school("overture", "08f9", 30.0), school("osm", "w5", 30.0)])
+        self.assertEqual(merged.id, "osm-w5")
+
     def test_main_without_duckdb_or_from_raw(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)

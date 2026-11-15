@@ -626,7 +626,10 @@ def main(argv: list[str] | None = None) -> int:
         lambda answer, stamp, server: schools_geojson(answer, stamp, server, national_id),
         parts_dir,
         query_id=national_id,
-        fetch=lambda q, eps, first: overpass(q, eps, rounds=2, prefer=first),
+        # One round per pass (fetch_parts' second pass is the retry), so a
+        # request started near the end of --max-minutes cannot add another
+        # hour of rounds on top of the budget.
+        fetch=lambda q, eps, first: overpass(q, eps, rounds=1, prefer=first),
         endpoints=endpoints,
         prefer=split.last_server or prefer,
         max_age_days=args.max_age_days,

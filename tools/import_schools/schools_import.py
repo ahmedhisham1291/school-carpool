@@ -1284,6 +1284,9 @@ def _source_rank(s: School) -> tuple:
     # official name best; OSM nodes before ways (a node is usually the gate).
     return (
         0 if s.source.startswith("list_") else 1,
+        # Overture is never the main entry when another source has the
+        # school, even one without a pin (its pin is still used, _merge).
+        1 if s.source == "overture" else 0,
         0 if s.lat is not None else 1,
         0 if s.source == "osm" and s.source_id.startswith("n") else 1,
         _SOURCE_ORDER.get(s.source, 0),
