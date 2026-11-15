@@ -626,7 +626,7 @@ describe("account deletion", () => {
     const c = newClosedAccount("u1", "ABCD2345", false, NOW);
     assert.equal((await continueDeletion(r, c, NOW + 364 * DAY_MS, () => undefined)).purged, false);
     assert.deepEqual(r.ran, []);
-    assert.equal(immediateSteps().length, IMMEDIATE_TARGETS.length + 8);
+    assert.equal(immediateSteps().length, IMMEDIATE_TARGETS.length + 9); // 9 flow steps besides "records" (F46 added "places")
     assert.equal(purgeSteps().length, PURGE_TARGETS.length + 3);
   });
 });
