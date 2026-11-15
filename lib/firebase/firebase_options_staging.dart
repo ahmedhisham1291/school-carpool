@@ -19,7 +19,7 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAweUSP1Y_9OMW5RaQxLq6ApHYOEGwbIAg',
+    apiKey: 'AIzaSyBApJaa6Fvuhf_BBbw4D_5AqqAac0JCfEc',
     appId: '1:962350861515:ios:cd2eb35a055a3ec7615f4e',
     messagingSenderId: '962350861515',
     projectId: 'school-carpool-staging',
