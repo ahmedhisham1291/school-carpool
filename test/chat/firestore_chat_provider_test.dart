@@ -43,6 +43,9 @@ class MemoryChatBackend implements ChatBackend {
   bool refuseWrites = false;
   bool holdWrites = false;
   bool failUploads = false;
+
+  /// The next upload arrives but its answer is lost (the connection drops).
+  bool loseUploadAnswer = false;
   final List<Completer<void>> _held = <Completer<void>>[];
   int _nextId = 1;
 
@@ -155,10 +158,24 @@ class MemoryChatBackend implements ChatBackend {
   @override
   Future<void> uploadPhoto(String path, Uint8List bytes, String contentType) async {
     calls.add('upload:$path:$contentType');
+    if (photos.containsKey(path)) {
+      // The rules: one upload per name.
+      throw const ChatFailure(ChatFailureKind.notMember);
+    }
     if (failUploads) {
       throw const ChatFailure(ChatFailureKind.photoFailed);
     }
     photos[path] = bytes;
+    if (loseUploadAnswer) {
+      loseUploadAnswer = false;
+      throw const ChatFailure(ChatFailureKind.offline);
+    }
+  }
+
+  @override
+  Future<bool> photoExists(String path) async {
+    calls.add('exists:$path');
+    return photos.containsKey(path);
   }
 
   @override
@@ -507,6 +524,18 @@ void main() {
       await _settle();
       expect(seen.last.single.delivery, ChatDelivery.sent);
       expect(seen.last.single.photoPath, endsWith('.jpg'));
+    });
+
+    test('an upload that arrived although its answer was lost is not uploaded twice: the message is sent', () async {
+      backend.rows[_carpool] = _row();
+      backend.loseUploadAnswer = true;
+      final (_, ChatConversation c, List<List<ChatMessage>> seen) = await open(carpool);
+      await c.sendPhoto(_webp);
+      await _settle();
+      expect(seen.last.single.delivery, ChatDelivery.sent);
+      expect(backend.calls.where((String x) => x.startsWith('upload:')), hasLength(1));
+      expect(backend.calls.where((String x) => x.startsWith('exists:')), hasLength(1));
+      expect(backend.messages[_carpool]!.single.data['photoPath'], seen.last.single.photoPath);
     });
 
     test('a location pin carries the point and nothing else; neither pins nor photos in a school group', () async {

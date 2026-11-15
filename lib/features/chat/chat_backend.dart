@@ -51,6 +51,9 @@ abstract interface class ChatBackend {
 
   /// The photo's bytes, or null when it is gone or may not be read.
   Future<Uint8List?> downloadPhoto(String path);
+
+  /// True when a file is already at [path] (an upload whose answer was lost).
+  Future<bool> photoExists(String path);
 }
 
 /// One document: its ID, its fields (times as UTC [DateTime]) and whether a
@@ -192,6 +195,16 @@ class FirestoreChatBackend implements ChatBackend {
   @override
   Future<void> uploadPhoto(String path, Uint8List bytes, String contentType) async {
     await _storage().ref(path).putData(bytes, SettableMetadata(contentType: contentType));
+  }
+
+  @override
+  Future<bool> photoExists(String path) async {
+    try {
+      await _storage().ref(path).getMetadata();
+      return true;
+    } on FirebaseException {
+      return false;
+    }
   }
 
   @override

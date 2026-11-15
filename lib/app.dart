@@ -7,6 +7,7 @@ import 'package:school_carpool/features/notifications/notification_center.dart';
 import 'package:school_carpool/features/privacy/device_guard.dart';
 import 'package:school_carpool/features/schedule/offline_confirmations.dart';
 import 'package:school_carpool/features/security/app_lock.dart';
+import 'package:school_carpool/features/security/local_cache.dart';
 import 'package:school_carpool/features/trips/tracker_guard.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
@@ -65,6 +66,9 @@ class _CarpoolAppState extends ConsumerState<CarpoolApp> with WidgetsBindingObse
     // Prompt 12: a phone signed out from another phone signs out here too;
     // run confirmations made offline are sent once the connection is back.
     ref.watch(deviceGuardProvider);
+    // Improvement B review (N1): nothing of a signed-out parent's chats or
+    // pickup points stays in Firestore's cache on the phone.
+    ref.watch(localCacheGuardProvider);
     ref.listen<List<PendingConfirm>>(confirmationQueueProvider, (List<PendingConfirm>? previous, List<PendingConfirm> next) {});
 
     return MaterialApp.router(

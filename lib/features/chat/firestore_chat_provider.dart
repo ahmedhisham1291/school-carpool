@@ -549,9 +549,22 @@ class _FirestoreConversation implements ChatConversation {
         o.uploaded = true;
         _p._remember(path, photo);
       } on Object {
-        o.failed = true;
-        _emitMessages();
-        return;
+        // The upload may have arrived although its answer did not (the
+        // connection dropped): a second upload under the same name would
+        // be refused for good, so look first.
+        bool there = false;
+        try {
+          there = await _backend.photoExists(path);
+        } on Object {
+          there = false;
+        }
+        if (!there) {
+          o.failed = true;
+          _emitMessages();
+          return;
+        }
+        o.uploaded = true;
+        _p._remember(path, photo);
       }
     }
     // Not awaited: offline, the write waits on the phone and so would we.
