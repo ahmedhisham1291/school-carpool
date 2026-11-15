@@ -19,6 +19,13 @@ right) and says on one line whether it fits:
 Exit codes: 0 fits, 1 does not fit (reason printed), 2 could not check
 (network, or a write key without the "search" right: then the first index
 sync in step 12 is the check).
+
+    python3 tool/algolia_keys.py decide W_EMPTY S_EMPTY SAME W_RC S_RC W_MSG S_MSG
+
+says whether cloud_setup.sh stores the pair, with the real reason(s) when
+it does not (empty key, same key twice, write key refused, search key
+refused) and a warning for a key that could not be checked (stored).
+It gets only flags and the verdict messages, never a key.
 """
 
 from __future__ import annotations
@@ -61,6 +68,39 @@ def verdict(kind: str, status: int, body: dict) -> tuple[int, str]:
     return 2, f"Algolia answered {status}" + (f": {message[:120]}" if message else "")
 
 
+def store_decision(
+    write_empty: bool, search_empty: bool, same_key: bool, write_rc: int, search_rc: int, write_msg: str, search_msg: str
+) -> tuple[bool, list[str]]:
+    """Whether cloud_setup.sh stores the two keys, and the reason lines it
+    prints (a to-do when not stored, warnings when stored unchecked). Takes
+    only facts about the keys and the verdict messages, never a key.
+    Exit code 2 ("could not check") does not block either key: the first
+    index sync (write key) and the app's first search (search key) are the
+    check then."""
+    reasons: list[str] = []
+    if write_empty:
+        reasons.append("the Write API Key was empty (nothing pasted)")
+    if search_empty:
+        reasons.append("the Search-only API Key was empty (nothing pasted)")
+    if not write_empty and not search_empty and same_key:
+        reasons.append("the same key was pasted twice: the Write API Key and the Search-only API Key are different keys")
+    if not write_empty and write_rc == 1:
+        reasons.append(f"Write key refused: {write_msg}")
+    if not search_empty and search_rc == 1:
+        reasons.append(f"Search key refused: {search_msg}")
+    if reasons:
+        return False, reasons
+    warnings: list[str] = []
+    if write_rc == 2:
+        warnings.append(f"Write key stored unchecked ({write_msg}); the first index sync in step 12 is the check")
+    if search_rc == 2:
+        warnings.append(
+            f"Search key stored unchecked ({search_msg}); the app's first school search is the check, and make sure "
+            "in the Algolia dashboard that it has only the search right (docs/algolia-setup.md, section 4)"
+        )
+    return True, warnings
+
+
 def ask(app_id: str, key: str) -> tuple[int, dict]:
     url = f"https://{app_id}.algolia.net/1/keys/{urllib.parse.quote(key, safe='')}"
     request = urllib.request.Request(
@@ -77,7 +117,25 @@ def ask(app_id: str, key: str) -> tuple[int, dict]:
         return error.code, body if isinstance(body, dict) else {}
 
 
+def decide_main(argv: list[str]) -> int:
+    """decide W_EMPTY S_EMPTY SAME W_RC S_RC W_MSG S_MSG (0/1 flags): prints
+    one reason per line; exit 0 store, 1 do not store."""
+    try:
+        w_empty, s_empty, same = (a == "1" for a in argv[2:5])
+        w_rc, s_rc = int(argv[5]), int(argv[6])
+        w_msg, s_msg = argv[7], argv[8]
+    except (IndexError, ValueError):
+        print("usage: algolia_keys.py decide W_EMPTY S_EMPTY SAME W_RC S_RC W_MSG S_MSG", file=sys.stderr)
+        return 2
+    store, lines = store_decision(w_empty, s_empty, same, w_rc, s_rc, w_msg, s_msg)
+    for line in lines:
+        print(line)
+    return 0 if store else 1
+
+
 def main(argv: list[str]) -> int:
+    if len(argv) >= 2 and argv[1] == "decide":
+        return decide_main(argv)
     if len(argv) != 3 or argv[1] not in ("write", "search"):
         print("usage: printf '%s' KEY | algolia_keys.py write|search APP_ID", file=sys.stderr)
         return 2

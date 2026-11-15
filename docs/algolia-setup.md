@@ -52,7 +52,13 @@ At step 6 it asks:
 2. `Algolia Write API Key (hidden...)`: paste it (nothing shows), Enter.
 3. `Algolia Search-only API Key (hidden...)`: paste it (nothing shows), Enter.
 
-It checks both keys with Algolia, stores them in Secret Manager, switches
+It checks both keys with Algolia. If it does not store them, the to-do
+line says why: a key was empty, the same key was pasted twice, the Write
+key was refused, or the Search key was refused (with Algolia's reason).
+If Algolia could not be asked (network, or it did not show the key's
+rights), the key is stored with a to-do warning: the first index sync
+(Write key) or the app's first school search (Search key) is the check.
+Otherwise it stores them in Secret Manager, switches
 staging to Algolia, deploys the functions, and at step 12 loads the
 schools and sends them all to Algolia. At the end it prints three lines
 under **NON-SECRET SEARCH SETTINGS** (`SCHOOL_SEARCH_PROVIDER=algolia`,

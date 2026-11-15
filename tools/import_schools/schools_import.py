@@ -378,7 +378,167 @@ DROP_AMENITIES = {
     "training": "not_school_courses",
     "prep_school": "not_school_courses",
     "childcare": "not_school_childcare",
+    "trade_school": "not_school_courses",
+    "cooking_school": "not_school_courses",
+    "art_school": "not_school_courses",
+    "flight_school": "not_school_courses",
 }
+
+# education=* (approved Feb 2025; same values and meanings as amenity=*,
+# OSM wiki "Proposal:Education tag"): kept and dropped the same way.
+KEEP_EDUCATION = KEEP_AMENITIES
+DROP_EDUCATION = {
+    **DROP_AMENITIES,
+    "ski_school": "not_school_courses",
+    "surf_school": "not_school_courses",
+    "sailing_school": "not_school_courses",
+}
+
+# A feature named like a school but mapped as something else: a street
+# ("شارع المدرسة"), a bus stop, a shop, a place, a historic madrasa
+# ("مدرسة السلطان حسن" is a monument), a sports pitch, ... Checked only
+# when no school tag says otherwise.
+OTHER_FEATURE_KEYS = (
+    "highway", "railway", "public_transport", "place", "shop", "office", "craft", "tourism",
+    "healthcare", "waterway", "natural", "historic", "man_made", "aeroway", "power", "route",
+    "leisure", "military", "religion",
+)
+
+# Normalized (normalize_text) name rules. A school name starts with the
+# word for school or kindergarten (optionally after "ال" or "مجمع"), or says
+# school / kindergarten / KG in English. A name that also says university,
+# faculty, centre, academy, driving, training, music, dance, courses or
+# nursing is not a school for this app (language SCHOOLS stay: in Egypt a
+# "language school" is an ordinary school teaching in a foreign language).
+_SCHOOL_NAME_AR = re.compile(r"^(مجمع )?(ال)?(مدرسه|مدارس) \S|^(روضه|حضانه) \S")
+_KG_NAME_AR = re.compile(r"^(روضه|حضانه) ")
+_SCHOOL_NAME_EN = re.compile(r"\b(school|schools|kindergarten|kindergartens|preschool)\b|(?<![0-9] )\bkg\b")
+_KG_NAME_EN = re.compile(r"\b(kindergarten|kindergartens|preschool)\b|(?<![0-9] )\bkg\b")
+_NOT_SCHOOL_NAME = (
+    (re.compile(r"\b(university|faculty)\b|جامعه|^كليه|\bكليه\b"), "not_school_university"),
+    (
+        re.compile(
+            r"\b(driving|training|music|dance|ballet|courses|course|nursing)\b"
+            r"|قياده|تدريب|موسيقي|رقص|باليه|كورسات|تمريض"
+        ),
+        "not_school_courses",
+    ),
+)
+# Weaker words: they drop a name only when it does not itself read like a
+# school's. "مركز" is also the word for a district (markaz) in Egyptian
+# school names ("مدرسة ... بمركز دسوق"), and some real schools are called
+# "... Academy School" or "... Center School".
+_NOT_SCHOOL_NAME_WEAK = re.compile(r"\b(academy|center|centre)\b|اكاديميه|مركز|سنتر")
+# A named school building is not dropped for these alone (religious
+# schools carry religion=*; main kept every named building=school).
+_BUILDING_OK_KEYS = {"religion"}
+_BUILDING_PART = re.compile(r"^(مبني|عماره|جناح|فصول|بلوك|building|block|wing|hall)\b")
+_MINISTRY = re.compile(r"وزاره|مديريه|اداره|ministry|directorate|governorate|محافظه")
+
+
+def name_says_school(name: str) -> str | None:
+    """"kindergarten" or "school" when [name] looks like a school's name, else None."""
+    n = normalize_text(name)
+    if not n:
+        return None
+    if _KG_NAME_AR.search(n) or _KG_NAME_EN.search(n):
+        return "kindergarten"
+    if _SCHOOL_NAME_AR.search(n) or _SCHOOL_NAME_EN.search(n):
+        return "school"
+    return None
+
+
+def name_says_not_school(*names: str) -> str | None:
+    for name in names:
+        n = normalize_text(name)
+        for pattern, reason in _NOT_SCHOOL_NAME:
+            if n and pattern.search(n):
+                return reason
+        if n and _NOT_SCHOOL_NAME_WEAK.search(n) and not name_says_school(name):
+            return "not_school_courses"
+    return None
+
+
+def _isced_levels(value: str) -> set[int]:
+    return {int(d) for d in re.findall(r"\d", value)}
+
+
+def classify_tags(props: dict, names: tuple[str, ...]) -> tuple[str | None, str]:
+    """(kind, why): kind is "school", "kindergarten" or None (dropped, why is
+    the DROP_REASONS key). The single place that decides what counts. Rules
+    in order:
+    1. amenity=school|kindergarten: kept (as before; the name is checked later).
+    2. amenity=university, college, driving_school, childcare, ...: dropped.
+    3. education=school|kindergarten kept; other education values dropped.
+    4. any other amenity, or a street/shop/place/historic/... tag: dropped
+       as "named like a school but mapped as something else".
+    5. building=school|kindergarten, school=*, isced:level=* or a school-like
+       name: kept, unless the name says university/centre/... or (for a
+       building) is the name of a building part ("مبنى ب").
+    """
+    amenity = _first(props, "amenity", "AMENITY").lower()
+    if amenity in KEEP_AMENITIES:
+        return KEEP_AMENITIES[amenity], "amenity"
+    if amenity in DROP_AMENITIES:
+        return None, DROP_AMENITIES[amenity]
+    education = _first(props, "education").lower()
+    if education in KEEP_EDUCATION:
+        return KEEP_EDUCATION[education], "education"
+    if education in DROP_EDUCATION:
+        return None, DROP_EDUCATION[education]
+    school_building = _first(props, "building").lower() in ("school", "kindergarten")
+    if amenity or any(
+        _first(props, k) for k in OTHER_FEATURE_KEYS if not (school_building and k in _BUILDING_OK_KEYS)
+    ):
+        return None, "not_school_feature"
+    landuse = _first(props, "landuse").lower()
+    if landuse and landuse != "education":
+        return None, "not_school_feature"
+
+    building = _first(props, "building").lower()
+    school_tag = _first(props, "school").lower()
+    isced = _isced_levels(_first(props, "isced:level"))
+    by_name = next((k for k in (name_says_school(n) for n in names) if k), None)
+    kind: str | None = None
+    why = ""
+    if building in ("school", "kindergarten"):
+        kind, why = building, "building"
+    elif isced:
+        if min(isced) >= 5:
+            return None, "not_school_university"
+        kind, why = ("kindergarten" if isced == {0} else "school"), "isced"
+    elif school_tag:
+        kind, why = ("kindergarten" if school_tag in ("kindergarten", "preschool", "nursery") else "school"), "school_tag"
+    elif by_name:
+        kind, why = by_name, "name"
+    if kind is None:
+        return None, "not_school_other"
+    if by_name == "kindergarten" and why != "isced":
+        kind = "kindergarten"
+    not_school = name_says_not_school(*names)
+    if not_school:
+        return None, not_school
+    if why == "building" and not by_name and any(_BUILDING_PART.search(normalize_text(n)) for n in names if n):
+        return None, "building_part"
+    return kind, why
+
+
+def recover_name(props: dict) -> tuple[str, str]:
+    """(name, tag it came from) for a feature without name/name:ar/name:en:
+    official_name, alt_name (first of a ";" list), short_name, then the
+    operator when it reads like a school's name (not "the Ministry of
+    Education"). ("", "") when none."""
+    for key in (
+        "official_name", "official_name:ar", "official_name:en", "alt_name", "alt_name:ar", "alt_name:en",
+        "short_name", "short_name:ar", "short_name:en", "old_name",
+    ):
+        value = _first(props, key).split(";")[0].strip()
+        if value:
+            return value, key
+    operator = _first(props, "operator").split(";")[0].strip()
+    if operator and name_says_school(operator) and not _MINISTRY.search(normalize_text(operator)):
+        return operator, "operator"
+    return "", ""
 
 
 @dataclass
@@ -395,6 +555,9 @@ class RawEntry:
     lat: float | None
     lng: float | None
     file: str
+    drop_reason: str = ""  # why kind is None (DROP_REASONS key)
+    name_from: str = ""  # tag the name was recovered from (official_name, ...)
+    wikidata: str = ""  # OSM "wikidata" tag (Q-number), or the item's own QID
 
 
 @dataclass
@@ -485,20 +648,33 @@ def _osm_source_id(props: dict, fallback: str) -> str:
     return raw.lstrip("-")
 
 
+_QID = re.compile(r"^Q[1-9][0-9]*$")
+
+
 def _osm_entry(props: dict, lat: float | None, lng: float | None, file: str, index: int) -> RawEntry:
+    name = _first(props, "name", "NAME")
+    name_ar = _first(props, "name:ar", "name_ar")
+    name_en = _first(props, "name:en", "name_en")
+    name_from = ""
+    if not (name or name_ar or name_en):
+        name, name_from = recover_name(props)
+    kind, why = classify_tags(props, (name, name_ar, name_en))
     amenity = _first(props, "amenity", "AMENITY").lower()
-    kind = KEEP_AMENITIES.get(amenity)
-    if not amenity and _first(props, "building").lower() in ("school", "kindergarten"):
-        kind = _first(props, "building").lower()
-        amenity = kind
+    # Wikidata items (fetch_wikidata_schools.py) carry "@source": "wikidata"
+    # and their QID; OSM features may carry a "wikidata" tag linking one.
+    is_wikidata = str(props.get("@source") or "") == "wikidata"
+    qid = str(props.get("@id") if is_wikidata else props.get("wikidata") or "").strip()
     return RawEntry(
-        source="osm",
-        source_id=_osm_source_id(props, f"{Path(file).stem}-{index}"),
+        source="wikidata" if is_wikidata else "osm",
+        source_id=qid if is_wikidata and qid else _osm_source_id(props, f"{Path(file).stem}-{index}"),
         kind=kind,
         amenity=amenity or "unknown",
-        name=_first(props, "name", "NAME"),
-        name_ar=_first(props, "name:ar", "name_ar"),
-        name_en=_first(props, "name:en", "name_en"),
+        drop_reason="" if kind else why,
+        name_from=name_from,
+        wikidata=qid if _QID.match(qid) else "",
+        name=name,
+        name_ar=name_ar,
+        name_en=name_en,
         governorate_text=_first(props, "addr:governorate", "addr:province", "addr:state", "is_in:state"),
         city_text=_first(props, "addr:city", "addr:district", "addr:suburb"),
         lat=lat,
@@ -654,11 +830,12 @@ def _list_source_name(path: Path) -> str:
 
 
 OSM_FOLDER = "osm"  # written by fetch_osm_schools.py
+WIKIDATA_FOLDER = "wikidata"  # written by fetch_wikidata_schools.py
 
 
 def read_inputs(folder: Path) -> tuple[list[RawEntry], Boundaries, list[str], list[str]]:
-    """All entries in [folder] (not its subfolders, except osm/ and
-    boundaries/), the boundaries, the files read and any problems. The
+    """All entries in [folder] (not its subfolders, except osm/, wikidata/
+    and boundaries/), the boundaries, the files read and any problems. The
     OpenStreetMap download in osm/ is read first: when an HDX export of the
     same data is also there, its copies count as "same source ID twice"."""
     entries: list[RawEntry] = []
@@ -687,8 +864,11 @@ def read_inputs(folder: Path) -> tuple[list[RawEntry], Boundaries, list[str], li
             if ignored:
                 problems.append(f"{name}: columns not used: {', '.join(ignored)}")
 
-    osm_dir = folder / OSM_FOLDER
-    paths = (sorted(osm_dir.iterdir()) if osm_dir.is_dir() else []) + sorted(folder.iterdir())
+    paths: list[Path] = []
+    for sub in (OSM_FOLDER, WIKIDATA_FOLDER):
+        if (folder / sub).is_dir():
+            paths += sorted((folder / sub).iterdir())
+    paths += sorted(folder.iterdir())
     for path in paths:
         if not path.is_file() or path.name.startswith(".") or path.name.endswith(".part"):
             continue
@@ -712,9 +892,12 @@ DROP_REASONS = {
     "outside_egypt": "Location outside Egypt",
     "not_school_university": "University",
     "not_school_college": "College",
-    "not_school_courses": "Courses (language, music, driving)",
+    "not_school_courses": "Courses, centres and academies (language, music, driving, training, ...)",
     "not_school_childcare": "Childcare, not a kindergarten",
     "not_school_other": "Not a school or kindergarten",
+    "not_school_feature": "Named like a school but mapped as something else (street, shop, place, historic madrasa, pitch, ...)",
+    "building_part": "Name of a building part (\"مبنى ب\", \"Block A\")",
+    "wikidata_linked": "Wikidata item already in OpenStreetMap (same item; its names were added there)",
     "name_too_long": "Name longer than 120 characters",
     "repeated_source_id": "Same source ID twice in the input",
 }
@@ -750,6 +933,11 @@ def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School]
     schools: list[School] = []
     dropped: list[Dropped] = []
     seen: set[str] = set()
+    # An OSM school tagged wikidata=Q.. and the Wikidata item Q.. are the
+    # same school: the item's labels fill the OSM school's missing names and
+    # its key joins the school's keys; the item is not kept on its own.
+    linked = {e.wikidata for e in entries if e.source != "wikidata" and e.kind and e.wikidata}
+    wikidata_items = {e.source_id: e for e in entries if e.source == "wikidata" and e.kind and e.source_id in linked}
     for e in entries:
         key = f"{e.source}:{e.source_id}"
         display = e.name or e.name_ar or e.name_en
@@ -758,8 +946,12 @@ def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School]
             dropped.append(Dropped(reason, key, display, e.file))
 
         if e.kind is None:
-            drop(DROP_AMENITIES.get(e.amenity, "not_school_other"))
+            drop(e.drop_reason or DROP_AMENITIES.get(e.amenity, "not_school_other"))
             continue
+        if e.source == "wikidata" and e.source_id in linked:
+            drop("wikidata_linked")
+            continue
+        item = wikidata_items.get(e.wikidata) if e.source != "wikidata" else None
         name_ar = clean_name(e.name_ar)
         name_en = clean_name(e.name_en)
         name = clean_name(e.name)
@@ -768,6 +960,9 @@ def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School]
                 name_ar = name_ar or name
             else:
                 name_en = name_en or name
+        if item is not None:
+            name_ar = name_ar or clean_name(item.name_ar)
+            name_en = name_en or clean_name(item.name_en)
         if not name_ar and not name_en:
             drop("no_name")
             continue
@@ -812,7 +1007,7 @@ def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School]
                 id=doc_id(e.source, e.source_id),
                 source=e.source,
                 source_id=e.source_id,
-                source_keys=[key],
+                source_keys=[key] + ([f"wikidata:{item.source_id}"] if item is not None else []),
                 # One name fills in for the other until an admin adds it.
                 name_ar=name_ar or name_en,
                 name_en=name_en or name_ar,
@@ -1055,13 +1250,31 @@ class Result:
     files: list[str]
     problems: list[str]
     read_count: int
+    # Per source family (osm, wikidata, list): entries read, and the tag
+    # each recovered name came from.
+    read_by_source: dict[str, int] = field(default_factory=dict)
+    names_recovered: dict[str, int] = field(default_factory=dict)
 
 
 def run(folder: Path) -> Result:
     entries, boundaries, files, problems = read_inputs(folder)
     cleaned, dropped = clean(entries, boundaries)
     merged, groups, likely = find_duplicates(cleaned)
-    return Result(merged, dropped, groups, likely, files, problems, len(entries))
+    read_by_source: dict[str, int] = {}
+    recovered: dict[str, int] = {}
+    for e in entries:
+        fam = source_family(e.source)
+        read_by_source[fam] = read_by_source.get(fam, 0) + 1
+        if e.name_from:
+            recovered[e.name_from] = recovered.get(e.name_from, 0) + 1
+    return Result(merged, dropped, groups, likely, files, problems, len(entries), read_by_source, recovered)
+
+
+def source_family(source: str) -> str:
+    """"osm", "wikidata" or "owner CSV" (list_<file>)."""
+    if source.startswith("list_"):
+        return "owner CSV"
+    return source
 
 
 def schools_json(result: Result, generated_at: str) -> dict:
@@ -1094,6 +1307,16 @@ def report_markdown(result: Result, generated_at: str, max_examples: int = 20) -
     out(f"| Schools and kindergartens kept | {len(result.schools)} |")
     out(f"| Likely duplicates to check | {len(result.likely)} |")
     out("")
+    if result.read_by_source:
+        out("Entries read per source: " + ", ".join(f"{k} {v}" for k, v in sorted(result.read_by_source.items())) + ".")
+        out("")
+    if result.names_recovered:
+        out(
+            "Names taken from another tag (the feature had no name, name:ar or name:en): "
+            + ", ".join(f"{k} {v}" for k, v in sorted(result.names_recovered.items()))
+            + "."
+        )
+        out("")
 
     out("## Schools per governorate")
     out("")
@@ -1172,11 +1395,32 @@ def summary_text(result: Result) -> str:
     reasons: dict[str, int] = {}
     for d in result.dropped:
         reasons[d.reason] = reasons.get(d.reason, 0) + 1
+    kept_by_source: dict[str, int] = {}
+    with_source: dict[str, int] = {}
+    for s in result.schools:
+        fam = source_family(s.source)
+        kept_by_source[fam] = kept_by_source.get(fam, 0) + 1
+        for fam2 in {source_family(k.split(":", 1)[0]) for k in s.source_keys}:
+            with_source[fam2] = with_source.get(fam2, 0) + 1
+    dropped_by_source: dict[str, int] = {}
+    for d in result.dropped:
+        fam = source_family(d.source_key.split(":", 1)[0])
+        dropped_by_source[fam] = dropped_by_source.get(fam, 0) + 1
+    fams = sorted(set(result.read_by_source) | set(kept_by_source))
     parts = [
         f"Read {result.read_count} entries from {len(result.files)} files.",
+        "Per source (read / dropped / kept as main entry / schools with an entry from it): "
+        + "; ".join(
+            f"{f} {result.read_by_source.get(f, 0)} / {dropped_by_source.get(f, 0)} / {kept_by_source.get(f, 0)} / {with_source.get(f, 0)}"
+            for f in fams
+        ),
         f"Kept {len(result.schools)} schools; dropped {len(result.dropped)}; merged {sum(len(g) - 1 for g in result.merged_groups)} duplicates; {len(result.likely)} likely duplicates to check.",
         "Per governorate: " + ", ".join(f"{g} {n}" for g, n in sorted(by_gov.items())),
     ]
     if reasons:
-        parts.append("Dropped: " + ", ".join(f"{DROP_REASONS.get(r, r)} {n}" for r, n in sorted(reasons.items())))
+        parts.append("Dropped: " + ", ".join(f"{DROP_REASONS.get(r, r)} {n}" for r, n in sorted(reasons.items(), key=lambda kv: -kv[1])))
+    if result.names_recovered:
+        parts.append(
+            "Names recovered from other tags: " + ", ".join(f"{k} {n}" for k, n in sorted(result.names_recovered.items()))
+        )
     return "\n".join(parts)

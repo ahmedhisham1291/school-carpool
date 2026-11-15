@@ -181,7 +181,7 @@ class OverpassTest(unittest.TestCase):
             calls.append(url)
             self.assertIn(b"data=", body)
             if "first" in url:
-                raise urllib.error.HTTPError(url, 429, "Too Many Requests", {}, io.BytesIO(b""))  # type: ignore[arg-type]
+                raise urllib.error.HTTPError(url, 504, "Gateway Timeout", {}, io.BytesIO(b""))  # type: ignore[arg-type]
             if "second" in url:
                 return json.dumps({"elements": [], "remark": "runtime error: Query timed out in \"query\" at line 3"}).encode()
             return json.dumps(SCHOOLS_ANSWER).encode()
@@ -191,8 +191,35 @@ class OverpassTest(unittest.TestCase):
         )
         self.assertEqual(used, "https://third/api")
         self.assertEqual(len(answer["elements"]), 6)
-        self.assertEqual(calls, ["https://first/api"] * 2 + ["https://second/api"] * 2 + ["https://third/api"])
-        self.assertEqual(waits[0], 30.0)  # the usage policy's pause after 429
+        # A busy server (504) is not asked again in the same round: no waiting.
+        self.assertEqual(calls, ["https://first/api", "https://second/api", "https://third/api"])
+        self.assertEqual(waits, [])
+
+    def test_the_server_that_just_answered_goes_first(self) -> None:
+        calls: list[str] = []
+
+        def post(url: str, body: bytes, timeout: float) -> bytes:
+            calls.append(url)
+            return json.dumps(SCHOOLS_ANSWER).encode()
+
+        _, used = f.overpass("q", ["https://a/api", "https://b/api"], post=post, prefer="https://b/api", log=lambda _: None)
+        self.assertEqual((used, calls), ("https://b/api", ["https://b/api"]))
+        self.assertEqual(f.ordered_endpoints(["a", "b", "c"], "c"), ["c", "a", "b"])
+        self.assertEqual(f.ordered_endpoints(["a", "b"], "zz"), ["a", "b"])
+
+    def test_a_new_round_after_every_server_failed(self) -> None:
+        calls: list[str] = []
+        waits: list[float] = []
+
+        def post(url: str, body: bytes, timeout: float) -> bytes:
+            calls.append(url)
+            if len(calls) <= 2:
+                raise urllib.error.HTTPError(url, 429, "Too Many Requests", {}, io.BytesIO(b""))  # type: ignore[arg-type]
+            return json.dumps(SCHOOLS_ANSWER).encode()
+
+        _, used = f.overpass("q", ["https://a/api", "https://b/api"], post=post, sleep=waits.append, log=lambda _: None)
+        self.assertEqual(used, "https://a/api")
+        self.assertEqual(waits, [30.0])  # the policy's pause after 429, once per round
 
     def test_clear_error_when_every_server_fails(self) -> None:
         def post(url: str, body: bytes, timeout: float) -> bytes:
@@ -211,10 +238,12 @@ class OverpassTest(unittest.TestCase):
     def test_query_text(self) -> None:
         # The forms checked against the OpenStreetMap wiki (Overpass QL page).
         self.assertIn('area["ISO3166-1"="EG"][admin_level=2]->.eg;', f.SCHOOLS_QUERY)
-        self.assertIn('nwr["amenity"~"^(school|kindergarten)$"](area.eg);', f.SCHOOLS_QUERY)
+        self.assertIn('  nwr["amenity"~"^(school|kindergarten)$"](area.eg);', f.SCHOOLS_QUERY)
         # "out center;" keeps node coordinates ("out tags" would drop them).
         self.assertIn("\nout center;", f.SCHOOLS_QUERY)
         self.assertNotIn("out center tags", f.SCHOOLS_QUERY)
+        self.assertIn('nwr["amenity"~"^(school|kindergarten)$"](area.eg);', f.NARROW_SCHOOLS_QUERY)
+        self.assertNotIn("building", f.NARROW_SCHOOLS_QUERY)
         self.assertTrue(f.SCHOOLS_QUERY.startswith(f"[out:json][timeout:{f.QUERY_TIMEOUT_S}];"))
         self.assertLessEqual(f.QUERY_TIMEOUT_S, 600)  # main server policy: at most 10 minutes
         self.assertIn("out geom;", f.BOUNDARIES_QUERY)

@@ -17,7 +17,10 @@
 #   ADMIN_NAME      name of the first super admin (default "Owner")
 #   SKIP_ADMIN_WEB=1  do not download Flutter / build the admin panel
 #   FLUTTER_HOME    where to keep the Flutter SDK (default ~/flutter)
-#   SKIP_SCHOOLS_FETCH=1  do not download the OpenStreetMap schools list
+#   WIKIDATA_CONTACT  email or web page put in the User-Agent of the Wikidata
+#                   download (Wikimedia's User-Agent policy asks for one;
+#                   default: the <admin-email> argument)
+#   SKIP_SCHOOLS_FETCH=1  do not download the OpenStreetMap and Wikidata schools lists
 #                   (the last download, if any, is used; a download newer
 #                   than 7 days is never repeated)
 #
@@ -489,18 +492,23 @@ elif [ -t 0 ]; then
     read -r -s -p "  Algolia Search-only API Key (hidden; paste, then Enter): " NEW_S || NEW_S=""; echo
     NEW_W="$(printf '%s' "${NEW_W}" | tr -d '[:space:]')"
     NEW_S="$(printf '%s' "${NEW_S}" | tr -d '[:space:]')"
-    W_RC=0; S_RC=0
-    W_MSG="$(printf '%s' "${NEW_W}" | algolia_check write "${NEW_APP}")" || W_RC=$?
-    S_MSG="$(printf '%s' "${NEW_S}" | algolia_check search "${NEW_APP}")" || S_RC=$?
-    echo "  Write key: ${W_MSG}"
-    echo "  Search key: ${S_MSG}"
-    if [ "${W_RC}" -eq 1 ] || [ "${S_RC}" -ne 0 ] || [ -z "${NEW_W}" ] || [ "${NEW_W}" = "${NEW_S}" ]; then
-      todo "Algolia keys not stored (see the lines above; the two keys must differ). Run this script again; it asks again."
+    W_RC=0; S_RC=0; W_MSG=""; S_MSG=""; W_EMPTY=0; S_EMPTY=0; SAME_KEY=0
+    [ -n "${NEW_W}" ] || W_EMPTY=1
+    [ -n "${NEW_S}" ] || S_EMPTY=1
+    [ "${W_EMPTY}${S_EMPTY}" != "00" ] || [ "${NEW_W}" != "${NEW_S}" ] || SAME_KEY=1
+    # The verdicts never contain a key (tool/algolia_keys.py); empty keys are not sent.
+    if [ "${W_EMPTY}" = 0 ]; then W_MSG="$(printf '%s' "${NEW_W}" | algolia_check write "${NEW_APP}")" || W_RC=$?; echo "  Write key: ${W_MSG}"; fi
+    if [ "${S_EMPTY}" = 0 ]; then S_MSG="$(printf '%s' "${NEW_S}" | algolia_check search "${NEW_APP}")" || S_RC=$?; echo "  Search key: ${S_MSG}"; fi
+    DECIDE_RC=0
+    DECISION="$(python3 tool/algolia_keys.py decide "${W_EMPTY}" "${S_EMPTY}" "${SAME_KEY}" "${W_RC}" "${S_RC}" "${W_MSG}" "${S_MSG}")" || DECIDE_RC=$?
+    if [ "${DECIDE_RC}" -ne 0 ]; then
+      todo "Algolia keys not stored: $(printf '%s' "${DECISION}" | paste -sd ';' - | sed 's/;/; /g'). Run this script again; it asks again."
     else
       printf '%s' "${NEW_W}" | secret_put ALGOLIA_WRITE_KEY
       printf '%s' "${NEW_S}" | secret_put ALGOLIA_SEARCH_KEY
       set_env ALGOLIA_APP_ID "${NEW_APP}"; ALGOLIA_ON=1
       ok "Algolia keys stored in Secret Manager (new versions); Application ID ${NEW_APP}"
+      while IFS= read -r line; do [ -z "${line}" ] || todo "Algolia: ${line}"; done <<<"${DECISION}"
     fi
     NEW_W=""; NEW_S=""
   fi
@@ -757,9 +765,10 @@ fi
 ok "rules, indexes, storage rules and all functions deployed to ${REGION}"
 
 # ============================================================== 12. schools
-step "12. Schools: OpenStreetMap list, import, load, search index"
-# Every school and kindergarten in Egypt from OpenStreetMap (owner decision
-# 15 Nov 2026), plus any owner CSV lists in data/schools; SETUP.md 14.
+step "12. Schools: OpenStreetMap and Wikidata lists, import, load, search index"
+# Every school and kindergarten in Egypt from OpenStreetMap and Wikidata
+# (owner decision 15 Nov 2026), plus any owner CSV lists in data/schools;
+# SETUP.md 14.
 # Safe to rerun: a download newer than 7 days is reused, the loader writes
 # only new or changed schools, the index sync sends the same records again.
 # A failure here never stops the rest of the setup (to-do lines instead).
@@ -775,9 +784,18 @@ else
   else
     todo "OpenStreetMap download failed (servers busy?). Run this script again later; the last download, if any, is used meanwhile."
   fi
+  # Wikimedia's User-Agent policy asks for a contact: the admin email
+  # argument unless WIKIDATA_CONTACT is set (sent only in the header).
+  run_step env WIKIDATA_CONTACT="${WIKIDATA_CONTACT:-${ADMIN_EMAIL}}" \
+    python3 tools/import_schools/fetch_wikidata_schools.py --max-age-days 7
+  if [ "${STEP_RC}" -eq 0 ]; then
+    ok "Wikidata schools: $(sed -n 's/^- Result rows: //p' data/schools/wikidata/fetch_report.md 2>/dev/null | head -1)"
+  else
+    todo "Wikidata download failed (see above). Run this script again later; the import goes on without it."
+  fi
 fi
 shopt -s nullglob
-REAL_INPUTS=(data/schools/osm/*.geojson data/schools/*.csv data/schools/*.geojson data/schools/*.json data/schools/*.zip)
+REAL_INPUTS=(data/schools/osm/*.geojson data/schools/wikidata/*.geojson data/schools/*.csv data/schools/*.geojson data/schools/*.json data/schools/*.zip)
 shopt -u nullglob
 import_schools() {
   python3 tools/import_schools/import_schools.py >"${SCHOOLS_OUT}/import.txt"
@@ -839,7 +857,7 @@ else
   todo "school search: Algolia is off, so search covers only 200 schools; with the real list the app says 'search unavailable'. Set it up: docs/algolia-setup.md, then run this script again."
 fi
 if [ -s "${SCHOOLS_OUT}/import.txt" ]; then
-  printf '\n  Schools import summary (per governorate, dropped and why):\n'
+  printf '\n  Schools import summary (per source, kept, dropped and why, per governorate):\n'
   sed 's/^/    /' "${SCHOOLS_OUT}/import.txt"
 fi
 
