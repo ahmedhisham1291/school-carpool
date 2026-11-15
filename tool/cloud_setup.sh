@@ -18,7 +18,8 @@
 #   SKIP_ADMIN_WEB=1  do not download Flutter / build the admin panel
 #   FLUTTER_HOME    where to keep the Flutter SDK (default ~/flutter)
 #   WIKIDATA_CONTACT  email or web page put in the User-Agent of the Wikidata
-#                   download (Wikimedia's User-Agent policy asks for one)
+#                   download (Wikimedia's User-Agent policy asks for one;
+#                   default: the <admin-email> argument)
 #   SKIP_SCHOOLS_FETCH=1  do not download the OpenStreetMap and Wikidata schools lists
 #                   (the last download, if any, is used; a download newer
 #                   than 7 days is never repeated)
@@ -778,7 +779,10 @@ else
   else
     todo "OpenStreetMap download failed (servers busy?). Run this script again later; the last download, if any, is used meanwhile."
   fi
-  run_step python3 tools/import_schools/fetch_wikidata_schools.py --max-age-days 7
+  # Wikimedia's User-Agent policy asks for a contact: the admin email
+  # argument unless WIKIDATA_CONTACT is set (sent only in the header).
+  run_step env WIKIDATA_CONTACT="${WIKIDATA_CONTACT:-${ADMIN_EMAIL}}" \
+    python3 tools/import_schools/fetch_wikidata_schools.py --max-age-days 7
   if [ "${STEP_RC}" -eq 0 ]; then
     ok "Wikidata schools: $(sed -n 's/^- Result rows: //p' data/schools/wikidata/fetch_report.md 2>/dev/null | head -1)"
   else

@@ -43,7 +43,8 @@ returned 1,298 features, the import kept 888 (368 dropped for no name, 18
    `wikidata=Q123` absorbs the item (labels fill missing names, key
    `wikidata:Q123` added; the item is reported as "already in
    OpenStreetMap"); other overlaps go through the usual merge. CC0 note in
-   the report; `WIKIDATA_CONTACT` adds a contact to the User-Agent.
+   the report; `WIKIDATA_CONTACT` adds a contact to the User-Agent
+   (step 12 defaults it to the admin email argument; owner decision).
 5. **Overpass retries**: a 502/503/504 or network error moves to the next
    server at once (no 15-60 s waits on a busy server); a pause (30 s, then
    60 s) only after every server failed in a round; the boundaries
