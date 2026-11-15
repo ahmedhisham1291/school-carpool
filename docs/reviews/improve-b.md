@@ -1,5 +1,220 @@
 # Improvement B review: own chat on Firestore (replaces Stream Chat)
 
+## Re-review (head `fda5696`, 15 Nov 2026)
+
+Commits reviewed: `558f31e` (merge of `main` at `487cac3`), `e3035f2`
+(trigger gate, marker, photo cap, orphan sweep, mutes on the channel
+record), `57ecd68` (rules), `73fc5c1` (cache on sign-out, photo retry),
+`fda5696` (docs).
+
+### Verdict: PASS
+
+Both blockers are closed and N1 to N6, N8, N9 and N12 are done. What is
+left is non-blocking (R1 to R7 below, and the builder's own "not done"
+table in docs/progress/improve-b.md). Three behaviours can only be proven
+on the two real iPhones; they are listed at the end and must be checked
+before the pilot.
+
+### What was run
+
+- CI run 43671955274 on `fda5696`: green in branch mode (as reported by
+  the coordinator; not re-run).
+- Here: Cloud Functions unit tests after `tsc`: **778 pass, 0 fail**.
+- Not run here: Flutter and rules tests (read only).
+
+### Blockers
+
+- **B1 closed.** `main` (`487cac3`) is an ancestor of the head.
+  `firestore.indexes.json` parses: 37 indexes with no duplicate, 5 field
+  overrides. Settle up, the feature switches, their rules tests and their
+  Functions tests are byte for byte those of `main` (the only difference
+  under `lib/admin` is one comment line in `admin_api.dart`); the rules
+  differ from `main` only in the chat block. `chatBlocks/{blocker}_{blocked}`
+  is intact on both sides (`chat/model.ts:252`, `settle_up/store.ts:47`).
+- **B2 closed.** `chatMembers`: `allow list: if false`. The rules test
+  refuses a list with limit 50, limit 1, a filtered list and the
+  collection group, and still allows one document by ID.
+
+### Findings of the first review
+
+- **N2 (access split): good.** `chats/{cid}/chatAccess/{uid}` holds
+  `active`, `cut`, `frozen`, `mutedUntil`; `allow read, write: if false`,
+  so not even its owner reads it; both rules files read it. The name
+  document keeps uid, first name and join time only. Every server write
+  goes through `putMember` (one batch for both documents) or `patchMember`
+  (routes each field to its document), so membership sync, suspension,
+  blocks, the mute, account deletion and `deleteChat` all follow without
+  their own code. `chatsOf` and its collection-group index moved to
+  `chatAccess.uid`. No migration: the old layout was never deployed.
+- **N3 (Storage session checks): good.** `storage.rules` reads
+  `users/{uid}` as its second document and applies the same
+  `sessionsValidAfter` and `newDeviceCheck` conditions as
+  `firestore.rules:36-49`. A rules test covers a token from before
+  "sign out my phones" for messages and photos. Each photo request now
+  costs two Firestore reads.
+- **N4 + N6 (retry and marker): good.** The trigger has `retry: true` with
+  the 6-hour age guard, so it cannot loop for ever. Only the gate throws;
+  the counters and the push are in a `try` that logs and returns.
+  - Double count: the head update and `counted: true` on the marker are
+    one transaction, so a second delivery, in any order, counts nothing;
+    the unread rows are written only when that transaction counted; the
+    push event has a fixed ID.
+  - Limit counted once: only the delivery that creates the marker takes
+    from the limits; a later one reads the stored verdict.
+  - Removing an accepted message: a later delivery of an accepted message
+    finds the marker without "over" and passes; the blocked-term and
+    validity checks give the same answer every time. One edge: R3.
+- **N5 (photos): good for the pilot.** 50 photo messages a day per parent
+  (`CHAT_PHOTOS_PER_DAY`, in every `.env` file); over it the message and
+  its file go and the parent is muted. The nightly sweep deletes files
+  between 1 and 3 days old that no message names, and mutes a parent with
+  20 or more for a day. **A photo whose message is being written is safe:**
+  nothing younger than a day is looked at, and a file is kept when a
+  message with its ID names exactly its path. The closed-account purge now
+  deletes the parent's whole folder in each chat. Limits: R4.
+- **N1 (cache on sign-out): the approach is right; see the next section.**
+- **N8, N9, N12:** done as proposed (`cut` kept by `addMembers`; the retry
+  looks for the file before giving up; the rules tests asked for exist).
+- **Mute choices on the channel record: fits.** At 5,000 members with
+  every one of them having chosen, `members` plus `mutedBy`/`unmutedBy` is
+  about 10,000 uids of about 28 characters: roughly 300 KB, under the
+  1 MiB document limit, and about 10,000 index entries, under the 40,000
+  limit. One read per message instead of one per choice. See R5.
+- **Index and TTL:** `chatAccess.uid` (collection and collection group)
+  and `fanned.expiresAt` are in the indexes file in the same form as the
+  other TTL fields; `tool/setup_retention.sh` sets the TTL on `fanned`
+  (2 days). It must be run again on staging. Without it the markers only
+  pile up (a small document per message, deleted with the chat); the
+  6-hour guard does not depend on it.
+
+### N1 in detail (sign-out, `lib/features/security/local_cache.dart`)
+
+How it works: a root provider watches the session; when the owner of the
+cache changes from a uid to nobody or to another uid it calls
+`terminate()`, then `clearPersistence()`, then invalidates
+`firestoreProvider`.
+
+- **Can the next sign-in use a terminated instance?** Not through the
+  app's own code: nothing in `lib` uses `FirebaseFirestore.instance`
+  directly except the setup and the cleaner; all 14 users, the session
+  itself and the feature switches included, `ref.watch(firestoreProvider)`,
+  so they are rebuilt on the fresh instance. The gap is the moment between
+  `terminate()` and the invalidation (well under a second), and a real
+  sign-in takes far longer (the WhatsApp code). `clear()` never throws and
+  the invalidation runs in every case, so a failed clear cannot leave the
+  app on a dead instance. On the emulators the new instance is pointed at
+  the emulator again. That the plugin really hands out a working instance
+  after `terminate()` is the documented behaviour but was not run here:
+  iPhone check 2.
+- **Any listener still attached?** `terminate()` ends every listener of the
+  old instance. The signed-out parent's providers are disposed with the
+  session. The ones that live on (session, feature switches) are rebuilt
+  by the invalidation. No loop: the rebuilt session reports "loading" then
+  "signed out", and the guard ignores both (owner already empty).
+- **Is a pending offline write lost silently?** **Yes.** A message (or any
+  other Firestore write) made offline and not yet sent when the parent
+  signs out is deleted with the cache, with no warning. The code comment
+  says so; the parent is not told. Acceptable for the pilot; see R1.
+
+### Non-blocking, new in this round
+
+- **R1. Cache clearing is not remembered across app starts, and fails
+  silently.** The owner is kept in memory only. If the app is killed
+  during sign-out, or `clearPersistence()` fails (it is only printed in
+  debug), the cache stays and the next sign-in does not clear it (previous
+  owner is empty). Fix: store the cache owner's uid (secure storage), and
+  at the first signed-in state compare it; when it differs or the last
+  clear did not finish, clear before any Firestore read. Also: before
+  clearing, when writes are pending (`_outgoing` not empty, or
+  `waitForPendingWrites` does not finish in two seconds), tell the parent
+  "unsent messages will be lost" and ask.
+- **R2. The verdict is not stored together with the limit.**
+  `fanout.ts`: marker created, limit says "over", then `setVerdict` fails:
+  the retry finds no verdict and lets the message through, without a mute.
+  Lenient, never harmful. Fix: write the verdict in the same transaction
+  as the limit, or treat "marker exists, not counted, no verdict" as
+  "ask the limit again without taking".
+- **R3. A retried gate removes a message whose sender has left.** The
+  membership check runs before the marker is read. If the first run
+  failed and the sender left the chat before the retry (up to 6 hours),
+  the retry deletes a message that was sent as a member. Read the marker
+  first and skip the membership check when it is counted.
+- **R4. The sweep lists every chat photo each night, at most 20,000**
+  (`firestore_data.ts`, `photosCreatedBetween`). Beyond that many files
+  the later ones are never looked at. And it only looks 3 days back: three
+  failed nights in a row leave orphans until the chat is deleted. Uploads
+  are still not limited at the moment of upload: a member can fill
+  Storage for a day before the sweep and the mute act. Fine for the
+  pilot; before many schools, record uploads (a Storage trigger writing a
+  small document) and sweep from that.
+- **R5. Mute choices stay on the channel record after the parent leaves or
+  deletes the account** (`flow.ts` writes them; nothing removes them). A
+  deleted parent's uid then stays in a school group's record for good.
+  Remove the uid from both lists in `setMember` when it removes a member
+  and in the deletion's chat step. Add an index exemption for `mutedBy`
+  and `unmutedBy` (never queried). Mute choices made on staging before
+  this deploy are not on the channel record: toggle them once (fake data
+  only).
+- **R6. After sign-out the session provider is rebuilt once** (it watches
+  `firestoreProvider`), so the sign-in screen may flash "loading" about a
+  second after signing out and lose what was typed in that second. Check
+  on the iPhone; if visible, let the session keep its auth listener and
+  take Firestore lazily.
+- **R7. Docs.** The first review's N7, N10, N11, N13 and N14 are open by
+  the builder's own table (docs/progress/improve-b.md); N10 becomes
+  required if iPhone check 1 fails.
+
+### Before the pilot: exactly what to check on the two real iPhones
+
+Staging first: run `tool/cloud_setup.sh` (deploy with `--force`, the
+Storage role, `setup_retention.sh` for the `fanned` TTL), wait until the
+indexes `chatAccess.uid` and `messages (senderUid, createdAt)` are built.
+
+1. **Removed at once (test-iphone 8.10).** A and B both have the carpool
+   chat open. Remove B (admin panel, and once more by leaving the carpool,
+   and once by suspending B). A sends two messages. Pass: B's screen shows
+   neither message and goes to the error state; B's photo of that chat no
+   longer loads. If B still receives messages, record it in SECURITY.md
+   and do N10 before the pilot.
+2. **Sign-out cache (8.16).** A opens two chats with messages and a pin,
+   signs out; B signs in on the same phone. Pass: sign-in works first time
+   (no error, no endless loading), B's chats, schedule and feature
+   switches load, and nothing of A's appears, also in airplane mode after
+   B has signed in. Repeat once with A signing out in airplane mode after
+   writing a message offline: that message is never sent (known), and the
+   next sign-in still works. Watch the sign-in screen for a flash (R6).
+3. **Photos on the real project.** A sends a photo, B sees it; B is muted
+   or the chat is frozen: B cannot send one; a parent outside the chat
+   cannot open it. This proves the Storage role, the two Firestore lookups
+   from the Storage rules (with `mutedUntil: null` in the access
+   document) and the no-overwrite rule with the iOS upload.
+4. **Photo retry (8.17).** Airplane mode on while the bubble says
+   "Sending", off again, tap: the photo is sent once.
+5. **Blocked term and limit.** A sends a blocked word: it disappears on
+   B's open chat; note the seconds (also once after 15 idle minutes, a
+   cold start). A sends more than 30 messages in a minute: the rest are
+   removed, A cannot write for 10 minutes, then can again.
+6. **Offline text.** A writes two messages in airplane mode: both show
+   "Sending", arrive once each when the connection is back, B's unread
+   count goes up by two, one push each.
+7. **Block (F13).** A blocks B: the private chat takes no new message
+   from either side; in the carpool chat A no longer gets a push for B's
+   messages and does not see them. Settle up between A and B is refused
+   (the shared `chatBlocks` check).
+8. **Push.** Locked phone: the text is "You have a new message", nothing
+   else; a muted chat gives none; a school group over 50 members gives
+   none until unmuted.
+9. **App Check** is enforced in staging for Firestore, Storage and
+   Functions and chat works with it (text, photo, mark read).
+10. **Unread and read marks.** Counts in the chat list for a carpool chat
+    and a school group; "read" under A's message when B opens it; no
+    repeated writes while the chat stays open (Firestore usage tab after
+    five minutes with one chat open on both phones).
+
+---
+
+# First review (head `d98ec76`, 14 Nov 2026)
+
 Branch `improve-b-firestore-chat`, head `d98ec76`. Reviewed
 `git diff main...HEAD` (74 files) against CLAUDE.md, docs/DECISIONS.md
 (data retention; "Improvements, revised" item 3), docs/spec.md (F8, F9,
