@@ -19,7 +19,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Sentry | Developer (free) | 5,000 errors a month, 1 user; no tracing, no replay | Sentry > Stats; spike protection on | Errors are dropped for quota two months in a row, or a second person needs access |
 | Codemagic | Free personal, iOS builds only | 500 macOS M2 minutes a month (Linux has no free minutes, so no Linux jobs run there) | Codemagic > Billing | macOS minutes run out before the 25th of a month |
 | GitHub Actions | Free (the repository is public now; it goes private before the public launch: **docs/launch-private-repo.md**) | Public repositories: free. Private: 2,000 free Linux minutes a month on the free plan, then USD 0.006 a minute (read 14 Nov 2026). One full run of our checks is about 16 minutes, a branch run about 6 | GitHub > Settings > Billing and licensing > Usage; a budget with "stop usage" (launch-private-repo.md section 2) | A private repository uses 80 percent of the allowance |
-| Chat (our own, on Firestore and Storage) | Part of Firebase: no separate plan | Counts toward the Firestore and Storage quotas in the first row: about 360 reads and 115 writes per active parent per day, phone and server together (see "Chat") | Firestore "Usage" tab; the budget alerts | Chat alone passes 60 percent of a daily Firestore quota (about 85 parents chatting every day), or a school group gets busy; see "Chat" |
+| Chat (our own, on Firestore and Storage) | Part of Firebase: no separate plan | Counts toward the Firestore and Storage quotas in the first row: about 500 reads and 160 writes per active parent per day, phone and server together (see "Chat") | Firestore "Usage" tab; the budget alerts | Chat alone passes 60 percent of a daily Firestore quota (about 60 to 70 parents chatting every day), or a school group gets busy; see "Chat" |
 | Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
 | WhatsApp Business | Pay per delivered template message (no free tier for templates). Egypt, rate card of 1 Oct 2026: about USD 0.0036 per sign-in code or alert (**not confirmed on Meta's own rate card**; docs/meta-whatsapp-setup.md section 11) | Codes and critical alerts only by default (wallet messages too only if the parent switches them on); other notifications are push unless the parent switches WhatsApp on. New accounts: 250 different people per 24 hours until the business is verified | Meta WhatsApp Manager > Insights | Budget set by the owner |
@@ -261,21 +261,38 @@ a chat 4 times, sends 10 messages and gets 40):
 | Chat list on each app start (5 rows, 2 heads, the rules' own lookups) | about 70 | 0 |
 | Chat list changes while the app is open (rows and group heads) | about 40 | 0 |
 | Opening a chat: newest 30 messages (again when the cache is older than 30 minutes) | about 130 | 0 |
-| New messages and read marks while a chat is open, authors' names | about 50 | 0 |
+| New messages and read marks while a chat is open | about 40 | 0 |
+| Authors' first names: one server read per author per session, 3 billed with the rules' own lookups (not a cache hit) | about 30 | 0 |
 | Sending 10 messages (each: the rules read 2 documents) | 20 | 10 |
-| Marking read and typing | 0 | about 25 |
-| **Phone total** | **about 300** | **about 35** |
-| Server, per message sent in a small chat: registry, limit counter, head, mute and block lookups; then head, limit counter, one row per member, the push event | about 6 | about 8 |
-| Server, per message in a school or area group (no row per member) | about 6 (plus one per parent who chose a mute setting) | 3 |
-| **Server total for the 10 messages** | **about 60** | **about 80** |
+| Marking read and typing (each write: the rules read about 2 documents) | about 50 | about 25 |
+| **Phone total** | **about 380** | **about 35** |
+| Server, per message sent in a small chat: registry (with the mute choices), limit counter, marker, head, block lookup; then marker, limit counter, head, one row per member, the push event | about 6 | about 9 |
+| Server, per message in a school or area group (no row per member; mute choices come with the registry, one read whoever chose) | about 6 | 4 |
+| Push sender, per recipient of a message: devices and settings lookups, one delivery record (2-day TTL) | about 2 to 3 | 1 |
+| **Server total for the 10 messages** | **about 120 to 150** | **about 120 to 130** |
 
-So about **360 reads and 115 writes per active parent per day**. The free
-quota (50,000 reads and 20,000 writes a day per project) covers about 140
-parents who chat every day; the pilot is far below. Beyond the free quota
-Firestore bills per 100,000 reads and per 100,000 writes (a few US cents
-each; see the Firestore pricing page for `europe-west1`): 1,000 daily
-chatting parents are about 360,000 reads and 115,000 writes a day, well
-under USD 1 a day.
+So about **500 reads and 160 writes per active parent per day** (the
+validator's count from the code, docs/reviews/improve-b.md; the first
+estimate here, 360 and 115, left out the rules' lookups on marking read
+and typing, the names, and the push sender). The free quota (50,000 reads
+and 20,000 writes a day per project) covers about 100 to 120 parents who
+chat every day; the pilot is far below. Beyond the free quota Firestore
+bills per 100,000 reads and per 100,000 writes (a few US cents each; see
+the Firestore pricing page for `europe-west1`): 1,000 daily chatting
+parents are about 500,000 reads and 160,000 writes a day, still under
+USD 1 a day.
+
+**What grows with the size of a group, per message:**
+
+1. A school or area group's head write: one read for every parent with
+   the chat list open (below).
+2. The registry document (up to 5,000 uids and the mute choices, about
+   150 KB): one read per message. The mute choices used to be one read
+   per parent who ever chose; they are on the registry now, so one read.
+3. Push records: one write per recipient who is not muted (everybody up
+   to 50 members; in larger groups only those who unmuted).
+4. Small chats: one row write per member (at most 50), and one read on
+   each member's phone while its chat list is open.
 
 **What can make it expensive, and the answer:**
 
@@ -287,8 +304,13 @@ under USD 1 a day.
   **Trigger:** a group's head changes more than about 200 times a day.
   **Then:** update group heads at most once a minute instead of on every
   message (a small change in `functions/src/chat/fanout.ts`).
-- **Spam.** `CHAT_MESSAGES_PER_MINUTE` (30) per parent; over it the
-  message is removed and the parent cannot write for `CHAT_MUTE_MINUTES`.
+- **Spam.** `CHAT_MESSAGES_PER_MINUTE` (30) and `CHAT_PHOTOS_PER_DAY` (50)
+  per parent; over either the message is removed and the parent cannot
+  write for `CHAT_MUTE_MINUTES`. A parent who is already muted costs one
+  marker write per further message, not a write per chat. Uploads that no
+  message names are deleted after a day by `retentionDaily` (a listing of
+  `chatPhotos/` once a night; 20 or more from one parent in a night stop
+  them from writing for a day).
 - **Long chats.** Reading history costs 30 reads per page, only when the
   parent scrolls up.
 
@@ -310,7 +332,8 @@ under USD 1 a day.
   one small document per request, block, mute and setting; chat push
   records expire after 2 days (TTL), requests 30 days after the last
   change.
-- **Limits per parent** (server side): 30 messages a minute, 10 new chat
+- **Limits per parent** (server side): 30 messages a minute, 50 chat
+  photos a day, 10 new chat
   requests a day, 20 reports a day, 100 blocks, mutes and settings changes
   a day, 10 "sync my chats" an hour.
 

@@ -975,7 +975,9 @@ How it is built:
 
 - **Cloud Functions decide membership** (which chats exist, who is in
   them, who is cut off, frozen or muted) and write it where the rules read
-  it: `chats/{cid}/chatMembers/{uid}`. The app never writes membership.
+  it: `chats/{cid}/chatAccess/{uid}` (nobody reads it from the app; members
+  read only each other's first name, one at a time, from
+  `chats/{cid}/chatMembers/{uid}`). The app never writes membership.
 - **The phone writes its own messages** straight to
   `chats/{cid}/messages` under `firestore.rules` (member of that chat right
   now, own uid, server time, fixed fields and sizes, no edits or deletes).
@@ -999,6 +1001,7 @@ In `functions/.env.<alias>` (the repository already has these):
 ```
 CHAT_PROVIDER=firestore        # "fake" only records calls (unit tests); refused in prod
 CHAT_MESSAGES_PER_MINUTE=30    # per parent, all chats together
+CHAT_PHOTOS_PER_DAY=50         # chat photos per parent per day, all chats together
 CHAT_MUTE_MINUTES=10           # how long a parent who went over cannot write
 CHAT_REQUESTS_PER_DAY=10
 CHAT_REPORTS_PER_DAY=20
@@ -1033,7 +1036,7 @@ firebase deploy --only firestore:rules,firestore:indexes,storage,functions --pro
 
 - **Indexes** (`firestore.indexes.json`): collection group `messages`
   (`senderUid`, `createdAt` descending) for the data export and the purge
-  of a deleted parent's messages; collection group `chatMembers.uid` for
+  of a deleted parent's messages; collection group `chatAccess.uid` for
   cutting a parent off in every chat. Building them takes a few minutes
   on first deploy; until then export, deletion and suspension of chat
   access fail and are retried.
@@ -1047,11 +1050,18 @@ firebase deploy --only firestore:rules,firestore:indexes,storage,functions --pro
 
 - **Blocked terms** (Arabic and English) are in
   `functions/src/chat/moderation.ts`. A message that contains one is
-  removed by the trigger within a second or two. Extend the list there and
+  removed by the trigger, usually within one to three seconds (ten or
+  more when the function starts cold). Members who have that chat open
+  can see it until then; it never reaches the chat list or a push. The
+  trigger is retried, so a failed run does not leave it. Extend the list there and
   deploy functions.
 - **Sending limit:** more than `CHAT_MESSAGES_PER_MINUTE` messages in a
   minute removes the extra message and blocks the sender from writing for
   `CHAT_MUTE_MINUTES` (the rules read `mutedUntil` on the member document).
+- **Photos:** at most `CHAT_PHOTOS_PER_DAY` per parent; a photo over it
+  is removed like a message over the sending limit. A file uploaded
+  without a message (refused, or never written) is deleted after a day by
+  `retentionDaily`.
 - **Reports** go to OUR admin panel (Reports): the reported message with
   two before and one after, text cut to 500 characters, never the photo.
   Admins never browse a chat. "Remove message" deletes the message and
@@ -1074,7 +1084,8 @@ firebase deploy --only firestore:rules,firestore:indexes,storage,functions --pro
 - Firestore > TTL policies (`tool/setup_retention.sh` sets them):
   collection `chatRequests`, field `expiresAt` (30 days after the last
   change), and collection group `chatPushes`, field `expiresAt` (2 days:
-  delivery records of chat pushes).
+  delivery records of chat pushes), and collection group `fanned`,
+  field `expiresAt` (2 days: the message trigger's markers).
 - Backups: chat is in Firestore, so the daily backup and point-in-time
   recovery (section 5) cover it. Chat photos are in the default bucket
   with its 7-day soft delete.

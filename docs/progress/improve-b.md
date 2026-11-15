@@ -18,6 +18,96 @@ this workspace). Expect small analyzer fixes on the first CI run, most
 likely in `lib/features/chat/firestore_chat_provider.dart` and
 `chat_backend.dart` (new files that could not be compiled here).
 
+## Review round (docs/reviews/improve-b.md: FAIL, two small blockers)
+
+Done in this round. Functions tests after it: **778 pass, 0 fail** (run
+here; `main` merged, so Settle up and the feature switches are in the
+count). Rules tests and Flutter tests: written, not run here.
+
+**Blockers**
+
+- **B1.** `main` (487cac3: feature switches, Settle up, the owner's
+  decisions incl. Settle up retention "active + 1 year") is merged. One
+  conflict, `firestore.indexes.json`: both sides' entries kept, no
+  duplicates. `chatBlocks/{blocker}_{blocked}` is unchanged; Settle up's
+  test that ties its ID to the chat model's `blockId` passes.
+- **B2.** `chatMembers`: `allow list: if false`. Rules test: a member's
+  list is refused (any limit, any filter), `doc(uid).get()` still works.
+
+**Before the pilot (N1 to N6)**
+
+- **N1 Cache on sign-out.** `lib/features/security/local_cache.dart`: when
+  the session goes from a parent to signed out, or to another parent,
+  Firestore is terminated, its cache cleared, the emulator setting applied
+  again (dev) and the Firestore provider renewed so the next sign-in gets
+  the fresh instance. It follows the session, so every way of signing out
+  is covered (button, deleted account, signed out from another phone).
+  Tested through a seam (`LocalCacheCleaner`). **Not verifiable here:**
+  that `FirebaseFirestore.instance` gives a working instance after
+  `terminate()` on the iPhone (test-iphone 8.16). A message still waiting
+  to be sent when the parent signs out is dropped with the cache.
+- **N2 Sanctions hidden.** Split in two documents: `chatMembers/{uid}`
+  (uid, first name; a member reads one by ID) and `chatAccess/{uid}`
+  (active, cut, frozen, mutedUntil; `allow read, write: if false`, read by
+  the rules only, in both rules files). The collection-group index moved
+  to `chatAccess.uid`.
+- **N3 Storage rules** also read `users/{uid}`: a token from before "sign
+  out my phones" and a phone in a new-phone check get no photo and upload
+  none (the second of the two documents a Storage rule may read; one more
+  billed read per photo request).
+- **N4 A refused message cannot stay.** The trigger has two parts. The
+  gate (invalid, not a member, blocked term, sending limit, photo limit)
+  throws on failure and the trigger is retried for up to 6 hours;
+  removal is safe to repeat. The counters and the push never throw.
+  Honest timing, now in SETUP 19.4 and the code: visible to members with
+  the chat open for usually 1 to 3 seconds, 10 or more on a cold start;
+  never in the chat list or a push.
+- **N5 Photos.** `CHAT_PHOTOS_PER_DAY` (50, in every `.env.*`): a photo
+  over it is removed with its file and the sender muted. A nightly sweep
+  in `retentionDaily` deletes files uploaded 1 to 3 days ago that no
+  message names; 20 or more from one parent in a night stop them from
+  writing for a day. The 1-year purge of a closed account also deletes
+  that parent's files no message names. (The rules cannot count uploads,
+  so an upload without a message is still accepted and lives up to a
+  day.)
+- **N6 Idempotent fan-out.** A marker per message
+  (`chats/{cid}/fanned/{messageId}`, 2-day TTL, Functions only): the limit
+  is counted by the delivery that creates it; the head and the marker
+  change in one transaction, so a second delivery, in any order, counts
+  nothing again and never removes an accepted message. An older message
+  delivered late no longer replaces a newer preview. Not atomic with the
+  head: the per-member rows (a run that dies between the two leaves that
+  one message uncounted in `unread`, never counted twice).
+- **N9 Photo retry.** When an upload fails the app first looks whether the
+  file arrived; if so it writes the message instead of uploading again.
+- **N8** `addMembers` keeps an existing `cut`. **N7 (part)**: a parent who
+  is already muted is not written again for every further message.
+- **Costs.** COSTS.md has the validator's count (about 500 reads and 160
+  writes per active parent per day; free quota covers about 100 to 120
+  daily chatters; the trigger moved to 60 to 70). Mute choices are on the
+  registry document now: one read per message instead of one per parent
+  who ever chose.
+
+**Not done, with a recommendation (N7 to N14)**
+
+| Item | Recommendation |
+| --- | --- |
+| N7 lower sending limit for school and area groups | Do before a school group has more than about 200 parents: a second limit (5 a minute, 60 an hour) by kind of chat; half a day |
+| N10 stop the listeners when membership is lost while a chat is open | Do together with the result of test-iphone 8.10: required if an open listener keeps receiving, tidiness otherwise |
+| N11 stop marking read after three failures | Small; next time the provider is touched. A failed mark is already retried only on the next change, not in a loop |
+| N12 more rules tests | Done here: `summaries` and `reads` collection-group reads, a token older than `sessionsValidAfter` (messages and photos), muted until one second ago. Left: a parent of another school with a member document in another chat only (covered in substance by "not a member") |
+| N13 blocked parent's text in the blocker's chat list preview | Before the pilot if blocking is expected inside carpools: skip `last` for rows of parents who blocked the sender (they are already read for the push) |
+| N14 name lookup is a server read per author per session | COSTS corrected; cache names in the row or accept |
+| N14 paging by `createdAt` alone can skip a message with the page edge's exact time | Low; page by document snapshot when the backend is next touched |
+| N14 `setFrozen` one write per member | Fine for private and carpool chats; batch if a school group is ever frozen |
+| N14 member documents (uid and an initial) outlive `deleteUser` for the life of the chat | Say so in the privacy policy text (lawyer, with A13); or delete them in the purge step and show "former member" |
+| N14 a suspended parent is still a push recipient of a carpool chat | Push sender should skip accounts that are not eligible (one check where it already reads the settings) |
+| N14 photos are held in memory only | Accept for the pilot; a disk cache later (cleared on sign-out) |
+
+**Only on real phones (unchanged from the review):** V1 (test-iphone
+8.10) decides whether "removed at once" also holds for a chat screen that
+is already open; 8.13b, 8.16, 8.17, 8.18 are new steps for N4, N1, N9, N3.
+
 ## After the first CI run (43632098644)
 
 The coordinator merged `main`, refreshed the lock files and fixed two
@@ -161,14 +251,16 @@ routes and pushes did not change):
 | Document | Holds | Who reads | Who writes |
 | --- | --- | --- | --- |
 | `chats/{cid}` (the head) | kind, names AR/EN, memberCount, frozen, `seq` (message counter), lastAt, last (kind, sender, text cut to 80), lastMessageId | Current members | Functions |
-| `chats/{cid}/chatMembers/{uid}` | uid, firstName, `active`, `cut`, `frozen`, `mutedUntil`, joinedAt | Current members (one, or 50 at a time) | Functions |
+| `chats/{cid}/chatMembers/{uid}` | uid, firstName, joinedAt | Current members, one by its ID (never a list) | Functions |
+| `chats/{cid}/chatAccess/{uid}` | uid, `active`, `cut`, `frozen`, `mutedUntil` | Nobody (the rules only) | Functions |
+| `chats/{cid}/fanned/{messageId}` | the message trigger's marker (verdict, counted); TTL 2 days | Nobody | Functions |
 | `chats/{cid}/messages/{id}` | senderUid, kind (`text`, `photo`, `location`), text or photoPath or lat/lng, createdAt | Current members (50 per query at most) | The sender creates (strict rules); nobody edits; Functions delete |
 | `chats/{cid}/reads/{uid}` | readAt, typingAt (private and carpool chats only) | Current members | The parent, their own only |
 | `userChats/{uid}/summaries/{cid}` (a chat list row) | kind, names, otherUid and otherName (private), `muted` (null = no choice), frozen, `open`, memberCount, `unread`, `readSeq`, readAt, lastAt, last | The parent, open rows only | Functions; the parent may only set unread 0, readAt (server time), readSeq |
 | Storage `chatPhotos/{type}/{id}/{uid}/{messageId}.webp` or `.jpg` (the chat ID with "/" in place of ":") | A chat photo (WebP or JPEG, under 3 MB, EXIF removed on the phone) | Current members of that chat | The member, into their own folder, once; Functions delete |
 
-Membership as the rules see it is the member document, read on **every**
-request: `active` (in the chat), `cut` (account suspended, banned,
+Membership as the rules see it is the access document, read on **every**
+new request: `active` (in the chat), `cut` (account suspended, banned,
 unverified or deleted), `frozen` (block, closed carpool: read only),
 `mutedUntil` (sent too fast: read only until then). Nothing depends on a
 token claim that lasts an hour, except "verified" itself, which every
@@ -288,19 +380,17 @@ other rule in the app uses too; the session and new-phone checks
 
 - **No automatic image moderation** (Stream's AI add-on is gone; it was an
   open question in Prompt 9 whether to pay for it). Reports and admin
-  removal handle photos. open-items D19.
+  removal handle photos. open-items D24.
 - **A chat photo cannot be sent offline** (the upload needs a connection):
   it shows "Not sent. Tap to retry." Text and pins queue offline.
 - **A sent photo that is waiting is kept in memory only**: if the app is
   closed before the upload ends, that photo is not sent.
-- **Firestore's cache on the phone is not cleared on sign-out** (the same
-  as for other Firestore data today). open-items D22.
-- **Storage rules for chat photos check "verified" and the member
-  document, not the new-phone check** (`deviceChecked` needs a second
-  Firestore read from Storage rules). The Firestore side, where the
-  message that names the photo lives, does check it.
+- ~~Firestore's cache on the phone is not cleared on sign-out~~ Fixed in
+  the review round (N1); to check on a real iPhone (test-iphone 8.16).
+- ~~Storage rules for chat photos skip the session and new-phone checks~~
+  Fixed in the review round (N3).
 - **Group heads are written on every message** (a busy school group costs
-  one read per online parent per message; COSTS "Chat", open-items D21).
+  one read per online parent per message; COSTS "Chat", open-items D26).
 - **docs/spec.md (sections 5, 7, 8, 9, 13) and docs/build-prompts.md still
   say "Stream Chat"**: they are the owner's source documents; DECISIONS.md
   and CLAUDE.md already say own chat. Not edited here.
