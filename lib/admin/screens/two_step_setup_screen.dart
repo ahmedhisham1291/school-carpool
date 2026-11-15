@@ -25,8 +25,9 @@ String groupedSetupKey(String key) {
 /// (Google Authenticator, Microsoft Authenticator, ...) with the setup key,
 /// type the 6-digit code it shows, then sign in again with both steps.
 ///
-/// States: loading the key (skeleton), key shown, sending (button spinner),
-/// error with what to do (wrong code, session over, offline: retry).
+/// States: loading the key (skeleton), key shown with "New key", sending
+/// (button spinner), error with what to do (wrong code, session over,
+/// offline, unknown with Firebase's short code: retry, or sign out and in).
 class TwoStepSetupScreen extends ConsumerStatefulWidget {
   const TwoStepSetupScreen({super.key});
 
@@ -39,6 +40,7 @@ class _TwoStepSetupScreenState extends ConsumerState<TwoStepSetupScreen> {
   TotpSetup? _setup;
   AdminFailure? _failure;
   bool _busy = false;
+  bool _starting = false;
 
   @override
   void initState() {
@@ -53,8 +55,16 @@ class _TwoStepSetupScreenState extends ConsumerState<TwoStepSetupScreen> {
     super.dispose();
   }
 
+  /// Asks for a setup key: at first, on "Try again" and on "New key". The
+  /// button shows a spinner meanwhile, so a second failure is still visible
+  /// as an answer to the tap.
   Future<void> _start() async {
+    if (_starting) {
+      return;
+    }
+    _code.clear();
     setState(() {
+      _starting = true;
       _failure = null;
       _setup = null;
     });
@@ -66,6 +76,10 @@ class _TwoStepSetupScreenState extends ConsumerState<TwoStepSetupScreen> {
     } on AdminFailure catch (failure) {
       if (mounted) {
         setState(() => _failure = failure);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _starting = false);
       }
     }
   }
@@ -132,7 +146,18 @@ class _TwoStepSetupScreenState extends ConsumerState<TwoStepSetupScreen> {
                         style: context.text.titleMedium,
                         textDirection: TextDirection.ltr,
                       ),
-                      const SizedBox(height: AppSpacing.s24),
+                      const SizedBox(height: AppSpacing.s8),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: AppButton(
+                          key: const Key('admin.setup.newKey'),
+                          label: l10n.adminSetupNewKey,
+                          icon: Icons.refresh,
+                          variant: AppButtonVariant.tertiary,
+                          onPressed: _busy ? null : () => unawaited(_start()),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s16),
                       AppCodeField(
                         key: const Key('admin.setup.code'),
                         label: l10n.adminCodeLabel,
@@ -147,10 +172,23 @@ class _TwoStepSetupScreenState extends ConsumerState<TwoStepSetupScreen> {
                         message: failure.message(l10n),
                         tone: failure.isOffline ? AppStateTone.warning : AppStateTone.error,
                       ),
+                      if (setup == null) ...<Widget>[
+                        const SizedBox(height: AppSpacing.s8),
+                        Text(
+                          l10n.adminSetupStuck,
+                          style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant),
+                        ),
+                      ],
                     ],
                     const SizedBox(height: AppSpacing.s24),
-                    if (setup == null && failure != null)
-                      AppButton(label: l10n.actionRetry, expand: true, onPressed: () => unawaited(_start()))
+                    if (setup == null && (failure != null || _starting))
+                      AppButton(
+                        key: const Key('admin.setup.retry'),
+                        label: l10n.actionRetry,
+                        loading: _starting,
+                        expand: true,
+                        onPressed: () => unawaited(_start()),
+                      )
                     else
                       AppButton(
                         key: const Key('admin.setup.submit'),
