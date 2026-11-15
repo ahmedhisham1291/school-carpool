@@ -551,7 +551,11 @@ void main() {
   Future<void> pickIn(WidgetTester tester, Key key, String label) async {
     await tester.tap(find.byKey(key));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text(label).last);
+    // Long menus (27 cities) scroll: bring the item into view first.
+    final Finder item = find.text(label).last;
+    await tester.ensureVisible(item);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(item);
     await tester.pump(const Duration(milliseconds: 300));
   }
 
