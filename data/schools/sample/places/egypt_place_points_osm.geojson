@@ -1,0 +1,79 @@
+{
+ "type": "FeatureCollection",
+ "name": "SAMPLE named places (hand-written, not OpenStreetMap data)",
+ "fetched_at": "2026-11-16T00:00:00Z",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "place": "neighbourhood",
+    "name": "دجلة",
+    "name:ar": "دجلة",
+    "name:en": "Degla",
+    "osm_id": 920001,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.27,
+     29.958
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "place": "neighbourhood",
+    "name": "سرايات المعادي",
+    "name:ar": "سرايات المعادي",
+    "name:en": "Sarayat El Maadi",
+    "osm_id": 920002,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.25,
+     29.965
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "place": "quarter",
+    "name": "الحي السابع",
+    "name:ar": "الحي السابع",
+    "name:en": "7th District",
+    "osm_id": 920003,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.335,
+     30.06
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "place": "suburb",
+    "name": "روكسي",
+    "name:ar": "روكسي",
+    "name:en": "Roxy",
+    "osm_id": 920004,
+    "osm_type": "node"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     31.317,
+     30.09
+    ]
+   }
+  }
+ ]
+}

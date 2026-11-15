@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import places_import  # noqa: E402
 from schools_import import report_markdown, run, schools_json, summary_text  # noqa: E402
 
 
@@ -48,11 +49,30 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     args.out.mkdir(parents=True, exist_ok=True)
+    # City -> Area -> District from data/schools/places (fetch_osm_places.py).
+    places = None
+    places_dir = args.input / places_import.PLACES_FOLDER
+    if places_dir.is_dir():
+        shapes, points = places_import.load(places_dir)
+        if shapes or points:
+            places = places_import.build(shapes, points, result.schools, result.boundaries)
+            places_import.assign(places, result.schools)
+            (args.out / "places.json").write_text(
+                json.dumps(places_import.to_json(places, generated_at), ensure_ascii=False) + "\n", encoding="utf-8"
+            )
     (args.out / "schools.json").write_text(
         json.dumps(schools_json(result, generated_at), ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
     )
-    (args.out / "report.md").write_text(report_markdown(result, generated_at), encoding="utf-8")
+    report = report_markdown(result, generated_at)
+    if places is not None:
+        report += "\n" + "\n".join(places_import.report_lines(places) + places_import.summary_lines(places, result.schools, top=50)) + "\n"
+    (args.out / "report.md").write_text(report, encoding="utf-8")
     print(summary_text(result))
+    if places is not None:
+        print("\n".join(places_import.summary_lines(places, result.schools)))
+        print(f"Wrote {args.out / 'places.json'}.")
+    else:
+        print("Places: no data/schools/places download; schools get no area (run fetch_osm_places.py).")
     print(f"Wrote {args.out / 'schools.json'} and {args.out / 'report.md'}.")
     return 0
 

@@ -69,6 +69,8 @@ Thumbs.db
 # Schools downloads (also covered by data/schools/.gitignore)
 data/schools/osm/
 data/schools/boundaries/
+data/schools/places/
+data/schools/wikidata/
 
 # Python bytecode (tool/patch_native.py)
 __pycache__/
