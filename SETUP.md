@@ -594,8 +594,8 @@ this section is what it does, for a Mac or for prod.
    with coordinates (P625), not dissolved, with Arabic and English labels.
    Writes `data/schools/wikidata/egypt_schools_wikidata.geojson` and a
    fetch report (git-ignored). Classes that are not schools for us
-   (universities, colleges, music/driving/language schools, historic
-   madrasas) become tags the importer drops. An OSM school tagged
+   (universities, colleges, music/driving schools, historic
+   madrasas; an Egyptian "language school" stays a school) become tags the importer drops. An OSM school tagged
    `wikidata=Q..` absorbs that item (its labels fill missing Arabic or
    English names); other overlaps are merged by the usual name + 300 m
    rule. Wikidata is CC0 (no attribution required; we credit "Wikidata"

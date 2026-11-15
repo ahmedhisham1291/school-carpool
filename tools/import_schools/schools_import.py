@@ -418,12 +418,20 @@ _NOT_SCHOOL_NAME = (
     (re.compile(r"\b(university|faculty)\b|جامعه|^كليه|\bكليه\b"), "not_school_university"),
     (
         re.compile(
-            r"\b(driving|training|music|dance|ballet|courses|course|nursing|academy|center|centre)\b"
-            r"|قياده|تدريب|موسيقي|رقص|باليه|كورسات|تمريض|اكاديميه|مركز|سنتر"
+            r"\b(driving|training|music|dance|ballet|courses|course|nursing)\b"
+            r"|قياده|تدريب|موسيقي|رقص|باليه|كورسات|تمريض"
         ),
         "not_school_courses",
     ),
 )
+# Weaker words: they drop a name only when it does not itself read like a
+# school's. "مركز" is also the word for a district (markaz) in Egyptian
+# school names ("مدرسة ... بمركز دسوق"), and some real schools are called
+# "... Academy School" or "... Center School".
+_NOT_SCHOOL_NAME_WEAK = re.compile(r"\b(academy|center|centre)\b|اكاديميه|مركز|سنتر")
+# A named school building is not dropped for these alone (religious
+# schools carry religion=*; main kept every named building=school).
+_BUILDING_OK_KEYS = {"religion"}
 _BUILDING_PART = re.compile(r"^(مبني|عماره|جناح|فصول|بلوك|building|block|wing|hall)\b")
 _MINISTRY = re.compile(r"وزاره|مديريه|اداره|ministry|directorate|governorate|محافظه")
 
@@ -446,6 +454,8 @@ def name_says_not_school(*names: str) -> str | None:
         for pattern, reason in _NOT_SCHOOL_NAME:
             if n and pattern.search(n):
                 return reason
+        if n and _NOT_SCHOOL_NAME_WEAK.search(n) and not name_says_school(name):
+            return "not_school_courses"
     return None
 
 
@@ -476,7 +486,10 @@ def classify_tags(props: dict, names: tuple[str, ...]) -> tuple[str | None, str]
         return KEEP_EDUCATION[education], "education"
     if education in DROP_EDUCATION:
         return None, DROP_EDUCATION[education]
-    if amenity or any(_first(props, k) for k in OTHER_FEATURE_KEYS):
+    school_building = _first(props, "building").lower() in ("school", "kindergarten")
+    if amenity or any(
+        _first(props, k) for k in OTHER_FEATURE_KEYS if not (school_building and k in _BUILDING_OK_KEYS)
+    ):
         return None, "not_school_feature"
     landuse = _first(props, "landuse").lower()
     if landuse and landuse != "education":

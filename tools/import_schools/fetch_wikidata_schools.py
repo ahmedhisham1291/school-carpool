@@ -84,7 +84,9 @@ REPORT_FILE = "fetch_report.md"
 NOT_SCHOOL_CLASSES: tuple[tuple[str, dict[str, str]], ...] = (
     (r"universit|faculty|higher education", {"amenity": "university"}),
     (r"\bcollege\b", {"amenity": "college"}),
-    (r"driving|music|language school|dance|ballet|art school|conservator|training|vocational|military|police|nursing",
+    # Not "language school": in Egypt a language school is an ordinary
+    # school teaching in a foreign language (the OSM rules keep them too).
+    (r"driving|music|dance|ballet|art school|conservator|training|vocational|military|police|nursing",
      {"amenity": "training"}),
     (r"madrasa|mosque|mausoleum|museum|monument|archaeolog|historic|heritage|ruin", {"historic": "yes"}),
 )
