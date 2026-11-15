@@ -315,12 +315,14 @@ create_key() {
 find_key() { gcloud services api-keys list --project="${PROJECT}" --filter="displayName=\"$1\"" --format='value(name)' 2>/dev/null | head -1; }
 IOS_KEY_NAME="Maps iOS (${BUNDLE_ID})"
 SERVER_KEY_NAME="Maps server (Places, Routes) for Cloud Functions"
-# Firebase adopts a key restricted to the app's bundle id as the iOS app's own
-# API key, so this one key serves Maps AND Firebase on the iPhone. It must
-# therefore allow the Firebase APIs too, or sign-in, the database and push
-# are refused (API_KEY_SERVICE_BLOCKED). Still locked to the bundle id.
-IOS_KEY_TARGETS=(
-  --api-target=service=maps-ios-backend.googleapis.com
+# Two iPhone keys. Firebase adopts any key restricted to the app's bundle id as
+# the iOS app's own API key, and a Maps-only key would then refuse sign-in,
+# the database and push (API_KEY_SERVICE_BLOCKED). Google also refuses to
+# widen that key afterwards (APIKEYS_RESTRICTION_INCOMPATIBLE_WITH_USAGE). So
+# the Maps key stays Maps-only and the app's Firebase options use a second
+# key that allows only the Firebase APIs the app calls.
+FB_IOS_KEY_NAME="Firebase iOS (${BUNDLE_ID})"
+FB_IOS_TARGETS=(
   --api-target=service=identitytoolkit.googleapis.com
   --api-target=service=securetoken.googleapis.com
   --api-target=service=firestore.googleapis.com
@@ -331,16 +333,27 @@ IOS_KEY_TARGETS=(
   --api-target=service=firebase.googleapis.com
 )
 if [ -z "$(find_key "${IOS_KEY_NAME}")" ]; then
-  create_key --display-name="${IOS_KEY_NAME}" --allowed-bundle-ids="${BUNDLE_ID}" "${IOS_KEY_TARGETS[@]}"
+  create_key --display-name="${IOS_KEY_NAME}" --allowed-bundle-ids="${BUNDLE_ID}" \
+    --api-target=service=maps-ios-backend.googleapis.com
 fi
 IOS_KEY_RES="$(find_key "${IOS_KEY_NAME}")"
 [ -n "${IOS_KEY_RES}" ] || die "could not create the iOS Maps key."
-if gcloud services api-keys update "${IOS_KEY_RES}" --project="${PROJECT}" --quiet \
-     --allowed-bundle-ids="${BUNDLE_ID}" "${IOS_KEY_TARGETS[@]}" >/dev/null 2>"${WORK}/key.err"; then
-  ok "iOS key: only ${BUNDLE_ID}; Maps SDK for iOS and the Firebase APIs the app uses"
+ok "iOS Maps key: only ${BUNDLE_ID}, only Maps SDK for iOS"
+if [ -z "$(find_key "${FB_IOS_KEY_NAME}")" ]; then
+  create_key --display-name="${FB_IOS_KEY_NAME}" --allowed-bundle-ids="${BUNDLE_ID}" "${FB_IOS_TARGETS[@]}"
+fi
+if [ -z "$(find_key "${FB_IOS_KEY_NAME}")" ]; then
+  # Without the bundle lock: still limited to the Firebase APIs, and App
+  # Check and the rules protect the backend.
+  create_key --display-name="${FB_IOS_KEY_NAME}" "${FB_IOS_TARGETS[@]}"
+fi
+FB_IOS_KEY_RES="$(find_key "${FB_IOS_KEY_NAME}")"
+FB_IOS_KEY=""
+if [ -n "${FB_IOS_KEY_RES}" ]; then
+  FB_IOS_KEY="$(gcloud services api-keys get-key-string "${FB_IOS_KEY_RES}" --format='value(keyString)')"
+  ok "Firebase iOS key: only the Firebase APIs the app uses (goes into the app's Firebase options)"
 else
-  grep -v -i keyString "${WORK}/key.err" | tail -6 || true
-  todo "iOS key: ${GCP}/apis/credentials?project=${PROJECT} > '${IOS_KEY_NAME}' > API restrictions: add Identity Toolkit, Token Service, Cloud Firestore, Cloud Storage for Firebase, Firebase Installations, FCM Registration, Firebase App Check and Firebase Management next to Maps SDK for iOS > Save. Without this the iPhone app cannot sign in."
+  todo "Firebase iOS key: ${GCP}/apis/credentials?project=${PROJECT} > Create credentials > API key > name '${FB_IOS_KEY_NAME}' > API restrictions: Identity Toolkit, Token Service, Cloud Firestore, Cloud Storage for Firebase, Firebase Installations, FCM Registration, Firebase App Check, Firebase Management > Save, then run this again. Without it the iPhone app cannot sign in."
 fi
 MAPS_IOS_KEY="$(gcloud services api-keys get-key-string "${IOS_KEY_RES}" --format='value(keyString)')"
 if [ -z "$(find_key "${SERVER_KEY_NAME}")" ]; then
@@ -459,10 +472,13 @@ cp "${API_OUT}" "${WORK}/ios_config.json"
 api GET "${FBM}/webApps/${WEB_APP_ID}/config" || die "could not read the web app config ($(api_error))."
 cp "${API_OUT}" "${WORK}/web_config.json"
 OPTIONS_FILE="lib/firebase/firebase_options_staging.dart"
-python3 - "${WORK}/ios_config.json" "${WORK}/web_config.json" "${OPTIONS_FILE}" "${BUNDLE_ID}" <<'PY'
+python3 - "${WORK}/ios_config.json" "${WORK}/web_config.json" "${OPTIONS_FILE}" "${BUNDLE_ID}" "${FB_IOS_KEY}" <<'PY'
 import base64, json, plistlib, sys
-ios_path, web_path, out, bundle = sys.argv[1:5]
+ios_path, web_path, out, bundle, fb_ios_key = sys.argv[1:6]
 ios = plistlib.loads(base64.b64decode(json.load(open(ios_path))["configFileContents"]))
+# The key Firebase attached to the iOS app may be the Maps-only key: use ours.
+if fb_ios_key:
+    ios["API_KEY"] = fb_ios_key
 web = json.load(open(web_path))
 
 def q(v):
