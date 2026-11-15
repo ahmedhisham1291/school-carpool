@@ -8,7 +8,7 @@ import { normalizeText } from "../text/normalize";
  * the search index gets.
  *
  * Firestore, schools/{id}:
- *   nameAr, nameEn, searchKeys, kind (school | kindergarten), governorate,
+ *   nameAr, nameEn, searchKeys, kind (school | kindergarten | university), governorate,
  *   city, cityAr, location (GeoPoint or null), status (active |
  *   awaiting_review | merged), source (osm | list_<file> | admin | parent |
  *   seed), sourceId, sourceKeys ("osm:n123", every entry merged into it),
@@ -22,7 +22,16 @@ import { normalizeText } from "../text/normalize";
  *   Area -> District, places/catalog.ts; null/"" when unknown).
  */
 
-export type SchoolKind = "school" | "kindergarten";
+/**
+ * "university" only when the import's university switch is on
+ * (data/schools/categories.json; OFF by owner decision, 16 Nov 2026).
+ */
+export type SchoolKind = "school" | "kindergarten" | "university";
+
+/** Any stored or imported kind -> a SchoolKind ("school" when unknown). */
+export function schoolKind(value: unknown): SchoolKind {
+  return value === "kindergarten" || value === "university" ? value : "school";
+}
 
 export interface ImportedSchool {
   id: string;
@@ -92,7 +101,7 @@ export function parseImportedSchool(value: unknown): ImportedSchool {
   if (!DOC_ID.test(id)) throw new Error(`bad id ${id}`);
   const governorate = str("governorate", 1, 40);
   if (!(GOVERNORATES as readonly string[]).includes(governorate)) throw new Error(`bad governorate in ${id}`);
-  const kind = raw.kind === "kindergarten" ? "kindergarten" : "school";
+  const kind = schoolKind(raw.kind);
   const keys = Array.isArray(raw.sourceKeys) ? raw.sourceKeys.filter((k): k is string => typeof k === "string") : [];
   const loc = raw.location as { lat?: unknown; lng?: unknown } | null | undefined;
   const location =
@@ -252,7 +261,7 @@ export function searchRecordFrom(id: string, data: Record<string, unknown> | und
     nameAr,
     nameEn,
     searchKeys: searchKeysFor(nameAr, nameEn),
-    kind: data.kind === "kindergarten" ? "kindergarten" : "school",
+    kind: schoolKind(data.kind),
     governorate: typeof data.governorate === "string" ? data.governorate : "",
     city: typeof data.city === "string" ? data.city : "",
     cityAr: typeof data.cityAr === "string" ? data.cityAr : "",
