@@ -1,0 +1,9 @@
+# Copy to data/schools/check_names.txt (not committed) and list the schools
+# you expect to find, one per line, in Arabic or English. Step 12 of
+# tool/cloud_setup.sh then says why each one is or is not in the list:
+#   python3 tools/import_schools/why_missing.py --file data/schools/check_names.txt
+# Spelling does not need to be exact (ة/ه, ى/ي, أ/ا, "ال", school/مدرسة,
+# language/لغات and spacing are ignored).
+مدرسة النيل للغات
+El Alsson British and American International School
+المعهد الأزهري الإعدادي

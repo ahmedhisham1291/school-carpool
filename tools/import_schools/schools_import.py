@@ -8,6 +8,10 @@ Reads the files the owner puts in data/schools:
     English or Arabic, see LIST_HEADERS);
   - the OpenStreetMap download of fetch_osm_schools.py in data/schools/osm/
     (same shape as the HDX export, read before the files above);
+  - the Wikidata download (fetch_wikidata_schools.py) in data/schools/wikidata/
+    and the Overture Maps Places download (fetch_overture_schools.py) in
+    data/schools/overture/;
+  - which categories count (data/schools/categories.json, see CATEGORY_DEFAULTS);
   - optionally governorate boundaries (GeoJSON, admin level 1, or the
     OpenStreetMap governorates from fetch_osm_schools.py) in
     data/schools/boundaries/ for an exact governorate per school.
@@ -33,6 +37,40 @@ from pathlib import Path
 from typing import Iterable, Iterator
 
 from egypt_places import EGYPT_BOUNDS, GOVERNORATE_ALIASES, GOVERNORATES, ISO_3166_2, TOWNS
+
+# What counts, in one place. Owner decision 16 Nov 2026 (docs/DECISIONS.md):
+# schools, kindergartens and nurseries only. "university" (universities,
+# colleges, higher institutes) is a switch kept OFF; when ON they are kept
+# with kind "university" (the server and the search index accept that kind;
+# the app and admin type filter is not built while it is off). Overridden by
+# data/schools/categories.json ({"categories": {"university": false, ...}}).
+CATEGORY_DEFAULTS: dict[str, bool] = {"school": True, "kindergarten": True, "nursery": True, "university": False}
+CATEGORIES: dict[str, bool] = dict(CATEGORY_DEFAULTS)
+CATEGORIES_FILE = "categories.json"
+
+
+def set_categories(values: dict[str, bool] | None) -> dict[str, bool]:
+    """Sets the categories (unknown keys ignored; schools and kindergartens
+    cannot be switched off). Returns the previous setting."""
+    previous = dict(CATEGORIES)
+    CATEGORIES.clear()
+    CATEGORIES.update(CATEGORY_DEFAULTS)
+    for key, value in (values or {}).items():
+        if key in ("nursery", "university") and isinstance(value, bool):
+            CATEGORIES[key] = value
+    return previous
+
+
+def load_categories(path: Path) -> dict[str, bool]:
+    """Reads categories.json (missing file: the defaults) and applies it."""
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        values = doc.get("categories") if isinstance(doc, dict) else None
+    except (OSError, ValueError):
+        values = None
+    set_categories(values if isinstance(values, dict) else None)
+    return dict(CATEGORIES)
+
 
 MERGE_DISTANCE_M = 300.0
 NEARBY_REPORT_DISTANCE_M = 1500.0
@@ -253,7 +291,29 @@ def distance_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 
 def in_egypt(lat: float, lng: float) -> bool:
     b = EGYPT_BOUNDS
-    return b["min_lat"] <= lat <= b["max_lat"] and b["min_lng"] <= lng <= b["max_lng"]
+    if not (b["min_lat"] <= lat <= b["max_lat"] and b["min_lng"] <= lng <= b["max_lng"]):
+        return False
+    return not beyond_border(lat, lng)
+
+
+def beyond_border(lat: float, lng: float) -> bool:
+    """True for a point inside Egypt's box that is in a neighbour (Overture
+    Places is fetched by box, not by country). Straight-line borders, with a
+    small margin on Egypt's side of the doubt:
+    - Libya: west of 24.98 E (the border runs along 25 E);
+    - Sudan: south of 21.99 N (the 22nd parallel; Halaib, north of it, stays);
+    - Gaza and Israel: east of the Rafah (31.32 N 34.22 E) - Taba (29.49 N
+      34.91 E) line, north of Taba;
+    - Jordan and Saudi Arabia: east of 34.95 E north of 27.5 N (east of the
+      Gulf of Aqaba; Egypt's Red Sea coast is west of 34 E there)."""
+    if lng < 24.98 or lat < 21.99:
+        return True
+    if lat >= 29.49:
+        # x of the Rafah-Taba line at this latitude
+        t = (31.32 - lat) / (31.32 - 29.49)
+        if lng > 34.22 + t * (34.91 - 34.22) + 0.01:
+            return True
+    return lat > 27.5 and lng > 34.95
 
 
 _GOV_LOOKUP = {normalize_text(alias): code for code, aliases in GOVERNORATE_ALIASES.items() for alias in (*aliases, code)}
@@ -367,6 +427,8 @@ class Boundaries:
 # ---------------------------------------------------------------------------
 
 KEEP_AMENITIES = {"school": "school", "kindergarten": "kindergarten"}
+# Higher education: dropped while CATEGORIES["university"] is off.
+UNIVERSITY_AMENITIES = {"university", "college"}
 # Everything else tagged as education in the export, with the drop reason.
 DROP_AMENITIES = {
     "university": "not_school_university",
@@ -412,14 +474,14 @@ OTHER_FEATURE_KEYS = (
 # "language school" is an ordinary school teaching in a foreign language).
 _SCHOOL_NAME_AR = re.compile(r"^(مجمع )?(ال)?(مدرسه|مدارس) \S|^(روضه|حضانه) \S")
 _KG_NAME_AR = re.compile(r"^(روضه|حضانه) ")
-_SCHOOL_NAME_EN = re.compile(r"\b(school|schools|kindergarten|kindergartens|preschool)\b|(?<![0-9] )\bkg\b")
-_KG_NAME_EN = re.compile(r"\b(kindergarten|kindergartens|preschool)\b|(?<![0-9] )\bkg\b")
+_SCHOOL_NAME_EN = re.compile(r"\b(school|schools|kindergarten|kindergartens|preschool|nursery)\b|(?<![0-9] )\bkg\b")
+_KG_NAME_EN = re.compile(r"\b(kindergarten|kindergartens|preschool|nursery)\b|(?<![0-9] )\bkg\b")
 _NOT_SCHOOL_NAME = (
     (re.compile(r"\b(university|faculty)\b|جامعه|^كليه|\bكليه\b"), "not_school_university"),
     (
         re.compile(
-            r"\b(driving|training|music|dance|ballet|courses|course|nursing)\b"
-            r"|قياده|تدريب|موسيقي|رقص|باليه|كورسات|تمريض"
+            r"\b(driving|training|music|dance|ballet|courses|course)\b"
+            r"|قياده|تدريب|موسيقي|رقص|باليه|كورسات"
         ),
         "not_school_courses",
     ),
@@ -428,7 +490,24 @@ _NOT_SCHOOL_NAME = (
 # school's. "مركز" is also the word for a district (markaz) in Egyptian
 # school names ("مدرسة ... بمركز دسوق"), and some real schools are called
 # "... Academy School" or "... Center School".
-_NOT_SCHOOL_NAME_WEAK = re.compile(r"\b(academy|center|centre)\b|اكاديميه|مركز|سنتر")
+# "تمريض" / nursing is weak too: in Egypt "مدرسة التمريض الثانوية" is a
+# secondary (technical) school; a nursing institute or faculty is not.
+_NOT_SCHOOL_NAME_WEAK = re.compile(r"\b(academy|center|centre|nursing|institute)\b|اكاديميه|مركز|سنتر|تمريض|معهد")
+# Al-Azhar institutes (معهد أزهري ابتدائي / إعدادي / ثانوي) are the
+# Azhar system's primary, preparatory and secondary schools: schools for
+# this app (owner, 16 Nov 2026), however they are tagged (amenity=school,
+# college, none). Al-Azhar University and its faculties are not.
+_AR_INSTITUTE = r"(?:^|\s)(?:ال)?معهد(?=\s|$)"
+_AR_AZHAR = r"(?:^|\s)(?:ال)?ازهر"
+_AZHAR_INSTITUTE = re.compile(
+    rf"{_AR_INSTITUTE}.*{_AR_AZHAR}|{_AR_AZHAR}.*{_AR_INSTITUTE}|\bazhar\w*\b.*\binstitut|\binstitut\w*\b.*\bazhar"
+)
+# French-style school names in Egypt ("Collège de la Salle", "Collège
+# Saint-Marc", "Collège du Sacré-Cœur") are schools, not colleges.
+_COLLEGE_SCHOOL = re.compile(r"\bcoll[eè]ge (de|du|des|saint|st|sainte|notre)\b")
+# A name that reads like a centre or institute, not a school, when the
+# feature is tagged amenity=language_school (language centres).
+_COURSES_LIKE = re.compile(r"\b(institute|center|centre|academy|courses)\b|معهد|مركز|سنتر|اكاديميه|كورسات")
 # A named school building is not dropped for these alone (religious
 # schools carry religion=*; main kept every named building=school).
 _BUILDING_OK_KEYS = {"religion"}
@@ -436,11 +515,18 @@ _BUILDING_PART = re.compile(r"^(مبني|عماره|جناح|فصول|بلوك|b
 _MINISTRY = re.compile(r"وزاره|مديريه|اداره|ministry|directorate|governorate|محافظه")
 
 
+def is_azhar_institute(name: str) -> bool:
+    n = normalize_text(name)
+    return bool(n) and bool(_AZHAR_INSTITUTE.search(n)) and not re.search(r"جامعه|كليه|\buniversity\b|\bfaculty\b", n)
+
+
 def name_says_school(name: str) -> str | None:
     """"kindergarten" or "school" when [name] looks like a school's name, else None."""
     n = normalize_text(name)
     if not n:
         return None
+    if is_azhar_institute(name) or _COLLEGE_SCHOOL.search(n):
+        return "school"
     if _KG_NAME_AR.search(n) or _KG_NAME_EN.search(n):
         return "kindergarten"
     if _SCHOOL_NAME_AR.search(n) or _SCHOOL_NAME_EN.search(n):
@@ -449,6 +535,8 @@ def name_says_school(name: str) -> str | None:
 
 
 def name_says_not_school(*names: str) -> str | None:
+    if any(is_azhar_institute(n) for n in names if n):
+        return None
     for name in names:
         n = normalize_text(name)
         for pattern, reason in _NOT_SCHOOL_NAME:
@@ -479,17 +567,49 @@ def classify_tags(props: dict, names: tuple[str, ...]) -> tuple[str | None, str]
     amenity = _first(props, "amenity", "AMENITY").lower()
     if amenity in KEEP_AMENITIES:
         return KEEP_AMENITIES[amenity], "amenity"
-    if amenity in DROP_AMENITIES:
-        return None, DROP_AMENITIES[amenity]
-    education = _first(props, "education").lower()
-    if education in KEEP_EDUCATION:
-        return KEEP_EDUCATION[education], "education"
-    if education in DROP_EDUCATION:
-        return None, DROP_EDUCATION[education]
-    school_building = _first(props, "building").lower() in ("school", "kindergarten")
-    if amenity or any(
-        _first(props, k) for k in OTHER_FEATURE_KEYS if not (school_building and k in _BUILDING_OK_KEYS)
+    street_like = any(_first(props, k) for k in ("highway", "railway", "public_transport", "place", "historic"))
+    if not street_like and any(is_azhar_institute(n) for n in names if n):
+        return "school", "azhar"
+    for key, value, keep, drop_table in (
+        ("amenity", amenity, KEEP_AMENITIES, DROP_AMENITIES),
+        ("education", _first(props, "education").lower(), KEEP_EDUCATION, DROP_EDUCATION),
     ):
+        if value in keep:
+            return keep[value], key
+        if value == "childcare" and CATEGORIES["nursery"]:
+            # A nursery (حضانة): kept with the kindergartens (owner, 16 Nov 2026).
+            return "kindergarten", "childcare"
+        if value in UNIVERSITY_AMENITIES and CATEGORIES["university"]:
+            return "university", key
+        if value in drop_table:
+            reason = drop_table[value]
+            # Conservative: an Egyptian "language school" (مدرسة لغات) or a
+            # school mapped as a college/prep school is a school when its
+            # name reads like one and nothing in it says courses/university.
+            by_name = next((k for k in (name_says_school(n) for n in names) if k), None)
+            if (
+                by_name
+                and reason in ("not_school_courses", "not_school_college")
+                and value not in ("driving_school", "music_school", "dancing_school", "flight_school", "cooking_school", "art_school")
+                and not name_says_not_school(*names)
+                and not (value == "language_school" and any(_COURSES_LIKE.search(normalize_text(n)) for n in names if n))
+            ):
+                return by_name, f"{key}_name"
+            return None, reason
+    school_building = _first(props, "building").lower() in ("school", "kindergarten")
+    named_school = any(name_says_school(n) for n in names if n)
+
+    def tolerated(key: str) -> bool:
+        # A school building keeps its religion tag (church and Azhar schools).
+        # Not a building=yes named "مدرسة ...": religion there is a historic
+        # madrasa mosque ("مدرسة السلطان حسن"). Conservative (16 Nov 2026):
+        # office=educational_institution with a school's name is how some
+        # mappers tag a private school's premises.
+        if key in _BUILDING_OK_KEYS and school_building:
+            return True
+        return key == "office" and named_school and _first(props, "office").lower() == "educational_institution"
+
+    if amenity or any(_first(props, k) for k in OTHER_FEATURE_KEYS if not tolerated(k)):
         return None, "not_school_feature"
     landuse = _first(props, "landuse").lower()
     if landuse and landuse != "education":
@@ -505,6 +625,8 @@ def classify_tags(props: dict, names: tuple[str, ...]) -> tuple[str | None, str]
         kind, why = building, "building"
     elif isced:
         if min(isced) >= 5:
+            if CATEGORIES["university"]:
+                return "university", "isced"
             return None, "not_school_university"
         kind, why = ("kindergarten" if isced == {0} else "school"), "isced"
     elif school_tag:
@@ -521,6 +643,48 @@ def classify_tags(props: dict, names: tuple[str, ...]) -> tuple[str | None, str]
     if why == "building" and not by_name and any(_BUILDING_PART.search(normalize_text(n)) for n in names if n):
         return None, "building_part"
     return kind, why
+
+
+# Overture Maps Places taxonomy (docs repo static/taxonomy/2026-09-23.0/
+# taxonomy.csv, read 16 Nov 2026): education > place_of_learning > school
+# and its children, and the day-care preschool under family_service.
+OVERTURE_SCHOOL_CATEGORIES = {
+    "school", "elementary_school", "middle_school", "high_school", "private_school", "public_school",
+    "charter_school", "montessori_school", "waldorf_school", "religious_school",
+}
+OVERTURE_KG_CATEGORIES = {"kindergarten", "preschool", "day_care_preschool"}
+OVERTURE_NURSERY_CATEGORIES = {"child_care_and_day_care"}
+OVERTURE_UNIVERSITY_CATEGORIES = {"college_university"}
+OVERTURE_CATEGORIES = OVERTURE_SCHOOL_CATEGORIES | OVERTURE_KG_CATEGORIES | OVERTURE_NURSERY_CATEGORIES | OVERTURE_UNIVERSITY_CATEGORIES
+
+
+def classify_overture(category: str, names: tuple[str, ...]) -> tuple[str | None, str]:
+    """(kind, why) for an Overture place, the same way classify_tags does
+    for OpenStreetMap. Overture categories come from business listings
+    (Meta pages and others) and are looser than OSM tags, so the name
+    rules apply to every Overture place: a name that says university,
+    courses, driving, ... is dropped even under a school category; a
+    religious school or a day-care place is kept only when its name reads
+    like a school, an Azhar institute or a nursery."""
+    if any(is_azhar_institute(n) for n in names if n):
+        return "school", "azhar"
+    by_name = next((k for k in (name_says_school(n) for n in names) if k), None)
+    if category in OVERTURE_UNIVERSITY_CATEGORIES:
+        return ("university", "overture") if CATEGORIES["university"] else (None, "not_school_university")
+    if category not in OVERTURE_CATEGORIES:
+        return None, "not_school_other"
+    not_school = name_says_not_school(*names)
+    if not_school:
+        return None, not_school
+    if category in OVERTURE_NURSERY_CATEGORIES:
+        if CATEGORIES["nursery"] and by_name == "kindergarten":
+            return "kindergarten", "overture"
+        return None, "not_school_childcare"
+    if category == "religious_school" and not by_name:
+        return None, "not_school_other"  # Quran memorisation centres and the like
+    if category in OVERTURE_KG_CATEGORIES:
+        return "kindergarten", "overture"
+    return by_name or "school", "overture"
 
 
 def recover_name(props: dict) -> tuple[str, str]:
@@ -672,22 +836,36 @@ def _osm_entry(props: dict, lat: float | None, lng: float | None, file: str, ind
     name_ar = _first(props, "name:ar", "name_ar")
     name_en = _first(props, "name:en", "name_en")
     name_from = ""
+    source_tag = str(props.get("@source") or "")
     if not (name or name_ar or name_en):
         name, name_from = recover_name(props)
-    kind, why = classify_tags(props, (name, name_ar, name_en))
-    amenity = _first(props, "amenity", "AMENITY").lower()
+    if source_tag == "overture":
+        # Overture Maps Places (fetch_overture_schools.py): its own category.
+        category = _first(props, "overture:category").lower()
+        kind, why = classify_overture(category, (name, name_ar, name_en))
+        amenity = f"overture:{category or 'unknown'}"
+    else:
+        kind, why = classify_tags(props, (name, name_ar, name_en))
+        amenity = _first(props, "amenity", "AMENITY").lower()
     # Wikidata items (fetch_wikidata_schools.py) carry "@source": "wikidata"
     # and their QID; OSM features may carry a "wikidata" tag linking one.
-    is_wikidata = str(props.get("@source") or "") == "wikidata"
+    is_wikidata = source_tag == "wikidata"
+    is_overture = source_tag == "overture"
     qid = str(props.get("@id") if is_wikidata else props.get("wikidata") or "").strip()
+    if is_overture:
+        source, source_id = "overture", str(props.get("@id") or f"{Path(file).stem}-{index}")
+    elif is_wikidata:
+        source, source_id = "wikidata", qid or _osm_source_id(props, f"{Path(file).stem}-{index}")
+    else:
+        source, source_id = "osm", _osm_source_id(props, f"{Path(file).stem}-{index}")
     return RawEntry(
-        source="wikidata" if is_wikidata else "osm",
-        source_id=qid if is_wikidata and qid else _osm_source_id(props, f"{Path(file).stem}-{index}"),
+        source=source,
+        source_id=source_id,
         kind=kind,
         amenity=amenity or "unknown",
         drop_reason="" if kind else why,
         name_from=name_from,
-        wikidata=qid if _QID.match(qid) else "",
+        wikidata=qid if _QID.match(qid) and not is_overture else "",
         name=name,
         name_ar=name_ar,
         name_en=name_en,
@@ -847,6 +1025,7 @@ def _list_source_name(path: Path) -> str:
 
 OSM_FOLDER = "osm"  # written by fetch_osm_schools.py
 WIKIDATA_FOLDER = "wikidata"  # written by fetch_wikidata_schools.py
+OVERTURE_FOLDER = "overture"  # written by fetch_overture_schools.py (its raw/ subfolder is not read)
 
 
 def read_inputs(folder: Path) -> tuple[list[RawEntry], Boundaries, list[str], list[str]]:
@@ -881,12 +1060,12 @@ def read_inputs(folder: Path) -> tuple[list[RawEntry], Boundaries, list[str], li
                 problems.append(f"{name}: columns not used: {', '.join(ignored)}")
 
     paths: list[Path] = []
-    for sub in (OSM_FOLDER, WIKIDATA_FOLDER):
+    for sub in (OSM_FOLDER, WIKIDATA_FOLDER, OVERTURE_FOLDER):
         if (folder / sub).is_dir():
             paths += sorted((folder / sub).iterdir())
     paths += sorted(folder.iterdir())
     for path in paths:
-        if not path.is_file() or path.name.startswith(".") or path.name.endswith(".part"):
+        if not path.is_file() or path.name.startswith(".") or path.name.endswith(".part") or path.name == CATEGORIES_FILE:
             continue
         if path.suffix.lower() == ".zip":
             with zipfile.ZipFile(path) as archive:
@@ -1094,13 +1273,23 @@ class LikelyDuplicate:
     why: str
 
 
+# Main entry of a merged group: owner lists, then OpenStreetMap, Wikidata,
+# and Overture last (business listings: names and pins are the least
+# curated; an Overture place matching an OSM school only adds its key).
+_SOURCE_ORDER = {"osm": 1, "wikidata": 2, "overture": 3}
+
+
 def _source_rank(s: School) -> tuple:
     # Lists from the owner (ministry, governorate, school groups) know the
     # official name best; OSM nodes before ways (a node is usually the gate).
     return (
         0 if s.source.startswith("list_") else 1,
+        # Overture is never the main entry when another source has the
+        # school, even one without a pin (its pin is still used, _merge).
+        1 if s.source == "overture" else 0,
         0 if s.lat is not None else 1,
-        0 if s.source_id.startswith("n") else 1,
+        0 if s.source == "osm" and s.source_id.startswith("n") else 1,
+        _SOURCE_ORDER.get(s.source, 0),
         s.source,
         s.source_id,
     )
@@ -1238,7 +1427,7 @@ def _merge(members: list[School]) -> School:
         source_keys=sorted({k for m in members for k in m.source_keys}),
         name_ar=best("name_ar", prefer_arabic=True),
         name_en=best("name_en", prefer_arabic=False),
-        kind="kindergarten" if all(m.kind == "kindergarten" for m in members) else "school",
+        kind=primary.kind if primary.kind == "university" else ("kindergarten" if all(m.kind == "kindergarten" for m in members) else "school"),
         governorate=governorate_from.governorate,
         governorate_method=governorate_from.governorate_method,
         city=best("city", prefer_arabic=False),
@@ -1271,6 +1460,7 @@ class Result:
     read_by_source: dict[str, int] = field(default_factory=dict)
     names_recovered: dict[str, int] = field(default_factory=dict)
     boundaries: Boundaries | None = None
+    entries: list[RawEntry] = field(default_factory=list)
 
 
 def run(folder: Path) -> Result:
@@ -1284,11 +1474,11 @@ def run(folder: Path) -> Result:
         read_by_source[fam] = read_by_source.get(fam, 0) + 1
         if e.name_from:
             recovered[e.name_from] = recovered.get(e.name_from, 0) + 1
-    return Result(merged, dropped, groups, likely, files, problems, len(entries), read_by_source, recovered, boundaries)
+    return Result(merged, dropped, groups, likely, files, problems, len(entries), read_by_source, recovered, boundaries, entries)
 
 
 def source_family(source: str) -> str:
-    """"osm", "wikidata" or "owner CSV" (list_<file>)."""
+    """"osm", "wikidata", "overture" or "owner CSV" (list_<file>)."""
     if source.startswith("list_"):
         return "owner CSV"
     return source

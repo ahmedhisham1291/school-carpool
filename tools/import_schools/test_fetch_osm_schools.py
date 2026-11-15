@@ -254,10 +254,14 @@ class FreshnessTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             recent = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
-            f.write_json_atomic(out / f.SCHOOLS_FILE, f.schools_geojson(SCHOOLS_ANSWER, recent, "x"))
+            # The whole download's id depends on the categories (nurseries on by default).
+            merged_id = f.query_id_for(f.QUERY_ID, f.amenity_values({"nursery": True}))
+            f.write_json_atomic(out / f.SCHOOLS_FILE, f.schools_geojson(SCHOOLS_ANSWER, recent, "x", merged_id))
             self.assertIsNotNone(f.fetched_at_of(out / f.SCHOOLS_FILE))
             # No network: main returns before asking any server.
+            (out / "categories.json").write_text('{"categories": {"nursery": true, "university": false}}', encoding="utf-8")
             code = f.main(["--out", str(out), "--boundaries-out", str(out / "b"), "--max-age-days", "7",
+                           "--categories", str(out / "categories.json"), "--max-minutes", "1",
                            "--endpoint", "https://invalid.invalid/api"])
             self.assertEqual(code, 0)
             self.assertFalse((out / "b").exists())

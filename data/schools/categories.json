@@ -1,0 +1,9 @@
+{
+  "comment": "Which places count as schools in the import (tools/import_schools/schools_import.py, CATEGORY_DEFAULTS). Owner decision 16 Nov 2026 (docs/DECISIONS.md): schools, kindergartens and nurseries only. Schools and kindergartens are always on. nursery: amenity=childcare and Overture day-care places named like a nursery are kept as kindergartens. university: universities, colleges and higher institutes, kept with kind 'university' when true; OFF by owner decision. Al-Azhar institutes (primary, preparatory, secondary) are schools either way.",
+  "categories": {
+    "school": true,
+    "kindergarten": true,
+    "nursery": true,
+    "university": false
+  }
+}

@@ -765,11 +765,13 @@ fi
 ok "rules, indexes, storage rules and all functions deployed to ${REGION}"
 
 # ============================================================== 12. schools
-step "12. Schools: OpenStreetMap and Wikidata lists, import, load, search index"
-# Every school and kindergarten in Egypt from OpenStreetMap and Wikidata
-# (owner decision 15 Nov 2026), plus any owner CSV lists in data/schools;
-# SETUP.md 14.
-# Safe to rerun: a download newer than 7 days is reused, the loader writes
+step "12. Schools: OpenStreetMap, Wikidata and Overture lists, import, load, search index"
+# Every school, kindergarten and nursery in Egypt from OpenStreetMap,
+# Wikidata and Overture Maps Places (owner decisions 15 and 16 Nov 2026),
+# plus any owner CSV lists in data/schools; SETUP.md 14. What counts:
+# data/schools/categories.json.
+# Safe to rerun: a download newer than 7 days (Overture: 30 days) is reused,
+# and so is each governorate's OpenStreetMap part; the loader writes
 # only new or changed schools, the index sync sends the same records again.
 # A failure here never stops the rest of the setup (to-do lines instead).
 SEARCH="$(env_value SCHOOL_SEARCH_PROVIDER fake)"
@@ -781,16 +783,21 @@ else
   run_step python3 tools/import_schools/fetch_osm_schools.py --max-age-days 7
   if [ "${STEP_RC}" -eq 0 ]; then
     ok "OpenStreetMap schools downloaded $(sed -n 's/^- Downloaded: //p' data/schools/osm/fetch_report.md 2>/dev/null | head -1); boundaries: $(sed -n 's/^- Governorate boundaries: //p' data/schools/osm/fetch_report.md 2>/dev/null | head -1)"
+    ok "OpenStreetMap per governorate: $(sed -n 's/^Summary: //p' data/schools/osm/fetch_report.md 2>/dev/null | head -1)"
+    if grep -q 'NO data' data/schools/osm/fetch_report.md 2>/dev/null; then
+      todo "OpenStreetMap: some governorates have no data yet ($(grep 'NO data' data/schools/osm/fetch_report.md | sed 's/^- \([A-Z-]*\) .*/\1/' | paste -sd, -)); run this script again later (only those are asked again)."
+    fi
   else
     todo "OpenStreetMap download failed (servers busy?). Run this script again later; the last download, if any, is used meanwhile."
   fi
   # City -> Area -> District (F4 grouping, F46 addresses): boundaries below
   # the governorate and named neighbourhoods, from the Overpass server that
   # just answered.
-  OSM_SERVER="$(sed -n 's/^- Server: \(https:[^ ]*\).*/\1/p' data/schools/osm/fetch_report.md 2>/dev/null | head -1)"
+  OSM_SERVER="$(sed -n 's/^- Server: \(https:[^ ,]*\).*/\1/p' data/schools/osm/fetch_report.md 2>/dev/null | head -1)"
   run_step python3 tools/import_schools/fetch_osm_places.py --max-age-days 7 ${OSM_SERVER:+--prefer "${OSM_SERVER}"}
   if [ "${STEP_RC}" -eq 0 ]; then
     ok "OpenStreetMap places: $(sed -n 's/^- Boundaries per admin_level: //p' data/schools/places/fetch_report.md 2>/dev/null | head -1)"
+    ok "OpenStreetMap places per governorate: $(sed -n 's/^Summary: //p' data/schools/places/fetch_report.md 2>/dev/null | head -1)"
   else
     todo "OpenStreetMap places download failed (servers busy?). Schools get no area until it works; run this script again later."
   fi
@@ -803,9 +810,29 @@ else
   else
     todo "Wikidata download failed (see above). Run this script again later; the import goes on without it."
   fi
+  # Overture Maps Places (CDLA Permissive 2.0 / Apache 2.0): read with
+  # DuckDB straight from Overture's public S3 bucket, Egypt's box only.
+  overture_fetch() {
+    if ! python3 -c 'import duckdb' 2>/dev/null; then
+      echo "  installing the duckdb Python package (pip install --user duckdb)..."
+      python3 -m pip install --user --quiet duckdb || return 3
+    fi
+    python3 tools/import_schools/fetch_overture_schools.py --max-age-days 30
+  }
+  run_step overture_fetch
+  if [ "${STEP_RC}" -eq 0 ]; then
+    ok "$(sed -n 's/^- Rows from the query/Overture places: rows/p' data/schools/overture/fetch_report.md 2>/dev/null | head -1); $(sed -n 's/^- Written for the import \(([^)]*)\)[^:]*: /written \1: /p' data/schools/overture/fetch_report.md 2>/dev/null | head -1)"
+  elif [ "${STEP_RC}" -eq 3 ]; then
+    todo "Overture skipped: the duckdb Python package could not be installed. Run 'python3 -m pip install --user duckdb', then this script again."
+  else
+    todo "Overture download failed (see above). Run this script again later; the import goes on without it."
+  fi
 fi
 shopt -s nullglob
-REAL_INPUTS=(data/schools/osm/*.geojson data/schools/wikidata/*.geojson data/schools/*.csv data/schools/*.geojson data/schools/*.json data/schools/*.zip)
+REAL_INPUTS=()
+for f in data/schools/osm/*.geojson data/schools/wikidata/*.geojson data/schools/overture/*.geojson data/schools/*.csv data/schools/*.geojson data/schools/*.json data/schools/*.zip; do
+  [ "${f}" = "data/schools/categories.json" ] || REAL_INPUTS+=("${f}")
+done
 shopt -u nullglob
 import_schools() {
   python3 tools/import_schools/import_schools.py >"${SCHOOLS_OUT}/import.txt"
@@ -819,11 +846,28 @@ load_schools() {
   (cd functions && SCHOOLS_PROJECT="${PROJECT}" npm run --silent schools:load:cloud -- --yes --file ../build/schools/schools.json "$@") \
     | tee "${SCHOOLS_OUT}/load.txt"
 }
+# Admin search (admin-schools-search branch): fill the server-only
+# adminSearchGrams on the loaded schools. Idempotent; only when that npm
+# script exists.
+admin_grams() {
+  (cd functions && SCHOOLS_PROJECT="${PROJECT}" npm run --silent schools:admin-grams -- --yes) | tee "${SCHOOLS_OUT}/admin-grams.txt"
+}
+admin_grams_fill() {
+  if grep -q '"schools:admin-grams"' functions/package.json 2>/dev/null; then
+    run_step admin_grams
+    if [ "${STEP_RC}" -eq 0 ]; then
+      ok "admin school search: $(tail -1 "${SCHOOLS_OUT}/admin-grams.txt")"
+    else
+      todo "admin school search terms not filled (see above); run this script again (it fills only what is missing or changed)."
+    fi
+  fi
+}
 SCHOOLS_LOADED=""
 if [ "${#REAL_INPUTS[@]}" -gt 0 ]; then
   run_step import_schools
   if [ "${STEP_RC}" -eq 0 ]; then
     ok "import: $(sed -n 's/^Kept /kept /p' "${SCHOOLS_OUT}/import.txt" | head -1) (full report: build/schools/report.md)"
+    ok "per source: $(sed -n 's/^Per source (read \/ dropped \/ kept as main entry \/ schools with an entry from it): //p' "${SCHOOLS_OUT}/import.txt" | head -1) (read / dropped / kept as main / schools with an entry)"
     run_step load_schools --hide-sample ../build/schools-sample/schools.json
     if [ "${STEP_RC}" -eq 0 ]; then
       SCHOOLS_LOADED=1
@@ -831,6 +875,7 @@ if [ "${#REAL_INPUTS[@]}" -gt 0 ]; then
       if grep -q '^load_places: done' "${SCHOOLS_OUT}/load.txt"; then
         ok "Firestore places: $(sed -n 's/^load_places: done\. //p' "${SCHOOLS_OUT}/load.txt" | tail -1)"
       fi
+      admin_grams_fill
     else
       todo "schools load stopped (see above). Run this script again: what was written is kept and not written twice."
     fi
@@ -843,6 +888,7 @@ else
   if [ "${STEP_RC}" -eq 0 ]; then
     SCHOOLS_LOADED=1
     ok "no real list yet: the hand-written SAMPLE schools are loaded (rerun adds no duplicates)"
+    admin_grams_fill
   else
     todo "sample schools: run this script again; if it fails, send the developer the error."
   fi
@@ -872,6 +918,21 @@ fi
 if [ -s "${SCHOOLS_OUT}/import.txt" ]; then
   printf '\n  Schools import summary (per source, kept, dropped and why, per city, places and top areas):\n'
   sed 's/^/    /' "${SCHOOLS_OUT}/import.txt"
+fi
+# Owner's list of schools to look for (one name per line): why each one
+# is or is not in the list (tools/import_schools/why_missing.py).
+if [ -f data/schools/check_names.txt ] && [ "${#REAL_INPUTS[@]}" -gt 0 ]; then
+  why_missing() {
+    python3 tools/import_schools/why_missing.py --file data/schools/check_names.txt --summary-only >"${SCHOOLS_OUT}/check_names.txt"
+  }
+  run_step why_missing
+  if [ "${STEP_RC}" -eq 0 ]; then
+    ok "$(tail -1 "${SCHOOLS_OUT}/check_names.txt")"
+    printf '\n  Names not in the list, and why (all names: python3 tools/import_schools/why_missing.py --file data/schools/check_names.txt):\n'
+    sed '$d; s/^/    /' "${SCHOOLS_OUT}/check_names.txt"
+  else
+    todo "names check failed (see above); send the developer the error."
+  fi
 fi
 
 # ============================================================== 13. links site

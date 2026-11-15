@@ -5,7 +5,10 @@
     python3 tools/import_schools/fetch_osm_places.py
     python3 tools/import_schools/fetch_osm_places.py --max-age-days 7
 
-Two Overpass queries, inside Egypt:
+Two kinds of Overpass data, asked together once per governorate
+(overpass_split.py: 27 parts, [timeout:180] each, failover, a second pass,
+older per-governorate files reused for parts that still fail; one query
+for all of Egypt is too heavy for the busy public servers):
 
 1. every administrative boundary relation with admin_level 5 to 10 (out
    geom): the candidates for an Area (qism / markaz / new city) and a
@@ -23,7 +26,10 @@ Writes (git-ignored)
   data/schools/places/egypt_admin_osm.geojson     simplified MultiPolygons
                                                   with admin_level and names
   data/schools/places/egypt_place_points_osm.geojson
-  data/schools/places/fetch_report.md             counts per admin level
+  data/schools/places/governorates/EG-xx.geojson  one per governorate, with
+                                                  its own fetched_at
+  data/schools/places/fetch_report.md             counts per admin level, status
+                                                  per governorate
 
 Shapes are simplified to about 30 m (Douglas-Peucker) so each area fits
 easily in one Firestore document for the server's point-in-polygon check.
@@ -44,20 +50,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fetch_osm_schools import (  # noqa: E402
     ATTRIBUTION,
+    BOUNDARIES_FILE,
     EGYPT_AREA,
     ENDPOINTS,
     QUERY_TIMEOUT_S,
-    FetchError,
     element_point,
     fetched_at_of,
     overpass,
+    query_of,
     relation_multipolygon,
     write_json_atomic,
+)
+from overpass_split import (  # noqa: E402
+    DEFAULT_BUDGET_MIN,
+    PART_TIMEOUT_S,
+    fetch_parts,
+    governorate_areas,
+    merge_features,
+    status_lines,
+    summary_line,
 )
 
 LEVELS = (5, 6, 7, 8, 9, 10)
 PLACE_VALUES = ("suburb", "quarter", "neighbourhood")
 
+# All of Egypt in one query each (the first version; too heavy for the busy
+# public servers, kept for reference and tests). main() asks part_query()
+# once per governorate.
 ADMIN_QUERY = (
     f"[out:json][timeout:{QUERY_TIMEOUT_S}];\n{EGYPT_AREA}\n"
     f'rel["boundary"="administrative"]["admin_level"~"^({"|".join(str(level) for level in LEVELS)})$"](area.eg);\n'
@@ -69,6 +88,28 @@ PLACES_QUERY = (
     f'  nwr["place"~"^({"|".join(PLACE_VALUES)})$"]["name:ar"](area.eg);\n'
     ");\nout center;\n"
 )
+
+
+
+def part_query(area: str, set_name: str = "g", timeout_s: int = PART_TIMEOUT_S) -> str:
+    """Boundaries (out geom) and named places (out center) of one governorate."""
+    a = f"(area.{set_name})"
+    levels = "|".join(str(level) for level in LEVELS)
+    places = "|".join(PLACE_VALUES)
+    return (
+        f"[out:json][timeout:{timeout_s}];\n{area}\n"
+        f'rel["boundary"="administrative"]["admin_level"~"^({levels})$"]{a};\n'
+        "out geom;\n(\n"
+        f'  nwr["place"~"^({places})$"]["name"]{a};\n'
+        f'  nwr["place"~"^({places})$"]["name:ar"]{a};\n'
+        ");\nout center;\n"
+    )
+
+
+QUERY_ID = "split-1"
+PARTIAL_QUERY_ID = "split-1-partial"
+PART_QUERY_ID = "places-1"
+PARTS_FOLDER = "governorates"
 
 ADMIN_FILE = "egypt_admin_osm.geojson"
 POINTS_FILE = "egypt_place_points_osm.geojson"
@@ -223,41 +264,100 @@ def points_geojson(answer: dict, fetched_at: str, endpoint: str) -> tuple[dict, 
     )
 
 
+def part_geojson(answer: dict, fetched_at: str, endpoint: str) -> dict:
+    """One governorate's answer -> one FeatureCollection holding both the
+    simplified boundaries (MultiPolygon) and the named places (Point)."""
+    admin, _, problems = admin_geojson(answer, fetched_at, endpoint)
+    points, _ = points_geojson(answer, fetched_at, endpoint)
+    return {
+        "type": "FeatureCollection",
+        "name": "Egypt places below the governorate, one governorate (OpenStreetMap)",
+        "fetched_at": fetched_at,
+        "source": endpoint,
+        "license": ATTRIBUTION,
+        "problems": problems,
+        "features": admin["features"] + points["features"],
+    }
+
+
+def split_merged(features: list[dict], fetched_at: str, source: str, query_id: str) -> tuple[dict, dict, dict[int, int], dict[str, int]]:
+    """Merged part features -> (admin collection, points collection, count
+    per admin level, count per place kind)."""
+    admin = [f for f in features if (f.get("geometry") or {}).get("type") != "Point"]
+    points = [f for f in features if (f.get("geometry") or {}).get("type") == "Point"]
+    admin.sort(key=lambda f: (f["properties"]["admin_level"], f["properties"]["osm_id"]))
+    per_level: dict[int, int] = {}
+    for f in admin:
+        per_level[f["properties"]["admin_level"]] = per_level.get(f["properties"]["admin_level"], 0) + 1
+    per_kind: dict[str, int] = {}
+    for f in points:
+        per_kind[f["properties"]["place"]] = per_kind.get(f["properties"]["place"], 0) + 1
+    head = {"type": "FeatureCollection", "fetched_at": fetched_at, "query": query_id, "source": source, "license": ATTRIBUTION}
+    return (
+        {**head, "name": "Egypt administrative boundaries below the governorate (OpenStreetMap, admin_level 5-10)", "features": admin},
+        {**head, "name": "Egypt named suburbs, quarters and neighbourhoods (OpenStreetMap)", "features": points},
+        per_level,
+        per_kind,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     repo = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=repo / "data" / "schools" / "places")
+    parser.add_argument("--boundaries", type=Path, default=repo / "data" / "schools" / "boundaries" / BOUNDARIES_FILE,
+                        help="governorates download (fetch_osm_schools.py): its relation ids are the search areas")
     parser.add_argument("--max-age-days", type=float, default=0)
     parser.add_argument("--endpoint", action="append", help="Overpass interpreter URL (repeatable)")
     parser.add_argument("--prefer", help="the Overpass server to ask first (the one that just answered)")
+    parser.add_argument("--max-minutes", type=float, default=DEFAULT_BUDGET_MIN, help="time budget for new requests")
     args = parser.parse_args(argv)
     endpoints = tuple(args.endpoint or ENDPOINTS)
     admin_path = args.out / ADMIN_FILE
     now = dt.datetime.now(dt.timezone.utc)
     if args.max_age_days > 0:
         last = fetched_at_of(admin_path)
-        if last is not None and now - last < dt.timedelta(days=args.max_age_days) and (args.out / POINTS_FILE).exists():
+        if (
+            last is not None
+            and now - last < dt.timedelta(days=args.max_age_days)
+            and (args.out / POINTS_FILE).exists()
+            and query_of(admin_path) == QUERY_ID
+        ):
             print(f"OpenStreetMap places: the download of {last:%Y-%m-%d %H:%M} UTC is recent; kept (no new download).")
             return 0
     fetched_at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    print("OpenStreetMap places: downloading boundaries below the governorate (admin_level 5-10)...")
-    try:
-        answer, endpoint = overpass(ADMIN_QUERY, endpoints, prefer=args.prefer)
-    except FetchError as error:
-        print(f"OpenStreetMap places: {error}", file=sys.stderr)
-        return 1
-    admin, per_level, problems = admin_geojson(answer, fetched_at, endpoint)
+    parts = governorate_areas(args.boundaries if args.boundaries.exists() else None)
+    print(f"OpenStreetMap places: boundaries (admin_level 5-10) and named places, per governorate ({len(parts)} parts)...")
+    split = fetch_parts(
+        parts,
+        lambda part: part_query(part.area),
+        part_geojson,
+        args.out / PARTS_FOLDER,
+        query_id=PART_QUERY_ID,
+        fetch=lambda q, eps, first: overpass(q, eps, rounds=1, prefer=first, timeout_s=PART_TIMEOUT_S),
+        endpoints=endpoints,
+        prefer=args.prefer,
+        max_age_days=args.max_age_days,
+        budget_s=max(args.max_minutes, 1.0) * 60,
+        now=now,
+        # A governorate may have no boundary below level 4 and no named
+        # place in OpenStreetMap; the area ids come from the governorates
+        # download, so an empty answer is not taken as an error here.
+        min_features=lambda _part: 0,
+    )
+    features = merge_features(split.collections.values())
+    problems = [p for c in split.collections.values() for p in (c.get("problems") or [])]
     for p in problems[:20]:
         print(f"  {p}")
     if len(problems) > 20:
         print(f"  ... and {len(problems) - 20} more borders with gaps")
-    print("OpenStreetMap places: downloading named suburbs, quarters and neighbourhoods...")
-    try:
-        answer2, endpoint2 = overpass(PLACES_QUERY, endpoints, prefer=endpoint)
-    except FetchError as error:
-        print(f"OpenStreetMap places: {error}", file=sys.stderr)
-        return 1
-    points, per_kind = points_geojson(answer2, fetched_at, endpoint2)
+    servers = ", ".join(sorted({s.server for s in split.statuses if s.server})) or "-"
+    admin, points, per_level, per_kind = split_merged(features, fetched_at, servers, QUERY_ID if split.complete else PARTIAL_QUERY_ID)
+    gov_lines = status_lines(split)
+    print("  " + summary_line(split))
+    for line in gov_lines:
+        if "NO data" in line or "older file" in line:
+            print("  " + line[2:])
     if not admin["features"] and not points["features"]:
         print("OpenStreetMap places: nothing came back; the earlier files, if any, are kept.", file=sys.stderr)
         return 1
@@ -266,11 +366,17 @@ def main(argv: list[str] | None = None) -> int:
     lines = [
         "# OpenStreetMap places download",
         "",
-        f"- Downloaded: {fetched_at} (UTC) from {endpoint}",
+        f"- Downloaded: {fetched_at} (UTC) from {servers}, one query per governorate",
         "- Boundaries per admin_level: " + (", ".join(f"{k}: {v}" for k, v in sorted(per_level.items())) or "none"),
         f"- Borders left out (gaps in OpenStreetMap): {len(problems)}",
         "- Named places: " + (", ".join(f"{k}: {v}" for k, v in sorted(per_kind.items())) or "none"),
         "- Which level becomes Area and which District is measured by the import (report.md, 'Places').",
+        "",
+        "## Per governorate",
+        "",
+        *gov_lines,
+        "",
+        "Summary: " + summary_line(split),
         "",
         "## Licence",
         "",
