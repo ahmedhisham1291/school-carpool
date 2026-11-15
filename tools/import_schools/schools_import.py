@@ -6,7 +6,10 @@ Reads the files the owner puts in data/schools:
     zipped) or CSV;
   - ministry, governorate or school-group lists as CSV (headers in
     English or Arabic, see LIST_HEADERS);
-  - optionally governorate boundaries (GeoJSON, admin level 1) in
+  - the OpenStreetMap download of fetch_osm_schools.py in data/schools/osm/
+    (same shape as the HDX export, read before the files above);
+  - optionally governorate boundaries (GeoJSON, admin level 1, or the
+    OpenStreetMap governorates from fetch_osm_schools.py) in
     data/schools/boundaries/ for an exact governorate per school.
 
 Keeps kindergartens and schools only, cleans names, assigns governorate and
@@ -29,7 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Iterator
 
-from egypt_places import EGYPT_BOUNDS, GOVERNORATE_ALIASES, GOVERNORATES, TOWNS
+from egypt_places import EGYPT_BOUNDS, GOVERNORATE_ALIASES, GOVERNORATES, ISO_3166_2, TOWNS
 
 MERGE_DISTANCE_M = 300.0
 NEARBY_REPORT_DISTANCE_M = 1500.0
@@ -280,35 +283,61 @@ def nearest_town(lat: float, lng: float) -> tuple[str, str, str]:
     return best[0], best[1], best[2]
 
 
-def _ring_contains(ring: list, lat: float, lng: float) -> bool:
-    inside = False
-    n = len(ring)
-    for i in range(n):
-        x1, y1 = ring[i][0], ring[i][1]
-        x2, y2 = ring[(i + 1) % n][0], ring[(i + 1) % n][1]
-        if (y1 > lat) != (y2 > lat):
-            x = x1 + (lat - y1) * (x2 - x1) / (y2 - y1)
-            if lng < x:
+_BAND_DEG = 0.02  # about 2 km of latitude per band
+
+
+class _IndexedRing:
+    """A ring with its edges sorted into latitude bands, so a point is
+    tested only against the few edges that cross its latitude (a detailed
+    governorate border has tens of thousands of points)."""
+
+    __slots__ = ("min_lat", "max_lat", "min_lng", "max_lng", "bands")
+
+    def __init__(self, ring: list) -> None:
+        pts = [(float(p[0]), float(p[1])) for p in ring]
+        self.min_lng = min(p[0] for p in pts)
+        self.max_lng = max(p[0] for p in pts)
+        self.min_lat = min(p[1] for p in pts)
+        self.max_lat = max(p[1] for p in pts)
+        self.bands: dict[int, list[tuple[float, float, float, float]]] = {}
+        n = len(pts)
+        for i in range(n):
+            x1, y1 = pts[i]
+            x2, y2 = pts[(i + 1) % n]
+            if y1 == y2:
+                continue  # a horizontal edge never changes the ray count
+            for band in range(math.floor(min(y1, y2) / _BAND_DEG), math.floor(max(y1, y2) / _BAND_DEG) + 1):
+                self.bands.setdefault(band, []).append((x1, y1, x2, y2))
+
+    def contains(self, lat: float, lng: float) -> bool:
+        if not (self.min_lat <= lat <= self.max_lat and self.min_lng <= lng <= self.max_lng):
+            return False
+        inside = False
+        for x1, y1, x2, y2 in self.bands.get(math.floor(lat / _BAND_DEG), ()):
+            if (y1 > lat) != (y2 > lat) and lng < x1 + (lat - y1) * (x2 - x1) / (y2 - y1):
                 inside = not inside
-    return inside
-
-
-def _polygon_contains(polygon: list, lat: float, lng: float) -> bool:
-    if not polygon or not _ring_contains(polygon[0], lat, lng):
-        return False
-    return not any(_ring_contains(hole, lat, lng) for hole in polygon[1:])
+        return inside
 
 
 @dataclass
 class Boundaries:
-    """Governorate polygons (HDX "Egypt - Subnational Administrative Boundaries", admin 1)."""
+    """Governorate polygons: HDX "Egypt - Subnational Administrative
+    Boundaries" (admin 1) or the OpenStreetMap governorates written by
+    fetch_osm_schools.py (admin_level 4, tagged ISO3166-2)."""
 
     shapes: list[tuple[str, list]] = field(default_factory=list)
+    _index: list[tuple[str, list[tuple[_IndexedRing, list[_IndexedRing]]]]] | None = field(default=None, repr=False, compare=False)
 
     def governorate_at(self, lat: float, lng: float) -> str | None:
-        for code, polygons in self.shapes:
-            if any(_polygon_contains(p, lat, lng) for p in polygons):
-                return code
+        if self._index is None or len(self._index) != len(self.shapes):
+            self._index = [
+                (code, [(_IndexedRing(p[0]), [_IndexedRing(h) for h in p[1:]]) for p in polygons if p and len(p[0]) >= 3])
+                for code, polygons in self.shapes
+            ]
+        for code, polygons in self._index:
+            for outer, holes in polygons:
+                if outer.contains(lat, lng) and not any(h.contains(lat, lng) for h in holes):
+                    return code
         return None
 
     @staticmethod
@@ -318,11 +347,11 @@ class Boundaries:
             for feature in _read_geojson_features(path.read_bytes()):
                 props = feature.get("properties") or {}
                 geometry = feature.get("geometry") or {}
-                code = None
+                code = ISO_3166_2.get(str(props.get("ISO3166-2") or props.get("ADM1_PCODE") or "").upper())
                 for key in ("ADM1_EN", "ADM1_AR", "admin1Name_en", "admin1Name_ar", "name:en", "name", "NAME_1", "shapeName"):
-                    code = governorate_code(str(props.get(key) or ""))
                     if code:
                         break
+                    code = governorate_code(str(props.get(key) or ""))
                 if not code:
                     problems.append(f"{path.name}: a boundary with unknown governorate name was skipped")
                     continue
@@ -624,9 +653,14 @@ def _list_source_name(path: Path) -> str:
     return re.sub(r"[^a-z0-9]+", "_", path.stem.lower()).strip("_") or "list"
 
 
+OSM_FOLDER = "osm"  # written by fetch_osm_schools.py
+
+
 def read_inputs(folder: Path) -> tuple[list[RawEntry], Boundaries, list[str], list[str]]:
-    """All entries in [folder] (not its subfolders, except boundaries/), the
-    boundaries, the files read and any problems."""
+    """All entries in [folder] (not its subfolders, except osm/ and
+    boundaries/), the boundaries, the files read and any problems. The
+    OpenStreetMap download in osm/ is read first: when an HDX export of the
+    same data is also there, its copies count as "same source ID twice"."""
     entries: list[RawEntry] = []
     problems: list[str] = []
     files_read: list[str] = []
@@ -653,15 +687,17 @@ def read_inputs(folder: Path) -> tuple[list[RawEntry], Boundaries, list[str], li
             if ignored:
                 problems.append(f"{name}: columns not used: {', '.join(ignored)}")
 
-    for path in sorted(folder.iterdir()):
-        if not path.is_file() or path.name.startswith("."):
+    osm_dir = folder / OSM_FOLDER
+    paths = (sorted(osm_dir.iterdir()) if osm_dir.is_dir() else []) + sorted(folder.iterdir())
+    for path in paths:
+        if not path.is_file() or path.name.startswith(".") or path.name.endswith(".part"):
             continue
         if path.suffix.lower() == ".zip":
             with zipfile.ZipFile(path) as archive:
                 for member in sorted(archive.namelist()):
                     take(f"{path.name}/{member}", archive.read(member))
         elif path.suffix.lower() in (".geojson", ".json", ".csv"):
-            take(path.name, path.read_bytes())
+            take(path.relative_to(folder).as_posix(), path.read_bytes())
     return entries, boundaries, files_read, problems
 
 

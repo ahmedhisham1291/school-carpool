@@ -66,6 +66,10 @@ emulator-data/
 .DS_Store
 Thumbs.db
 
+# Schools downloads (also covered by data/schools/.gitignore)
+data/schools/osm/
+data/schools/boundaries/
+
 # Python bytecode (tool/patch_native.py)
 __pycache__/
 *.pyc

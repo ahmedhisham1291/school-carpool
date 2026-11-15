@@ -6,24 +6,34 @@
 #   git clone https://github.com/ahmedhisham1291/school-carpool.git && cd school-carpool
 #   bash tool/cloud_setup.sh staging school-carpool-staging <admin-email>
 #
+# Optional flag:
+#   --replace-algolia  ask for the Algolia keys again even if real ones are
+#                      stored (otherwise only the placeholder 'unused' is
+#                      replaced; docs/algolia-setup.md)
+#
 # Optional environment:
 #   APPLE_TEAM_ID   10-character Apple Team ID (asked for if not set; Enter
 #                   skips the invite-links site and App Attest)
 #   ADMIN_NAME      name of the first super admin (default "Owner")
 #   SKIP_ADMIN_WEB=1  do not download Flutter / build the admin panel
 #   FLUTTER_HOME    where to keep the Flutter SDK (default ~/flutter)
+#   SKIP_SCHOOLS_FETCH=1  do not download the OpenStreetMap schools list
+#                   (the last download, if any, is used; a download newer
+#                   than 7 days is never repeated)
 #
 # What it does, in order (each step checks first and skips what is done):
 #   1  checks: Blaze billing, Firestore and Storage in europe-west1; APIs on
 #   2  sign-in for the tools (gcloud, Application Default Credentials, firebase)
 #   3  Identity Platform: on, Email/Password on, sign-up and delete off, SMS denied
 #   4  service-account roles (SETUP 11.2, Eventarc, Storage trigger)
-#   5  Maps keys (iOS key, server key)          6  secrets in Secret Manager
+#   5  Maps keys (iOS key, server key)          6  secrets in Secret Manager,
+#                                                  Algolia keys (asked once)
 #   7  Hosting sites (links, admin)             8  Firebase apps + Dart options file
 #   9  App Check (App Attest, reCAPTCHA Enterprise for the admin site)
 #   10 authorized domains, Storage CORS, retention (TTL, lifecycle), KMS key
 #   11 deploy rules, indexes, storage rules and functions
-#   12 sample schools (fake data) into Firestore   13 links site
+#   12 schools: OpenStreetMap download, import, load, Algolia index
+#                                                13 links site
 #   14 admin panel: TOTP, Flutter web build, deploy  15 first super admin
 #   16 budget USD 20 (5 / 25 / 100 percent)        17 checklist of what is left
 #
@@ -39,10 +49,20 @@ WEB_APP_NAME="School Carpool Stg Web"
 
 # ---------------------------------------------------------------- arguments
 usage() {
-  echo "usage: bash tool/cloud_setup.sh staging <project-id> <admin-email>" >&2
+  echo "usage: bash tool/cloud_setup.sh staging <project-id> <admin-email> [--replace-algolia]" >&2
   exit 2
 }
-[ "$#" -eq 3 ] || usage
+REPLACE_ALGOLIA=""
+POSITIONAL=()
+for arg in "$@"; do
+  case "${arg}" in
+    --replace-algolia) REPLACE_ALGOLIA=1 ;;
+    --*) usage ;;
+    *) POSITIONAL+=("${arg}") ;;
+  esac
+done
+[ "${#POSITIONAL[@]}" -eq 3 ] || usage
+set -- "${POSITIONAL[@]}"
 ENV_NAME="$1"
 PROJECT="$2"
 ADMIN_EMAIL="$(printf '%s' "$3" | tr '[:upper:]' '[:lower:]')"
@@ -95,6 +115,14 @@ env_value() { # KEY DEFAULT: value from functions/.env.staging
   local v
   v="$(grep -E "^$1=" "${ENV_FILE}" | tail -1 | cut -d= -f2- || true)"
   printf '%s' "${v:-$2}"
+}
+
+set_env() { # KEY VALUE: in functions/.env.staging (non-secret values only)
+  if grep -qE "^$1=" "${ENV_FILE}"; then
+    sed -i "s#^$1=.*#$1=$2#" "${ENV_FILE}"
+  else
+    printf '%s=%s\n' "$1" "$2" >>"${ENV_FILE}"
+  fi
 }
 
 fb() { npx --yes "${FIREBASE_TOOLS}" "$@" --project staging --non-interactive; }
@@ -409,6 +437,88 @@ ensure_secret() { # name random|unused provider-key fake-default
 ensure_secret OTP_HMAC_KEY random
 ensure_secret NATIONAL_ID_HMAC_KEY random
 ensure_secret WHATSAPP_ACCESS_TOKEN unused WHATSAPP_PROVIDER
+
+# --- Algolia (school search over the whole list; docs/algolia-setup.md) ---
+# The keys go only into Secret Manager (typed hidden, never printed, never
+# in the repository). The Application ID and index name are not secret and
+# go into functions/.env.staging before the deploy in step 11.
+ALGOLIA_INDEX_NAME="schools_staging"
+ALGOLIA_ON=""
+secret_value() { gcloud secrets versions access latest --secret="$1" --project="${PROJECT}" 2>/dev/null || true; }
+is_real_key() { [ -n "$1" ] && [ "$1" != "unused" ]; }
+algolia_check() { # write|search APP_ID; key on stdin. Prints the verdict; returns 0 ok, 1 refused, 2 unknown
+  local rc=0
+  python3 tool/algolia_keys.py "$1" "$2" || rc=$?
+  return "${rc}"
+}
+ALG_W="$(secret_value ALGOLIA_WRITE_KEY)"
+ALG_S="$(secret_value ALGOLIA_SEARCH_KEY)"
+ALG_APP="$(env_value ALGOLIA_APP_ID "")"
+ALG_HAVE_KEYS=""
+if is_real_key "${ALG_W}" && is_real_key "${ALG_S}"; then ALG_HAVE_KEYS=1; fi
+ALG_W=""; ALG_S=""
+if [ -n "${ALG_HAVE_KEYS}" ] && [ -n "${ALG_APP}" ] && { [ -z "${REPLACE_ALGOLIA}" ] || ! [ -t 0 ]; }; then
+  ALGOLIA_ON=1
+  if [ -n "${REPLACE_ALGOLIA}" ]; then
+    todo "Algolia: --replace-algolia needs an interactive Cloud Shell to type the keys; the stored keys were kept."
+  else
+    ok "Algolia keys already in Secret Manager (kept; --replace-algolia to change them)"
+  fi
+elif [ -t 0 ]; then
+  echo
+  echo "  ALGOLIA (school search over every school). Guide: docs/algolia-setup.md"
+  echo "  Without it, search can only cover 200 schools, so the app will say search is unavailable."
+  if [ -n "${ALG_HAVE_KEYS}" ] && [ -z "${REPLACE_ALGOLIA}" ]; then
+    echo "  The keys are stored; only the Application ID is missing."
+  fi
+  read -r -p "  Algolia Application ID (Enter to skip): " NEW_APP || NEW_APP=""
+  NEW_APP="$(printf '%s' "${NEW_APP}" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+  if [ -z "${NEW_APP}" ]; then
+    if [ -n "${ALG_HAVE_KEYS}" ] && [ -n "${ALG_APP}" ]; then
+      ALGOLIA_ON=1; ok "Algolia: kept the stored keys"
+    else
+      todo "Algolia skipped: school search covers only 200 schools (the app says 'unavailable' with the real list). Set it up: docs/algolia-setup.md, then run this script again."
+    fi
+  elif ! [[ "${NEW_APP}" =~ ^[A-Z0-9]{6,32}$ ]]; then
+    todo "Algolia: '${NEW_APP}' is not an Application ID (letters and digits). Run this script again."
+  elif [ -n "${ALG_HAVE_KEYS}" ] && [ -z "${REPLACE_ALGOLIA}" ]; then
+    set_env ALGOLIA_APP_ID "${NEW_APP}"; ALGOLIA_ON=1
+    ok "Algolia Application ID ${NEW_APP} (stored keys kept)"
+  else
+    read -r -s -p "  Algolia Write API Key (hidden; paste, then Enter): " NEW_W || NEW_W=""; echo
+    read -r -s -p "  Algolia Search-only API Key (hidden; paste, then Enter): " NEW_S || NEW_S=""; echo
+    NEW_W="$(printf '%s' "${NEW_W}" | tr -d '[:space:]')"
+    NEW_S="$(printf '%s' "${NEW_S}" | tr -d '[:space:]')"
+    W_RC=0; S_RC=0
+    W_MSG="$(printf '%s' "${NEW_W}" | algolia_check write "${NEW_APP}")" || W_RC=$?
+    S_MSG="$(printf '%s' "${NEW_S}" | algolia_check search "${NEW_APP}")" || S_RC=$?
+    echo "  Write key: ${W_MSG}"
+    echo "  Search key: ${S_MSG}"
+    if [ "${W_RC}" -eq 1 ] || [ "${S_RC}" -ne 0 ] || [ -z "${NEW_W}" ] || [ "${NEW_W}" = "${NEW_S}" ]; then
+      todo "Algolia keys not stored (see the lines above; the two keys must differ). Run this script again; it asks again."
+    else
+      printf '%s' "${NEW_W}" | secret_put ALGOLIA_WRITE_KEY
+      printf '%s' "${NEW_S}" | secret_put ALGOLIA_SEARCH_KEY
+      set_env ALGOLIA_APP_ID "${NEW_APP}"; ALGOLIA_ON=1
+      ok "Algolia keys stored in Secret Manager (new versions); Application ID ${NEW_APP}"
+    fi
+    NEW_W=""; NEW_S=""
+  fi
+elif [ -n "${ALG_HAVE_KEYS}" ]; then
+  todo "Algolia: the keys are stored but ALGOLIA_APP_ID is empty in ${ENV_FILE}; run this script in Cloud Shell (it asks for the ID) or commit the ID there."
+else
+  todo "Algolia: run this script in Cloud Shell (interactive) to type the keys; until then search covers only 200 schools."
+fi
+if [ -n "${ALGOLIA_ON}" ]; then
+  set_env SCHOOL_SEARCH_PROVIDER algolia
+  set_env ALGOLIA_INDEX "${ALGOLIA_INDEX_NAME}"
+  ok "school search: Algolia, index ${ALGOLIA_INDEX_NAME} (${ENV_FILE})"
+elif [ "$(env_value SCHOOL_SEARCH_PROVIDER fake)" = "algolia" ]; then
+  # No usable keys: deploying 'algolia' would break search; use the
+  # Firestore list (complete only for the sample) until Algolia is set up.
+  set_env SCHOOL_SEARCH_PROVIDER fake
+  todo "SCHOOL_SEARCH_PROVIDER set back to fake in ${ENV_FILE} for this deploy (no Algolia keys yet)."
+fi
 ensure_secret ALGOLIA_WRITE_KEY unused SCHOOL_SEARCH_PROVIDER
 ensure_secret ALGOLIA_SEARCH_KEY unused SCHOOL_SEARCH_PROVIDER
 ensure_secret STREAM_API_SECRET unused CHAT_PROVIDER
@@ -647,22 +757,90 @@ fi
 ok "rules, indexes, storage rules and all functions deployed to ${REGION}"
 
 # ============================================================== 12. schools
-step "12. Sample schools (fake data, staging only)"
+step "12. Schools: OpenStreetMap list, import, load, search index"
+# Every school and kindergarten in Egypt from OpenStreetMap (owner decision
+# 15 Nov 2026), plus any owner CSV lists in data/schools; SETUP.md 14.
+# Safe to rerun: a download newer than 7 days is reused, the loader writes
+# only new or changed schools, the index sync sends the same records again.
+# A failure here never stops the rest of the setup (to-do lines instead).
 SEARCH="$(env_value SCHOOL_SEARCH_PROVIDER fake)"
-load_schools() {
-  python3 tools/import_schools/import_schools.py --input data/schools/sample
-  (cd functions && SCHOOLS_PROJECT="${PROJECT}" npm run --silent schools:load:cloud -- --yes --file ../build/schools/schools.json)
-}
-run_step load_schools
-if [ "${STEP_RC}" -eq 0 ]; then
-  ok "sample schools loaded into Firestore 'schools' (hand-written test list; rerun adds no duplicates)"
+SCHOOLS_OUT="${WORK}/schools"
+mkdir -p "${SCHOOLS_OUT}"
+if [ "${SKIP_SCHOOLS_FETCH:-}" = "1" ]; then
+  ok "OpenStreetMap download skipped (SKIP_SCHOOLS_FETCH=1); the last download is used if there is one"
 else
-  todo "schools: run 'SCHOOLS_PROJECT=${PROJECT} npm --prefix functions run schools:load:cloud -- --yes' after 'python3 tools/import_schools/import_schools.py --input data/schools/sample'."
+  run_step python3 tools/import_schools/fetch_osm_schools.py --max-age-days 7
+  if [ "${STEP_RC}" -eq 0 ]; then
+    ok "OpenStreetMap schools downloaded $(sed -n 's/^- Downloaded: //p' data/schools/osm/fetch_report.md 2>/dev/null | head -1); boundaries: $(sed -n 's/^- Governorate boundaries: //p' data/schools/osm/fetch_report.md 2>/dev/null | head -1)"
+  else
+    todo "OpenStreetMap download failed (servers busy?). Run this script again later; the last download, if any, is used meanwhile."
+  fi
 fi
-if [ "${SEARCH}" = "fake" ]; then
-  ok "school search: fake provider over Firestore (SCHOOL_SEARCH_PROVIDER=fake; no Algolia needed)"
+shopt -s nullglob
+REAL_INPUTS=(data/schools/osm/*.geojson data/schools/*.csv data/schools/*.geojson data/schools/*.json data/schools/*.zip)
+shopt -u nullglob
+import_schools() {
+  python3 tools/import_schools/import_schools.py >"${SCHOOLS_OUT}/import.txt"
+  # The hand-written sample's keys, to take its fake schools out of search.
+  python3 tools/import_schools/import_schools.py --input data/schools/sample --out build/schools-sample >/dev/null
+}
+import_sample() {
+  python3 tools/import_schools/import_schools.py --input data/schools/sample >"${SCHOOLS_OUT}/import.txt"
+}
+load_schools() {
+  (cd functions && SCHOOLS_PROJECT="${PROJECT}" npm run --silent schools:load:cloud -- --yes --file ../build/schools/schools.json "$@") \
+    | tee "${SCHOOLS_OUT}/load.txt"
+}
+SCHOOLS_LOADED=""
+if [ "${#REAL_INPUTS[@]}" -gt 0 ]; then
+  run_step import_schools
+  if [ "${STEP_RC}" -eq 0 ]; then
+    ok "import: $(sed -n 's/^Kept /kept /p' "${SCHOOLS_OUT}/import.txt" | head -1) (full report: build/schools/report.md)"
+    run_step load_schools --hide-sample ../build/schools-sample/schools.json
+    if [ "${STEP_RC}" -eq 0 ]; then
+      SCHOOLS_LOADED=1
+      ok "Firestore 'schools': $(sed -n 's/^load_schools: done\. //p' "${SCHOOLS_OUT}/load.txt" | tail -1) (sample schools kept as documents, out of search)"
+    else
+      todo "schools load stopped (see above). Run this script again: what was written is kept and not written twice."
+    fi
+  else
+    todo "schools import failed (see above); send the developer the error. Nothing was loaded."
+  fi
 else
-  todo "school search is '${SEARCH}' in ${ENV_FILE}: Algolia must be set up (SETUP 14.4) or set SCHOOL_SEARCH_PROVIDER=fake."
+  run_step import_sample
+  [ "${STEP_RC}" -ne 0 ] || run_step load_schools
+  if [ "${STEP_RC}" -eq 0 ]; then
+    SCHOOLS_LOADED=1
+    ok "no real list yet: the hand-written SAMPLE schools are loaded (rerun adds no duplicates)"
+  else
+    todo "sample schools: run this script again; if it fails, send the developer the error."
+  fi
+fi
+algolia_sync() {
+  local key app index
+  key="$(gcloud secrets versions access latest --secret=ALGOLIA_WRITE_KEY --project="${PROJECT}")"
+  app="$(env_value ALGOLIA_APP_ID "")"
+  index="$(env_value ALGOLIA_INDEX "")"
+  (cd functions && ALGOLIA_APP_ID="${app}" ALGOLIA_INDEX="${index}" ALGOLIA_WRITE_KEY="${key}" \
+    SCHOOLS_PROJECT="${PROJECT}" npm run --silent schools:algolia -- sync) | tee "${SCHOOLS_OUT}/algolia.txt"
+}
+if [ "${SEARCH}" = "algolia" ]; then
+  if [ -n "${SCHOOLS_LOADED}" ]; then
+    run_step algolia_sync
+    if [ "${STEP_RC}" -eq 0 ]; then
+      ok "Algolia: $(sed -n 's/^algolia_schools: //p' "${SCHOOLS_OUT}/algolia.txt" | tail -1)"
+    else
+      todo "Algolia index sync failed (see above; 403 means the Write API key was refused: run again with --replace-algolia). Otherwise run this script again."
+    fi
+  else
+    todo "Algolia index not synced (the schools load did not finish); run this script again."
+  fi
+else
+  todo "school search: Algolia is off, so search covers only 200 schools; with the real list the app says 'search unavailable'. Set it up: docs/algolia-setup.md, then run this script again."
+fi
+if [ -s "${SCHOOLS_OUT}/import.txt" ]; then
+  printf '\n  Schools import summary (per governorate, dropped and why):\n'
+  sed 's/^/    /' "${SCHOOLS_OUT}/import.txt"
 fi
 
 # ============================================================== 13. links site
@@ -808,6 +986,10 @@ printf '\nFOR THE DEVELOPER (safe to copy into chat: not secret)\n'
 printf '===== BEGIN %s =====\n' "${OPTIONS_FILE}"
 cat "${OPTIONS_FILE}"
 printf '===== END %s =====\n' "${OPTIONS_FILE}"
+if [ -n "${ALGOLIA_ON}" ]; then
+  printf '\nNON-SECRET SEARCH SETTINGS (commit these lines in %s; the keys stay in Secret Manager)\n' "${ENV_FILE}"
+  grep -E '^(SCHOOL_SEARCH_PROVIDER|ALGOLIA_APP_ID|ALGOLIA_INDEX)=' "${ENV_FILE}" | sed 's/^/  /'
+fi
 CHANGED="$(git status --porcelain -- .firebaserc "${ENV_FILE}" tool/storage_cors.json 2>/dev/null || true)"
 if [ -n "${CHANGED}" ]; then
   printf '\nThese repository files also changed here (commit them too):\n'

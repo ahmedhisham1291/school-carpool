@@ -20,7 +20,8 @@ Limits below are the public free allowances as understood in November 2026.
 | Codemagic | Free personal, iOS builds only | 500 macOS M2 minutes a month (Linux has no free minutes, so no Linux jobs run there) | Codemagic > Billing | macOS minutes run out before the 25th of a month |
 | GitHub Actions | Free (the repository is public now; it goes private before the public launch: **docs/launch-private-repo.md**) | Public repositories: free. Private: 2,000 free Linux minutes a month on the free plan, then USD 0.006 a minute (read 14 Nov 2026). One full run of our checks is about 16 minutes, a branch run about 6 | GitHub > Settings > Billing and licensing > Usage; a budget with "stop usage" (launch-private-repo.md section 2) | A private repository uses 80 percent of the allowance |
 | Stream Chat | Build (free), later Maker | Free plan limits on monthly active users and concurrent connections (see Stream's pricing page); Maker is free for small companies that qualify | Stream Dashboard > Usage (monthly active users, connections) | 80 percent of the free plan's monthly active users or connections; see "Chat (Prompt 9)" |
-| Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
+| Algolia | Free (formerly "Build"); paid Grow accepted by the owner if needed (15 Nov 2026) | 10,000 search requests a month, 50,000 records (read 15 Nov 2026) | Algolia dashboard > Usage | 8,000 searches in a month or 40,000 records; Grow: USD 0.50 per extra 1,000 searches, USD 0.40 per extra 1,000 records a month (docs/algolia-setup.md). The dev build uses the fake search and costs nothing |
+| OpenStreetMap (Overpass API) | Free public servers | The main server asks for under 10,000 queries and 1 GB a day; we make 2 queries per download, at most once a week | `data/schools/osm/fetch_report.md` | Never: if every public server is busy, wait and rerun |
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
 | WhatsApp Business | Pay per delivered template message (no free tier for templates). Egypt, rate card of 1 Oct 2026: about USD 0.0036 per sign-in code or alert (**not confirmed on Meta's own rate card**; docs/meta-whatsapp-setup.md section 11) | Codes and critical alerts only by default (wallet messages too only if the parent switches them on); other notifications are push unless the parent switches WhatsApp on. New accounts: 250 different people per 24 hours until the business is verified | Meta WhatsApp Manager > Insights | Budget set by the owner |
 | Valify, wallet partner | Fake providers | Nothing is called until the pilot (the wallet is switched off; the pilot uses Settle up by InstaPay, which calls no service and costs nothing) | n/a | Contract signed |
@@ -91,18 +92,30 @@ Limits below are the public free allowances as understood in November 2026.
 
 ## Schools list (Prompt 4B)
 
-- **Algolia Build (free) plan:** 10,000 search requests and 10,000
-  recommend requests a month, up to 1 million records, one application.
-  Egypt's OpenStreetMap export has a few tens of thousands of schools, far
-  below the record limit. The plan's terms say it is for evaluation and
-  not for production use (see open question 3).
+- **Algolia Free plan** (read on algolia.com/pricing, 15 Nov 2026; it
+  was called "Build"): 10,000 search requests a month, 50,000 records, 20
+  indexes per application. Staging holds the whole OpenStreetMap list
+  (owner decision 15 Nov 2026), expected 20,000 to 30,000 records after
+  cleaning: it fits. Staging plus prod in one application can pass 50,000
+  only if the list grows a lot; then Grow: 100,000 records and 10,000
+  searches included, USD 0.40 per extra 1,000 records and USD 0.50 per
+  extra 1,000 searches a month (owner accepted paying). The plan's terms
+  for production use: see open question 3.
+- **OpenStreetMap download:** the Overpass API is free (public servers,
+  fair use: two queries per download, at most once a week from
+  cloud_setup.sh). Data under the ODbL: attribution in the app before the
+  public launch.
 - **Searches:** the picker waits 300 ms after the last key press and needs
   2 letters, so one school search is usually 2 to 4 requests. At about 3
   searches per parent (registration and children), 10,000 requests cover
   roughly 1,000 parents a month. Dev and CI use the fake search: zero.
 - **Index writes:** `syncSchoolToSearch` writes only when a school's
   indexed fields change, so loading the same file again costs nothing.
-  The first import sends every school once.
+  The first import sends every school once (one function call per school,
+  20,000 to 30,000, inside the free 2 million a month), and the
+  `schools:algolia -- sync` of step 12 sends them again in batches of
+  1,000 (Algolia does not bill these indexing calls on the Free plan; it
+  counts records and searches).
 - **Search key:** one `getSchoolSearchKey` call per app session per hour.
 - **Per-parent limits:** the secured keys carry a hashed user token, so
   Algolia's limit of 100 searches an hour counts per parent (not per IP
@@ -113,8 +126,12 @@ Limits below are the public free allowances as understood in November 2026.
   refused in prod.
 - **Firestore:** the loader reads every school once per run (about 30,000
   reads, inside the free 50,000 a day; run it at most once a day) and
-  writes only new or changed schools. The dev fake reads at most 200
-  schools once per app start, on the emulators only.
+  writes only new or changed schools: the first real load is 20,000 to
+  30,000 writes, a little over the free 20,000 a day (a few US cents);
+  later runs write only what changed in OpenStreetMap. The index sync
+  reads every school once more. The fake search reads at most 200
+  schools once per app start (emulators; in a cloud build only until
+  Algolia is set up, and it refuses a list of 200 or more).
 - **Usage tracking:** Algolia dashboard > Usage (search requests).
 - **Upgrade when:** 8,000 search requests in a month, or before the
   public launch if Algolia's terms rule out the Build plan for us.

@@ -57,6 +57,18 @@ GOVERNORATE_ALIASES: dict[str, tuple[str, ...]] = {
     "suez": ("السويس", "Suez", "As Suways"),
 }
 
+# ISO 3166-2:EG subdivision codes (OpenStreetMap tags each governorate's
+# boundary relation with ISO3166-2=EG-xx): the surest key for a boundary.
+ISO_3166_2: dict[str, str] = {
+    "EG-ALX": "alexandria", "EG-ASN": "aswan", "EG-AST": "asyut", "EG-BH": "beheira",
+    "EG-BNS": "beni_suef", "EG-C": "cairo", "EG-DK": "dakahlia", "EG-DT": "damietta",
+    "EG-FYM": "faiyum", "EG-GH": "gharbia", "EG-GZ": "giza", "EG-IS": "ismailia",
+    "EG-KFS": "kafr_el_sheikh", "EG-LX": "luxor", "EG-MT": "matruh", "EG-MN": "minya",
+    "EG-MNF": "monufia", "EG-WAD": "new_valley", "EG-SIN": "north_sinai", "EG-PTS": "port_said",
+    "EG-KB": "qalyubia", "EG-KN": "qena", "EG-BA": "red_sea", "EG-SHR": "sharqia",
+    "EG-SHG": "sohag", "EG-JS": "south_sinai", "EG-SUZ": "suez",
+}
+
 # (governorate, English name, Arabic name, lat, lng)
 TOWNS: tuple[tuple[str, str, str, float, float], ...] = (
     # Cairo

@@ -232,3 +232,11 @@ revised list ("implement all your suggestions"):
 - **Admin panel language:** starts in English (the parents' app stays Arabic
   by default). A language button is on the sign-in and two-step setup
   screens as well as inside the panel.
+
+## Owner decision (15 Nov 2026, 16:44)
+
+- **Schools list on staging:** load every Egyptian school and kindergarten
+  we can get from open data into staging; staging uses Algolia for school
+  search (paid plan accepted if needed). Source: OpenStreetMap through the
+  Overpass API (ODbL), fetched by `tool/cloud_setup.sh` step 12; owner CSV
+  lists are added when present (SETUP.md 14, docs/algolia-setup.md).
