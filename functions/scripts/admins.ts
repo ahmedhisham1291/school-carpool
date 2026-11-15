@@ -150,6 +150,32 @@ async function checkTotp(): Promise<void> {
   }
 }
 
+/**
+ * Removes an admin's authenticator so the panel asks them to set it up again
+ * at the next sign-in (lost phone, deleted authenticator entry). Their
+ * sessions are ended; the password stays. Written to the audit log.
+ */
+async function resetTwoStep(email: string): Promise<void> {
+  if (onEmulator) refuse("the Auth emulator has no TOTP; run this against a cloud project");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) refuse("give a valid email");
+  const user = await auth.getUserByEmail(email.toLowerCase());
+  const claims = user.customClaims ?? {};
+  if (claims.admin !== true) refuse("that account is not an admin");
+  if (user.phoneNumber) refuse("that account has a phone number (a parent), not an admin");
+  await auth.updateUser(user.uid, { multiFactor: { enrolledFactors: null } });
+  await auth.revokeRefreshTokens(user.uid);
+  await db.collection("auditLog").doc().create({
+    actorUid: "bootstrap-script",
+    action: "admin.resetTwoStep",
+    target: `admins/${user.uid}`,
+    reasonCode: null,
+    details: {},
+    ip: null,
+    time: FieldValue.serverTimestamp(),
+  });
+  console.log(`admins: two-step sign-in removed for admin ${user.uid}. They sign in with the password and set it up again.`);
+}
+
 async function main(): Promise<void> {
   const [command, arg1, ...rest] = process.argv.slice(2);
   switch (command) {
@@ -157,12 +183,14 @@ async function main(): Promise<void> {
       return createSuperAdmin(arg1 ?? "", rest.join(" "));
     case "password-link":
       return passwordLink(arg1 ?? "");
+    case "reset-two-step":
+      return resetTwoStep(arg1 ?? "");
     case "enable-totp":
       return enableTotp();
     case "check-totp":
       return checkTotp();
     default:
-      refuse('commands: create-super-admin <email> "<name>" | password-link <email> | enable-totp | check-totp');
+      refuse('commands: create-super-admin <email> "<name>" | password-link <email> | reset-two-step <email> | enable-totp | check-totp');
   }
 }
 
