@@ -10,6 +10,7 @@ import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
 import 'package:school_carpool/admin/data/school_filters.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
+import 'package:school_carpool/design/components/components.dart';
 
 import '../helpers/admin_fakes.dart';
 import '../helpers/dropdown.dart';
@@ -45,7 +46,7 @@ void main() {
     });
 
     test('drops a child without its parent, unknown values and the "show all" filters without show all', () {
-      final SchoolFilters f = SchoolFilters.fromQuery(<String, String>{
+      final SchoolFilters f = SchoolFilters.fromQuery(const <String, String>{
         'area': 'osm-r1',
         'district': 'osm-n10',
         'status': 'merged',
@@ -55,8 +56,8 @@ void main() {
         'city': 'atlantis',
       });
       expect(f, const SchoolFilters());
-      expect(SchoolFilters.fromQuery(<String, String>{'city': 'cairo', 'district': 'osm-n10'}).districtId, isNull);
-      expect(SchoolFilters.fromQuery(<String, String>{'city': 'cairo', 'area': '../x'}).areaId, isNull);
+      expect(SchoolFilters.fromQuery(const <String, String>{'city': 'cairo', 'district': 'osm-n10'}).districtId, isNull);
+      expect(SchoolFilters.fromQuery(const <String, String>{'city': 'cairo', 'area': '../x'}).areaId, isNull);
     });
 
     test('a new city clears area and district; a new area clears the district; clear keeps the sort', () {
@@ -217,7 +218,7 @@ void main() {
     });
 
     testWidgets('Arabic, narrow: list rows instead of the table', (WidgetTester tester) async {
-      await pumpAdminPanel(tester, session: signedIn, location: AdminRoutes.schools, locale: 'ar', size: const Size(600, 1400));
+      await pumpAdminPanel(tester, session: signedIn, location: AdminRoutes.schools, size: const Size(600, 1400));
       await _settle(tester);
       expect(find.byKey(const Key('schools.s1')), findsOneWidget);
       expect(tester.takeException(), isNull);

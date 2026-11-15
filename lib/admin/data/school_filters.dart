@@ -47,7 +47,7 @@ enum SchoolSort {
 }
 
 /// Sources the source filter offers (the URL may carry any other one,
-/// for example a list file's "list_<name>").
+/// for example a list file's `list_<name>`).
 const List<String> kSchoolSources = <String>['osm', 'wikidata', 'admin', 'parent', 'seed'];
 
 /// The admin schools search: text, City -> Area -> District, and (with

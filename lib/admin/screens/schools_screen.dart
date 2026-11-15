@@ -707,7 +707,7 @@ class _SchoolsTableHeader extends StatelessWidget {
       child: Container(
         padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter, vertical: AppSpacing.s8),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: context.colors.outlineVariant, width: AppBorders.hairline)),
+          border: Border(bottom: BorderSide(color: context.colors.outlineVariant)),
         ),
         child: Row(
           children: <Widget>[
@@ -773,7 +773,7 @@ class _SchoolsTableRow extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: AppSpacing.minTouchTarget + AppSpacing.s8),
           padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter, vertical: AppSpacing.s8),
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: context.colors.outlineVariant, width: AppBorders.hairline)),
+            border: Border(bottom: BorderSide(color: context.colors.outlineVariant)),
           ),
           child: Row(
             children: <Widget>[
