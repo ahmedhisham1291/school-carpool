@@ -65,6 +65,31 @@ export function emailAllowed(emailType: string | undefined): boolean {
   return emailType !== "PASSWORD_RESET" && emailType !== "EMAIL_SIGN_IN";
 }
 
+/** How long the admin script's permission for one set-password link lasts. */
+export const ADMIN_LINK_WINDOW_MS = 2 * 60 * 1000;
+
+/**
+ * The one exception to "no password-reset emails": the admin script
+ * (functions/scripts/admins.ts) asks Firebase for a one-time set-password
+ * link for an admin it has just checked. It first writes a short-lived note
+ * (serverState/adminPasswordLink: email, expiresAtMs) that only the server
+ * can write; the blocking function lets a PASSWORD_RESET through only while
+ * that note is fresh and, when Firebase tells us the address, only for that
+ * address. Anything else is refused.
+ */
+export function adminLinkAllowed(
+  emailType: string | undefined,
+  note: { email?: unknown; expiresAtMs?: unknown } | null | undefined,
+  eventEmail: string | undefined,
+  nowMs: number,
+): boolean {
+  if (emailType !== "PASSWORD_RESET" || !note) return false;
+  if (typeof note.email !== "string" || typeof note.expiresAtMs !== "number") return false;
+  if (note.expiresAtMs <= nowMs || note.expiresAtMs > nowMs + ADMIN_LINK_WINDOW_MS) return false;
+  if (eventEmail !== undefined && eventEmail.toLowerCase() !== note.email.toLowerCase()) return false;
+  return true;
+}
+
 /**
  * Whether confirmEmail is a change: the record does not have this
  * confirmed email yet. Only then does it write and hand out a fresh custom

@@ -339,7 +339,7 @@ if gcloud services api-keys update "${IOS_KEY_RES}" --project="${PROJECT}" --qui
      --allowed-bundle-ids="${BUNDLE_ID}" "${IOS_KEY_TARGETS[@]}" >/dev/null 2>"${WORK}/key.err"; then
   ok "iOS key: only ${BUNDLE_ID}; Maps SDK for iOS and the Firebase APIs the app uses"
 else
-  grep -iE 'error|denied|invalid' "${WORK}/key.err" | grep -v keyString | head -3 || true
+  grep -v -i keyString "${WORK}/key.err" | tail -6 || true
   todo "iOS key: ${GCP}/apis/credentials?project=${PROJECT} > '${IOS_KEY_NAME}' > API restrictions: add Identity Toolkit, Token Service, Cloud Firestore, Cloud Storage for Firebase, Firebase Installations, FCM Registration, Firebase App Check and Firebase Management next to Maps SDK for iOS > Save. Without this the iPhone app cannot sign in."
 fi
 MAPS_IOS_KEY="$(gcloud services api-keys get-key-string "${IOS_KEY_RES}" --format='value(keyString)')"
@@ -676,10 +676,14 @@ else todo "TOTP: ${CONSOLE}/authentication/settings > Multi-factor authenticatio
 
 FLUTTER_VERSION="$(sed -n 's/^ *FLUTTER_VERSION: *"\{0,1\}\([0-9][0-9.]*\)"\{0,1\}.*/\1/p' .github/workflows/checks.yml | head -1)"
 build_admin() {
-  local flutter_bin
+  local flutter_bin="" path_ver=""
+  # Cloud Shell ships its own Flutter (another version, and git refuses its
+  # folder): use it only if it is exactly the version CI uses.
   if command -v flutter >/dev/null 2>&1; then
-    flutter_bin="$(command -v flutter)"
-  else
+    path_ver="$(flutter --version 2>/dev/null | awk 'NR==1 {print $2}' || true)"
+    [ "${path_ver}" = "${FLUTTER_VERSION}" ] && flutter_bin="$(command -v flutter)"
+  fi
+  if [ -z "${flutter_bin}" ]; then
     local home="${FLUTTER_HOME:-${HOME}/flutter}"
     if [ ! -x "${home}/bin/flutter" ] && [ -z "${FLUTTER_HOME:-}" ]; then
       # Flutter and its packages need about 3.5 GB; Cloud Shell's home has 5 GB.
@@ -693,7 +697,9 @@ build_admin() {
       echo "  Downloading Flutter ${FLUTTER_VERSION} (same as CI; a few minutes)..."
       git clone --depth 1 --branch "${FLUTTER_VERSION}" https://github.com/flutter/flutter.git "${home}"
     fi
+    git config --global --add safe.directory "${home}" 2>/dev/null || true
     flutter_bin="${home}/bin/flutter"
+    export PATH="${home}/bin:${PATH}"
   fi
   "${flutter_bin}" config --no-analytics >/dev/null 2>&1 || true
   local have; have="$("${flutter_bin}" --version 2>/dev/null | awk 'NR==1 {print $2}' || true)"

@@ -2,7 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import { HttpsError, beforeEmailSent, beforeUserCreated, beforeUserSignedIn } from "firebase-functions/v2/identity";
 import { adminDb } from "../admin";
-import { creationAllowed, emailAllowed, isAdminAccount, signInAllowed } from "./sign_in_policy";
+import { adminLinkAllowed, creationAllowed, emailAllowed, isAdminAccount, signInAllowed } from "./sign_in_policy";
 
 /**
  * Identity Platform blocking functions (free tier). They run before every
@@ -50,8 +50,24 @@ export const blockClientSignUps = beforeUserCreated((event) => {
   }
 });
 
-export const blockSignInEmails = beforeEmailSent((event) => {
-  if (!emailAllowed(event.emailType)) {
+export const blockSignInEmails = beforeEmailSent(async (event) => {
+  if (emailAllowed(event.emailType)) return;
+  // Only exception: the admin script's one-time set-password link
+  // (sign_in_policy.ts, adminLinkAllowed). Any error refuses.
+  let allowed = false;
+  try {
+    const note = await adminDb().collection("serverState").doc("adminPasswordLink").get();
+    const eventEmail = (event.additionalUserInfo as { email?: unknown } | undefined)?.email;
+    allowed = adminLinkAllowed(
+      event.emailType,
+      note.exists ? (note.data() as { email?: unknown; expiresAtMs?: unknown }) : null,
+      typeof eventEmail === "string" ? eventEmail : undefined,
+      Date.now(),
+    );
+  } catch (error) {
+    logger.error("admin link note read failed", { message: error instanceof Error ? error.message : "unknown" });
+  }
+  if (!allowed) {
     throw new HttpsError("permission-denied", "This email is not used by the app.");
   }
 });

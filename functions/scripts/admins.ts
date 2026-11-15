@@ -85,9 +85,23 @@ async function createSuperAdmin(email: string, displayName: string): Promise<voi
   if (onEmulator) {
     console.log(`admins: super admin ${user.uid} created; sign in with the password "${DEV_PASSWORD}"`);
   } else {
-    const link = await auth.generatePasswordResetLink(email.toLowerCase());
+    const link = await setPasswordLink(email.toLowerCase());
     console.log(`admins: super admin ${user.uid} created. Give this one-time link to them directly (valid 1 hour):`);
     console.log(link);
+  }
+}
+
+/**
+ * The blocking function refuses every password-reset email except while this
+ * short-lived, server-only note is fresh (sign_in_policy.ts, adminLinkAllowed).
+ */
+async function setPasswordLink(email: string): Promise<string> {
+  const note = db.collection("serverState").doc("adminPasswordLink");
+  await note.set({ email, expiresAtMs: Date.now() + 90 * 1000 });
+  try {
+    return await auth.generatePasswordResetLink(email);
+  } finally {
+    await note.delete().catch(() => undefined);
   }
 }
 
@@ -98,7 +112,7 @@ async function passwordLink(email: string): Promise<void> {
   const claims = user.customClaims ?? {};
   if (claims.admin !== true) refuse("that account is not an admin");
   if (user.phoneNumber) refuse("that account has a phone number (a parent), not an admin");
-  const link = await auth.generatePasswordResetLink(email.toLowerCase());
+  const link = await setPasswordLink(email.toLowerCase());
   console.log(`admins: one-time link for admin ${user.uid} (valid 1 hour; give it to them directly):`);
   console.log(link);
 }
