@@ -7,6 +7,7 @@ import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/l10n/l10n.dart';
+import 'package:school_carpool/settings/app_settings.dart';
 
 /// Admin sign-in with two steps (F14): email and password, then the
 /// 6-digit code from the authenticator app. Parents cannot sign in here:
@@ -191,6 +192,14 @@ class _AdminSignInScreenState extends ConsumerState<AdminSignInScreen> {
                           onPressed: _busy ? null : _back,
                         ),
                       ],
+                      const SizedBox(height: AppSpacing.s8),
+                      AppButton(
+                        key: const Key('admin.language'),
+                        label: ref.watch(localeProvider) == AppLocales.arabic ? l10n.languageEnglish : l10n.languageArabic,
+                        icon: Icons.translate,
+                        variant: AppButtonVariant.tertiary,
+                        onPressed: () => unawaited(ref.read(localeProvider.notifier).toggle()),
+                      ),
                     ],
                   ),
                 ),
