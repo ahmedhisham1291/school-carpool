@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/places/place_models.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
-import 'package:school_carpool/features/auth/session.dart';
 
 enum PlaceFailureKind { offline, unavailable }
 

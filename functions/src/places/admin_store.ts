@@ -91,6 +91,9 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
         b.create(this.db.collection(AUDIT_LOG).doc(), auditDoc({ ...audit, details: { ...audit.details, schools: schools.size } }));
       },
     );
+    // The names copied on parents' private addresses (their own label and address search).
+    const homes = await this.db.collection(HOMES).where("address.placeAreaId", "==", area.id).get();
+    await this.updateAll(homes.docs, { "address.placeAreaNameAr": area.nameAr, "address.placeAreaNameEn": area.nameEn, updatedAt: now });
   }
 
   async saveDistrict(
@@ -112,6 +115,11 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
     }
     b.create(this.db.collection(AUDIT_LOG).doc(), auditDoc(audit));
     await b.commit();
+    if (!isNew) {
+      // The names copied on parents' private addresses.
+      const homes = await this.db.collection(HOMES).where("address.placeDistrictId", "==", d.id).get();
+      await this.updateAll(homes.docs, { "address.placeDistrictNameAr": d.nameAr, "address.placeDistrictNameEn": d.nameEn, updatedAt: now });
+    }
   }
 
   async setActive(kind: PlaceKind, id: string, active: boolean, audit: AuditEntry): Promise<void> {
@@ -146,7 +154,14 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
         auditDoc({ ...audit, details: { ...audit.details, schools: schools.size, addresses: homes.size } }),
       );
     });
-    await this.updateAll(homes.docs, { [`address.${schoolField}`]: intoId, updatedAtMs: Date.now() });
+    // Parents' private addresses: the new id and its names (their label and address search use them).
+    const nameField = kind === "area" ? "placeAreaName" : "placeDistrictName";
+    await this.updateAll(homes.docs, {
+      [`address.${schoolField}`]: intoId,
+      [`address.${nameField}Ar`]: String(into.get("nameAr") ?? ""),
+      [`address.${nameField}En`]: String(into.get("nameEn") ?? ""),
+      updatedAt: now,
+    });
     await this.updateAll(publics.docs, { [schoolField]: intoId });
     if (kind === "area") {
       const districts = await this.db.collection(PLACE_DISTRICTS).where("areaId", "==", fromId).get();
@@ -230,13 +245,21 @@ export class FirestorePlacesAdminStore implements PlacesAdminStore {
       const pub = uid ? this.db.collection(PARENT_LOCATIONS).doc(uid) : null;
       const homeSnap = home ? await tx.get(home) : null;
       const pubSnap = pub ? await tx.get(pub) : null;
+      const districtSnap = districtId ? await tx.get(this.db.collection(PLACE_DISTRICTS).doc(districtId)) : null;
       tx.update(ref, { status: "done", districtId, resolvedAt: FieldValue.serverTimestamp() });
       // Only while the address still names this request's area and has no district.
       if (
         districtId && home && homeSnap?.exists &&
         homeSnap.get("address.placeAreaId") === snap.get("areaId") && !homeSnap.get("address.placeDistrictId")
       ) {
-        tx.update(home, { "address.placeDistrictId": districtId, "address.districtText": "", updatedAtMs: Date.now() });
+        tx.update(home, {
+          "address.placeDistrictId": districtId,
+          // The names too: the parent's label shows the district by its names once the id is set.
+          "address.placeDistrictNameAr": String(districtSnap?.get("nameAr") ?? ""),
+          "address.placeDistrictNameEn": String(districtSnap?.get("nameEn") ?? ""),
+          "address.districtText": "",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
         tx.update(this.db.collection(PLACE_DISTRICTS).doc(districtId), { addressCount: FieldValue.increment(1) });
         if (pub && pubSnap?.exists) tx.update(pub, { placeDistrictId: districtId });
       }

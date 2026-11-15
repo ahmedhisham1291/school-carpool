@@ -149,6 +149,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
       _areaId = null;
       _districtId = null;
       _districtText.clear();
+      _dropSearchPin();
     });
   }
 
@@ -160,7 +161,17 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
       _areaId = areaId;
       _districtId = null;
       _districtText.clear();
+      _dropSearchPin();
     });
+  }
+
+  /// A pin from "Search instead" belongs to the place it found: once the
+  /// parent picks another city or area, the pin step searches again.
+  void _dropSearchPin() {
+    if (_geocodedFor == null) {
+      _pin = null;
+      _approximate = false;
+    }
   }
 
   void _pickDistrict(String id) => setState(() => _districtId = id);
