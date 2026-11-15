@@ -594,15 +594,17 @@ this section is what it does, for a Mac or for prod.
    with coordinates (P625), not dissolved, with Arabic and English labels.
    Writes `data/schools/wikidata/egypt_schools_wikidata.geojson` and a
    fetch report (git-ignored). Classes that are not schools for us
-   (universities, colleges, music/driving/language schools, historic
-   madrasas) become tags the importer drops. An OSM school tagged
+   (universities, colleges, music/driving schools, historic
+   madrasas; an Egyptian "language school" stays a school) become tags the importer drops. An OSM school tagged
    `wikidata=Q..` absorbs that item (its labels fill missing Arabic or
    English names); other overlaps are merged by the usual name + 300 m
    rule. Wikidata is CC0 (no attribution required; we credit "Wikidata"
-   in the licences screen with OpenStreetMap). Set `WIKIDATA_CONTACT`
-   (an email or web page) to add a contact to the User-Agent, as
-   Wikimedia's User-Agent policy asks; a 403 answer means the service
-   refused the request without one.
+   in the licences screen with OpenStreetMap). The User-Agent
+   carries a contact, as Wikimedia's User-Agent policy asks:
+   `tool/cloud_setup.sh` uses the `<admin-email>` argument unless
+   `WIKIDATA_CONTACT` (an email or web page) is set; run by hand, set
+   `WIKIDATA_CONTACT` yourself. A 403 answer means the service refused
+   the request.
 1. **OpenStreetMap schools (HDX).** Open
    <https://data.humdata.org/dataset/hotosm_egy_education_facilities>
    ("Egypt Education Facilities (OpenStreetMap Export)", by the

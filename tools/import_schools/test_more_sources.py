@@ -98,7 +98,16 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(cls({"building": "kindergarten", "name": "Little Stars"}), ("kindergarten", "building"))
         self.assertEqual(cls({"building": "school", "name": "مبنى ب"})[1], "building_part")
         self.assertEqual(cls({"building": "school", "name": "كلية التربية"})[1], "not_school_university")
-        self.assertEqual(cls({"isced:level": "1;2", "name": "Nile Academy School"})[1], "not_school_courses")
+        # Review fix: centre/academy/markaz drop a name only when it does not say school.
+        self.assertEqual(cls({"isced:level": "1;2", "name": "Nile Academy School"}), ("school", "isced"))
+        self.assertEqual(cls({"isced:level": "1;2", "name": "Nile Academy"})[1], "not_school_courses")
+        self.assertEqual(cls({"building": "school", "name": "مدرسة كفر الشيخ الإعدادية بمركز دسوق"}), ("school", "building"))
+        self.assertEqual(cls({"name": "مدرسة الشهيد أحمد مركز طوخ"}), ("school", "name"))
+        self.assertEqual(cls({"building": "school", "name": "مركز تدريب"})[1], "not_school_courses")
+        self.assertEqual(cls({"building": "school", "name": "سنتر النور"})[1], "not_school_courses")
+        # Religious schools: a named school building keeps its religion tag.
+        self.assertEqual(cls({"building": "school", "religion": "christian", "name": "مدرسة الراهبات"}), ("school", "building"))
+        self.assertEqual(cls({"building": "yes", "religion": "muslim", "name": "مدرسة السلطان"})[1], "not_school_feature")
         self.assertEqual(cls({"isced:level": "1;2", "name": "Nile Integrated"}), ("school", "isced"))
         self.assertEqual(cls({"isced:level": "0", "name": "Little Hands"}), ("kindergarten", "isced"))
         self.assertEqual(cls({"isced:level": "6", "name": "Some Institute"})[1], "not_school_university")
@@ -233,6 +242,9 @@ class WikidataTest(unittest.TestCase):
         self.assertEqual(nile["wikidata:classes"], "international school; private school")
         self.assertEqual(by_id["Q100"]["geometry"]["coordinates"], [31.2357, 30.0444])
         self.assertEqual(by_id["Q200"]["properties"]["amenity"], "kindergarten")
+        # Review fix: an Egyptian "language school" item stays a school.
+        self.assertEqual(wd.classes_to_tags({"language school"}, {"Q3914"}), {"amenity": "school"})
+        self.assertEqual(wd.classes_to_tags({"music school"}, {"Q3914"}), {"amenity": "training"})
         self.assertEqual(by_id["Q300"]["properties"], {**by_id["Q300"]["properties"], "historic": "yes"})
         self.assertEqual(by_id["Q400"]["properties"]["amenity"], "training")
 

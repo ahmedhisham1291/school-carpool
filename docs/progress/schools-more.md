@@ -21,8 +21,11 @@ returned 1,298 features, the import kept 888 (368 dropped for no name, 18
    street/shop/place/historic/leisure/... tag → "named like a school but
    mapped as something else" (streets, bus stops, historic madrasas such as
    Sultan Hassan, pitches); names that say university/faculty/كلية/جامعة →
-   university; centre/academy/driving/training/music/dance/courses/nursing
-   (Arabic too) → courses; "مبنى ب"-style building names → building part.
+   university; driving/training/music/dance/courses/nursing (Arabic too)
+   → courses; centre/academy/مركز/سنتر → courses only when the name does
+   not itself read like a school ("مدرسة ... بمركز دسوق" stays; review
+   fix); a named building=school is not dropped for a religion tag;
+   "مبنى ب"-style building names → building part.
    "Language schools" stay (in Egypt they are ordinary schools). New drop
    reasons are in the report and the step-12 summary.
 3. **Names from other tags** (`recover_name`): official_name, alt_name,
@@ -33,13 +36,15 @@ returned 1,298 features, the import kept 888 (368 dropped for no name, 18
    school (Q3914) or kindergarten (Q126807) or subclasses, P17 = Egypt
    (Q79), with P625, not dissolved (P576), Arabic and English labels;
    country first with the optimizer off. Rows grouped per QID; classes
-   that are not schools (university, college, music/driving/language
-   school, madrasa, monument, ...) mapped to tags the importer drops.
+   that are not schools (university, college, music/driving school,
+   madrasa, monument, ...; an Egyptian "language school" stays a school,
+   review fix) mapped to tags the importer drops.
    Source "wikidata", ID `wikidata-Q123`. An OSM school tagged
    `wikidata=Q123` absorbs the item (labels fill missing names, key
    `wikidata:Q123` added; the item is reported as "already in
    OpenStreetMap"); other overlaps go through the usual merge. CC0 note in
-   the report; `WIKIDATA_CONTACT` adds a contact to the User-Agent.
+   the report; `WIKIDATA_CONTACT` adds a contact to the User-Agent
+   (step 12 defaults it to the admin email argument; owner decision).
 5. **Overpass retries**: a 502/503/504 or network error moves to the next
    server at once (no 15-60 s waits on a busy server); a pause (30 s, then
    60 s) only after every server failed in a round; the boundaries
