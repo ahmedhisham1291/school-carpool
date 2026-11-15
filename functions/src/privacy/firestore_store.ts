@@ -919,7 +919,12 @@ export class FirestoreExportSource implements ExportSource {
       case "vehicle":
         return this.doc(`vehicles/${uid}`);
       case "home":
-        return { exact: await this.doc(`homes/${uid}`), shownToOthers: await this.doc(`parentLocations/${uid}`) };
+        return {
+          exact: await this.doc(`homes/${uid}`),
+          shownToOthers: await this.doc(`parentLocations/${uid}`),
+          // F46: a typed "my district isn't listed" waiting for the admins.
+          districtRequest: await this.doc(`placeRequests/${uid}`),
+        };
       case "carpools": {
         const ids = await this.carpoolIds(uid);
         const perCarpool: unknown[] = [];

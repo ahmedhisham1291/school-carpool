@@ -137,6 +137,27 @@ Limits below are the public free allowances as understood in November 2026.
 - **Upgrade when:** 8,000 search requests in a month, or before the
   public launch if Algolia's terms rule out the Build plan for us.
 
+## Places and addresses (F4 grouping, F46)
+
+- **Download:** two more Overpass queries per weekly step-12 run (the
+  boundaries below the governorate and the named neighbourhoods); free.
+- **Load:** the loader reads every place area and district once per run
+  (a few hundred to a few thousand reads, inside the free 50,000 a day)
+  and writes only new or changed ones. The first run after this change
+  also updates every school once (its area fields): about one write per
+  school.
+- **Lookups (`placeForPoint`, `setHomeAddress`, an "Other" school, an
+  admin-saved school):** one read of `placeIndex/areas` per function
+  instance every 10 minutes, then 1 to 3 area documents and the districts
+  of one area (usually under 50 reads). `placeForPoint` counts against the
+  parent's address-search limit (60 an hour).
+- **Address pin (`geocodeAddress`):** one Places Autocomplete request and
+  one Place Details (Essentials, cached 30 days) per address, inside the
+  existing per-parent limits and the free monthly calls; no new SKU.
+- **App reads:** the City -> Area -> District menus read the areas of one
+  city (at most 500) and the districts of one area; browsing reads at
+  most 200 schools of one area.
+
 ## Maps (Prompt 5)
 
 Google Maps Platform bills per product ("SKU"); since March 2025 each SKU

@@ -1,6 +1,12 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_places.dart';
+import 'package:school_carpool/features/maps/geo.dart';
+import 'package:school_carpool/features/maps/map_models.dart';
+import 'package:school_carpool/features/maps/map_repository.dart';
+import 'package:school_carpool/features/places/address_models.dart';
+import 'package:school_carpool/features/places/address_repository.dart';
 import 'package:school_carpool/features/places/place_models.dart';
 import 'package:school_carpool/features/places/place_repository.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
@@ -143,3 +149,51 @@ class FakeAdminPlacesApi implements AdminPlacesApi {
     String? nameEn,
   }) => _check('resolve:$id:${action.wire}:${districtId ?? ''}:${nameAr ?? ''}:${nameEn ?? ''}');
 }
+
+/// F46 address calls (fake data only). Records what it was asked.
+class FakeAddressRepository implements AddressRepository {
+  FakeAddressRepository({this.hit = const PlaceHit(governorate: 'cairo', placeAreaId: 'osm-r1', placeDistrictId: 'osm-n10')});
+
+  final PlaceHit hit;
+  final List<HomeAddress> geocoded = <HomeAddress>[];
+  final List<(HomeAddress, GeoPin)> saved = <(HomeAddress, GeoPin)>[];
+  final List<GeoPin> lookedUp = <GeoPin>[];
+
+  /// The start pin geocode answers (null: nothing found).
+  GeoPin? found = const GeoPin(29.9602, 31.2569);
+  AddressFailure? failure;
+
+  void _check() {
+    final AddressFailure? f = failure;
+    if (f != null) {
+      throw f;
+    }
+  }
+
+  @override
+  Future<PlaceHit> placeForPoint(GeoPin point) async {
+    lookedUp.add(point);
+    _check();
+    return hit;
+  }
+
+  @override
+  Future<GeocodeResult> geocode(HomeAddress address, {required String sessionToken, required String language}) async {
+    geocoded.add(address);
+    _check();
+    return GeocodeResult(location: found ?? const GeoPin(29.958, 31.27), approximate: found == null);
+  }
+
+  @override
+  Future<GeoPin> save(HomeAddress address, GeoPin location) async {
+    _check();
+    saved.add((address, location));
+    return const GeoPin(29.9625, 31.2575);
+  }
+}
+
+List<Override> addressOverrides({FakeAddressRepository? address, PlaceRepository? places, HomeLocation? home}) => <Override>[
+  addressRepositoryProvider.overrideWithValue(address ?? FakeAddressRepository()),
+  placeRepositoryProvider.overrideWithValue(places ?? FakePlaceRepository()),
+  myHomeProvider.overrideWith((Ref ref) => Stream<HomeLocation?>.value(home)),
+];

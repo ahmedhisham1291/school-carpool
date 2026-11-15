@@ -233,6 +233,22 @@ revised list ("implement all your suggestions"):
   by default). A language button is on the sign-in and two-step setup
   screens as well as inside the panel.
 
+## Owner decisions (16 Nov 2026): places and addresses
+
+- **City -> Area -> District, option 1 (keep both):** the per-school `areas`
+  of Prompt 6 (an area belongs to one school; carpools, search and chat use
+  them) stay unchanged. The new hierarchy is separate: City = governorate,
+  `placeAreas` (qism / markaz / new city) and `placeDistricts`
+  (neighbourhoods), from OpenStreetMap, managed by admins. Which OSM
+  admin_level is an Area or a District is measured at import time, not
+  assumed (SETUP.md 14).
+- **F46 home address:** City, Area and District as dropdown menus
+  (filterable; Area waits for City, District for Area; a change clears the
+  ones below; "My district isn't listed" -> typed and reviewed), street and
+  building, optional floor/apartment/landmark, then the pin confirmed on a
+  map; "Search instead" stays as a shortcut. Schools are grouped City ->
+  Area for browsing, with Algolia filters.
+
 ## Owner decision (15 Nov 2026, 16:44)
 
 - **Schools list on staging:** load every Egyptian school and kindergarten

@@ -9,11 +9,11 @@ import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/chat/chat_sheets.dart';
 import 'package:school_carpool/features/maps/geo.dart';
-import 'package:school_carpool/features/maps/home_location_screen.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/maps/map_view.dart';
 import 'package:school_carpool/features/maps/my_schools.dart';
+import 'package:school_carpool/features/places/address_screen.dart';
 import 'package:school_carpool/features/verification/verification_repository.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
@@ -173,7 +173,7 @@ class _NearbyParentsScreenState extends ConsumerState<NearbyParentsScreen> {
 
   Future<void> _setHome() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (BuildContext context) => const HomeLocationScreen()),
+      MaterialPageRoute<void>(builder: (BuildContext context) => const AddressScreen()),
     );
   }
 

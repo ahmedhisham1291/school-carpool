@@ -100,6 +100,16 @@ focused and hovered controls get a veil of their label color at
 - **Picker fields** (`AppPickerField`): looks like an input (label above,
   one-line value or a quieter placeholder, chevron) and opens a chooser
   screen on tap, for choices from long lists (the child's school).
+- **Dropdown menus** (`AppDropdownMenu`, F4/F46): Material 3 DropdownMenu
+  with our input look; tap to open or type to narrow the list (Arabic
+  spelling differences and "ال" ignored). Items are one line with an
+  ellipsis and at least 48 dp high; Arabic names first in Arabic. Use them
+  for City, Area and District and for other long lists picked on the same
+  screen. A child menu is disabled (with a helper: "Choose the city
+  first") until its parent has a value; give it a key that changes with
+  the parent so a new parent clears it. A pinned last item ("My district
+  isn't listed") stays visible whatever is typed and opens a text field.
+  Stack dependent menus vertically, one primary action ("Next") below.
 - **Cards** (`AppCard`): raised surface, hairline border, radius 16, 16
   padding. Don't nest cards or add shadows to every card.
 - **List rows** (`AppListRow`): 24 side padding, neutral rounded icon tile,
