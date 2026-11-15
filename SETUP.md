@@ -788,7 +788,7 @@ unapproved too; docs/COSTS.md explains why not Algolia). After the deploy
 that adds `adminSearchSchools` and `syncSchoolAdminGrams`:
 
 1. Deploy the indexes: `firebase deploy --only firestore:indexes
-   --project <alias>` (14 new composite indexes on `schools`; they build
+   --project <alias>` (13 new composite indexes on `schools`; they build
    in a few minutes; the search works meanwhile in a slower mode and says
    so).
 2. Fill the search grams of the schools already loaded (one read per

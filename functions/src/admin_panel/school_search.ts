@@ -17,13 +17,13 @@ import { normalizeText } from "../text/normalize";
  * - Each school carries `adminSearchGrams`: for every word of its
  *   normalized names (text/normalize.ts: ة/ه, ى/ي, أ/إ/آ/ا, diacritics,
  *   case, Arabic-Indic digits), and the word without "ال", the 3-letter
- *   start and the 3 letters after the first one. A query asks Firestore
+ *   start and three 3-letter picks of its first 4 letters (gramsOfWord). A query asks Firestore
  *   for schools holding ANY of the query words' grams (array-contains-any,
  *   at most 30), together with the equality filters, ordered by name.
  * - The function then checks every candidate in memory: each query word
  *   must start a name word, allowing 1 typo from 4 letters and 2 from 8
- *   (insert, delete, change or swap two letters). A typo in the first
- *   letter is found through the second gram.
+ *   (insert, delete, change or swap two letters). A typo in any of the
+ *   first four letters still shares a gram with the right spelling.
  * - Without text: equality filters, ordered by name, counted with a
  *   count() aggregation (one read per 1,000 matches).
  *
@@ -63,10 +63,16 @@ export function searchWords(text: string): string[] {
   return [...words];
 }
 
+/**
+ * Keys of a word: its first 3 letters and, from 4 letters, the 3-letter
+ * picks of its first 4 letters (letters 1-2-3 without the first, 0-1-3 and
+ * 0-2-3). Any one wrong, missing, extra or swapped letter among the first
+ * four leaves a key that the right spelling also has.
+ */
 function gramsOfWord(word: string): string[] {
   if (word.length < 2) return [];
   const grams = [word.slice(0, 3)];
-  if (word.length >= 4) grams.push(word.slice(1, 4));
+  if (word.length >= 4) grams.push(word.slice(1, 4), word[0] + word[1] + word[3], word[0] + word[2] + word[3]);
   return grams;
 }
 
@@ -294,10 +300,11 @@ export interface SchoolSearchDeps {
 export function serverFilters(req: SchoolSearchRequest): ServerFilters {
   const f: ServerFilters = {};
   if (req.status) f.status = req.status;
-  // The most specific place is enough (a district is in one area, an area in one city); the rest is checked in memory.
+  // Every place level: a bookmarked area of another city (or district of
+  // another area) then matches nothing, and count() agrees with the rows.
+  if (req.governorate) f.governorate = req.governorate;
+  if (req.placeAreaId) f.placeAreaId = req.placeAreaId;
   if (req.placeDistrictId) f.placeDistrictId = req.placeDistrictId;
-  else if (req.placeAreaId) f.placeAreaId = req.placeAreaId;
-  else if (req.governorate) f.governorate = req.governorate;
   if (req.source) f.source = req.source;
   if (req.visibility === "hidden") f.hiddenOnly = true;
   if (req.plan && req.plan.grams.length > 0) f.anyGrams = req.plan.grams;

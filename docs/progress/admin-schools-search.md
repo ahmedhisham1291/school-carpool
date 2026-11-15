@@ -34,13 +34,15 @@ Algolia index would double records and sync calls, spend the free 10k
 searches/month on staff, need setup-script changes, and dev would still
 need a Firestore path (fake search). So:
 
-- grams = first 3 letters and letters 2-4 of each normalized word (and the
-  word without "ال"); a query asks `array-contains-any` (<= 30 grams, rare
+- grams = first 3 letters of each normalized word and, from 4 letters,
+  letters 2-3-4, 1-2-4 and 1-3-4 (validator fix: one typo anywhere in the
+  first four letters still shares a gram), also for the word without "ال";
+  a query asks `array-contains-any` (<= 30 grams, rare
   words first; "مدرسة", "school", "international"... only when nothing
   else is typed) plus the equality filters, ordered by name;
 - every candidate is checked in memory: each query word must start a name
   word, with 1 typo from 4 letters, 2 from 8 (insert, delete, change,
-  swap); a wrong first letter is found through the second gram; at most
+  swap); at most
   600 schools read per page (count is then "at least N");
 - without text: equality filters + `count()` (exact; hidden ones
   subtracted when left out);

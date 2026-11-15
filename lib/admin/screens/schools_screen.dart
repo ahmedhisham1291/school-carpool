@@ -593,7 +593,9 @@ class _SchoolsScreenState extends ConsumerState<SchoolsScreen> {
   List<Widget> _results(BuildContext context, {required bool table}) {
     final AppLocalizations l10n = context.l10n;
     final AsyncValue<List<School>> value = _schools;
-    if (value is! AsyncData<List<School>> || value.value.isEmpty) {
+    // Empty with a next page: the scan stopped at its read cap before
+    // finding a match, so "Load more" goes on instead of "No schools match".
+    if (value is! AsyncData<List<School>> || (value.value.isEmpty && _next == null)) {
       return <Widget>[
         SliverToBoxAdapter(
           child: AdminAsyncView<List<School>>(

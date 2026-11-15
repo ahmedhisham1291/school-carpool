@@ -96,7 +96,7 @@ Limits below are the public free allowances as understood in November 2026.
   sync calls and spend the free 10,000 searches a month on staff, and dev
   would still need a Firestore path. Without text: one query of 50 plus a
   `count()` (one read per 1,000 matches). With text: Firestore returns
-  schools holding any of the typed words' 3-letter grams
+  schools holding any of the typed words' 3-letter grams (the start and three picks of the first four letters, so one typo there is still found)
   (`adminSearchGrams`), ordered by name; the function checks each in
   memory (typos, spelling variants) and reads at most 600 schools per page
   (`SCAN_CAP`) to fill the page and count matches. Capped at 120 searches
@@ -107,7 +107,7 @@ Limits below are the public free allowances as understood in November 2026.
   one audit entry per new search; the grams ride along with every school
   write (no extra write) and `schools:admin-grams` fills existing schools
   once (one read per school, one write per school that needs it).
-  14 composite indexes on `schools` (field + name; Firestore merges them
+  13 new composite indexes on `schools` (field + name; Firestore merges them
   for any mix of filters): index storage only, a few MB.
 - **Upgrade when:** never needed for the panel alone at pilot size. If
   admins search far more (the audit log counts `school.search`), move the

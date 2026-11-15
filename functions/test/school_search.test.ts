@@ -159,6 +159,13 @@ describe("school search: text", () => {
     assert.deepEqual(await ids("Zahra internatonal"), ["s2"]);
     assert.deepEqual(await ids("مدرسه الزهراء"), ["s2"]);
     assert.deepEqual(await ids("Bnasr"), ["s1"], "a wrong first letter is found through the second gram");
+    // One typo in any of the first four letters still shares a gram.
+    assert.deepEqual(await ids("Fqtima", { includeAll: true }), ["s4"], "second letter changed");
+    assert.deepEqual(await ids("Faxima", { includeAll: true }), ["s4"], "third letter changed");
+    assert.deepEqual(await ids("Ftima", { includeAll: true }), ["s4"], "second letter missing");
+    assert.deepEqual(await ids("Ftaima", { includeAll: true }), ["s4"], "two letters swapped");
+    assert.deepEqual(await ids("الذهراء"), ["s2"], "Arabic: third letter changed");
+    assert.deepEqual(await ids("زحراء"), ["s2"], "Arabic, without ال: second letter changed");
     assert.deepEqual(await ids("fatima"), [], "awaiting review: not without includeAll");
     assert.deepEqual(await ids("fatima", { includeAll: true }), ["s4"]);
   });
@@ -194,11 +201,20 @@ describe("school search: filters", () => {
     assert.deepEqual(await ids({ governorate: "cairo", placeAreaId: "a1", placeDistrictId: "d1" }), ["s1"]);
     assert.deepEqual(await ids({ governorate: "cairo", placeAreaId: "a1", query: "zahraa" }), ["s2"]);
     assert.deepEqual(await ids({ governorate: "giza", query: "zahraa" }), []);
-    // Only the most specific place goes to Firestore; the rest is checked in memory.
+    // Every place level goes to Firestore, so count() agrees with the rows.
     assert.deepEqual(serverFilters(parseSearchRequest({ governorate: "cairo", placeAreaId: "a1", placeDistrictId: "d1" })), {
       status: "active",
+      governorate: "cairo",
+      placeAreaId: "a1",
       placeDistrictId: "d1",
     });
+  });
+
+  it("an area of another city (a hand-edited URL) matches nothing and counts nothing", async () => {
+    const store = new MemorySearchStore(SCHOOLS);
+    const res = await searchSchools(deps(store), ADMIN, { governorate: "cairo", placeAreaId: "a9" }, null);
+    assert.deepEqual(res.schools, []);
+    assert.equal(res.total, 0);
   });
 
   it("rows carry the district's names", async () => {
@@ -320,7 +336,10 @@ describe("school search: grams upkeep", () => {
 
 describe("adminSearchSchools callable: admin claim required", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const fn = require("../src/admin_panel/callables").adminSearchSchools as (r: unknown) => Promise<unknown>;
+  const callable = require("../src/admin_panel/callables").adminSearchSchools as { run?: (r: unknown) => Promise<unknown> };
+  // The deployed wrapper is called with the HTTP request; .run takes the callable request (as in features.test.ts).
+  const fn = (r: unknown): Promise<unknown> =>
+    typeof callable.run === "function" ? callable.run(r) : (callable as unknown as (r: unknown) => Promise<unknown>)(r);
   const isCode = (code: string) => (e: unknown) => (e as { code?: string }).code === code;
 
   it("refuses a signed-out caller", async () => {
