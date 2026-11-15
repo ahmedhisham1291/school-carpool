@@ -149,9 +149,14 @@ export class AlgoliaRestClient implements SearchIndexWriter {
     return this.call("DELETE", `/${encodeURIComponent(objectID)}`);
   }
 
-  /** Up to 1000 records per call (admin reindex script). */
+  /** Up to 1000 records per call (admin reindex and sync scripts). */
   saveMany(records: SchoolSearchRecord[]): Promise<void> {
     return this.call("POST", "/batch", { requests: records.map((body) => ({ action: "updateObject", body })) });
+  }
+
+  /** Removes up to 1000 records per call; IDs not in the index are ignored by Algolia. */
+  removeMany(objectIDs: string[]): Promise<void> {
+    return this.call("POST", "/batch", { requests: objectIDs.map((objectID) => ({ action: "deleteObject", body: { objectID } })) });
   }
 
   setSettings(): Promise<void> {

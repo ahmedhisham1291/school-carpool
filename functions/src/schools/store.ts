@@ -1,4 +1,12 @@
-import { FieldValue, GeoPoint, Timestamp, type DocumentData, type Firestore } from "firebase-admin/firestore";
+import {
+  FieldPath,
+  FieldValue,
+  GeoPoint,
+  Timestamp,
+  type DocumentData,
+  type Firestore,
+  type QueryDocumentSnapshot,
+} from "firebase-admin/firestore";
 import { USERS } from "../auth/accounts";
 import { SCHOOLS } from "../admin_panel/store";
 import { searchKeysFor, type ExistingSchool, type ImportedSchool } from "./catalog";
@@ -71,10 +79,23 @@ export class FirestoreOtherSchoolsStore implements OtherSchoolsStore {
   }
 }
 
-/** Every school, as the import loader needs it (one read per school). */
-export async function readExistingSchools(db: Firestore): Promise<ExistingSchool[]> {
-  const snap = await db.collection(SCHOOLS).get();
-  return snap.docs.map((doc) => {
+/**
+ * Every school, as the import loader needs it: one read per school (about
+ * 20,000 to 30,000 reads per run on staging, inside the free 50,000 a day),
+ * read in pages so a large collection never needs one huge answer.
+ */
+export async function readExistingSchools(db: Firestore, pageSize = 5000): Promise<ExistingSchool[]> {
+  const docs: QueryDocumentSnapshot[] = [];
+  let last: QueryDocumentSnapshot | undefined;
+  for (;;) {
+    let query = db.collection(SCHOOLS).orderBy(FieldPath.documentId()).limit(pageSize);
+    if (last) query = query.startAfter(last);
+    const page = await query.get();
+    docs.push(...page.docs);
+    if (page.docs.length < pageSize) break;
+    last = page.docs[page.docs.length - 1];
+  }
+  return docs.map((doc) => {
     const d = doc.data();
     return {
       id: doc.id,
@@ -88,6 +109,7 @@ export async function readExistingSchools(db: Firestore): Promise<ExistingSchool
       city: text(d.city),
       cityAr: text(d.cityAr),
       location: point(d.location),
+      searchHidden: d.searchHidden === true,
     };
   });
 }

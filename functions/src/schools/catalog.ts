@@ -14,6 +14,9 @@ import { normalizeText } from "../text/normalize";
  *   seed), sourceId, sourceKeys ("osm:n123", every entry merged into it),
  *   addedBy (only while a parent's "Other" school awaits review),
  *   adminEdited (an admin changed it: the import leaves it alone),
+ *   searchHidden (true: kept as a document, so anything pointing at it
+ *   still works, but left out of search; set by the loader on the
+ *   hand-written sample once a real list is loaded, planSampleHiding),
  *   mergedInto, createdAt, updatedAt, importedAt.
  */
 
@@ -46,6 +49,8 @@ export interface ExistingSchool {
   city: string;
   cityAr: string;
   location: { lat: number; lng: number } | null;
+  /** Out of search (sample schools after a real load). */
+  searchHidden?: boolean;
 }
 
 export type ImportSkipReason = "admin-edited" | "merged" | "not-active" | "same-target";
@@ -164,6 +169,33 @@ export function planImport(incoming: ImportedSchool[], existing: ExistingSchool[
   return plan;
 }
 
+/**
+ * The hand-written sample schools (data/schools/sample) to take out of
+ * search once a real list is loaded: active schools whose every source
+ * key comes from the sample, that the real list does not also contain,
+ * that no admin edited and that are not hidden already. They stay as
+ * documents (a test child or carpool may point at one); only search stops
+ * showing them. Parents' and admins' schools have no sample keys, so they
+ * are never picked.
+ */
+export function planSampleHiding(existing: ExistingSchool[], sampleKeys: Iterable<string>, incoming: ImportedSchool[]): string[] {
+  const sample = new Set(sampleKeys);
+  const real = new Set(incoming.flatMap((s) => s.sourceKeys));
+  const realIds = new Set(incoming.map((s) => s.id));
+  return existing
+    .filter(
+      (s) =>
+        s.status === "active" &&
+        !s.adminEdited &&
+        s.searchHidden !== true &&
+        !realIds.has(s.id) &&
+        s.sourceKeys.length > 0 &&
+        s.sourceKeys.every((k) => sample.has(k) && !real.has(k)),
+    )
+    .map((s) => s.id)
+    .sort();
+}
+
 /** Normalized names for matching (Arabic spelling, case, punctuation). */
 export function searchKeysFor(nameAr: string, nameEn: string): string[] {
   return [...new Set([normalizeText(nameAr), normalizeText(nameEn)].filter((k) => k.length > 0))];
@@ -188,7 +220,7 @@ export interface SchoolSearchRecord {
 
 /** Fields of schools/{id} the index needs (raw Firestore data). */
 export function searchRecordFrom(id: string, data: Record<string, unknown> | undefined): SchoolSearchRecord | null {
-  if (!data || data.status !== "active") return null;
+  if (!data || data.status !== "active" || data.searchHidden === true) return null;
   const nameAr = typeof data.nameAr === "string" ? data.nameAr : "";
   const nameEn = typeof data.nameEn === "string" ? data.nameEn : "";
   if (!nameAr && !nameEn) return null;
@@ -207,6 +239,26 @@ export function searchRecordFrom(id: string, data: Record<string, unknown> | und
     record._geoloc = { lat: loc.latitude, lng: loc.longitude };
   }
   return record;
+}
+
+/**
+ * A full sync of the index from every schools/{id} document (the
+ * schools:algolia "sync" command): active, not hidden schools are sent,
+ * every other document's ID is removed (merged, awaiting review, hidden
+ * sample). Works with the Write API key: no clear, no browse.
+ */
+export function planIndexSync(docs: Array<{ id: string; data: Record<string, unknown> | undefined }>): {
+  records: SchoolSearchRecord[];
+  remove: string[];
+} {
+  const records: SchoolSearchRecord[] = [];
+  const remove: string[] = [];
+  for (const { id, data } of docs) {
+    const record = searchRecordFrom(id, data);
+    if (record) records.push(record);
+    else remove.push(id);
+  }
+  return { records, remove };
 }
 
 export type SyncAction = { kind: "upsert"; record: SchoolSearchRecord } | { kind: "delete" } | { kind: "none" };
