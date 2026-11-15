@@ -4,16 +4,26 @@
     python3 tools/import_schools/fetch_osm_schools.py                 # schools + governorate boundaries
     python3 tools/import_schools/fetch_osm_schools.py --max-age-days 7  # skip if the last download is newer
     python3 tools/import_schools/fetch_osm_schools.py --no-boundaries
+    python3 tools/import_schools/fetch_osm_schools.py --max-minutes 40   # time budget for new requests
 
 Asks the Overpass API (a read-only query service for OpenStreetMap data)
-for every node, way and relation tagged amenity=school or
-amenity=kindergarten inside Egypt (`out center;`: node positions, and the
-centre of each way and relation), and writes:
+for every node, way and relation that may be a school or kindergarten
+(the broad query below; `out center;`: node positions, and the centre of
+each way and relation). The broad query for all of Egypt at once timed out
+on every public server (16 Nov 2026), so it runs once per governorate
+(overpass_split.py: 27 parts, [timeout:180] each, failover, a second pass,
+older per-governorate files reused for parts that still fail), plus the
+narrow amenity-only query for all of Egypt as a safety net. Writes:
 
-  data/schools/osm/egypt_schools_osm.geojson   points (way/relation centres),
-                                               OSM tags + osm_id/osm_type,
+  data/schools/osm/egypt_schools_osm.geojson   all parts merged, each OSM object
+                                               once: points (way/relation
+                                               centres), OSM tags + osm_id/osm_type,
                                                the shape import_schools.py reads
-  data/schools/osm/fetch_report.md             date, server, counts, licence
+  data/schools/osm/governorates/EG-xx.geojson  one per governorate (and EG for
+                                               the safety net), each with its
+                                               own fetched_at
+  data/schools/osm/fetch_report.md             date, servers, counts, status per
+                                               governorate, licence
   data/schools/boundaries/egypt_governorates_osm.geojson
                                                the 27 governorates (admin_level 4),
                                                for an exact governorate per school
@@ -82,32 +92,66 @@ LATIN_NAME_RE = "school|kindergarten"
 KG_NAME_RE = "(^|[^A-Za-z])KG([^A-Za-z]|$)"
 
 
-def schools_query(timeout_s: int = QUERY_TIMEOUT_S, broad: bool = True) -> str:
-    """The Overpass QL query for schools in Egypt. `out center;` (verbosity
-    "body" plus centres), not `out center tags;`: per the Overpass QL
-    documentation "tags" prints no coordinates and "center" adds a centre
-    only to ways and relations. [broad]=False is the original narrow query
-    (amenity only), used as a fallback if the broad one fails everywhere."""
-    clauses = ['nwr["amenity"~"^(school|kindergarten)$"](area.eg);']
+def amenity_values(categories: dict[str, bool] | None = None) -> tuple[str, ...]:
+    """amenity / education values asked for, from data/schools/categories.json
+    (schools_import.CATEGORIES): childcare for nurseries, university and
+    college only when that switch is on (owner: off, 16 Nov 2026)."""
+    c = categories or {}
+    values = ["school", "kindergarten"]
+    if c.get("nursery", True):
+        values.append("childcare")
+    if c.get("university", False):
+        values += ["university", "college"]
+    return tuple(values)
+
+
+def query_id_for(base: str, values: tuple[str, ...]) -> str:
+    """A download is reused only when made for the same categories."""
+    extra = [v for v in values if v not in ("school", "kindergarten")]
+    return base + ("+" + "+".join(extra) if extra else "")
+
+
+def schools_query(
+    timeout_s: int = QUERY_TIMEOUT_S,
+    broad: bool = True,
+    area: str = EGYPT_AREA,
+    set_name: str = "eg",
+    values: tuple[str, ...] = ("school", "kindergarten"),
+) -> str:
+    """The Overpass QL query for schools in Egypt, or in the area that the
+    statement [area] stores in the set [set_name] (one governorate, see
+    overpass_split.py). `out center;` (verbosity "body" plus centres), not
+    `out center tags;`: per the Overpass QL documentation "tags" prints no
+    coordinates and "center" adds a centre only to ways and relations.
+    [broad]=False is the original narrow query (amenity only)."""
+    a = f"(area.{set_name})"
+    v = "|".join(values)
+    clauses = [f'nwr["amenity"~"^({v})$"]{a};']
     if broad:
-        clauses.append('nwr["education"~"^(school|kindergarten)$"](area.eg);')
+        clauses.append(f'nwr["education"~"^({v})$"]{a};')
         for key in NAME_KEYS:
-            clauses.append(f'nwr["building"~"^(school|kindergarten)$"]["{key}"](area.eg);')
-            clauses.append(f'nwr["school"]["{key}"](area.eg);')
-            clauses.append(f'nwr["isced:level"]["{key}"](area.eg);')
+            clauses.append(f'nwr["building"~"^(school|kindergarten)$"]["{key}"]{a};')
+            clauses.append(f'nwr["school"]["{key}"]{a};')
+            clauses.append(f'nwr["isced:level"]["{key}"]{a};')
         for key in NAME_KEYS:
-            clauses.append(f'nwr["{key}"~"{ARABIC_NAME_RE}"][!"highway"](area.eg);')
-            clauses.append(f'nwr["{key}"~"{LATIN_NAME_RE}",i][!"highway"](area.eg);')
-            clauses.append(f'nwr["{key}"~"{KG_NAME_RE}"][!"highway"](area.eg);')
+            clauses.append(f'nwr["{key}"~"{ARABIC_NAME_RE}"][!"highway"]{a};')
+            clauses.append(f'nwr["{key}"~"{LATIN_NAME_RE}",i][!"highway"]{a};')
+            clauses.append(f'nwr["{key}"~"{KG_NAME_RE}"][!"highway"]{a};')
     body = "\n".join(f"  {c}" for c in clauses)
-    return f"[out:json][timeout:{timeout_s}];\n{EGYPT_AREA}\n(\n{body}\n);\nout center;\n"
+    return f"[out:json][timeout:{timeout_s}];\n{area}\n(\n{body}\n);\nout center;\n"
 
 
-SCHOOLS_QUERY = schools_query()
+SCHOOLS_QUERY = schools_query()  # all of Egypt in one query: kept for reference and tests
 # Stored in the download: a download made by another query (the narrow one
-# of the first version, or the fallback) is never reused as "recent".
-QUERY_ID = "broad-2"
+# of the first version, a fallback, or a split run that had to use older
+# files for some governorates) is never reused as "recent".
+QUERY_ID = "split-1"
+PARTIAL_QUERY_ID = "split-1-partial"
+PART_QUERY_ID = "broad-3"  # per-governorate files (overpass_split.py); + extra amenity values
+NATIONAL_QUERY_ID = "narrow-2"
 NARROW_SCHOOLS_QUERY = schools_query(broad=False)
+PARTS_FOLDER = "governorates"  # data/schools/osm/governorates/EG-xx.geojson (not read by the importer)
+NATIONAL_PART = "EG"  # the narrow amenity-only query for all of Egypt, as a safety net
 
 # Governorates are admin_level 4 in Egypt and carry ISO3166-2=EG-xx; the tag
 # filter keeps the neighbours' provinces out (they touch the border).
@@ -195,6 +239,7 @@ def overpass(
     rounds: int = 2,
     prefer: str | None = None,
     log: Callable[[str], None] = print,
+    timeout_s: float = QUERY_TIMEOUT_S,
 ) -> tuple[dict, str]:
     """Runs [query] on the first server that answers; returns (answer, server).
 
@@ -210,8 +255,8 @@ def overpass(
         for url in order:
             host = urllib.parse.urlparse(url).netloc
             try:
-                log(f"  asking {host} (round {round_no} of {rounds}; can take several minutes)...")
-                return check_answer(post(url, body, QUERY_TIMEOUT_S + 60)), url
+                log(f"  asking {host} (round {round_no} of {rounds}; can take a few minutes)...")
+                return check_answer(post(url, body, timeout_s + 60)), url
             except urllib.error.HTTPError as error:
                 reason = f"HTTP {error.code}"
             except _Retryable as error:
@@ -452,7 +497,14 @@ def fetched_at_of(path: Path) -> dt.datetime | None:
         return None
 
 
-def report_text(fetched_at: str, endpoint: str, school_counts: dict[str, int], boundary_note: str, query_kind: str = "broad") -> str:
+def report_text(
+    fetched_at: str,
+    endpoint: str,
+    school_counts: dict[str, int],
+    boundary_note: str,
+    query_kind: str = "broad",
+    governorate_lines: list[str] | None = None,
+) -> str:
     lines = [
         "# OpenStreetMap schools download",
         "",
@@ -468,6 +520,10 @@ def report_text(fetched_at: str, endpoint: str, school_counts: dict[str, int], b
         f"- Without any name (the import drops them): {school_counts.get('no_name', 0)}",
         f"- Without a position (left out): {school_counts['no_position']}",
         f"- Governorate boundaries: {boundary_note}",
+    ]
+    if governorate_lines:
+        lines += ["", "## Per governorate (broad query, one per governorate)", "", *governorate_lines]
+    lines += [
         "",
         "## Licence",
         "",
@@ -482,6 +538,17 @@ def report_text(fetched_at: str, endpoint: str, school_counts: dict[str, int], b
 
 
 def main(argv: list[str] | None = None) -> int:
+    from overpass_split import (  # local: overpass_split imports this module
+        DEFAULT_BUDGET_MIN,
+        PART_TIMEOUT_S,
+        Part,
+        fetch_parts,
+        governorate_areas,
+        merge_features,
+        status_lines,
+        summary_line,
+    )
+
     repo = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=repo / "data" / "schools" / "osm", help="folder for the schools file")
@@ -490,77 +557,147 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--no-boundaries", action="store_true", help="do not download governorate boundaries")
     parser.add_argument(
-        "--max-age-days", type=float, default=0, help="skip the download when the last one is newer than this (0: always download)"
+        "--max-age-days", type=float, default=0,
+        help="keep files newer than this (whole download and each governorate; 0: always download)",
     )
     parser.add_argument("--endpoint", action="append", help="Overpass interpreter URL to use instead of the public list (repeatable)")
+    parser.add_argument("--prefer", help="the Overpass server to ask first")
+    parser.add_argument("--max-minutes", type=float, default=DEFAULT_BUDGET_MIN, help="time budget for new requests")
+    parser.add_argument("--categories", type=Path, help="categories.json (default data/schools/categories.json)")
     args = parser.parse_args(argv)
     endpoints = tuple(args.endpoint or ENDPOINTS)
 
     schools_path = args.out / SCHOOLS_FILE
     boundaries_path = args.boundaries_out / BOUNDARIES_FILE
+    parts_dir = args.out / PARTS_FOLDER
+    from schools_import import CATEGORIES_FILE, load_categories  # local: keeps this module light to import
+
+    values = amenity_values(load_categories(args.categories or repo / "data" / "schools" / CATEGORIES_FILE))
+    part_id = query_id_for(PART_QUERY_ID, values)
+    national_id = query_id_for(NATIONAL_QUERY_ID, values)
+    merged_id = query_id_for(QUERY_ID, values)
     now = dt.datetime.now(dt.timezone.utc)
     if args.max_age_days > 0:
         last = fetched_at_of(schools_path)
-        if last is not None and now - last < dt.timedelta(days=args.max_age_days) and query_of(schools_path) == QUERY_ID:
+        if last is not None and now - last < dt.timedelta(days=args.max_age_days) and query_of(schools_path) == merged_id:
             print(f"OpenStreetMap schools: the download of {last:%Y-%m-%d %H:%M} UTC is recent; kept (no new download).")
             return 0
     fetched_at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    budget_s = max(args.max_minutes, 1.0) * 60
+    started = time.monotonic()
 
-    print("OpenStreetMap schools: downloading every school and kindergarten in Egypt (broad query)...")
-    query_kind = "broad"
-    try:
-        answer, endpoint = overpass(SCHOOLS_QUERY, endpoints)
-    except FetchError as error:
-        print(f"OpenStreetMap schools: the broad query failed ({error}); trying the narrow one (amenity only)...", file=sys.stderr)
-        query_kind = "narrow (amenity=school|kindergarten only; the broad query failed)"
-        try:
-            answer, endpoint = overpass(NARROW_SCHOOLS_QUERY, endpoints)
-        except FetchError as error2:
-            print(f"OpenStreetMap schools: {error2}", file=sys.stderr)
-            return 1
-    collection = schools_geojson(answer, fetched_at, endpoint, QUERY_ID if query_kind == "broad" else "narrow")
-    school_counts = counts(collection, answer)
+    # Governorates first: their relation ids are the search areas below.
+    boundary_note = "not downloaded (--no-boundaries)"
+    prefer = args.prefer
+    if not args.no_boundaries:
+        last_b = fetched_at_of(boundaries_path)
+        if args.max_age_days > 0 and last_b is not None and now - last_b < dt.timedelta(days=args.max_age_days):
+            boundary_note = f"recent file of {last_b:%Y-%m-%d} kept"
+        else:
+            boundary_note, server = fetch_boundaries(tuple(ordered_endpoints(endpoints, prefer)), fetched_at, boundaries_path)
+            prefer = server or prefer
+    parts = governorate_areas(boundaries_path if boundaries_path.exists() else None)
+
+    def ask(query: str, eps: list[str], first: str | None) -> tuple[dict, str]:
+        return overpass(query, eps, rounds=1, prefer=first, timeout_s=PART_TIMEOUT_S)
+
+    print("OpenStreetMap schools: amenity/education values asked for: " + ", ".join(values))
+    print(f"OpenStreetMap schools: downloading the broad query per governorate ({len(parts)} parts, [timeout:{PART_TIMEOUT_S}] each)...")
+    split = fetch_parts(
+        parts,
+        lambda part: schools_query(PART_TIMEOUT_S, True, part.area, "g", values),
+        lambda answer, stamp, server: schools_geojson(answer, stamp, server, part_id),
+        parts_dir,
+        query_id=part_id,
+        fetch=ask,
+        endpoints=endpoints,
+        prefer=prefer,
+        max_age_days=args.max_age_days,
+        budget_s=budget_s,
+        now=now,
+    )
+    # Safety net: the narrow amenity-only query for all of Egypt (it
+    # finished on 16 Nov 2026 when the broad one did not). It also catches
+    # a school outside every governorate area (on the coast, on a gap).
+    print("OpenStreetMap schools: the amenity-only query for all of Egypt (safety net)...")
+    national = fetch_parts(
+        [Part(NATIONAL_PART, "", EGYPT_AREA, "EG all of Egypt, amenity only")],
+        lambda _part: schools_query(broad=False, values=values),
+        lambda answer, stamp, server: schools_geojson(answer, stamp, server, national_id),
+        parts_dir,
+        query_id=national_id,
+        # One round per pass (fetch_parts' second pass is the retry), so a
+        # request started near the end of --max-minutes cannot add another
+        # hour of rounds on top of the budget.
+        fetch=lambda q, eps, first: overpass(q, eps, rounds=1, prefer=first),
+        endpoints=endpoints,
+        prefer=split.last_server or prefer,
+        max_age_days=args.max_age_days,
+        budget_s=max(budget_s - (time.monotonic() - started), 60.0),
+        now=now,
+        min_features=lambda _p: MIN_EXPECTED_SCHOOLS,
+    )
+    features = merge_features([*split.collections.values(), *national.collections.values()])
+    servers = sorted({s.server for s in split.statuses + national.statuses if s.server})
+    complete = split.complete and national.complete
+    collection = {
+        "type": "FeatureCollection",
+        "name": "Egypt schools and kindergartens from OpenStreetMap (Overpass API, per governorate)",
+        "fetched_at": fetched_at,
+        "query": merged_id if complete else PARTIAL_QUERY_ID,
+        "source": ", ".join(servers),
+        "license": ATTRIBUTION,
+        "governorates": [
+            {"code": s.code, "status": s.status, "fetched_at": s.fetched_at, "features": s.features}
+            for s in split.statuses + national.statuses
+        ],
+        "features": features,
+    }
+    school_counts = counts(collection, {"elements": features})
+    gov_lines = status_lines(split) + status_lines(national)
+    print("  " + summary_line(split))
+    for line in gov_lines:
+        if "NO data" in line or "older file" in line:
+            print("  " + line[2:])
     if school_counts["features"] < MIN_EXPECTED_SCHOOLS:
         print(
-            f"OpenStreetMap schools: only {school_counts['features']} schools came back (expected thousands); "
+            f"OpenStreetMap schools: only {school_counts['features']} schools in all parts together (expected thousands); "
             "the earlier file is kept. Run again later.",
             file=sys.stderr,
         )
         return 1
     write_json_atomic(schools_path, collection)
-    print(f"  wrote {school_counts['features']} schools and kindergartens to {schools_path}")
-
-    boundary_note = "not downloaded (--no-boundaries)"
-    if not args.no_boundaries:
-        # The server that just answered goes first (it is the one not busy).
-        boundary_note = fetch_boundaries(tuple(ordered_endpoints(endpoints, endpoint)), fetched_at, boundaries_path)
+    kind = "broad, per governorate" + ("" if split.complete else " (some governorates from older files or missing; see below)")
     (args.out / REPORT_FILE).write_text(
-        report_text(fetched_at, endpoint, school_counts, boundary_note, query_kind), encoding="utf-8"
+        report_text(fetched_at, ", ".join(servers) or "-", school_counts, boundary_note, kind, gov_lines + ["", "Summary: " + summary_line(split)]),
+        encoding="utf-8",
     )
+    print(f"  wrote {school_counts['features']} schools and kindergartens to {schools_path}")
     print(f"  boundaries: {boundary_note}")
     print(f"  {ATTRIBUTION}")
     return 0
 
 
-def fetch_boundaries(endpoints: tuple[str, ...], fetched_at: str, path: Path) -> str:
+def fetch_boundaries(endpoints: tuple[str, ...], fetched_at: str, path: Path) -> tuple[str, str | None]:
     """Downloads the governorates; never fails the run (the importer falls
-    back to the nearest town). Returns a one-line note for the report."""
+    back to the nearest town). Returns a one-line note for the report and
+    the server that answered (None when none did)."""
     print("OpenStreetMap governorates: downloading the 27 borders (admin_level 4)...")
     try:
         answer, endpoint = overpass(BOUNDARIES_QUERY, endpoints)
     except FetchError as error:
         kept = " (the earlier file is kept)" if path.exists() else ""
         print(f"  governorates skipped: {error}", file=sys.stderr)
-        return f"download failed{kept}; the import uses the nearest town for the governorate"
+        return f"download failed{kept}; the import uses the nearest town for the governorate", None
     collection, problems = boundaries_geojson(answer, fetched_at, endpoint)
     for p in problems:
         print(f"  {p}")
     n = len(collection["features"])
     if n == 0:
-        return "no usable border came back; the import uses the nearest town for the governorate"
+        return "no usable border came back; the import uses the nearest town for the governorate", endpoint
     write_json_atomic(path, collection)
     missing = f"; {EXPECTED_GOVERNORATES - n} missing (nearest town used there)" if n < EXPECTED_GOVERNORATES else ""
-    return f"{n} of {EXPECTED_GOVERNORATES} governorates written to {path.name}{missing}"
+    return f"{n} of {EXPECTED_GOVERNORATES} governorates written to {path.name}{missing}", endpoint
 
 
 if __name__ == "__main__":

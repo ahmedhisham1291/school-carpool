@@ -7,12 +7,23 @@ Put the files for the schools import (F4) here. They are not committed
   `python3 tools/import_schools/fetch_osm_schools.py` (staging's
   `tool/cloud_setup.sh` step 12 runs it): every school and kindergarten in
   Egypt through the Overpass API (a broad query: tags and school-like names;
-  the importer decides what counts), plus `fetch_report.md` (date, server,
-  counts). Data (c) OpenStreetMap contributors, ODbL 1.0
+  the importer decides what counts; one query per governorate, kept in
+  `osm/governorates/`), plus `fetch_report.md` (date, servers, counts,
+  status per governorate). Data (c) OpenStreetMap contributors, ODbL 1.0
   (<https://www.openstreetmap.org/copyright>).
 - `wikidata/`: Wikidata's schools in Egypt from
   `python3 tools/import_schools/fetch_wikidata_schools.py` (step 12 runs
   it too), plus `fetch_report.md`. Wikidata data is CC0.
+- `overture/`: Overture Maps Places schools, kindergartens and nurseries
+  from `python3 tools/import_schools/fetch_overture_schools.py` (needs
+  `pip install --user duckdb`; step 12 installs it), plus `raw/` and
+  `fetch_report.md`. CDLA Permissive 2.0 / Apache 2.0 / CC0 by provider.
+- `categories.json` (committed): what counts as a school. Owner decision
+  16 Nov 2026: schools, kindergartens and nurseries; universities off.
+- `check_names.txt` (yours, not committed): names of schools you expect;
+  step 12 says for each why it is or is not in the list
+  (`tools/import_schools/why_missing.py`). Example:
+  `check_names.example.txt`.
 - `places/`: City -> Area -> District from
   `python3 tools/import_schools/fetch_osm_places.py` (step 12 runs it):
   OSM boundaries of admin_level 5 to 10 and named suburbs, quarters and

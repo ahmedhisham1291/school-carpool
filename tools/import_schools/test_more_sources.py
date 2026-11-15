@@ -61,11 +61,13 @@ class BroadQueryTest(unittest.TestCase):
 
             osm.overpass = failing
             try:
-                code = osm.main(["--out", str(out), "--boundaries-out", str(out / "b"), "--max-age-days", "7"])
+                # A 1-minute budget: no second pass (no 90 s pause in tests).
+                code = osm.main(["--out", str(out), "--boundaries-out", str(out / "b"), "--max-age-days", "7", "--max-minutes", "1"])
             finally:
                 osm.overpass = original
-            self.assertEqual(code, 1)  # it tried to download again (broad, then narrow)
-            self.assertEqual(calls, ["asked", "asked"])
+            self.assertEqual(code, 1)  # it tried to download again: nothing came back, the old file is kept
+            # governorates (1) + 27 governorates + the national safety net (1)
+            self.assertEqual(len(calls), 29)
             osm.write_json_atomic(out / osm.SCHOOLS_FILE, osm.schools_geojson({"elements": []}, recent, "x"))
             self.assertEqual(osm.query_of(out / osm.SCHOOLS_FILE), osm.QUERY_ID)
 
@@ -85,7 +87,16 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(cls({"amenity": "kindergarten"}, ""), ("kindergarten", "amenity"))
         self.assertEqual(cls({"amenity": "university", "name": "مدرسة"})[1], "not_school_university")
         self.assertEqual(cls({"amenity": "driving_school", "name": "مدرسة قيادة"})[1], "not_school_courses")
-        self.assertEqual(cls({"amenity": "childcare", "name": "حضانة النور"})[1], "not_school_childcare")
+        # Nurseries count since the owner's decision of 16 Nov 2026 (kept
+        # with the kindergartens); with the switch off they are dropped.
+        self.assertEqual(cls({"amenity": "childcare", "name": "حضانة النور"}), ("kindergarten", "childcare"))
+        import schools_import
+
+        previous = schools_import.set_categories({"nursery": False})
+        try:
+            self.assertEqual(cls({"amenity": "childcare", "name": "حضانة النور"})[1], "not_school_childcare")
+        finally:
+            schools_import.set_categories(previous)
 
     def test_education_key(self) -> None:
         self.assertEqual(cls({"education": "school", "name": "مدرسة النيل"}), ("school", "education"))
@@ -131,7 +142,9 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(cls({"name": "مدرسة تعليم قيادة السيارات"})[1], "not_school_courses")
         self.assertEqual(cls({"name": "Cairo Music School"})[1], "not_school_courses")
         self.assertEqual(cls({"name": "Ballet School of Cairo"})[1], "not_school_courses")
-        self.assertEqual(cls({"name": "مدرسة التمريض"})[1], "not_school_courses")
+        # A secondary nursing school is a school in Egypt; a nursing institute is not.
+        self.assertEqual(cls({"name": "مدرسة التمريض"}), ("school", "name"))
+        self.assertEqual(cls({"name": "معهد التمريض"})[0], None)
 
     def test_named_like_a_school_but_something_else(self) -> None:
         for tags in (
