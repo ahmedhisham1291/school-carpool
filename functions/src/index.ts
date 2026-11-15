@@ -92,6 +92,10 @@ export {
   updateMapSettings,
 } from "./maps/callables";
 
+// Addresses (F46): City -> Area -> District, street and building, the pin
+// confirmed on the map; and where a point is (prefill after a search).
+export { geocodeAddress, placeForPoint, setHomeAddress } from "./places/callables";
+
 // Carpools (Prompt 6: F5, F6, F25, F26, F31, F32, F36, F39): create, search,
 // join requests, driver consent, pickup point sharing, invite links and
 // "looking for a carpool" posts. Every membership and status write is here.

@@ -92,3 +92,34 @@ describe("places: writing", () => {
     }
   });
 });
+
+// F46: the structured address lives in homes/{uid} with the exact point
+// (owner only); the public record (parentLocations) is Cloud Functions only.
+describe("addresses: the owner's only, and never written from the app", () => {
+  const address = {
+    governorate: "cairo", placeAreaId: "osm-r1", placeDistrictId: "osm-n1", street: "شارع 9", building: "12",
+    floor: "", apartment: "", landmark: "", districtText: "",
+  };
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await db.doc("homes/alice").set({ location: null, label: "12 شارع 9", address, showOnMap: true, radiusKm: 3 });
+      await db.doc("parentLocations/alice").set({ geohash: "stq4", placeAreaId: "osm-r1", placeDistrictId: "osm-n1" });
+    });
+  });
+
+  it("the owner reads their address; nobody else does", async () => {
+    await assertSucceeds(asAlice().firestore().doc("homes/alice").get());
+    await assertFails(env.authenticatedContext("bob", token).firestore().doc("homes/alice").get());
+    await assertFails(asAdmin().firestore().doc("homes/alice").get());
+    await assertFails(signedOut().firestore().doc("homes/alice").get());
+  });
+
+  it("nobody writes an address or the area of the public record from a client", async () => {
+    await assertFails(asAlice().firestore().doc("homes/alice").update({ "address.placeAreaId": "osm-r2" }));
+    await assertFails(asAlice().firestore().doc("homes/alice").set({ address }));
+    await assertFails(asAlice().firestore().doc("parentLocations/alice").update({ placeAreaId: "osm-r2" }));
+    await assertFails(env.authenticatedContext("bob", token).firestore().doc("parentLocations/alice").get());
+  });
+});
