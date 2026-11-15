@@ -17,7 +17,7 @@ to 13, docs/DECISIONS.md.
 | A6 | **Wallet partner** (CBE-licensed) contract and API; the wallet stays a fake with test money until then | Pilot with money | SETUP.md 21.5 |
 | A7 | **Google Maps keys** per project (iOS, Android, web, server) with restrictions and caps | Maps on staging | SETUP.md 15.2 |
 | A8 | **Stream** dev/staging/prod apps, secrets, chat setup script | Chat on staging | SETUP.md 19 |
-| A9 | **Algolia** app and keys (staging/prod) | School search on staging | SETUP.md 14.4 |
+| A9 | **Algolia** app and keys (staging/prod). Staging: sign up, then give the Application ID, Write and Search-only keys to `tool/cloud_setup.sh` when it asks (keys hidden; never in chat); commit the three printed non-secret lines. Until then the real schools list makes the app say "search unavailable" | School search on staging (real list loaded by step 12) | **docs/algolia-setup.md**, SETUP.md 14.4 |
 | A10 | **Sentry** projects and DSNs; alert rules | Error reports | SETUP.md 6, 23.6 |
 | A11 | **Email service** for the new-phone alert email (Trigger Email extension + SMTP provider, for example Resend free tier); no email is sent until it is set up | New-phone emails | SETUP.md 23.4 |
 | A12 | **KMS key** for the photos bucket, Storage lifecycle, retention TTLs | Staging and prod | SETUP.md 23.2, `tool/setup_retention.sh` |
@@ -78,4 +78,7 @@ to 13, docs/DECISIONS.md.
 | D20 | `CLAUDE.md` still says "Feature IDs (F1 to F44)" and names the wallet as the payment feature; F45 (Settle up) and the feature switches are in docs/spec.md and DECISIONS.md | Wording only | Owner updates CLAUDE.md (the builder does not edit the rules file) |
 | D21 | Admin panel: the Wallet menu entry and the wallet row on the user page still show while the wallet is switched off; the pages then say "This feature is switched off" | Admins only | Hide them from the switch later |
 | D22 | Settle up shows the newest 100 records on the phone; older finished ones stay on the server (and in the data export) | Very active parents only | Paging later |
+| D23 | **Real schools list (branch schools-osm):** Flutter tests of the search fallback written, not run here; the OpenStreetMap download and the Algolia sync not run against the real services from this workspace (no internet here) | First real run is in Cloud Shell | Owner runs `tool/cloud_setup.sh`; send the developer the "Schools import summary" it prints (not secret) |
+| D24 | OpenStreetMap attribution ("(c) OpenStreetMap contributors", ODbL) not yet shown in the app; schools from the list carry OSM names, which can be wrong or missing an Arabic/English form (the import fills one from the other) | Licence condition before the public launch; quality of school names | Licences/about screen before launch; admins fix names in the panel (an edited school is never overwritten) |
+| D25 | Sample schools hidden on staging stay in Firestore (`searchHidden`) and still appear in the admin panel's school list as active | Admins only | Delete them later if no test data points at them |
 | D18 | Lawyer's answers: all confirmed (DECISIONS.md "Legal" and "Owner updates 12:30"); the retention periods need the privacy policy text updated by the lawyer for the published page (A13) | — | Owner |

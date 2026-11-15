@@ -540,13 +540,41 @@ script tag in `web/index.html` (added by tool/bootstrap.sh). Owner decision
 
 ## 14. Schools list (Prompt 4B)
 
-The schools parents pick from come from an import you run on your Mac (or
-in this repository's CI with the sample). Python 3.11 or newer, nothing to
-install. Search runs on Algolia in staging and prod; dev uses a fake search
-on the emulators, so no Algolia account is needed to work on the app.
+The schools parents pick from come from an import (Python 3.11 or newer,
+nothing to install). Search runs on Algolia in staging and prod; dev uses a
+fake search on the emulators, so no Algolia account is needed to work on
+the app.
+
+**Staging does all of 14.1 to 14.4 by itself** (owner decision 15 Nov
+2026: every school and kindergarten we can get from open data): step 12 of
+`tool/cloud_setup.sh` downloads the OpenStreetMap list, imports it with any
+CSV lists you put in `data/schools/`, loads it and sends it to Algolia;
+step 6 asks once for the Algolia keys (docs/algolia-setup.md). The rest of
+this section is what it does, for a Mac or for prod.
 
 ### 14.1 Download the data
 
+0. **OpenStreetMap through the Overpass API (what staging uses).**
+   ```sh
+   python3 tools/import_schools/fetch_osm_schools.py
+   ```
+   Asks a public Overpass server (overpass-api.de, then
+   overpass.private.coffee, then maps.mail.ru; each tried twice, with a
+   pause after "too many requests") for every node, way and relation
+   tagged `amenity=school` or `amenity=kindergarten` inside Egypt, and the
+   27 governorate borders (`admin_level=4`, `ISO3166-2=EG-*`). Writes
+   `data/schools/osm/egypt_schools_osm.geojson` (same columns as the HDX
+   export below, so the IDs are the same), `data/schools/osm/fetch_report.md`
+   (date, server, counts, licence) and
+   `data/schools/boundaries/egypt_governorates_osm.geojson`. A border with
+   a gap in OpenStreetMap is left out (the nearest town is used there).
+   `--max-age-days 7` keeps a download newer than a week; a download that
+   fails or comes back nearly empty keeps the earlier file. All of it is
+   git-ignored. The data is (c) OpenStreetMap contributors under the ODbL
+   1.0 (<https://www.openstreetmap.org/copyright>); the attribution belongs
+   in the app's licences screen before the public launch (open item).
+   With this download you do not need the HDX files of step 1 (if both are
+   there, the HDX copies are listed as "same source ID twice").
 1. **OpenStreetMap schools (HDX).** Open
    <https://data.humdata.org/dataset/hotosm_egy_education_facilities>
    ("Egypt Education Facilities (OpenStreetMap Export)", by the
@@ -604,10 +632,38 @@ Try it first with the hand-written sample (not real data):
 
 Loading twice never creates duplicates: schools are matched by ID and by
 every source key, unchanged schools are not written, schools an admin
-edited or merged are left alone, and nothing is deleted. Never load the
-sample into prod.
+edited or merged are left alone, and nothing is deleted. Writes go in
+batches of 400 with progress lines and retries; if it stops half way, run
+it again (what was written is matched and not written twice). Never load
+the sample into prod.
+
+`--hide-sample build/schools-sample/schools.json` (used by cloud_setup
+once a real list is loaded): the hand-written sample schools already in
+the project get `searchHidden: true`. They stay as documents (a test child
+or carpool may point at one) but leave search. Admin-edited ones are left
+alone.
+
+Cost of the first real load: about one write per school (20,000 to 30,000;
+Firestore's free tier is 20,000 writes a day, so a few US cents at most)
+and one read per school per run. With Algolia on, each new school also
+triggers `syncSchoolToSearch` once (free function quota).
 
 ### 14.4 Algolia (before staging tests; not needed for dev)
+
+**Staging:** follow docs/algolia-setup.md (sign up, then give the three
+values to `tool/cloud_setup.sh` when it asks; `--replace-algolia` to change
+them). It stores the keys, sets `SCHOOL_SEARCH_PROVIDER=algolia`,
+`ALGOLIA_APP_ID` and `ALGOLIA_INDEX=schools_staging`, deploys, and runs
+`schools:algolia -- sync` (settings, then every active school in batches of
+1,000, and removal of merged, pending and hidden ones; the index is never
+emptied, so search keeps working). By hand:
+
+```sh
+ALGOLIA_APP_ID=... ALGOLIA_WRITE_KEY=... ALGOLIA_INDEX=schools_staging \
+SCHOOLS_PROJECT=<staging-project-id> npm --prefix functions run schools:algolia -- sync
+```
+
+**Prod, or index-limited keys** (the manual way):
 
 1. Create an Algolia account and one application. Create one index per
    project: `schools_dev` (optional), `schools_staging`, `schools`.
@@ -636,8 +692,10 @@ sample into prod.
 The prod project refuses `SCHOOL_SEARCH_PROVIDER=fake` (the function
 answers "not configured" and reports to Sentry): set up Algolia before
 prod. From then on `syncSchoolToSearch` keeps the index in step: active schools
-are indexed with their names and places only; schools awaiting review and
-merged schools are not. The app never holds an Algolia secret: it asks
+are indexed with their names and places only; schools awaiting review,
+merged schools and hidden sample schools are not. Without Algolia, a cloud
+build's school search reads at most 200 schools; when that is not the
+whole list it shows "search unavailable" instead of part of the list. The app never holds an Algolia secret: it asks
 `getSchoolSearchKey` for a key that can only search that index and expires
 after an hour. If the index ever drifts, run the `reindex` command again.
 
