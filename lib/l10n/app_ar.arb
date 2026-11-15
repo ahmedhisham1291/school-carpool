@@ -1554,6 +1554,14 @@
   "@adminSetupDone": {
     "description": "Admin panel: button"
   },
+  "adminSetupNewKey": "مفتاح جديد",
+  "@adminSetupNewKey": {
+    "description": "Admin panel: button that asks for a new authenticator setup key"
+  },
+  "adminSetupStuck": "إذا تكرر الخطأ، سجّل الخروج ثم ادخل مرة أخرى وحاول من جديد.",
+  "@adminSetupStuck": {
+    "description": "Admin panel: advice under an error when the setup key could not be created"
+  },
   "adminErrWrongPassword": "البريد أو كلمة المرور غير صحيحة. راجعهما وحاول مرة أخرى.",
   "@adminErrWrongPassword": {
     "description": "Admin panel: error"

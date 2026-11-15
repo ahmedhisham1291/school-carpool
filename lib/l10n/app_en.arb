@@ -364,6 +364,8 @@
   "adminSetupKey": "Setup key",
   "adminSetupCodeHelper": "The code your authenticator app shows now.",
   "adminSetupDone": "Turn on",
+  "adminSetupNewKey": "New key",
+  "adminSetupStuck": "If this repeats, sign out, sign in again, then try once more.",
   "adminErrWrongPassword": "Email or password is wrong. Check both and try again.",
   "adminErrWrongCode": "That code did not work. Type the code showing now.",
   "adminErrTooMany": "Too many tries. Wait a few minutes, then try again.",
