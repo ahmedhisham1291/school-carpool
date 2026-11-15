@@ -7,7 +7,8 @@
 
 Asks the Overpass API (a read-only query service for OpenStreetMap data)
 for every node, way and relation tagged amenity=school or
-amenity=kindergarten inside Egypt, and writes:
+amenity=kindergarten inside Egypt (`out center;`: node positions, and the
+centre of each way and relation), and writes:
 
   data/schools/osm/egypt_schools_osm.geojson   points (way/relation centres),
                                                OSM tags + osm_id/osm_type,
@@ -55,10 +56,15 @@ USER_AGENT = "school-carpool-schools-import/1.0 (OpenStreetMap schools list; Pyt
 
 EGYPT_AREA = 'area["ISO3166-1"="EG"][admin_level=2]->.eg;'
 
+# `out center;` (verbosity "body" plus centres), not `out center tags;`:
+# per the Overpass QL documentation, "tags" prints "only ids and tags ...
+# and not coordinates", and "center" adds a centre only to ways and
+# relations, so nodes would come back without a position. "body" adds the
+# node list of each way (a few MB more for all of Egypt), which we ignore.
 SCHOOLS_QUERY = f"""[out:json][timeout:{QUERY_TIMEOUT_S}];
 {EGYPT_AREA}
 nwr["amenity"~"^(school|kindergarten)$"](area.eg);
-out center tags;
+out center;
 """
 
 # Governorates are admin_level 4 in Egypt and carry ISO3166-2=EG-xx; the tag

@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fetch_osm_schools as f  # noqa: E402
 from schools_import import Boundaries, _IndexedRing, _osm_source_id, run  # noqa: E402
 
-# A small Overpass answer in the shape of `[out:json]` + `out center tags;`
+# A small Overpass answer in the shape of `[out:json]` + `out center;`
 # (positions near real places, names invented).
 SCHOOLS_ANSWER = {
     "version": 0.6,
@@ -31,7 +31,7 @@ SCHOOLS_ANSWER = {
     "elements": [
         {"type": "node", "id": 11, "lat": 30.0566, "lon": 31.3301,
          "tags": {"amenity": "school", "name": "مدرسة النيل التجريبية", "name:en": "Nile Experimental School"}},
-        {"type": "way", "id": 22, "center": {"lat": 31.2001, "lon": 29.9187},
+        {"type": "way", "id": 22, "center": {"lat": 31.2001, "lon": 29.9187}, "nodes": [1, 2, 3, 1],
          "tags": {"amenity": "kindergarten", "name": "روضة الزهور", "id": "999"}},
         {"type": "relation", "id": 33, "center": {"lat": 29.9870, "lon": 31.2118},
          "tags": {"amenity": "school", "name:en": "Giza Language School", "type": "multipolygon"}},
@@ -212,7 +212,9 @@ class OverpassTest(unittest.TestCase):
         # The forms checked against the OpenStreetMap wiki (Overpass QL page).
         self.assertIn('area["ISO3166-1"="EG"][admin_level=2]->.eg;', f.SCHOOLS_QUERY)
         self.assertIn('nwr["amenity"~"^(school|kindergarten)$"](area.eg);', f.SCHOOLS_QUERY)
-        self.assertIn("out center tags;", f.SCHOOLS_QUERY)
+        # "out center;" keeps node coordinates ("out tags" would drop them).
+        self.assertIn("\nout center;", f.SCHOOLS_QUERY)
+        self.assertNotIn("out center tags", f.SCHOOLS_QUERY)
         self.assertTrue(f.SCHOOLS_QUERY.startswith("[out:json][timeout:900];"))
         self.assertIn("out geom;", f.BOUNDARIES_QUERY)
 
