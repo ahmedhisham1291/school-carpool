@@ -492,18 +492,23 @@ elif [ -t 0 ]; then
     read -r -s -p "  Algolia Search-only API Key (hidden; paste, then Enter): " NEW_S || NEW_S=""; echo
     NEW_W="$(printf '%s' "${NEW_W}" | tr -d '[:space:]')"
     NEW_S="$(printf '%s' "${NEW_S}" | tr -d '[:space:]')"
-    W_RC=0; S_RC=0
-    W_MSG="$(printf '%s' "${NEW_W}" | algolia_check write "${NEW_APP}")" || W_RC=$?
-    S_MSG="$(printf '%s' "${NEW_S}" | algolia_check search "${NEW_APP}")" || S_RC=$?
-    echo "  Write key: ${W_MSG}"
-    echo "  Search key: ${S_MSG}"
-    if [ "${W_RC}" -eq 1 ] || [ "${S_RC}" -ne 0 ] || [ -z "${NEW_W}" ] || [ "${NEW_W}" = "${NEW_S}" ]; then
-      todo "Algolia keys not stored (see the lines above; the two keys must differ). Run this script again; it asks again."
+    W_RC=0; S_RC=0; W_MSG=""; S_MSG=""; W_EMPTY=0; S_EMPTY=0; SAME_KEY=0
+    [ -n "${NEW_W}" ] || W_EMPTY=1
+    [ -n "${NEW_S}" ] || S_EMPTY=1
+    [ "${W_EMPTY}${S_EMPTY}" != "00" ] || [ "${NEW_W}" != "${NEW_S}" ] || SAME_KEY=1
+    # The verdicts never contain a key (tool/algolia_keys.py); empty keys are not sent.
+    if [ "${W_EMPTY}" = 0 ]; then W_MSG="$(printf '%s' "${NEW_W}" | algolia_check write "${NEW_APP}")" || W_RC=$?; echo "  Write key: ${W_MSG}"; fi
+    if [ "${S_EMPTY}" = 0 ]; then S_MSG="$(printf '%s' "${NEW_S}" | algolia_check search "${NEW_APP}")" || S_RC=$?; echo "  Search key: ${S_MSG}"; fi
+    DECIDE_RC=0
+    DECISION="$(python3 tool/algolia_keys.py decide "${W_EMPTY}" "${S_EMPTY}" "${SAME_KEY}" "${W_RC}" "${S_RC}" "${W_MSG}" "${S_MSG}")" || DECIDE_RC=$?
+    if [ "${DECIDE_RC}" -ne 0 ]; then
+      todo "Algolia keys not stored: $(printf '%s' "${DECISION}" | paste -sd ';' - | sed 's/;/; /g'). Run this script again; it asks again."
     else
       printf '%s' "${NEW_W}" | secret_put ALGOLIA_WRITE_KEY
       printf '%s' "${NEW_S}" | secret_put ALGOLIA_SEARCH_KEY
       set_env ALGOLIA_APP_ID "${NEW_APP}"; ALGOLIA_ON=1
       ok "Algolia keys stored in Secret Manager (new versions); Application ID ${NEW_APP}"
+      while IFS= read -r line; do [ -z "${line}" ] || todo "Algolia: ${line}"; done <<<"${DECISION}"
     fi
     NEW_W=""; NEW_S=""
   fi
