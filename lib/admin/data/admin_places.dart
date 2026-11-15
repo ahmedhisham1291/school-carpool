@@ -139,7 +139,7 @@ class FirebaseAdminPlacesApi implements AdminPlacesApi {
   Future<Json> _call(String name, [Map<String, Object?> data = const <String, Object?>{}]) async {
     try {
       final HttpsCallableResult<Object?> result = await _functions
-          .httpsCallable(name, options: HttpsCallableOptions(timeout: const Duration(seconds: 60)))
+          .httpsCallable(name)
           .call<Object?>(data);
       return Json.of(result.data);
     } on Object catch (error, stackTrace) {

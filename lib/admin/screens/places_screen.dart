@@ -398,7 +398,7 @@ class _RequestsTab extends ConsumerWidget {
       value: ref.watch(_requestsProvider),
       onRetry: () => ref.invalidate(_requestsProvider),
       isEmpty: (List<AdminPlaceRequest> r) => r.isEmpty,
-      empty: EmptyStateView(icon: Icons.inbox_outlined, title: l10n.adminPlaceRequestsEmptyTitle, body: l10n.adminPlaceRequestsEmptyBody),
+      empty: EmptyStateView(title: l10n.adminPlaceRequestsEmptyTitle, body: l10n.adminPlaceRequestsEmptyBody),
       builder: (List<AdminPlaceRequest> requests) => ListView(
         key: const Key('places.requests'),
         children: <Widget>[

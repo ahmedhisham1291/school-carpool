@@ -164,7 +164,7 @@ class _SchoolListState extends ConsumerState<SchoolList> {
                   subtitle: <String>[
                     governorateLabel(l10n, s.governorate),
                     // The Area column (City -> Area); "no area" when unknown.
-                    if ((arabic ? s.placeAreaNameAr : s.placeAreaNameEn) case final String area when area.isNotEmpty)
+                    if (arabic ? s.placeAreaNameAr : s.placeAreaNameEn case final String area when area.isNotEmpty)
                       area
                     else
                       l10n.adminNoArea,

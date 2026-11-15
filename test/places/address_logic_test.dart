@@ -70,8 +70,8 @@ void main() {
     });
 
     test('reads homes/{uid}.address; an older home has none', () {
-      final HomeLocation home = HomeLocation.fromMap(<String, Object?>{
-        'location': const GeoPoint(29.96, 31.25),
+      final HomeLocation home = HomeLocation.fromMap(const <String, Object?>{
+        'location': GeoPoint(29.96, 31.25),
         'address': <String, Object?>{
           'governorate': 'cairo', 'placeAreaId': 'osm-r1', 'placeAreaNameEn': 'Maadi', 'placeDistrictId': null,
           'districtText': 'الحي الجديد', 'street': 'Road 9', 'building': '12',
