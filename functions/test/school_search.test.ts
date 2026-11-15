@@ -58,12 +58,15 @@ class MemorySearchStore implements SchoolSearchStore {
   quotaLimitHit = false;
   /** Firestore without the merged indexes: more than one filter fails. */
   oneFilterOnly = false;
+  /** Firestore with no composite index yet: any filter with the name order fails. */
+  noFilters = false;
   readonly districts = new Map([["d1", { nameAr: "دجلة", nameEn: "Degla" }]]);
 
   constructor(readonly rows: Array<SchoolRow & { grams: string[] }>) {}
 
   private match(f: ServerFilters) {
     if (this.oneFilterOnly && Object.keys(f).length > 1) throw new MissingIndexError();
+    if (this.noFilters && Object.keys(f).length > 0) throw new MissingIndexError();
     return this.rows.filter(
       (r) =>
         (!f.status || r.status === f.status) &&
@@ -321,6 +324,15 @@ describe("school search: paging, counts, audit, limits", () => {
     assert.equal(reports.length, 1);
     assert.ok(!reports[0].includes("zahraa"), "never the text");
     assert.deepEqual(fallbackFilters({ status: "active", placeAreaId: "a1", anyGrams: ["zah"] }), { anyGrams: ["zah"] });
+  });
+
+  it("with no composite index at all (still building) it falls back to name order only", async () => {
+    const store = new MemorySearchStore(SCHOOLS);
+    store.noFilters = true;
+    const res = await searchSchools(deps(store), ADMIN, { governorate: "cairo", placeAreaId: "a1", query: "zahraa" }, null);
+    assert.deepEqual(res.schools.map((s) => s.id), ["s2"]);
+    assert.equal(res.degraded, true);
+    assert.deepEqual(store.scans.at(-1), {});
   });
 });
 

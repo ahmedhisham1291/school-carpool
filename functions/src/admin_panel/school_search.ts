@@ -426,7 +426,15 @@ export async function searchSchools(
     degraded = true;
     filters = fallbackFilters(full);
     await deps.report(`adminSearchSchools: missing Firestore index for filters ${Object.keys(full).sort().join("+")}`);
-    outcome = await scanPages(deps, req, filters, firstPage);
+    try {
+      outcome = await scanPages(deps, req, filters, firstPage);
+    } catch (again) {
+      // The one-filter index is missing too (indexes still building after a
+      // deploy): name order only, which needs no composite index.
+      if (!(again instanceof MissingIndexError)) throw again;
+      filters = {};
+      outcome = await scanPages(deps, req, filters, firstPage);
+    }
   }
 
   let total: number | null = null;
