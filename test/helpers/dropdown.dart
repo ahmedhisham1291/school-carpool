@@ -5,7 +5,11 @@ import 'package:material_ui/material_ui.dart';
 Future<void> pickFromDropdown(WidgetTester tester, Key key, String label) async {
   await tester.tap(find.byKey(key));
   await tester.pumpAndSettle();
-  await tester.tap(find.text(label).last);
+  // Long menus (27 cities) scroll: bring the item into view before tapping.
+  final Finder item = find.text(label).last;
+  await tester.ensureVisible(item);
+  await tester.pumpAndSettle();
+  await tester.tap(item);
   await tester.pumpAndSettle();
 }
 
