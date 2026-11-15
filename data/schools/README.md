@@ -6,9 +6,13 @@ Put the files for the schools import (F4) here. They are not committed
 - `osm/`: the OpenStreetMap download made by
   `python3 tools/import_schools/fetch_osm_schools.py` (staging's
   `tool/cloud_setup.sh` step 12 runs it): every school and kindergarten in
-  Egypt through the Overpass API, plus `fetch_report.md` (date, server,
+  Egypt through the Overpass API (a broad query: tags and school-like names;
+  the importer decides what counts), plus `fetch_report.md` (date, server,
   counts). Data (c) OpenStreetMap contributors, ODbL 1.0
   (<https://www.openstreetmap.org/copyright>).
+- `wikidata/`: Wikidata's schools in Egypt from
+  `python3 tools/import_schools/fetch_wikidata_schools.py` (step 12 runs
+  it too), plus `fetch_report.md`. Wikidata data is CC0.
 - `boundaries/`: governorate borders for an exact governorate per school:
   the OpenStreetMap ones from the same script
   (`egypt_governorates_osm.geojson`) or HDX admin level 1 GeoJSON.

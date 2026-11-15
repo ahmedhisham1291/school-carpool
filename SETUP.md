@@ -559,9 +559,21 @@ this section is what it does, for a Mac or for prod.
    python3 tools/import_schools/fetch_osm_schools.py
    ```
    Asks a public Overpass server (overpass-api.de, then
-   overpass.private.coffee, then maps.mail.ru; each tried twice, with a
-   pause after "too many requests") for every node, way and relation
-   tagged `amenity=school` or `amenity=kindergarten` inside Egypt, and the
+   overpass.private.coffee, then maps.mail.ru; a busy server moves on to
+   the next at once, a pause only after every server failed, two rounds)
+   with a **broad** query: every `amenity=school|kindergarten`,
+   `education=school|kindergarten`, a named `building=school|kindergarten`,
+   a named feature with `school=*` or `isced:level=*`, and any feature
+   (not a street) whose `name`, `name:ar` or `name:en` reads like a school
+   (starts with مدرس / مدارس / روض / حضان, optionally after "ال" or "مجمع",
+   or contains school / kindergarten / KG). The download is wider than
+   what is kept: the importer (`classify_tags`) alone decides, and the
+   report lists every drop reason (university, college, courses/centres/
+   academies, childcare, named like a school but a street/shop/place/
+   historic madrasa/pitch, building part, no name, ...). Unnamed schools
+   take `official_name`, `alt_name`, `short_name` or a school-like
+   `operator` (never the ministry). If the broad query fails everywhere,
+   the old narrow query (`amenity` only) is used. Also downloads the
    27 governorate borders (`admin_level=4`, `ISO3166-2=EG-*`). Writes
    `data/schools/osm/egypt_schools_osm.geojson` (same columns as the HDX
    export below, so the IDs are the same), `data/schools/osm/fetch_report.md`
@@ -575,6 +587,22 @@ this section is what it does, for a Mac or for prod.
    in the app's licences screen before the public launch (open item).
    With this download you do not need the HDX files of step 1 (if both are
    there, the HDX copies are listed as "same source ID twice").
+   **Wikidata (second source):**
+   `python3 tools/import_schools/fetch_wikidata_schools.py` asks the
+   Wikidata Query Service (query.wikidata.org) for items of class school
+   (Q3914) or kindergarten (Q126807) or any subclass, country Egypt (Q79),
+   with coordinates (P625), not dissolved, with Arabic and English labels.
+   Writes `data/schools/wikidata/egypt_schools_wikidata.geojson` and a
+   fetch report (git-ignored). Classes that are not schools for us
+   (universities, colleges, music/driving/language schools, historic
+   madrasas) become tags the importer drops. An OSM school tagged
+   `wikidata=Q..` absorbs that item (its labels fill missing Arabic or
+   English names); other overlaps are merged by the usual name + 300 m
+   rule. Wikidata is CC0 (no attribution required; we credit "Wikidata"
+   in the licences screen with OpenStreetMap). Set `WIKIDATA_CONTACT`
+   (an email or web page) to add a contact to the User-Agent, as
+   Wikimedia's User-Agent policy asks; a 403 answer means the service
+   refused the request without one.
 1. **OpenStreetMap schools (HDX).** Open
    <https://data.humdata.org/dataset/hotosm_egy_education_facilities>
    ("Egypt Education Facilities (OpenStreetMap Export)", by the
