@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { newEvent } from "../notifications/model";
 import { MESSAGE_KINDS, photoPathOk, type ChatData, type MessageKind, type StoredMessage } from "./data";
 import { hasBlockedTerm } from "./moderation";
-import { isMuted, isSmallChat, MESSAGE_TEXT_MAX, parseCid, SMALL_CHAT_MAX, SYSTEM_USER_ID } from "./model";
+import { isMuted, isSmallChat, MESSAGE_TEXT_MAX, muteChoice, parseCid, SMALL_CHAT_MAX, SYSTEM_USER_ID } from "./model";
 import { previewOf, type ChatServer } from "./server";
 import type { ChatStore } from "./store";
 
@@ -10,35 +10,46 @@ import type { ChatStore } from "./store";
  * What happens after a parent's phone wrote a message (the trigger on
  * chats/{cid}/messages/{id}, callables.ts). The phone writes the message
  * itself so sending feels instant and works offline; everything else is
- * here:
+ * here, in two parts:
  *
- * 1. Checks the rules cannot do: the sender is in OUR registry, the
- *    sending limit (too fast: the message is removed and the sender cannot
- *    write for a while; the rules read `mutedUntil`), blocked terms.
- * 2. The chat's head: last message, time and message counter.
- * 3. Small chats: each member's chat list row (unread + 1, last message).
- *    School and area groups get no write per member (thousands of them);
- *    the app counts unread from the head's counter.
- * 4. Push through OUR sender (Prompt 8): one "chat-message" event, so the
- *    push text is the fixed "You have a new message" and never the
- *    message, a name or a photo. Recipients: the chat's members in our
- *    registry, minus the sender, minus parents who muted that chat (large
- *    school and area groups start muted), minus parents who blocked the
- *    sender.
+ * A. The gate (MUST happen; the trigger is retried until it did). A marker
+ *    per message makes a second delivery harmless: the sending limit is
+ *    counted once. Removed: a message that is not valid, from somebody not
+ *    in OUR registry, over the sending limit or the daily photo limit (the
+ *    sender then cannot write for a while; the rules read `mutedUntil`),
+ *    or with a blocked term. Removing is safe to repeat.
  *
- * A trigger can be delivered twice: the head remembers the last message it
- * counted and the event ID is fixed per message. Logs: kinds and counts
- * only, never text, names or coordinates.
+ *    The message is visible to members who have the chat open from the
+ *    write until this runs: usually one to three seconds, ten or more
+ *    when the function starts cold. It never reaches the chat list or a
+ *    push.
+ *
+ * B. The counters (best effort; a failure is logged, never retried into a
+ *    double count): the chat's head (last message, time, message counter)
+ *    together with the marker in ONE transaction, so a message is counted
+ *    once whatever is delivered twice or in which order; then, in small
+ *    chats, each member's chat list row (unread + 1, last message). School
+ *    and area groups get no write per member; the app counts unread from
+ *    the head's counter. Then the push through OUR sender (Prompt 8): one
+ *    "chat-message" event with a fixed ID, so the push text is the fixed
+ *    "You have a new message" and never the message, a name or a photo.
+ *    Recipients: the chat's members in our registry, minus the sender,
+ *    minus parents who muted that chat (large school and area groups start
+ *    muted), minus parents who blocked the sender.
+ *
+ * Logs: kinds and counts only, never text, names or coordinates.
  */
 
 export interface FanoutLimits {
   /** Messages a parent may send per minute, all chats together. */
   messagesPerMinute: number;
+  /** Chat photos a parent may send per day, all chats together. */
+  photosPerDay: number;
   /** How long a parent who went over cannot write. */
   muteMinutes: number;
 }
 
-export const DEFAULT_FANOUT_LIMITS: FanoutLimits = { messagesPerMinute: 30, muteMinutes: 10 };
+export const DEFAULT_FANOUT_LIMITS: FanoutLimits = { messagesPerMinute: 30, photosPerDay: 50, muteMinutes: 10 };
 
 export interface FanoutDeps {
   store: ChatStore;
@@ -106,6 +117,8 @@ export async function onMessageCreated(deps: FanoutDeps, cid: string, messageId:
     deps.log("chat message removed", { kind: ref.kind, reason });
     return out(false, 0, reason, true);
   };
+
+  // ---- A. The gate: errors here are thrown, so the trigger is retried.
   const message = messageFromDoc(messageId, doc);
   if (!message) return remove("invalid");
   const system = message.senderUid === SYSTEM_USER_ID;
@@ -118,43 +131,69 @@ export async function onMessageCreated(deps: FanoutDeps, cid: string, messageId:
     if (!channel.members.includes(message.senderUid)) return remove("not-member");
     const problem = messageProblem(ref.cid, small, message);
     if (problem) return remove(problem);
-    // Too fast: this message goes, and the rules refuse the next ones for a while.
-    const limit = await deps.store.takeLimit(message.senderUid, "messages", nowMs, { windowMs: 60_000, max: deps.limits.messagesPerMinute });
-    if (!limit.allowed) {
-      const until = nowMs + deps.limits.muteMinutes * 60_000;
-      for (const c of await deps.data.chatsOf(message.senderUid, 500)) await deps.data.patchMember(c, message.senderUid, { mutedUntilMs: until }, nowMs);
-      return remove("too-fast");
-    }
     if (message.kind === "text" && hasBlockedTerm(message.text)) return remove("blocked-term");
+
+    // The limits are counted ONCE per message: only the delivery that
+    // creates the marker counts; a later one reads the verdict.
+    const first = await deps.data.claimMessage(ref.cid, messageId, nowMs);
+    let over: string | null = null;
+    if (first) {
+      const perMinute = await deps.store.takeLimit(message.senderUid, "messages", nowMs, { windowMs: 60_000, max: deps.limits.messagesPerMinute });
+      if (!perMinute.allowed) over = "too-fast";
+      if (!over && message.kind === "photo") {
+        const perDay = await deps.store.takeLimit(message.senderUid, "photos", nowMs, { windowMs: 86_400_000, max: deps.limits.photosPerDay });
+        if (!perDay.allowed) over = "too-many-photos";
+      }
+      if (over) await deps.data.setVerdict(ref.cid, messageId, "over");
+    } else if ((await deps.data.fanMark(ref.cid, messageId))?.verdict === "over") {
+      over = "too-fast";
+    }
+    if (over) {
+      // Mute once: a parent already muted is not written again for every
+      // further message (each would be a query and a write per chat).
+      const mine = await deps.data.member(ref.cid, message.senderUid);
+      if (!mine || (mine.mutedUntilMs ?? 0) <= nowMs) {
+        const until = nowMs + deps.limits.muteMinutes * 60_000;
+        for (const c of await deps.data.chatsOf(message.senderUid, 500)) await deps.data.patchMember(c, message.senderUid, { mutedUntilMs: until }, nowMs);
+      }
+      return remove(over);
+    }
   }
 
-  const last = previewOf(message);
-  const at = message.createdAtMs > 0 ? message.createdAtMs : nowMs;
-  const state = { duplicate: false, missing: false };
-  await deps.data.updateHead(ref.cid, (current) => {
-    state.missing = current === null;
-    state.duplicate = current?.lastMessageId === messageId;
-    if (!current || state.duplicate) return null;
-    return { ...current, seq: current.seq + 1, lastAtMs: Math.max(current.lastAtMs ?? 0, at), last, lastMessageId: messageId, updatedAtMs: nowMs };
-  });
-  if (state.missing) return out(false, 0, "no-head");
-  if (!state.duplicate && small) {
-    await deps.data.noteMessage(ref.cid, channel.members.slice(0, SMALL_CHAT_MAX), message.senderUid, last, at);
-  }
-  if (system) return out(true, 0, "system");
+  // ---- B. The counters and the push: best effort, never thrown.
+  try {
+    const last = previewOf(message);
+    const at = message.createdAtMs > 0 ? message.createdAtMs : nowMs;
+    const counted = await deps.data.countMessage(ref.cid, messageId, (current) => ({
+      ...current,
+      seq: current.seq + 1,
+      lastAtMs: Math.max(current.lastAtMs ?? 0, at),
+      // An older message delivered late does not replace a newer preview.
+      ...(at >= (current.lastAtMs ?? 0) ? { last, lastMessageId: messageId } : {}),
+      updatedAtMs: nowMs,
+    }));
+    if (counted === "no-head") return out(false, 0, "no-head");
+    if (counted === "counted" && small) {
+      await deps.data.noteMessage(ref.cid, channel.members.slice(0, SMALL_CHAT_MAX), message.senderUid, last, at);
+    }
+    if (system) return out(true, 0, "system");
 
-  const [choices, blockers] = await Promise.all([deps.store.muteChoices(ref.cid), deps.store.blockersOf(message.senderUid)]);
-  const blocked = new Set(blockers);
-  const recipients = channel.members.filter(
-    (uid) => uid !== message.senderUid && !blocked.has(uid) && !isMuted(ref.kind, channel.members.length, choices.get(uid) ?? null),
-  );
-  if (recipients.length === 0) return out(true, 0, "nobody");
-  const event = newEvent(chatEventId(ref.cid, messageId), "chat-message", recipients, nowMs, {
-    actorUid: message.senderUid,
-    carpoolId: ref.kind === "carpool" ? channel.refId : null,
-    chatCid: ref.cid,
-  });
-  const created = await deps.store.createEvent(event);
-  deps.log("chat message push queued", { kind: ref.kind, recipients: recipients.length, duplicate: !created });
-  return out(created, recipients.length, created ? null : "duplicate");
+    const blocked = new Set(await deps.store.blockersOf(message.senderUid));
+    const recipients = channel.members.filter(
+      (uid) => uid !== message.senderUid && !blocked.has(uid) && !isMuted(ref.kind, channel.members.length, muteChoice(channel, uid)),
+    );
+    if (recipients.length === 0) return out(true, 0, counted === "duplicate" ? "duplicate" : "nobody");
+    const event = newEvent(chatEventId(ref.cid, messageId), "chat-message", recipients, nowMs, {
+      actorUid: message.senderUid,
+      carpoolId: ref.kind === "carpool" ? channel.refId : null,
+      chatCid: ref.cid,
+    });
+    const created = await deps.store.createEvent(event);
+    deps.log("chat message push queued", { kind: ref.kind, recipients: recipients.length, duplicate: !created });
+    return out(created, recipients.length, created ? null : "duplicate");
+  } catch (error) {
+    // Our own error text only (never the message).
+    deps.log("chat message counters failed", { kind: ref.kind, message: error instanceof Error ? error.message : "unknown" });
+    return out(false, 0, "counters-failed");
+  }
 }

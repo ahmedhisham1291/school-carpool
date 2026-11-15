@@ -202,6 +202,12 @@ export interface ChannelRecord {
   excluded: string[];
   /** A private chat between parents where one blocked the other. */
   frozen: boolean;
+  /**
+   * Parents who chose "mute" / "unmute" for this chat, kept here so a new
+   * message needs ONE read to know who gets a push (not one per choice).
+   */
+  mutedBy?: string[];
+  unmutedBy?: string[];
   createdAtMs: number;
   updatedAtMs: number;
   /**
@@ -256,6 +262,19 @@ export interface MuteRecord {
 
 export function muteId(uid: string, cid: string): string {
   return `${uid}_${cid.replace(":", "~")}`;
+}
+
+/** The parent's own choice from the channel record, or null when they made none. */
+export function muteChoice(channel: Pick<ChannelRecord, "mutedBy" | "unmutedBy">, uid: string): boolean | null {
+  if (channel.mutedBy?.includes(uid)) return true;
+  if (channel.unmutedBy?.includes(uid)) return false;
+  return null;
+}
+
+/** The channel record with [uid]'s choice set. */
+export function withMuteChoice(channel: ChannelRecord, uid: string, muted: boolean): ChannelRecord {
+  const without = (list: string[] | undefined) => (list ?? []).filter((u) => u !== uid);
+  return { ...channel, mutedBy: muted ? [...without(channel.mutedBy), uid] : without(channel.mutedBy), unmutedBy: muted ? without(channel.unmutedBy) : [...without(channel.unmutedBy), uid] };
 }
 
 /** Muted when the parent said so; a large school or area group starts muted. */

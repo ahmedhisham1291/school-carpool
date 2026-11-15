@@ -1,4 +1,4 @@
-import type { ChatData, ChatHead, ChatMember, ChatSummary, LastMessage, StoredMessage } from "./data";
+import { parsePhotoPath, type ChatData, type ChatHead, type ChatMember, type ChatSummary, type LastMessage, type StoredMessage } from "./data";
 import { cutText, isSmallChat, MAX_GROUP_MEMBERS, parseCid, PREVIEW_TEXT_MAX, SMALL_CHAT_MAX, SYSTEM_USER_ID, type ChatKind, type MessageSnapshot } from "./model";
 
 /**
@@ -71,7 +71,18 @@ export interface ChatServer {
    * sender already told the parents).
    */
   postSystemMessage(type: string, id: string, messageId: string, text: string, extra: Record<string, string>): Promise<void>;
+  /**
+   * Deletes chat photos uploaded between 1 and 3 days ago that no message
+   * names (an upload whose message was refused or never written), and
+   * stops a parent with many of them from writing for a day. Returns the
+   * number deleted.
+   */
+  sweepOrphanPhotos(nowMs: number): Promise<number>;
 }
+
+/** Orphans by one parent in one night that stop them from writing for a day. */
+export const ORPHAN_PHOTOS_MUTE = 20;
+const DAY_MS = 86_400_000;
 
 // --------------------------------------------------------------------------
 // Firestore
@@ -164,7 +175,8 @@ export class FirestoreChatServer implements ChatServer {
         uid,
         firstName: profile?.firstName ?? existing?.firstName ?? "",
         active: true,
-        cut: false,
+        // A suspension that landed a moment ago stays (only reactivateUser lifts it).
+        cut: existing?.cut ?? false,
         frozen: head.frozen,
         mutedUntilMs: existing?.mutedUntilMs ?? null,
         joinedAtMs: existing?.active ? existing.joinedAtMs : nowMs,
@@ -311,7 +323,34 @@ export class FirestoreChatServer implements ChatServer {
       if ((await this.data.deleteMessagesBy(uid, PURGE_PAGE)) < PURGE_PAGE) break;
       if (round === PURGE_ROUNDS - 1) throw new Error("messages left; retried tomorrow");
     }
-    for (const cid of await this.data.chatsOf(uid, CHATS_PER_PARENT)) await this.data.deleteSummary(uid, cid);
+    for (const cid of await this.data.chatsOf(uid, CHATS_PER_PARENT)) {
+      await this.data.deleteSummary(uid, cid);
+      // Uploads no message names (so the loop above did not reach them).
+      await this.data.deletePhotosOf(cid, uid);
+    }
+  }
+
+  async sweepOrphanPhotos(nowMs: number): Promise<number> {
+    // A day's grace: an upload whose message is still on its way (offline)
+    // is not an orphan yet. Each photo is looked at on two nights at most.
+    const photos = await this.data.photosCreatedBetween(nowMs - 3 * DAY_MS, nowMs - DAY_MS, 5_000);
+    const perUid = new Map<string, string[]>();
+    let deleted = 0;
+    for (const photo of photos) {
+      const parts = parsePhotoPath(photo.path);
+      if (parts) {
+        const message = await this.data.message(parts.cid, parts.messageId);
+        if (message && message.photoPath === photo.path) continue;
+        perUid.set(parts.uid, [...(perUid.get(parts.uid) ?? []), parts.cid]);
+      }
+      await this.data.deletePhoto(photo.path);
+      deleted += 1;
+    }
+    for (const [uid, cids] of perUid) {
+      if (cids.length < ORPHAN_PHOTOS_MUTE) continue;
+      for (const cid of await this.data.chatsOf(uid, CHATS_PER_PARENT)) await this.data.patchMember(cid, uid, { mutedUntilMs: nowMs + DAY_MS }, nowMs);
+    }
+    return deleted;
   }
 
   async userMessages(uid: string, limit: number): Promise<ExportedMessage[]> {
@@ -484,6 +523,11 @@ export class FakeChatServer implements ChatServer {
       }
     }
     return out.slice(0, limit);
+  }
+
+  async sweepOrphanPhotos(nowMs: number): Promise<number> {
+    this.note(`sweepOrphanPhotos ${nowMs}`);
+    return 0;
   }
 
   /** System messages posted (cid, id, text, extra); one per ID. */

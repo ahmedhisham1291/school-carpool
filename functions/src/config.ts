@@ -187,6 +187,8 @@ export const NOTIFY_SETTINGS_CHANGES_PER_DAY = defineInt("NOTIFY_SETTINGS_CHANGE
 export const CHAT_PROVIDER = defineString("CHAT_PROVIDER", { default: "firestore" });
 /** Messages a parent may send per minute, all chats together; over it they cannot write for CHAT_MUTE_MINUTES. */
 export const CHAT_MESSAGES_PER_MINUTE = defineInt("CHAT_MESSAGES_PER_MINUTE", { default: 30 });
+/** Chat photos a parent may send per day, all chats together; over it the photo is removed and they cannot write for CHAT_MUTE_MINUTES. */
+export const CHAT_PHOTOS_PER_DAY = defineInt("CHAT_PHOTOS_PER_DAY", { default: 50 });
 /** How long a parent who sent too fast cannot write (the rules read mutedUntil). */
 export const CHAT_MUTE_MINUTES = defineInt("CHAT_MUTE_MINUTES", { default: 10 });
 /** New private chat requests per parent per day (spec section 5). */

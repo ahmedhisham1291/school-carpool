@@ -7,6 +7,7 @@ import {
   CHAT_CHANGES_PER_DAY,
   CHAT_MESSAGES_PER_MINUTE,
   CHAT_MUTE_MINUTES,
+  CHAT_PHOTOS_PER_DAY,
   CHAT_PROVIDER,
   CHAT_REPORTS_PER_DAY,
   CHAT_REQUESTS_PER_DAY,
@@ -214,13 +215,21 @@ function limitOr(value: number, fallback: number, min: number, max: number): num
 /**
  * A parent's phone wrote a message (firestore.rules let only a current
  * member do that). Limits, blocked terms, the chat list (last message,
- * unread counters) and the push through OUR sender: fanout.ts. Not
- * retried: a failed run costs one push or one counter, never a message.
+ * unread counters) and the push through OUR sender: fanout.ts.
+ *
+ * RETRIED on failure (for up to 6 hours): a message over a limit or with a
+ * blocked term must not stay because one run failed. Safe to repeat: a
+ * marker per message counts the limit and the counters once. The counters
+ * and the push never throw (a failed one is logged, not retried).
  */
 export const onChatMessageCreated = onDocumentCreated(
-  { document: "chats/{cid}/messages/{messageId}", region: REGION, retry: false, maxInstances: 20 },
+  { document: "chats/{cid}/messages/{messageId}", region: REGION, retry: true, maxInstances: 20 },
   async (event) => {
     const params = event.params as Record<string, string>;
+    if (tooOld((event as { time?: string }).time)) {
+      logger.error("chat message fan-out gave up after retries");
+      return;
+    }
     try {
       await onMessageCreated(
         {
@@ -229,6 +238,7 @@ export const onChatMessageCreated = onDocumentCreated(
           server: server(),
           limits: {
             messagesPerMinute: limitOr(CHAT_MESSAGES_PER_MINUTE.value(), 30, 1, 600),
+            photosPerDay: limitOr(CHAT_PHOTOS_PER_DAY.value(), 50, 1, 1000),
             muteMinutes: limitOr(CHAT_MUTE_MINUTES.value(), 10, 1, 1440),
           },
           now: () => Date.now(),
@@ -242,6 +252,8 @@ export const onChatMessageCreated = onDocumentCreated(
       // Never the message: the error text of our own code and Firestore only.
       logger.error("chat message fan-out failed", { message: error instanceof Error ? error.message : "unknown" });
       await reportError(error);
+      // The gate did not finish (the message may still need removing): again.
+      throw error;
     }
   },
 );

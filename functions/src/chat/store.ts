@@ -32,7 +32,7 @@ export interface CarpoolInfo {
   active: boolean;
 }
 
-export type ChatLimitKind = "messages" | "requests" | "reports" | "changes" | "syncs";
+export type ChatLimitKind = "messages" | "photos" | "requests" | "reports" | "changes" | "syncs";
 
 export interface ChatStore {
   account(uid: string): Promise<ChatAccount | null>;
@@ -74,8 +74,6 @@ export interface ChatStore {
 
   mute(uid: string, cid: string): Promise<boolean | null>;
   putMute(m: MuteRecord): Promise<void>;
-  /** Every parent's own mute choice in [cid]: uid -> muted. */
-  muteChoices(cid: string): Promise<Map<string, boolean>>;
 
   settings(uid: string): Promise<ChatSettings>;
   putSettings(uid: string, s: ChatSettings, nowMs: number): Promise<void>;

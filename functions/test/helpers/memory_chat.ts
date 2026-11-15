@@ -1,7 +1,7 @@
 import type { OutboxEvent } from "../../src/notifications/model";
 import { takeFromWindow, type WindowCounter } from "../../src/maps/limits";
 import { blockId, muteId, type BlockRecord, type ChannelRecord, type ChatAccount, type ChatSettings, type MuteRecord, type ReportRecord, type RequestRecord } from "../../src/chat/model";
-import type { ChatData, ChatHead, ChatMember, ChatProfile, ChatSummary, LastMessage, MemberPatch, StoredMessage, SummaryPatch } from "../../src/chat/data";
+import { photoFolder, type ChatData, type ChatHead, type ChatMember, type ChatProfile, type ChatSummary, type FanMark, type LastMessage, type MemberPatch, type StoredMessage, type SummaryPatch } from "../../src/chat/data";
 import type { AreaInfo, CarpoolInfo, ChatLimitKind, ChatStore, DrivingPauser, LatLng, SchoolName } from "../../src/chat/store";
 
 const clone = <T>(v: T): T => structuredClone(v);
@@ -104,9 +104,6 @@ export class MemoryChatStore implements ChatStore {
   async putMute(m: MuteRecord) {
     this.mutes.set(muteId(m.uid, m.cid), clone(m));
   }
-  async muteChoices(cid: string) {
-    return new Map([...this.mutes.values()].filter((m) => m.cid === cid).map((m) => [m.uid, m.muted] as [string, boolean]));
-  }
   async settings(uid: string) {
     return clone(this.chatSettings.get(uid) ?? { requestsOff: false });
   }
@@ -179,6 +176,52 @@ export class MemoryChatData implements ChatData {
     }
     return clone(next);
   }
+  marks = new Map<string, FanMark>();
+  /** path -> created (ms): photos in Storage, with or without a message. */
+  photos = new Map<string, number>();
+  /** Makes the next countMessage fail once (a crashed run). */
+  failCount = false;
+
+  async claimMessage(cid: string, messageId: string) {
+    const key = `${cid}|${messageId}`;
+    if (this.marks.has(key)) return false;
+    this.marks.set(key, { verdict: "ok", counted: false });
+    this.writes += 1;
+    return true;
+  }
+  async fanMark(cid: string, messageId: string) {
+    return clone(this.marks.get(`${cid}|${messageId}`) ?? null);
+  }
+  async setVerdict(cid: string, messageId: string, verdict: FanMark["verdict"]) {
+    const m = this.marks.get(`${cid}|${messageId}`);
+    if (m) m.verdict = verdict;
+  }
+  async countMessage(cid: string, messageId: string, change: (c: ChatHead) => ChatHead): Promise<"counted" | "duplicate" | "no-head"> {
+    if (this.failCount) {
+      this.failCount = false;
+      throw new Error("transaction failed");
+    }
+    const head = this.heads.get(cid);
+    if (!head) return "no-head";
+    const key = `${cid}|${messageId}`;
+    const mark = this.marks.get(key);
+    if (mark?.counted) return "duplicate";
+    this.heads.set(cid, clone(change(clone(head))));
+    this.marks.set(key, { verdict: mark?.verdict ?? "ok", counted: true });
+    this.writes += 1;
+    return "counted";
+  }
+  async photosCreatedBetween(fromMs: number, toMs: number, limit: number) {
+    return [...this.photos.entries()].filter(([, at]) => at >= fromMs && at < toMs).map(([path, createdAtMs]) => ({ path, createdAtMs })).slice(0, limit);
+  }
+  async deletePhoto(path: string) {
+    this.photos.delete(path);
+    this.deletedPhotos.push(path);
+  }
+  async deletePhotosOf(cid: string, uid: string) {
+    const prefix = `${photoFolder(cid)}/${uid}/`;
+    for (const path of [...this.photos.keys()]) if (path.startsWith(prefix)) await this.deletePhoto(path);
+  }
   async member(cid: string, uid: string) {
     return clone(this.memberDocs.get(`${cid}|${uid}`) ?? null);
   }
@@ -246,7 +289,10 @@ export class MemoryChatData implements ChatData {
     const found = this.list(cid).find((m) => m.id === id) ?? null;
     if (!found) return null;
     this.messageDocs.set(cid, this.list(cid).filter((m) => m.id !== id));
-    if (found.photoPath) this.deletedPhotos.push(found.photoPath);
+    if (found.photoPath) {
+      this.photos.delete(found.photoPath);
+      this.deletedPhotos.push(found.photoPath);
+    }
     return clone(found);
   }
   async messagesBy(uid: string, limit: number) {

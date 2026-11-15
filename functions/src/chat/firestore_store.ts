@@ -90,6 +90,8 @@ export function channelToDoc(c: ChannelRecord): DocumentData {
     memberCount: c.members.length,
     excluded: c.excluded,
     frozen: c.frozen,
+    mutedBy: c.mutedBy ?? [],
+    unmutedBy: c.unmutedBy ?? [],
     createdAt: ts(c.createdAtMs),
     updatedAt: ts(c.updatedAtMs),
     endedAt: c.endedAtMs ? ts(c.endedAtMs) : null,
@@ -109,6 +111,8 @@ export function channelFromDoc(cid: string, d: DocumentData): ChannelRecord | nu
     members: strings(d.members),
     excluded: strings(d.excluded),
     frozen: d.frozen === true,
+    mutedBy: strings(d.mutedBy),
+    unmutedBy: strings(d.unmutedBy),
     createdAtMs: ms(d.createdAt),
     updatedAtMs: ms(d.updatedAt),
     endedAtMs: ms(d.endedAt) || null,
@@ -349,16 +353,6 @@ export class FirestoreChatStore implements ChatStore {
 
   async putMute(m: MuteRecord): Promise<void> {
     await this.db.collection(CHAT_MUTES).doc(muteId(m.uid, m.cid)).set({ uid: m.uid, cid: m.cid, muted: m.muted, updatedAt: ts(m.updatedAtMs) });
-  }
-
-  async muteChoices(cid: string): Promise<Map<string, boolean>> {
-    const snap = await this.db.collection(CHAT_MUTES).where("cid", "==", cid).limit(5_000).get();
-    const out = new Map<string, boolean>();
-    for (const d of snap.docs) {
-      const uid = text(d.get("uid"));
-      if (uid && typeof d.get("muted") === "boolean") out.set(uid, d.get("muted") as boolean);
-    }
-    return out;
   }
 
   async settings(uid: string): Promise<ChatSettings> {

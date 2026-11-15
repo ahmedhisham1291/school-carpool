@@ -13,11 +13,13 @@ import {
   isReportReason,
   isReportTarget,
   messageIdField,
+  muteChoice,
   privateChannelId,
   record,
   requestId,
   uidField,
   URGENT_REASONS,
+  withMuteChoice,
   type ChannelRecord,
   type ChatAccount,
   type ReportRecord,
@@ -241,6 +243,9 @@ export async function setChatMute(deps: ChatDeps, caller: Caller, data: unknown)
   await requireMember(deps, caller.uid, ref.cid);
   await take(deps, caller.uid, "changes", DAY, deps.limits.changesPerDay);
   await deps.store.putMute({ uid: caller.uid, cid: ref.cid, muted, updatedAtMs: deps.now() });
+  // On the channel record too: a new message then needs one read, not one
+  // per parent who ever chose, to know who gets a push.
+  await deps.store.updateChannel(ref.cid, (c) => (c && muteChoice(c, caller.uid) !== muted ? withMuteChoice(c, caller.uid, muted) : null));
   // Also on the parent's chat list row, so every phone shows it.
   await deps.server.setMuted(caller.uid, ref.cid, muted);
   return { muted };

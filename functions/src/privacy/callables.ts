@@ -446,6 +446,7 @@ export const retentionDaily = onSchedule(
         const [type, id] = cid.split(":");
         return chat.deleteChannel(type, id);
       },
+      sweepChatPhotos: (nowMs) => chat.sweepOrphanPhotos(nowMs),
       freezeChannel: (cid) => {
         const [type, id] = cid.split(":");
         return chat.setFrozen(type, id, true);

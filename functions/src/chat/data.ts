@@ -5,10 +5,16 @@ import type { ChatKind } from "./model";
  *
  * - chats/{cid}: the chat's head (names, member count, frozen, the last
  *   message and a message counter). Members read it; Functions write it.
- * - chats/{cid}/chatMembers/{uid}: who is in the chat. The rules read THIS
- *   document on every read and write, so removing, suspending, freezing or
- *   muting a parent works at once. Kept (inactive) after a parent leaves so
- *   old messages still show a first name; Functions only.
+ * - chats/{cid}/chatMembers/{uid}: the member's first name, for message
+ *   authors. Members read one by its ID (never a list). Kept after a parent
+ *   leaves so old messages still show a first name; Functions only write.
+ * - chats/{cid}/chatAccess/{uid}: what the member may do (active, cut,
+ *   frozen, mutedUntil). NOBODY reads it from the app, not even its owner:
+ *   only the rules read it, on every read and write, so removing,
+ *   suspending, freezing or muting a parent works at once and no member
+ *   can see another member's sanctions.
+ * - chats/{cid}/fanned/{messageId}: the message trigger's own marker (so a
+ *   trigger delivered twice counts once); TTL 2 days; Functions only.
  * - chats/{cid}/messages/{id}: written by the sender's phone under strict
  *   rules (own uid, server time, fixed fields and sizes), never changed.
  *   Functions delete (admin removal, limits, blocked terms, retention).
@@ -23,6 +29,10 @@ import type { ChatKind } from "./model";
 
 export const CHATS = "chats";
 export const CHAT_MEMBERS = "chatMembers";
+export const CHAT_ACCESS = "chatAccess";
+export const CHAT_FANNED = "fanned";
+/** Fan-out markers are deleted this long after the message (Firestore TTL). */
+export const FANNED_TTL_DAYS = 2;
 export const CHAT_MESSAGES = "messages";
 export const CHAT_READS = "reads";
 export const USER_CHATS = "userChats";
@@ -119,6 +129,26 @@ export interface StoredMessage {
   createdAtMs: number;
 }
 
+/** The message trigger's marker for one message. */
+export interface FanMark {
+  /** The sending limit refused it ("over"); "ok" otherwise. */
+  verdict: "ok" | "over";
+  /** The head and the unread counters were updated for it. */
+  counted: boolean;
+}
+
+/** A chat photo in Storage. */
+export interface StoredPhoto {
+  path: string;
+  createdAtMs: number;
+}
+
+/** chatPhotos/{type}/{id}/{uid}/{messageId}.ext -> its parts, or null for anything else. */
+export function parsePhotoPath(path: string): { cid: string; uid: string; messageId: string } | null {
+  const m = /^chatPhotos\/(cp_[a-z]+)\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\.(webp|jpg)$/.exec(path);
+  return m ? { cid: `${m[1]}:${m[2]}`, uid: m[3], messageId: m[4] } : null;
+}
+
 export interface ChatProfile {
   firstName: string;
   parentId: string;
@@ -131,6 +161,20 @@ export interface ChatData {
   head(cid: string): Promise<ChatHead | null>;
   /** Reads the head, applies [change] and saves its answer in one transaction; null leaves it. */
   updateHead(cid: string, change: (current: ChatHead | null) => ChatHead | null): Promise<ChatHead | null>;
+
+  /**
+   * The message trigger's marker. true when this call created it (first
+   * delivery); false when it was there already (a second delivery).
+   */
+  claimMessage(cid: string, messageId: string, nowMs: number): Promise<boolean>;
+  fanMark(cid: string, messageId: string): Promise<FanMark | null>;
+  setVerdict(cid: string, messageId: string, verdict: FanMark["verdict"]): Promise<void>;
+  /**
+   * One transaction: when the marker says "not counted yet", applies
+   * [change] to the head and marks it counted. "counted" when it did,
+   * "duplicate" when it was counted before, "no-head" without a head.
+   */
+  countMessage(cid: string, messageId: string, change: (current: ChatHead) => ChatHead): Promise<"counted" | "duplicate" | "no-head">;
 
   member(cid: string, uid: string): Promise<ChatMember | null>;
   putMember(cid: string, member: ChatMember): Promise<void>;
@@ -165,8 +209,14 @@ export interface ChatData {
   /** Deletes up to [limit] of the parent's messages (and photos); the number deleted. */
   deleteMessagesBy(uid: string, limit: number): Promise<number>;
 
-  /** The head, members, messages, reads, the members' summaries and the photos. */
+  /** The head, members, access, messages, reads, markers, the members' summaries and the photos. */
   deleteChat(cid: string): Promise<void>;
+
+  /** Chat photos created in [fromMs, toMs), at most [limit] (Storage listing). */
+  photosCreatedBetween(fromMs: number, toMs: number, limit: number): Promise<StoredPhoto[]>;
+  deletePhoto(path: string): Promise<void>;
+  /** Every photo [uid] uploaded into [cid], with or without a message. */
+  deletePhotosOf(cid: string, uid: string): Promise<void>;
 }
 
 /** The only place a chat photo may live: chatPhotos/{type}/{id}/{senderUid}/{messageId}.webp or .jpg. */

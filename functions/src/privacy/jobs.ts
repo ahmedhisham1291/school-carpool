@@ -61,6 +61,8 @@ export interface RetentionDeps {
   runner: DeletionRunner;
   /** Deletes a chat with its messages and photos (it ended a year ago). */
   deleteChannel(cid: string): Promise<void>;
+  /** Chat photos no message names, older than a day: deleted (returns the count). */
+  sweepChatPhotos(nowMs: number): Promise<number>;
   /** Freezes a chat (no new messages; the history stays). */
   freezeChannel(cid: string): Promise<void>;
   now: () => number;
@@ -138,6 +140,8 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
     return { deleted, failed };
   });
 
+  // Chat photos uploaded without a message (refused, or never written).
+  await task("chatPhotoOrphans", async () => ({ deleted: await deps.sweepChatPhotos(nowMs), failed: 0 }));
   await task("reportContexts", async () => ({ deleted: await deps.store.clearReportContexts(cutoff(nowMs, REPORT_CONTEXT_DAYS), PAGE), failed: 0 }));
   await task("tripStops", async () => ({ deleted: await deps.store.deleteTripStopsBefore(cutoff(nowMs, TRIP_STOPS_DAYS), PAGE), failed: 0 }));
   await task("auditLog", async () => ({ deleted: await deps.store.deleteAuditBefore(cutoff(nowMs, AUDIT_LOG_DAYS), PAGE), failed: 0 }));

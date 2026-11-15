@@ -23,14 +23,15 @@ import {
   isMuted,
   LARGE_GROUP_SIZE,
   MESSAGE_TEXT_MAX,
+  muteChoice,
   parseCid,
   privateChannelId,
   type ChannelRecord,
 } from "../src/chat/model";
-import { photoPathOk } from "../src/chat/data";
+import { parsePhotoPath, photoPathOk } from "../src/chat/data";
 import { chatEventId, DEFAULT_FANOUT_LIMITS, messageFromDoc, onMessageCreated, type FanoutDeps } from "../src/chat/fanout";
 import { BLOCKED_TERMS_AR, BLOCKED_TERMS_EN, hasBlockedTerm } from "../src/chat/moderation";
-import { createChatServer, FakeChatServer, FirestoreChatServer } from "../src/chat/server";
+import { createChatServer, FakeChatServer, FirestoreChatServer, ORPHAN_PHOTOS_MUTE } from "../src/chat/server";
 import { accountFromDoc, chatRelevant, nearestArea, syncAccess, syncCarpoolMember, syncParentGroups } from "../src/chat/sync";
 import { routeFor } from "../src/notifications/catalog";
 import { buildPush, buildRecord, eventFromDoc } from "../src/notifications/model";
@@ -549,7 +550,7 @@ describe("new message fan-out (the trigger on chats/{cid}/messages/{id})", () =>
     const cid = "cp_school:s-sch1";
     const writes = s.data.writes;
     await send(s, cid, "g1", "alice", { text: "hello" });
-    assert.equal(s.data.writes, writes + 1, "the head only");
+    assert.equal(s.data.writes, writes + 2, "the head (with the marker, one transaction) and the marker's creation: nothing per member");
     assert.equal(s.data.heads.get(cid)?.seq, 1);
     assert.equal(s.data.summaries.get(`bob|${cid}`)?.unread, 0);
     assert.equal(s.data.summaries.get(`bob|${cid}`)?.readSeq, 0);
@@ -587,7 +588,7 @@ describe("new message fan-out (the trigger on chats/{cid}/messages/{id})", () =>
   it("sending too fast: the message is removed and the sender cannot write for a while, in every chat", async () => {
     const s = await fsCarpool();
     await syncParentGroups(s.deps, "alice");
-    s.fan.limits = { messagesPerMinute: 3, muteMinutes: 10 };
+    s.fan.limits = { messagesPerMinute: 3, photosPerDay: 50, muteMinutes: 10 };
     for (let i = 0; i < 3; i += 1) assert.equal((await send(s, CP, `m${i}`, "alice", { text: "a" })).removed, false);
     const r = await send(s, CP, "m3", "alice", { text: "a" });
     assert.deepEqual(r, { handled: false, recipients: 0, reason: "too-fast", removed: true });
@@ -885,6 +886,140 @@ describe("retention, deletion and export (life of the chat + 1 year, run by rete
     assert.equal([...s.data.memberDocs.keys()].length, 0);
     assert.equal([...s.data.summaries.keys()].length, 0);
     assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CPF}/alice/m1.jpg`]);
+  });
+});
+
+describe("review fixes: fan-out gate, duplicates, photos, access", () => {
+  it("N6: a second delivery after another message counts nothing again and never uses the limit twice", async () => {
+    const s = await fsCarpool();
+    s.fan.limits = { messagesPerMinute: 2, photosPerDay: 50, muteMinutes: 10 };
+    await send(s, CP, "m1", "alice", { text: "one" });
+    await send(s, CP, "m2", "alice", { text: "two" });
+    // m1 delivered again, now that m2 is the last message.
+    const again = await onMessageCreated(s.fan, CP, "m1", { senderUid: "alice", kind: "text", text: "one", createdAt: T0 });
+    assert.equal(again.removed, false, "an accepted message is never removed by a late duplicate");
+    assert.equal(again.reason, "duplicate");
+    assert.equal(s.data.heads.get(CP)?.seq, 2);
+    assert.equal(s.data.summaries.get(`bob|${CP}`)?.unread, 2);
+    assert.equal(s.data.heads.get(CP)?.lastMessageId, "m2");
+    assert.equal(s.data.messageDocs.get(CP)?.length, 2);
+    assert.equal(s.data.memberDocs.get(`${CP}|alice`)?.mutedUntilMs, null, "the duplicate did not count toward the limit");
+    assert.equal(s.store.events.size, 2);
+  });
+  it("N6: an older message delivered late does not replace the newer preview", async () => {
+    const s = await fsCarpool();
+    s.clock.now = T0 + 5_000;
+    await s.data.createMessage(CP, { id: "new", senderUid: "alice", kind: "text", text: "newer", photoPath: null, lat: null, lng: null, createdAtMs: T0 + 5_000 });
+    await onMessageCreated(s.fan, CP, "new", { senderUid: "alice", kind: "text", text: "newer", createdAt: T0 + 5_000 });
+    await s.data.createMessage(CP, { id: "old", senderUid: "bob", kind: "text", text: "older", photoPath: null, lat: null, lng: null, createdAtMs: T0 });
+    await onMessageCreated(s.fan, CP, "old", { senderUid: "bob", kind: "text", text: "older", createdAt: T0 });
+    assert.equal(s.data.heads.get(CP)?.seq, 2);
+    assert.equal(s.data.heads.get(CP)?.last?.text, "newer");
+    assert.equal(s.data.heads.get(CP)?.lastAtMs, T0 + 5_000);
+  });
+  it("N4: an over-limit message is removed on the retry when the first run failed; the limit is counted once", async () => {
+    const s = await fsCarpool();
+    s.fan.limits = { messagesPerMinute: 1, photosPerDay: 50, muteMinutes: 10 };
+    await send(s, CP, "m1", "alice", { text: "one" });
+    // The run for m2 fails while removing it (the service is down)...
+    await s.data.createMessage(CP, { id: "m2", senderUid: "alice", kind: "text", text: "two", photoPath: null, lat: null, lng: null, createdAtMs: T0 });
+    const real = s.fs.deleteMessage.bind(s.fs);
+    let fail = true;
+    s.fs.deleteMessage = async (type, id, mid) => {
+      if (fail) throw new Error("down");
+      return real(type, id, mid);
+    };
+    await assert.rejects(onMessageCreated(s.fan, CP, "m2", { senderUid: "alice", kind: "text", text: "two", createdAt: T0 }), /down/);
+    assert.equal(s.data.messageDocs.get(CP)?.length, 2, "still there after the failed run");
+    // ...the trigger is retried: removed now, by the stored verdict.
+    fail = false;
+    const retry = await onMessageCreated(s.fan, CP, "m2", { senderUid: "alice", kind: "text", text: "two", createdAt: T0 });
+    assert.deepEqual(retry, { handled: false, recipients: 0, reason: "too-fast", removed: true });
+    assert.deepEqual(s.data.messageDocs.get(CP)?.map((m) => m.id), ["m1"]);
+    assert.equal(s.data.heads.get(CP)?.seq, 1);
+    assert.equal(s.store.events.size, 1);
+  });
+  it("N4: a blocked term is removed on the retry too; a failed counter is logged, not thrown", async () => {
+    const s = await fsCarpool();
+    await s.data.createMessage(CP, { id: "b1", senderUid: "alice", kind: "text", text: "you bitch", photoPath: null, lat: null, lng: null, createdAtMs: T0 });
+    s.fs.deleteMessage = async () => {
+      throw new Error("down");
+    };
+    await assert.rejects(onMessageCreated(s.fan, CP, "b1", { senderUid: "alice", kind: "text", text: "you bitch", createdAt: T0 }));
+    const s2 = await fsCarpool();
+    s2.data.failCount = true;
+    const r = await send(s2, CP, "m1", "alice", { text: "hello" });
+    assert.equal(r.reason, "counters-failed");
+    assert.equal(r.removed, false);
+    assert.ok(!JSON.stringify(s2.logs).includes("hello"));
+    // The retry the platform would NOT make is harmless anyway: counted once.
+    await onMessageCreated(s2.fan, CP, "m1", { senderUid: "alice", kind: "text", text: "hello", createdAt: T0 });
+    assert.equal(s2.data.heads.get(CP)?.seq, 1);
+    assert.equal(s2.data.summaries.get(`bob|${CP}`)?.unread, 1);
+  });
+  it("N7 (part): a parent who is already muted is not written again for every further message", async () => {
+    const s = await fsCarpool();
+    s.fan.limits = { messagesPerMinute: 1, photosPerDay: 50, muteMinutes: 10 };
+    await send(s, CP, "m1", "alice", { text: "a" });
+    await send(s, CP, "m2", "alice", { text: "a" });
+    const writes = s.data.writes;
+    assert.equal((await send(s, CP, "m3", "alice", { text: "a" })).reason, "too-fast");
+    // The marker only: no second mute write.
+    assert.equal(s.data.writes, writes + 1);
+  });
+  it("N5: a daily limit on photos; over it the photo is removed with its file and the sender is muted", async () => {
+    const s = await fsCarpool();
+    s.fan.limits = { messagesPerMinute: 30, photosPerDay: 2, muteMinutes: 10 };
+    for (const id of ["p1", "p2"]) assert.equal((await send(s, CP, id, "alice", { kind: "photo", photoPath: `chatPhotos/${CPF}/alice/${id}.webp` })).removed, false);
+    const r = await send(s, CP, "p3", "alice", { kind: "photo", photoPath: `chatPhotos/${CPF}/alice/p3.webp` });
+    assert.equal(r.reason, "too-many-photos");
+    assert.deepEqual(s.data.deletedPhotos, [`chatPhotos/${CPF}/alice/p3.webp`]);
+    assert.equal(s.data.memberDocs.get(`${CP}|alice`)?.mutedUntilMs, T0 + 10 * 60_000);
+    // Text is not counted as a photo.
+    s.clock.now = T0 + 11 * 60_000;
+    assert.equal((await send(s, CP, "t1", "alice", { text: "hi" })).removed, false);
+  });
+  it("N5: photos with no message are deleted after a day; many of them stop the parent from writing for a day", async () => {
+    const s = await fsCarpool();
+    const DAY = 86_400_000;
+    await send(s, CP, "kept", "alice", { kind: "photo", photoPath: `chatPhotos/${CPF}/alice/kept.webp` });
+    s.data.photos.set(`chatPhotos/${CPF}/alice/kept.webp`, T0);
+    s.data.photos.set(`chatPhotos/${CPF}/alice/orphan1.webp`, T0);
+    s.data.photos.set(`chatPhotos/${CPF}/bob/fresh.webp`, T0 + 2 * DAY - 1000);
+    s.data.photos.set("chatPhotos/odd/name.txt", T0);
+    assert.equal(await s.fs.sweepOrphanPhotos(T0 + 2 * DAY), 2);
+    assert.deepEqual([...s.data.photos.keys()].sort(), [`chatPhotos/${CPF}/alice/kept.webp`, `chatPhotos/${CPF}/bob/fresh.webp`]);
+    assert.equal(s.data.memberDocs.get(`${CP}|alice`)?.mutedUntilMs, null, "one orphan mutes nobody");
+    for (let i = 0; i < ORPHAN_PHOTOS_MUTE; i += 1) s.data.photos.set(`chatPhotos/${CPF}/bob/spam${i}.webp`, T0);
+    assert.equal(await s.fs.sweepOrphanPhotos(T0 + 2 * DAY), ORPHAN_PHOTOS_MUTE);
+    assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.mutedUntilMs, T0 + 3 * DAY);
+    assert.deepEqual(parsePhotoPath(`chatPhotos/${CPF}/alice/m1.webp`), { cid: CP, uid: "alice", messageId: "m1" });
+    assert.equal(parsePhotoPath("verification/alice/cases/c1/id_front.jpg"), null);
+  });
+  it("N5: a closed account's purge also deletes photos no message names", async () => {
+    const s = await fsCarpool();
+    s.data.photos.set(`chatPhotos/${CPF}/alice/orphan.webp`, T0);
+    s.data.photos.set(`chatPhotos/${CPF}/bob/his.webp`, T0);
+    await s.fs.deleteUser("alice");
+    assert.deepEqual([...s.data.photos.keys()], [`chatPhotos/${CPF}/bob/his.webp`]);
+  });
+  it("N8: adding a member keeps a suspension that landed a moment before", async () => {
+    const s = await fsCarpool();
+    await s.fs.deactivateUser("bob");
+    await s.fs.addMembers("cp_carpool", "c-k1", ["bob"]);
+    assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.cut, true);
+    await s.fs.reactivateUser("bob");
+    assert.equal(s.data.memberDocs.get(`${CP}|bob`)?.cut, false);
+  });
+  it("mute choices live on the channel record: one read per message, whoever chose", async () => {
+    const s = await fsCarpool();
+    await setChatMute(s.deps, me("bob"), { cid: CP, muted: true });
+    assert.deepEqual(s.store.channels.get(CP)?.mutedBy, ["bob"]);
+    assert.equal(muteChoice(s.store.channels.get(CP)!, "bob"), true);
+    assert.equal(muteChoice(s.store.channels.get(CP)!, "alice"), null);
+    await setChatMute(s.deps, me("bob"), { cid: CP, muted: false });
+    assert.deepEqual(s.store.channels.get(CP)?.mutedBy, []);
+    assert.deepEqual(s.store.channels.get(CP)?.unmutedBy, ["bob"]);
   });
 });
 

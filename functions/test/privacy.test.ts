@@ -793,6 +793,7 @@ describe("retention job", () => {
         if (cid === "private:b") throw new Error("chat 500");
         deletedChannels.push(cid);
       },
+      sweepChatPhotos: async () => 0,
       freezeChannel: async (cid) => void store.frozen.push(cid),
       now: () => NOW,
       reportError: (e) => reported.push(e),
@@ -817,7 +818,7 @@ describe("retention job", () => {
   it("a clean run raises no alert", async () => {
     const store = new MemoryRetention();
     store.chats = [];
-    const report = await runRetention({ store, runner: new FakeRunner(), deleteChannel: async () => undefined, freezeChannel: async () => undefined, now: () => NOW, reportError: () => undefined });
+    const report = await runRetention({ store, runner: new FakeRunner(), deleteChannel: async () => undefined, sweepChatPhotos: async () => 0, freezeChannel: async () => undefined, now: () => NOW, reportError: () => undefined });
     assert.deepEqual(report.failures, []);
     assert.equal(store.alerts.length, 0);
   });

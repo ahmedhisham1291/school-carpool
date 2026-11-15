@@ -2,12 +2,15 @@ import { FieldValue, Timestamp, type DocumentData, type DocumentReference, type 
 import { USERS } from "../auth/accounts";
 import type { Bucket } from "../verification/store";
 import {
+  CHAT_ACCESS,
+  CHAT_FANNED,
   CHAT_MEMBERS,
   CHAT_MESSAGES,
   CHAT_PHOTOS,
   CHAT_READS,
   CHAT_SUMMARIES,
   CHATS,
+  FANNED_TTL_DAYS,
   MESSAGE_KINDS,
   photoFolder,
   USER_CHATS,
@@ -16,10 +19,12 @@ import {
   type ChatMember,
   type ChatProfile,
   type ChatSummary,
+  type FanMark,
   type LastMessage,
   type MemberPatch,
   type MessageKind,
   type StoredMessage,
+  type StoredPhoto,
   type SummaryPatch,
 } from "./data";
 import { CHAT_KINDS, type ChatKind } from "./model";
@@ -103,29 +108,28 @@ export function headFromDoc(cid: string, d: DocumentData): ChatHead {
   };
 }
 
+/** chatMembers/{uid}: what the other members may read (the first name). */
 export function memberToDoc(m: ChatMember): DocumentData {
-  return {
-    uid: m.uid,
-    firstName: m.firstName,
-    active: m.active,
-    cut: m.cut,
-    frozen: m.frozen,
-    mutedUntil: tsOrNull(m.mutedUntilMs),
-    joinedAt: ts(m.joinedAtMs),
-    updatedAt: ts(m.updatedAtMs),
-  };
+  return { uid: m.uid, firstName: m.firstName, joinedAt: ts(m.joinedAtMs), updatedAt: ts(m.updatedAtMs) };
 }
 
-export function memberFromDoc(uid: string, d: DocumentData): ChatMember {
+/** chatAccess/{uid}: what only the rules read. */
+export function accessToDoc(m: ChatMember): DocumentData {
+  return { uid: m.uid, active: m.active, cut: m.cut, frozen: m.frozen, mutedUntil: tsOrNull(m.mutedUntilMs), updatedAt: ts(m.updatedAtMs) };
+}
+
+export function memberFromDocs(uid: string, name: DocumentData | undefined, access: DocumentData | undefined): ChatMember {
+  const n = name ?? {};
+  const a = access ?? {};
   return {
     uid,
-    firstName: text(d.firstName),
-    active: d.active === true,
-    cut: d.cut === true,
-    frozen: d.frozen === true,
-    mutedUntilMs: d.mutedUntil ? ms(d.mutedUntil) : null,
-    joinedAtMs: ms(d.joinedAt),
-    updatedAtMs: ms(d.updatedAt),
+    firstName: text(n.firstName),
+    active: a.active === true,
+    cut: a.cut === true,
+    frozen: a.frozen === true,
+    mutedUntilMs: a.mutedUntil ? ms(a.mutedUntil) : null,
+    joinedAtMs: ms(n.joinedAt),
+    updatedAtMs: Math.max(ms(n.updatedAt), ms(a.updatedAt)),
   };
 }
 
@@ -211,6 +215,14 @@ export class FirestoreChatData implements ChatData {
     return this.chat(cid).collection(CHAT_MEMBERS).doc(uid);
   }
 
+  private accessRef(cid: string, uid: string): DocumentReference {
+    return this.chat(cid).collection(CHAT_ACCESS).doc(uid);
+  }
+
+  private fannedRef(cid: string, messageId: string): DocumentReference {
+    return this.chat(cid).collection(CHAT_FANNED).doc(messageId);
+  }
+
   private summaryRef(uid: string, cid: string): DocumentReference {
     return this.db.collection(USER_CHATS).doc(uid).collection(CHAT_SUMMARIES).doc(cid);
   }
@@ -239,13 +251,50 @@ export class FirestoreChatData implements ChatData {
     });
   }
 
+  async claimMessage(cid: string, messageId: string, nowMs: number): Promise<boolean> {
+    try {
+      // TTL on expiresAt (tool/setup_retention.sh, collection group "fanned").
+      await this.fannedRef(cid, messageId).create({ verdict: "ok", counted: false, createdAt: ts(nowMs), expiresAt: ts(nowMs + FANNED_TTL_DAYS * 86_400_000) });
+      return true;
+    } catch (error) {
+      if (isAlreadyExists(error)) return false;
+      throw error;
+    }
+  }
+
+  async fanMark(cid: string, messageId: string): Promise<FanMark | null> {
+    const snap = await this.fannedRef(cid, messageId).get();
+    return snap.exists ? { verdict: snap.get("verdict") === "over" ? "over" : "ok", counted: snap.get("counted") === true } : null;
+  }
+
+  async setVerdict(cid: string, messageId: string, verdict: FanMark["verdict"]): Promise<void> {
+    await FirestoreChatData.patch(this.fannedRef(cid, messageId), { verdict });
+  }
+
+  countMessage(cid: string, messageId: string, change: (current: ChatHead) => ChatHead): Promise<"counted" | "duplicate" | "no-head"> {
+    const headRef = this.chat(cid);
+    const markRef = this.fannedRef(cid, messageId);
+    return this.db.runTransaction(async (tx) => {
+      const [head, mark] = await Promise.all([tx.get(headRef), tx.get(markRef)]);
+      if (!head.exists) return "no-head";
+      if (mark.exists && mark.get("counted") === true) return "duplicate";
+      tx.set(headRef, headToDoc(change(headFromDoc(cid, head.data() ?? {}))));
+      // System messages have no marker yet: this creates it, with its TTL.
+      tx.set(markRef, { counted: true, expiresAt: ts(Date.now() + FANNED_TTL_DAYS * 86_400_000) }, { merge: true });
+      return "counted";
+    });
+  }
+
   async member(cid: string, uid: string): Promise<ChatMember | null> {
-    const snap = await this.memberRef(cid, uid).get();
-    return snap.exists ? memberFromDoc(uid, snap.data() ?? {}) : null;
+    const [name, access] = await Promise.all([this.memberRef(cid, uid).get(), this.accessRef(cid, uid).get()]);
+    return name.exists || access.exists ? memberFromDocs(uid, name.data(), access.data()) : null;
   }
 
   async putMember(cid: string, member: ChatMember): Promise<void> {
-    await this.memberRef(cid, member.uid).set(memberToDoc(member));
+    const batch = this.db.batch();
+    batch.set(this.memberRef(cid, member.uid), memberToDoc(member));
+    batch.set(this.accessRef(cid, member.uid), accessToDoc(member));
+    await batch.commit();
   }
 
   private static async patch(ref: DocumentReference, data: DocumentData): Promise<void> {
@@ -257,18 +306,32 @@ export class FirestoreChatData implements ChatData {
   }
 
   async patchMember(cid: string, uid: string, patch: MemberPatch, nowMs: number): Promise<void> {
-    await FirestoreChatData.patch(this.memberRef(cid, uid), patchDoc(patch, nowMs));
+    const { firstName, ...access } = patch;
+    if (firstName !== undefined) await FirestoreChatData.patch(this.memberRef(cid, uid), patchDoc({ firstName }, nowMs));
+    if (Object.values(access).some((v) => v !== undefined)) await FirestoreChatData.patch(this.accessRef(cid, uid), patchDoc(access, nowMs));
   }
 
   async members(cid: string, limit: number): Promise<ChatMember[]> {
-    const snap = await this.chat(cid).collection(CHAT_MEMBERS).limit(limit).get();
-    return snap.docs.map((d) => memberFromDoc(d.id, d.data()));
+    const [names, access] = await Promise.all([
+      this.chat(cid).collection(CHAT_MEMBERS).limit(limit).get(),
+      this.chat(cid).collection(CHAT_ACCESS).limit(limit).get(),
+    ]);
+    const byUid = new Map<string, DocumentData>();
+    for (const d of access.docs) byUid.set(d.id, d.data());
+    const out: ChatMember[] = [];
+    for (const d of names.docs) out.push(memberFromDocs(d.id, d.data(), byUid.get(d.id)));
+    return out;
   }
 
   async chatsOf(uid: string, limit: number): Promise<string[]> {
-    // Collection group index on chatMembers.uid (firestore.indexes.json).
-    const snap = await this.db.collectionGroup(CHAT_MEMBERS).where("uid", "==", uid).limit(limit).get();
-    return snap.docs.map((d) => d.ref.parent.parent?.id ?? "").filter((cid) => cid.length > 0);
+    // Collection group index on chatAccess.uid (firestore.indexes.json).
+    const snap = await this.db.collectionGroup(CHAT_ACCESS).where("uid", "==", uid).limit(limit).get();
+    const out: string[] = [];
+    for (const d of snap.docs) {
+      const cid = d.ref.parent.parent?.id ?? "";
+      if (cid.length > 0) out.push(cid);
+    }
+    return out;
   }
 
   async summary(uid: string, cid: string): Promise<ChatSummary | null> {
@@ -345,8 +408,25 @@ export class FirestoreChatData implements ChatData {
     }
   }
 
-  private async deletePhoto(path: string | null): Promise<void> {
+  async deletePhoto(path: string | null): Promise<void> {
     if (path && path.startsWith(`${CHAT_PHOTOS}/`)) await this.bucket().file(path).delete({ ignoreNotFound: true });
+  }
+
+  async deletePhotosOf(cid: string, uid: string): Promise<void> {
+    const [files] = await this.bucket().getFiles({ prefix: `${photoFolder(cid)}/${uid}/` });
+    for (const f of files) await f.delete({ ignoreNotFound: true });
+  }
+
+  async photosCreatedBetween(fromMs: number, toMs: number, limit: number): Promise<StoredPhoto[]> {
+    // Names and creation times only (a listing, no download).
+    const [files] = await this.bucket().getFiles({ prefix: `${CHAT_PHOTOS}/`, maxResults: 20_000 });
+    const out: StoredPhoto[] = [];
+    for (const f of files) {
+      const created = Date.parse(String((f.metadata as { timeCreated?: unknown } | undefined)?.timeCreated ?? ""));
+      if (Number.isFinite(created) && created >= fromMs && created < toMs) out.push({ path: f.name, createdAtMs: created });
+      if (out.length >= limit) break;
+    }
+    return out;
   }
 
   async deleteMessage(cid: string, id: string): Promise<StoredMessage | null> {
@@ -382,12 +462,13 @@ export class FirestoreChatData implements ChatData {
       if (page.empty) break;
       for (const m of page.docs) {
         await this.summaryRef(m.id, cid).delete();
+        await this.accessRef(cid, m.id).delete();
         await m.ref.delete();
       }
     }
     const [files] = await this.bucket().getFiles({ prefix: `${photoFolder(cid)}/` });
     for (const f of files) await f.delete({ ignoreNotFound: true });
-    // Messages, reads and the head.
+    // Messages, reads, markers, any access document left, and the head.
     await this.db.recursiveDelete(chat);
   }
 }
