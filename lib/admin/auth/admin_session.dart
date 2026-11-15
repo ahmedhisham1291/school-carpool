@@ -84,6 +84,23 @@ AdminSessionState adminSessionFor({
   return AdminSignedIn(user);
 }
 
+/// The second factor this token was signed in with. On the web the plugin
+/// leaves `IdTokenResult.signInSecondFactor` empty, so the token's own
+/// `firebase.sign_in_second_factor` claim is read too. Pure, unit-tested.
+String? secondFactorOf(String? fromResult, Map<String, dynamic>? claims) {
+  if (fromResult != null && fromResult.isNotEmpty) {
+    return fromResult;
+  }
+  final Object? firebase = claims?['firebase'];
+  if (firebase is Map) {
+    final Object? factor = firebase['sign_in_second_factor'];
+    if (factor is String && factor.isNotEmpty) {
+      return factor;
+    }
+  }
+  return null;
+}
+
 /// The result of the password step.
 sealed class AdminSignInStep {
   const AdminSignInStep();
@@ -276,7 +293,7 @@ Stream<AdminSessionState> adminSessionStates(
       email: user.email,
       displayName: user.displayName,
       claims: token.claims,
-      secondFactor: token.signInSecondFactor,
+      secondFactor: secondFactorOf(token.signInSecondFactor, token.claims),
       authTime: token.authTime,
       now: DateTime.now(),
       mfaRequired: mfaRequired,

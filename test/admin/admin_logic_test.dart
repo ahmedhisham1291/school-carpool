@@ -55,6 +55,20 @@ void main() {
     });
   });
 
+  group('secondFactorOf', () {
+    test('reads the plugin value, else the token claim (web)', () {
+      expect(secondFactorOf('totp', null), 'totp');
+      expect(
+        secondFactorOf(null, <String, dynamic>{
+          'firebase': <String, dynamic>{'sign_in_second_factor': 'totp'},
+        }),
+        'totp',
+      );
+      expect(secondFactorOf(null, <String, dynamic>{'firebase': <String, dynamic>{}}), isNull);
+      expect(secondFactorOf('', null), isNull);
+    });
+  });
+
   group('adminRedirect', () {
     test('signed out, loading and parents only reach sign-in', () {
       for (final String path in <String>[AdminRoutes.queue, AdminRoutes.users, AdminRoutes.audit, '/queue/case1']) {
