@@ -569,3 +569,15 @@ export function suggestion(mine: WantedRecord | null, others: WantedRecord[]): W
   const days = DAYS.filter((d) => mine.days.includes(d) && matches.some((m) => m.days.includes(d)));
   return { families: matches.length + 1, areaId: mine.areaId, morning: mine.morning, afternoon: mine.afternoon, days };
 }
+
+/**
+ * Whether a users/{uid} record reads as "paused" for driving (no plan,
+ * confirm or take). An urgent report (Prompt 9) or a failed selfie check
+ * (F38) always pauses. The yearly check's overdue mark (Prompt 11) pauses
+ * only while the yearlyChecks feature switch is on: with it off nobody is
+ * blocked for a missing yearly check (pilot decision, features/model.ts).
+ */
+export function drivingPaused(user: Record<string, unknown>, yearlyChecksOn: boolean): boolean {
+  const reported = user.drivingPaused != null && user.drivingPaused !== false;
+  return reported || (yearlyChecksOn && user.yearCheckOverdue === true);
+}

@@ -247,3 +247,21 @@ export const YEAR_CHECK_OPEN_DAYS = defineInt("YEAR_CHECK_OPEN_DAYS", { default:
 export const YEAR_CHECK_GRACE_DAYS = defineInt("YEAR_CHECK_GRACE_DAYS", { default: 14 });
 export const YEAR_CHECK_FIRST_YEAR = defineInt("YEAR_CHECK_FIRST_YEAR", { default: 2027 });
 export const LICENCE_REMINDER_DAYS = defineString("LICENCE_REMINDER_DAYS", { default: "30,7,1" });
+
+/**
+ * Settle up by InstaPay (F45, the pilot's payment feature). The app only
+ * records payment requests between two parents of one carpool; it never
+ * moves, holds or sees money. Limits per parent, counted on the server in
+ * settleUpLimits/{uid}. The largest amount of one record is a server
+ * setting (config/settleUp.maxAmount in piastres, default EGP 5,000), not
+ * a param, so it changes without a deploy.
+ */
+export const SETTLE_UP_REQUESTS_PER_DAY = defineInt("SETTLE_UP_REQUESTS_PER_DAY", { default: 20 });
+/** "I paid", "Received", "Not received", cancel, decline and reports per parent per day. */
+export const SETTLE_UP_CHANGES_PER_DAY = defineInt("SETTLE_UP_CHANGES_PER_DAY", { default: 100 });
+/** Low on purpose: an InstaPay address rarely changes. */
+export const SETTLE_UP_ADDRESS_CHANGES_PER_DAY = defineInt("SETTLE_UP_ADDRESS_CHANGES_PER_DAY", { default: 5 });
+/** How often a payer may open payees' addresses per hour (nobody collects addresses). */
+export const SETTLE_UP_ADDRESS_VIEWS_PER_HOUR = defineInt("SETTLE_UP_ADDRESS_VIEWS_PER_HOUR", { default: 30 });
+/** "Not received" marks after which either side may report the record to the admins. */
+export const SETTLE_UP_REPORT_AFTER = defineInt("SETTLE_UP_REPORT_AFTER", { default: 2 });

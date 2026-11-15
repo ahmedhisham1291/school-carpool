@@ -57,6 +57,11 @@ enum NotificationKind {
   phoneChanged('phone-changed', WhatsAppGroup.trust),
   // Prompt 12: a sign-in from a new phone.
   newDevice('new-device', WhatsAppGroup.trust),
+  // Settle up (F45): push only, never WhatsApp (no group to switch). The
+  // text never has an amount, a name or an InstaPay address.
+  settleRequested('settle-requested', null),
+  settlePaid('settle-paid', null),
+  settleUpdated('settle-updated', null),
   // Prompt 13: to the driver when no location came for 2 minutes during a run.
   runStillOn('run-still-on', WhatsAppGroup.tripAlerts);
 
@@ -65,7 +70,8 @@ enum NotificationKind {
   /// The type as stored by the server.
   final String wire;
 
-  /// What the parent switches WhatsApp on or off for; null: push only (chat).
+  /// What the parent switches WhatsApp on or off for; null: push only (chat
+  /// and Settle up).
   final WhatsAppGroup? group;
 
   /// Critical alerts sound the alarm when not opened in time (spec section 11).
@@ -118,8 +124,8 @@ abstract final class NotificationRoutes {
   static final RegExp _allowed = RegExp(
     // Prompt 9: a chat push opens that chat (/chats/<type>/<id>); Prompt 10:
     // the live run and the group's emergencies; Prompt 13: the driver's run
-    // ("Run still on") and the phones list (new phone).
-    r'^/(notifications|profile|profile/wallet|profile/driving|profile/school-year|profile/family|profile/privacy/devices|chats|chats/cp_(private|school|area|carpool)/[A-Za-z0-9_-]{1,64}|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule|/emergency|/trip/\d{4}-\d{2}-\d{2}_(am|pm)(/drive)?)?)$',
+    // ("Run still on") and the phones list (new phone); F45: Settle up.
+    r'^/(notifications|profile|profile/wallet|profile/settle-up|profile/driving|profile/school-year|profile/family|profile/privacy/devices|chats|chats/cp_(private|school|area|carpool)/[A-Za-z0-9_-]{1,64}|home/nearby|carpools/[A-Za-z0-9_-]{1,128}(/schedule|/emergency|/trip/\d{4}-\d{2}-\d{2}_(am|pm)(/drive)?)?)$',
   );
 
   static String safe(Object? route) => route is String && _allowed.hasMatch(route) ? route : fallback;

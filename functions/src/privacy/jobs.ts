@@ -34,6 +34,13 @@ export interface RetentionStore {
    * participant left (every parent deleted): deleted. Returns how many.
    */
   deleteOrphanTrips(nowMs: number, limit: number): Promise<number>;
+  /**
+   * Settle up records (F45) whose kept-until date passed: deleted when no
+   * party's account is active any more, else the date is cleared (same
+   * rule as trips: while either party's account is active + 1 year).
+   * Returns how many were deleted.
+   */
+  purgeSettleUps(nowMs: number, limit: number): Promise<number>;
   /** Chats that ended before [before]: IDs ("type:id"). */
   endedChatsBefore(before: number, limit: number): Promise<string[]>;
   deleteChatRecord(cid: string): Promise<void>;
@@ -110,6 +117,8 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
 
   await task("closedCarpools", async () => ({ deleted: await deps.store.purgeClosedCarpoolsBefore(cutoff(nowMs, CLOSED_CARPOOL_DAYS), 50), failed: 0 }));
   await task("orphanTrips", async () => ({ deleted: await deps.store.deleteOrphanTrips(nowMs, PAGE), failed: 0 }));
+  // Runs whatever the settleUp feature switch says: deleting on time is not a feature.
+  await task("settleUps", async () => ({ deleted: await deps.store.purgeSettleUps(nowMs, PAGE), failed: 0 }));
 
   // Chat: life of the chat + 1 year (owner decision; was 180 days).
   await task("chats", async () => {

@@ -12,6 +12,7 @@ import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/analytics/analytics.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/privacy/devices_screen.dart';
 import 'package:school_carpool/features/privacy/privacy_models.dart';
 import 'package:school_carpool/features/privacy/privacy_repository.dart';
@@ -35,10 +36,10 @@ class _World {
 }
 
 /// The same overrides in every pump (one ProviderScope shape per test).
-List<Override> _overrides(_World w) => <Override>[
+List<Override> _overrides(_World w, FeatureSwitches? features) => <Override>[
   flavorConfigProvider.overrideWithValue(testDevConfig),
   settingsStoreProvider.overrideWithValue(InMemorySettingsStore()),
-  ...authOverrides(),
+  ...authOverrides(features: features),
   privacyRepositoryProvider.overrideWithValue(w.repo),
   analyticsSinkProvider.overrideWithValue(w.analytics),
   captureLauncherProvider.overrideWithValue(w.camera.launch),
@@ -56,6 +57,7 @@ Future<GoRouter> _pump(
   Locale locale = AppLocales.english,
   double width = 400,
   double textScale = 1,
+  FeatureSwitches? features,
 }) async {
   tester.view
     ..devicePixelRatio = 2
@@ -67,7 +69,7 @@ Future<GoRouter> _pump(
   addTearDown(router.dispose);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: _overrides(w),
+      overrides: _overrides(w, features),
       child: MaterialApp.router(
         routerConfig: router,
         locale: locale,
@@ -102,6 +104,21 @@ void main() {
       for (final DataType t in DataType.values) {
         await tester.scrollUntilVisible(find.byKey(Key('privacy.data.${t.name}')), 200, scrollable: find.byType(Scrollable).first);
       }
+    });
+
+    testWidgets('pilot switches: the wallet and ratings are not listed while off; Settle up is', (WidgetTester tester) async {
+      final _World w = _World();
+      await _pump(tester, PrivacyRoutes.privacy, w, features: FeatureSwitches.pilot);
+      for (final DataType t in DataType.values) {
+        final Finder row = find.byKey(Key('privacy.data.${t.name}'));
+        if (t == DataType.wallet || t == DataType.ratings) {
+          expect(row, findsNothing, reason: t.name);
+        } else {
+          await tester.scrollUntilVisible(row, 200, scrollable: find.byType(Scrollable).first);
+        }
+      }
+      expect(dataTypeShown(DataType.settleUp, FeatureSwitches.pilot.copyWith(settleUp: false)), isFalse);
+      expect(dataTypeShown(DataType.trips, FeatureSwitches.pilot), isTrue);
     });
 
     testWidgets('a data type opens what it holds and how long it is kept', (WidgetTester tester) async {

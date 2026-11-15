@@ -1256,7 +1256,7 @@ Prompt 13; DECISIONS.md says how to bring it back. If an old
    unconfirmed for 10 minutes and run `triptick`: "Child not confirmed"
    reaches both parents (critical, with the alarm). Confirm with
    `... carpool:emulator -- home <carpoolId> <runId> <childId> --as seed-map-parent-1`.
-## 21. Wallet (Prompt 11B)
+## 21. Wallet (Prompt 11B; switched off for the pilot, see 21b)
 
 The wallet runs through ONE `WalletProvider` in Cloud Functions
 (`functions/src/wallet/`). Until the contract with the payment partner
@@ -1350,6 +1350,60 @@ money moves from our side:
    is released, both parents are told, and the alert closes as "Settled
    with partner".
 
+
+## 21b. Feature switches and Settle up by InstaPay (F45)
+
+### 21b.1 Feature switches (no setup needed)
+
+The optional features are switched from the admin panel: **Settings**
+(super admin only; every change asks for confirmation and is written to
+the Log). The switches live in Firestore `config/features`. With no
+document the pilot defaults apply:
+
+| Switch | Pilot default | What "off" means |
+| --- | --- | --- |
+| `wallet` | off | No wallet row or screens; every wallet function refuses; `walletReconcile` does nothing |
+| `ratingsAndVouching` | off | No "Rate parents"; rating functions refuse. Who may drive does not depend on it |
+| `yearlyChecks` | off | No school-year card; nobody is reminded, marked overdue or blocked |
+| `settleUp` | on | (off: no Settle up row or screens; its functions refuse) |
+
+A change reaches open apps within seconds (one listener) and the functions
+within about 30 seconds (their cache). No deploy and no app release.
+Sign-in, verification, carpools, the schedule, trips and alerts, and chat
+cannot be switched off.
+
+### 21b.2 Settle up: nothing to sign up for
+
+Settle up needs **no account, no contract and no key**: the app only keeps
+records between parents and shows an InstaPay address; parents pay in the
+InstaPay app. There is no InstaPay API call anywhere in the code.
+
+In `functions/.env.<alias>` (already filled in with these defaults):
+
+```
+SETTLE_UP_REQUESTS_PER_DAY=20            # new records per parent per day
+SETTLE_UP_CHANGES_PER_DAY=100            # I paid, Received, Not received, cancel, decline, report
+SETTLE_UP_ADDRESS_CHANGES_PER_DAY=5      # saving or removing the InstaPay address
+SETTLE_UP_ADDRESS_VIEWS_PER_HOUR=30      # how often a payer may open payees' addresses
+SETTLE_UP_REPORT_AFTER=2                 # "Not received" marks before Report shows
+```
+
+### 21b.3 The largest amount (server setting, no deploy needed)
+
+Firestore > `config/settleUp` > field `maxAmount` in **piastres** (100 = 1
+EGP). Missing or odd values use the default: `500000` (EGP 5,000).
+
+### 21b.4 Indexes and rules
+
+`firebase deploy --only firestore:rules,firestore:indexes` (the setup
+script does it): two indexes on `settleUps` (`parties` with `updatedAt`,
+and `pair` with `finished`). Rules: a record is read only by its two
+parties; nobody reads an InstaPay address directly; the app writes nothing.
+
+### 21b.5 Trying it
+
+Two verified accounts in one carpool: docs/test-iphone.md section 9. On
+the emulators the same steps work with the fake parents of section 16.5.
 
 ## 22. Trust and yearly checks (Prompt 11)
 

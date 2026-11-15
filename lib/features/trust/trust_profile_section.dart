@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/trust/trust_labels.dart';
 import 'package:school_carpool/features/trust/trust_models.dart';
 import 'package:school_carpool/features/trust/trust_repository.dart';
@@ -17,6 +18,11 @@ class YearCheckBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Pilot switch: with the yearly check off there is no banner (the
+    // server reports "none" too).
+    if (!ref.watch(featureSwitchesProvider).yearlyChecks) {
+      return const SizedBox.shrink();
+    }
     final YearCheck? check = ref.watch(trustOverviewProvider).value?.yearCheck;
     if (check == null || !check.open) {
       return const SizedBox.shrink();
@@ -48,8 +54,9 @@ class YearCheckBanner extends ConsumerWidget {
   }
 }
 
-/// Profile rows: rate parents (with how many are waiting) and family links
-/// (with requests to answer). Verified parents only.
+/// Profile rows: rate parents (with how many are waiting; only while the
+/// ratings feature switch is on) and family links (with requests to
+/// answer). Verified parents only.
 class TrustProfileRows extends ConsumerWidget {
   const TrustProfileRows({super.key});
 
@@ -57,6 +64,8 @@ class TrustProfileRows extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppLocalizations l10n = context.l10n;
     final TrustOverview? o = ref.watch(trustOverviewProvider).value;
+    // Pilot switch: no "Rate parents" row while ratings and vouching are off.
+    final bool ratings = ref.watch(featureSwitchesProvider).ratingsAndVouching;
     final String ratingsSubtitle;
     if (o == null) {
       ratingsSubtitle = l10n.profileRatingsHelper;
@@ -68,13 +77,14 @@ class TrustProfileRows extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        AppListRow(
-          key: const Key('profile.ratings'),
-          title: l10n.rateTitle,
-          subtitle: ratingsSubtitle,
-          leadingIcon: Icons.star_outline_rounded,
-          onTap: () => context.go(ProfileRoutes.ratings),
-        ),
+        if (ratings)
+          AppListRow(
+            key: const Key('profile.ratings'),
+            title: l10n.rateTitle,
+            subtitle: ratingsSubtitle,
+            leadingIcon: Icons.star_outline_rounded,
+            onTap: () => context.go(ProfileRoutes.ratings),
+          ),
         AppListRow(
           key: const Key('profile.family'),
           title: l10n.familyTitle,

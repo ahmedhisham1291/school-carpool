@@ -23,7 +23,7 @@ Limits below are the public free allowances as understood in November 2026.
 | Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
 | WhatsApp Business | Pay per delivered template message (no free tier for templates). Egypt, rate card of 1 Oct 2026: about USD 0.0036 per sign-in code or alert (**not confirmed on Meta's own rate card**; docs/meta-whatsapp-setup.md section 11) | Codes and critical alerts only by default (wallet messages too only if the parent switches them on); other notifications are push unless the parent switches WhatsApp on. New accounts: 250 different people per 24 hours until the business is verified | Meta WhatsApp Manager > Insights | Budget set by the owner |
-| Valify, wallet partner | Fake providers | Nothing is called until the pilot | n/a | Contract signed |
+| Valify, wallet partner | Fake providers | Nothing is called until the pilot (the wallet is switched off; the pilot uses Settle up by InstaPay, which calls no service and costs nothing) | n/a | Contract signed |
 | Live location (geolocator) | Free, no licence | Nothing to track | n/a | Owner decision 14 Nov 2026: the paid flutter_background_geolocation (about USD 400, one-time) only if the Android stage or the pilot shows tracking is unreliable (DECISIONS.md) |
 
 ## Rules the code follows
@@ -371,6 +371,31 @@ under USD 1 a day.
 - **Limits per parent** (server settings `config/wallet`): 2,000 EGP per
   transfer, 5,000 EGP and 20 transfers a day, 20 parent ID lookups an hour,
   10 reports a day (SETUP.md 21.2).
+
+## Feature switches and Settle up by InstaPay (F45)
+
+- **No new service and no new cost line.** Settle up calls no outside
+  service: no InstaPay API, no payment partner, no fee. The app only keeps
+  records in Firestore.
+- **Feature switches:** one small document (`config/features`). Each
+  function instance reads it at most about twice a minute (30-second
+  cache); each open app keeps one listener on it (one read at start, one
+  per change). Inside the free quota.
+- **Firestore:** a settle-up record is one document; each step is one
+  transaction (one read, one write, one notification event). The list
+  screen is one listener of at most 100 documents. A carpool of 5 families
+  settling weekly is tens of reads and writes a week.
+- **Cloud Functions:** one call per step (create, I paid, Received ...),
+  one for the payee's address when the payer opens an open record. No warm
+  instances (`MIN_INSTANCES`).
+- **Notifications:** push only (FCM is free). Settle up never sends
+  WhatsApp, so it adds no template cost.
+- **With the wallet off:** `walletReconcile` still wakes every 5 minutes
+  (Cloud Scheduler job, free tier has 3 jobs per account; see the Wallet
+  section) but returns at once after the cached switch read.
+- **How we track usage:** Firebase console > Functions (calls of
+  `createSettleUp`, `settleUpAction`) and Firestore usage.
+- **Trigger to upgrade:** none; nothing here has a paid plan.
 
 ## Trust (Prompt 11)
 

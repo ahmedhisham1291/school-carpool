@@ -18,6 +18,8 @@ const SENSITIVE_KEYS = new Set<string>([
   // coordinates and addresses
   "lat", "lng", "lon", "latitude", "longitude", "coords", "coordinates", "location",
   "geo", "geopoint", "position", "address", "homeaddress", "pickuppoint",
+  // InstaPay address (F45)
+  "instapayaddress", "ipa",
   // message text
   "text", "message", "messagetext", "body", "content", "note", "comment",
   // contact and names
@@ -32,6 +34,8 @@ const SENSITIVE_KEYS = new Set<string>([
 // Digits: ASCII, Arabic-Indic and Extended Arabic-Indic.
 const D = "[0-9\\u0660-\\u0669\\u06F0-\\u06F9]";
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+/** An InstaPay address (F45, "name@instapay"): no dot after the "@", so EMAIL does not catch it. */
+const INSTAPAY = /[A-Za-z0-9._-]+@instapay/gi;
 const COORDINATE_PAIR = new RegExp(`-?${D}{1,3}[.٫]${D}{2,}\\s*[,،]?\\s*-?${D}{1,3}[.٫]${D}{2,}`, "g");
 const PRECISE_DECIMAL = new RegExp(`-?${D}{1,3}[.٫]${D}{4,}`, "g");
 const LONG_NUMBER = new RegExp(`(?:\\+|00)?${D}(?:[\\s\\-.]?${D}){6,}`, "g");
@@ -40,6 +44,7 @@ export function scrubString(input: string): string {
   if (!input) return input;
   return input
     .replace(EMAIL, REDACTED)
+    .replace(INSTAPAY, REDACTED)
     .replace(COORDINATE_PAIR, REDACTED)
     .replace(PRECISE_DECIMAL, REDACTED)
     .replace(LONG_NUMBER, REDACTED);

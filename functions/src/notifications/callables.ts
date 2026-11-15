@@ -1,3 +1,5 @@
+import { featureOn } from "../features/gate";
+import { notificationFeature } from "../features/model";
 import * as logger from "firebase-functions/logger";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/v2/https";
@@ -73,6 +75,10 @@ function dispatchDeps(): DispatchDeps {
     now: () => Date.now(),
     log: (message, data) => logger.info(message, data ?? {}),
     alarmDelayMs: alarmDelayMs(),
+    typeAllowed: async (type) => {
+      const feature = notificationFeature(type);
+      return feature === null || featureOn(feature);
+    },
   };
 }
 

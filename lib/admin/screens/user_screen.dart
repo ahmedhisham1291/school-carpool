@@ -7,6 +7,7 @@ import 'package:school_carpool/admin/data/admin_api.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
+import 'package:school_carpool/admin/screens/user_settle_up_section.dart';
 import 'package:school_carpool/admin/widgets/admin_labels.dart';
 import 'package:school_carpool/admin/widgets/admin_widgets.dart';
 import 'package:school_carpool/design/bidi.dart';
@@ -214,6 +215,8 @@ class _UserScreenState extends ConsumerState<UserScreen> {
                 leadingIcon: Icons.account_balance_wallet_outlined,
                 onTap: () => context.go(AdminRoutes.wallet(widget.uid)),
               ),
+              // F45: the parent's settle-up records (read only, logged reason).
+              UserSettleUpSection(uid: widget.uid),
               const SizedBox(height: AppSpacing.s24),
               AppSectionHeader(l10n.adminVerificationHistory),
               if (d.cases.isEmpty)

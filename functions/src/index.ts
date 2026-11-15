@@ -256,3 +256,27 @@ export {
   signOutDevice,
   touchDevice,
 } from "./privacy/callables";
+
+// Pilot feature switches (owner decision 14 Nov 2026): config/features,
+// changed by super admins from the admin panel's Settings (audit log).
+// Off for the pilot: wallet, ratings and vouching, yearly checks. On:
+// Settle up. A switch that is off makes every function of that feature
+// refuse ("feature-off") or do nothing; no app release to turn it on.
+export { adminGetFeatures, adminSetFeature } from "./features/callables";
+
+// Settle up by InstaPay (F45, the pilot's payment feature): records of
+// payment requests between two parents of a carpool (requested, paid,
+// received). The app never moves, holds or sees money; the payer pays in
+// the InstaPay app. The InstaPay address is private and shown only to the
+// payer of an open request. Admins: a read-only list with a logged reason.
+export {
+  adminListSettleUps,
+  createSettleUp,
+  getSettleUpAddress,
+  getSettleUpProfile,
+  removeInstaPayAddress,
+  reportSettleUp,
+  saveInstaPayAddress,
+  settleUpAction,
+  settleUpContacts,
+} from "./settle_up/callables";

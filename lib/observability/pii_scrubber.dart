@@ -18,6 +18,8 @@ abstract final class PiiScrubber {
     // coordinates and addresses
     'lat', 'lng', 'lon', 'latitude', 'longitude', 'coords', 'coordinates', 'location',
     'geo', 'geopoint', 'position', 'address', 'homeaddress', 'pickuppoint',
+    // InstaPay address (F45)
+    'instapayaddress', 'ipa',
     // message text
     'text', 'message', 'messagetext', 'body', 'content', 'note', 'comment',
     // contact and names
@@ -33,6 +35,10 @@ abstract final class PiiScrubber {
 
   static final RegExp _email = RegExp(r'[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}');
 
+  /// An InstaPay address (F45, "name@instapay"): it has no dot after the
+  /// "@", so the email pattern does not catch it.
+  static final RegExp _instaPay = RegExp(r'[A-Za-z0-9._\-]+@instapay', caseSensitive: false);
+
   /// "30.0444, 31.2357" or "30.0444 31.2357".
   static final RegExp _coordinatePair = RegExp(
     '-?$_d{1,3}[.٫]$_d{2,}\\s*[,،]?\\s*-?$_d{1,3}[.٫]$_d{2,}',
@@ -45,13 +51,14 @@ abstract final class PiiScrubber {
   /// (+20 10 1234 5678, 01012345678) and 14-digit national IDs.
   static final RegExp _longNumber = RegExp('(?:\\+|00)?$_d(?:[\\s\\-.]?$_d){6,}');
 
-  /// Removes emails, coordinates and long numbers from [input].
+  /// Removes emails, InstaPay addresses, coordinates and long numbers from [input].
   static String scrubString(String input) {
     if (input.isEmpty) {
       return input;
     }
     return input
         .replaceAll(_email, redacted)
+        .replaceAll(_instaPay, redacted)
         .replaceAll(_coordinatePair, redacted)
         .replaceAll(_preciseDecimal, redacted)
         .replaceAll(_longNumber, redacted);

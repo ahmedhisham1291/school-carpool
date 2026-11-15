@@ -41,6 +41,7 @@ import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/chat/chat_provider.dart';
 import 'package:school_carpool/features/chat/chats_screen.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
@@ -50,6 +51,7 @@ import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
 import 'package:school_carpool/features/schools/school_picker_screen.dart';
+import 'package:school_carpool/features/settle_up/settle_up_models.dart';
 import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
 import 'package:school_carpool/features/trips/run_recovery.dart';
@@ -73,6 +75,7 @@ import '../helpers/notification_fakes.dart';
 import '../helpers/privacy_fakes.dart';
 import '../helpers/schedule_fakes.dart';
 import '../helpers/school_fakes.dart';
+import '../helpers/settle_fakes.dart';
 import '../helpers/test_app.dart';
 import '../helpers/trip_fakes.dart';
 import '../helpers/trust_fakes.dart';
@@ -102,6 +105,8 @@ Future<void> _pumpScreen(
   RecoveryNative? recovery,
   FakeWalletRepository? wallet,
   FakeTrustRepository? trust,
+  FeatureSwitches? features,
+  FakeSettleUpRepository? settle,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -139,6 +144,8 @@ Future<void> _pumpScreen(
           recovery: recovery,
           wallet: wallet,
           trust: trust,
+          features: features,
+          settle: settle,
         ),
         signupFlowProvider.overrideWith(_PresetSignupFlow.new),
         // Prompt 12: the device guard reads the privacy repository.
@@ -382,6 +389,74 @@ void main() {
     }
   }
 
+  // Settle up by InstaPay (F45) and the pilot feature switches: the list,
+  // my InstaPay address, a new request, a record I have to pay (with the
+  // payee's address and Copy), a record waiting for my confirmation,
+  // Profile with the pilot defaults and the "Not available yet" screen.
+  // Arabic and English, light and dark, fake data.
+  const Map<String, String> settleScreens = <String, String>{
+    'home': SettleUpRoutes.home,
+    'address': SettleUpRoutes.address,
+    'new': '${SettleUpRoutes.home}/${SettleUpRoutes.newSegment}',
+    'detail_pay': '${SettleUpRoutes.home}/r/s_owe',
+    'detail_confirm': '${SettleUpRoutes.home}/r/s_confirm',
+    'profile_pilot': '/profile',
+    'feature_off': ProfileRoutes.wallet,
+  };
+  for (final MapEntry<String, String> screen in settleScreens.entries) {
+    for (final String locale in locales) {
+      for (final String mode in modes) {
+        final String name = 'settle_${screen.key}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          final FakeSettleUpRepository settle = FakeSettleUpRepository(
+            records: <SettleUp>[
+              ...sampleSettleUps(),
+              settleRecord('s_confirm', iPay: false, other: 'Badr', otherUid: 'uid-badr', amount: 4000, status: SettleStatus.paid),
+            ],
+          );
+          addTearDown(settle.dispose);
+          await _pumpScreen(
+            tester,
+            location: screen.value,
+            locale: locale,
+            themeMode: mode,
+            direction: 'a',
+            logicalSize: const Size(390, 1200),
+            pixelRatio: 3,
+            features: FeatureSwitches.pilot,
+            settle: settle,
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+    // Small phone (320 dp), light, normal and 200 percent text.
+    for (final double scale in <double>[1, 2]) {
+      for (final String locale in locales) {
+        final String name = 'settle_${screen.key}_${locale}_light_320_text${scale.round()}x';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          final FakeSettleUpRepository settle = FakeSettleUpRepository();
+          addTearDown(settle.dispose);
+          await _pumpScreen(
+            tester,
+            location: screen.value,
+            locale: locale,
+            themeMode: 'light',
+            direction: 'a',
+            logicalSize: const Size(320, 1200),
+            pixelRatio: 3,
+            textScale: scale,
+            features: FeatureSwitches.pilot,
+            settle: settle,
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+  }
+
   // Admin web panel (Prompt 4, F14): desktop size, fake data.
   final Map<String, (String, AdminSessionState, Size)> adminScreens = <String, (String, AdminSessionState, Size)>{
     'sign_in': (AdminRoutes.signIn, const AdminSignedOut(), const Size(1280, 800)),
@@ -399,6 +474,8 @@ void main() {
     'report': ('/reports/r1', const AdminSignedIn(testReviewer), const Size(1280, 1100)),
     'audit': (AdminRoutes.audit, const AdminSignedIn(testSuperAdmin), const Size(1280, 800)),
     'admins': (AdminRoutes.admins, const AdminSignedIn(testSuperAdmin), const Size(1280, 800)),
+    // Pilot feature switches (super admin: the switches can be changed).
+    'settings': (AdminRoutes.settings, const AdminSignedIn(testSuperAdmin), const Size(1280, 900)),
     'gallery': (AdminRoutes.gallery, const AdminSignedIn(testReviewer), const Size(1280, 1600)),
   };
   for (final MapEntry<String, (String, AdminSessionState, Size)> screen in adminScreens.entries) {

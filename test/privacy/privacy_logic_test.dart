@@ -272,8 +272,10 @@ void main() {
       expect(DataType.values.map((DataType t) => t.name).toList(), <String>[
         'account', 'consents', 'idPhotos', 'children', 'vehicle', 'home', 'carpools', 'schedule', 'trips', //
         'liveLocation', 'routeArchive', 'chat', 'ratings', 'familyLinks', 'handover', 'emergencyContact',
-        'notifications', 'devices', 'wallet', 'reports', 'analytics', 'crashReports',
+        'notifications', 'devices', 'wallet', 'settleUp', 'reports', 'analytics', 'crashReports',
       ]);
+      // Settle up records: same rule as trips.
+      expect(keepOf(DataType.settleUp), Keep.yearAfterClosure);
       expect(keepOf(DataType.idPhotos), Keep.yearAfterClosure);
       expect(keepOf(DataType.trips), Keep.yearAfterClosure);
       expect(keepOf(DataType.routeArchive), Keep.yearAfterRun);

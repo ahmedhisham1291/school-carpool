@@ -110,6 +110,13 @@ export interface DispatchDeps {
   now: () => number;
   log: (message: string, data?: Record<string, unknown>) => void;
   alarmDelayMs?: number;
+  /**
+   * Pilot feature switches: false when the event's type belongs to a
+   * feature that is off now (features/model.ts GATED_NOTIFICATIONS). The
+   * event is then closed with reason "feature-off": no record, no push,
+   * no WhatsApp. Absent (unit tests): everything is sent.
+   */
+  typeAllowed?: (type: OutboxEvent["type"]) => Promise<boolean>;
 }
 
 export interface DispatchSummary {
@@ -174,6 +181,11 @@ async function newParentRecipients(store: NotifyStore, event: OutboxEvent): Prom
 
 export async function dispatchEvent(deps: DispatchDeps, event: OutboxEvent): Promise<DispatchSummary> {
   if (event.status !== "pending") return empty("already-" + event.status);
+  if (deps.typeAllowed && !(await deps.typeAllowed(event.type))) {
+    const summary = empty("feature-off");
+    await deps.store.markEvent(event.id, "done", summary);
+    return summary;
+  }
   const nowMs = deps.now();
   if (nowMs - event.createdAtMs > MAX_EVENT_AGE_MS) {
     const summary = empty("stale");

@@ -44,6 +44,8 @@ List<AdminSection> adminSections({required bool superAdmin}) => <AdminSection>[
   ),
   AdminSection(AdminRoutes.trust, Icons.shield_outlined, Icons.shield, (AppLocalizations l) => l.adminNavTrust),
   AdminSection(AdminRoutes.audit, Icons.history_outlined, Icons.history, (AppLocalizations l) => l.adminNavAudit),
+  // Pilot feature switches: every admin sees them, a super admin changes them.
+  AdminSection(AdminRoutes.settings, Icons.tune_outlined, Icons.tune, (AppLocalizations l) => l.adminNavSettings),
   if (superAdmin)
     AdminSection(
       AdminRoutes.admins,

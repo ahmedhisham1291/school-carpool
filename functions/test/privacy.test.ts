@@ -746,6 +746,9 @@ class MemoryRetention implements RetentionStore {
   async deleteOrphanTrips() {
     return 1;
   }
+  async purgeSettleUps() {
+    return 2;
+  }
   async endedChatsBefore() {
     return this.chats;
   }
@@ -803,6 +806,7 @@ describe("retention job", () => {
     assert.deepEqual(store.frozen, ["cp_carpool:c-k9"], "a closed carpool's chat is frozen and its year starts");
     assert.deepEqual(report.tasks.closedCarpools, { deleted: 2, failed: 0 });
     assert.deepEqual(report.tasks.orphanTrips, { deleted: 1, failed: 0 });
+    assert.deepEqual(report.tasks.settleUps, { deleted: 2, failed: 0 }, "settle-up records past their date (F45)");
     assert.deepEqual(store.purgedCarpoolsBefore, [NOW - 365 * DAY_MS], "closed carpools go 1 year after they closed");
     assert.deepEqual(report.failures.sort(), ["chat:private:b", "routeArchives"]);
     assert.equal(store.runs.length, 1);

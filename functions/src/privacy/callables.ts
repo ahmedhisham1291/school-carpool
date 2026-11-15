@@ -58,6 +58,7 @@ import { consentKind, consentViews, correctionField, needsAdmin, newRequest, wit
 import { routeArchivePurgeAt } from "./retention";
 import { archivePath, packArchive, unpackArchive, type TrackPoint } from "./route_archive";
 import { gatedCall, sessionCall } from "./device_gate";
+import { featureOn } from "../features/gate";
 
 /**
  * Privacy and security callables (Prompt 12, spec section 7). The app
@@ -291,7 +292,12 @@ export const setConsent = gatedCall(opts, (r) =>
       case "walletClosed": {
         const w = await adminDb().collection("wallets").doc(uid).get();
         const pending = await adminDb().collection("walletPending").where("uid", "==", uid).limit(1).get();
-        const balance = w.exists ? await walletProvider()?.balance(String(w.get("walletRef"))).catch(() => null) : 0;
+        // Pilot switch: while the wallet is off the partner is never called
+        // (no money can have moved since the switch-off; our copy is used,
+        // and an unknown balance refuses, never guesses 0).
+        const walletOn = await featureOn("wallet");
+        const copy = w.exists && typeof w.get("balanceCopy") === "number" ? (w.get("balanceCopy") as number) : null;
+        const balance = !w.exists ? 0 : walletOn ? await walletProvider()?.balance(String(w.get("walletRef"))).catch(() => null) : copy;
         if (!pending.empty) {
           await logRequest(uid, "withdraw", kind, "refused", "wallet-pending");
           fail("wallet-pending");

@@ -19,6 +19,8 @@ import 'package:school_carpool/features/carpools/looking_screen.dart';
 import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/chat/chats_screen.dart';
 import 'package:school_carpool/features/chat/conversation_screen.dart';
+import 'package:school_carpool/features/feature_switches/feature_gate.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
 import 'package:school_carpool/features/home/home_screen.dart';
 import 'package:school_carpool/features/maps/driving_schools_screen.dart';
@@ -41,6 +43,10 @@ import 'package:school_carpool/features/profile/profile_screen.dart';
 import 'package:school_carpool/features/schedule/balance_screen.dart';
 import 'package:school_carpool/features/schedule/exceptions_screen.dart';
 import 'package:school_carpool/features/schedule/schedule_screen.dart';
+import 'package:school_carpool/features/settle_up/instapay_address_screen.dart';
+import 'package:school_carpool/features/settle_up/new_settle_up_screen.dart';
+import 'package:school_carpool/features/settle_up/settle_up_detail_screen.dart';
+import 'package:school_carpool/features/settle_up/settle_up_screen.dart';
 import 'package:school_carpool/features/shell/home_shell.dart';
 import 'package:school_carpool/features/trips/driver_trip_screen.dart';
 import 'package:school_carpool/features/trips/emergency_screens.dart';
@@ -146,6 +152,27 @@ abstract final class WalletRoutes {
         ? null
         : <String, String>{'carpool': ?carpoolId, if (amount != null) 'amount': '$amount'},
   ).toString();
+}
+
+/// Settle up by InstaPay (F45) under Profile > Settle up, also opened from
+/// a carpool's page. Shown only while the "settleUp" feature switch is on.
+abstract final class SettleUpRoutes {
+  static const String segment = 'settle-up';
+  static const String newSegment = 'new';
+  static const String addressSegment = 'address';
+  static const String recordSegment = 'r/:id';
+  static const String home = '/profile/$segment';
+  static const String address = '$home/$addressSegment';
+
+  /// The list, opened from a carpool: a new request starts with its parents.
+  static String homeFor(String carpoolId) => Uri(path: home, queryParameters: <String, String>{'carpool': carpoolId}).toString();
+
+  static String create({String? carpoolId}) => Uri(
+    path: '$home/$newSegment',
+    queryParameters: carpoolId == null ? null : <String, String>{'carpool': carpoolId},
+  ).toString();
+
+  static String record(String id) => '$home/r/$id';
 }
 
 /// Screens under the Home tab (Prompt 5). Verified parents only (the
@@ -454,7 +481,8 @@ GoRouter buildAppRouter({
                       ),
                       GoRoute(
                         path: ProfileRoutes.ratingsSegment,
-                        builder: (BuildContext context, GoRouterState state) => const RateParentsScreen(),
+                        builder: (BuildContext context, GoRouterState state) =>
+                            const FeatureGate(feature: AppFeature.ratingsAndVouching, child: RateParentsScreen()),
                       ),
                       GoRoute(
                         path: ProfileRoutes.familySegment,
@@ -462,7 +490,8 @@ GoRouter buildAppRouter({
                       ),
                       GoRoute(
                         path: ProfileRoutes.schoolYearSegment,
-                        builder: (BuildContext context, GoRouterState state) => const SchoolYearScreen(),
+                        builder: (BuildContext context, GoRouterState state) =>
+                            const FeatureGate(feature: AppFeature.yearlyChecks, child: SchoolYearScreen()),
                       ),
                       GoRoute(
                         path: ProfileRoutes.phoneSegment,
@@ -470,27 +499,64 @@ GoRouter buildAppRouter({
                       ),
                       GoRoute(
                         path: ProfileRoutes.walletSegment,
-                        builder: (BuildContext context, GoRouterState state) => const WalletScreen(),
+                        builder: (BuildContext context, GoRouterState state) =>
+                            const FeatureGate(feature: AppFeature.wallet, child: WalletScreen()),
                         routes: <RouteBase>[
                           GoRoute(
                             path: WalletRoutes.sendSegment,
-                            builder: (BuildContext context, GoRouterState state) => SendMoneyScreen(
-                              carpoolId: state.uri.queryParameters['carpool'],
-                              amount: int.tryParse(state.uri.queryParameters['amount'] ?? ''),
+                            builder: (BuildContext context, GoRouterState state) => FeatureGate(
+                              feature: AppFeature.wallet,
+                              child: SendMoneyScreen(
+                                carpoolId: state.uri.queryParameters['carpool'],
+                                amount: int.tryParse(state.uri.queryParameters['amount'] ?? ''),
+                              ),
                             ),
                           ),
                           GoRoute(
                             path: WalletRoutes.addSegment,
-                            builder: (BuildContext context, GoRouterState state) => const AddMoneyScreen(),
+                            builder: (BuildContext context, GoRouterState state) =>
+                                const FeatureGate(feature: AppFeature.wallet, child: AddMoneyScreen()),
                           ),
                           GoRoute(
                             path: WalletRoutes.withdrawSegment,
-                            builder: (BuildContext context, GoRouterState state) => const WithdrawScreen(),
+                            builder: (BuildContext context, GoRouterState state) =>
+                                const FeatureGate(feature: AppFeature.wallet, child: WithdrawScreen()),
                           ),
                           GoRoute(
                             path: WalletRoutes.transferSegment,
+                            builder: (BuildContext context, GoRouterState state) => FeatureGate(
+                              feature: AppFeature.wallet,
+                              child: TransferScreen(transferId: state.pathParameters['id'] ?? ''),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Settle up by InstaPay (F45): the pilot's payment feature.
+                      GoRoute(
+                        path: SettleUpRoutes.segment,
+                        builder: (BuildContext context, GoRouterState state) => FeatureGate(
+                          feature: AppFeature.settleUp,
+                          child: SettleUpScreen(carpoolId: state.uri.queryParameters['carpool']),
+                        ),
+                        routes: <RouteBase>[
+                          GoRoute(
+                            path: SettleUpRoutes.newSegment,
+                            builder: (BuildContext context, GoRouterState state) => FeatureGate(
+                              feature: AppFeature.settleUp,
+                              child: NewSettleUpScreen(carpoolId: state.uri.queryParameters['carpool']),
+                            ),
+                          ),
+                          GoRoute(
+                            path: SettleUpRoutes.addressSegment,
                             builder: (BuildContext context, GoRouterState state) =>
-                                TransferScreen(transferId: state.pathParameters['id'] ?? ''),
+                                const FeatureGate(feature: AppFeature.settleUp, child: InstaPayAddressScreen()),
+                          ),
+                          GoRoute(
+                            path: SettleUpRoutes.recordSegment,
+                            builder: (BuildContext context, GoRouterState state) => FeatureGate(
+                              feature: AppFeature.settleUp,
+                              child: SettleUpDetailScreen(id: state.pathParameters['id'] ?? ''),
+                            ),
                           ),
                         ],
                       ),

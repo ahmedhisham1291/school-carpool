@@ -30,6 +30,8 @@ void main() {
         'guardian-declined', 'phone-changed',
         // Prompt 12.
         'new-device',
+        // Settle up (F45): push only.
+        'settle-requested', 'settle-paid', 'settle-updated',
         // Prompt 13.
         'run-still-on',
       ];

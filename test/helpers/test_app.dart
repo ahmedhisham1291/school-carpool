@@ -9,6 +9,7 @@ import 'package:school_carpool/features/auth/auth_repository.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/chat/chat_provider.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/maps/location_service.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/notifications/local_alarms.dart';
@@ -26,6 +27,7 @@ import 'carpool_fakes.dart';
 import 'chat_fakes.dart';
 import 'map_fakes.dart';
 import 'notification_fakes.dart';
+import 'settle_fakes.dart';
 import 'trust_fakes.dart';
 import 'wallet_fakes.dart';
 
@@ -196,7 +198,10 @@ class FakeAuthRepository implements AuthRepository {
 /// pass [notifications], [push] and [alarms]) and the chat fakes (Prompt 9;
 /// pass [chat], [chatRepository] and [photos]) and the wallet fakes
 /// (Prompt 11B; pass [wallet] and [deviceAuth]) and the trust fake
-/// (Prompt 11; pass [trust]). The number of
+/// (Prompt 11; pass [trust]) and the pilot feature switches (pass
+/// [features]; every feature is ON by default here, so each feature's own
+/// tests see its screens; test/feature_switches covers the pilot defaults)
+/// and the settle-up fake (F45; pass [settle]). The number of
 /// overrides is the same for every call (one ProviderScope per test).
 List<Override> authOverrides({
   SessionState session = testVerifiedSession,
@@ -220,6 +225,8 @@ List<Override> authOverrides({
   FakeWalletRepository? wallet,
   FakeDeviceAuth? deviceAuth,
   FakeTrustRepository? trust,
+  FeatureSwitches? features,
+  FakeSettleUpRepository? settle,
 }) => <Override>[
   sessionProvider.overrideWithValue(session),
   authRepositoryProvider.overrideWithValue(repository ?? FakeAuthRepository()),
@@ -229,4 +236,6 @@ List<Override> authOverrides({
   ...chatOverrides(provider: chat, repository: chatRepository, photos: photos),
   ...walletOverrides(repository: wallet, auth: deviceAuth),
   ...trustOverrides(repository: trust),
+  featureSwitchesProvider.overrideWithValue(features ?? FeatureSwitches.allOn),
+  ...settleOverrides(repository: settle),
 ];

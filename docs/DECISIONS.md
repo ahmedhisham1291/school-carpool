@@ -217,3 +217,12 @@ revised list ("implement all your suggestions"):
 - **Lawyer:** confirmed that "Settle up" (recording payment requests between
   parents and showing the payee's InstaPay address, with the app never moving
   or holding money) needs no Central Bank of Egypt licence.
+
+## Owner answers (15 Nov 2026, 05:11)
+
+- **Emergency-contact WhatsApp:** the lawyer confirmed that sending the
+  WhatsApp message to a parent's emergency contact without that person's own
+  opt-in is acceptable legally. (Separate from the law: Meta's template review
+  may still reject `cp_emergency_contact`; see docs/meta-whatsapp-setup.md.)
+- **Settle up records:** kept while either parent's account is active, plus
+  1 year (confirmed; same rule as trips).
