@@ -12,6 +12,7 @@ import 'package:school_carpool/admin/data/admin_models.dart';
 import 'package:school_carpool/admin/data/admin_places.dart';
 import 'package:school_carpool/admin/data/admin_trust.dart';
 import 'package:school_carpool/admin/data/admin_wallet.dart';
+import 'package:school_carpool/admin/data/school_filters.dart';
 import 'package:school_carpool/admin/router/admin_router.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/features/auth/account.dart';
@@ -119,6 +120,9 @@ class FakeAdminApi implements AdminApi {
   /// The area filter of each schools() call.
   final List<String?> schoolAreaFilters = <String?>[];
 
+  /// The filters of each searchSchools() call (first pages and "Load more").
+  final List<SchoolFilters> schoolSearches = <SchoolFilters>[];
+
   final List<String> calls = <String>[];
   final List<Map<String, Object?>> decisions = <Map<String, Object?>>[];
   final List<SchoolInput> savedSchools = <SchoolInput>[];
@@ -222,6 +226,22 @@ class FakeAdminApi implements AdminApi {
     schoolAreaFilters.add(placeAreaId);
     await _maybeFail('schools:${status.code}');
     return PagedResult<School>(status == SchoolStatus.active ? sampleSchools : sampleOtherSchools, null);
+  }
+
+  @override
+  Future<SchoolSearchPage> searchSchools(SchoolFilters filters, {required String languageCode, String? afterId}) async {
+    schoolSearches.add(filters);
+    await _maybeFail('searchSchools');
+    final String q = filters.query.trim().toLowerCase();
+    final List<School> found = <School>[
+      for (final School s in <School>[...sampleSchools, if (filters.includeAll) ...sampleOtherSchools])
+        if ((q.isEmpty || s.nameEn.toLowerCase().contains(q) || s.nameAr.contains(q)) &&
+            (filters.city == null || s.governorate == filters.city) &&
+            (filters.areaId == null || s.placeAreaId == filters.areaId) &&
+            (filters.status == null || s.status == filters.status))
+          s,
+    ];
+    return SchoolSearchPage(items: found, nextAfterId: null, total: afterId == null ? found.length : null);
   }
 
   @override

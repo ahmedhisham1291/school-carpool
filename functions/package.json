@@ -23,6 +23,7 @@
     "schools:load:emulator": "npm run build && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-school-carpool node lib/scripts/load_schools.js",
     "schools:load:cloud": "npm run build && node lib/scripts/load_schools.js",
     "schools:algolia": "npm run build && node lib/scripts/algolia_schools.js",
+    "schools:admin-grams": "npm run build && node lib/scripts/school_admin_grams.js",
     "notify:emulator": "npm run build && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-school-carpool node lib/scripts/notify.js",
     "notify:cloud": "npm run build && node lib/scripts/notify.js",
     "chat:setup": "npm run build && node lib/scripts/stream_setup.js",

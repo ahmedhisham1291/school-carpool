@@ -291,7 +291,7 @@ One cross-platform mobile codebase plus a small managed backend keeps cost and e
 | User (parent) | id, parent ID (public, 8 characters, unique), first name, last name, phone, email, status (unverified, pending, verified, rejected, suspended), language, created at | Has many children, memberships, messages |
 | Verification | id, user id, ID front image, ID back image, selfie image, result, reviewer, reason, reviewed at | Belongs to user; images deleted after review |
 | Child | id, parent id, first name, age, grade, school id, school ID checked (yes or no) | Belongs to user and school |
-| School | id, Arabic name, English name, governorate, city, source, status (active, awaiting review, merged), added by, map location (latitude and longitude), place area id and name, place district id (F4 grouping, F46) | Has many areas, groups; in one place area |
+| School | id, Arabic name, English name, governorate, city, source, status (active, awaiting review, merged), added by, map location (latitude and longitude), place area id and name, place district id (F4 grouping, F46), hidden from search (sample), admin search grams (written only by Cloud Functions: 3-letter keys of the normalized names for the admin panel search; derived from the public names, so they are read with the school document like the names; never sent to Algolia) | Has many areas, groups; in one place area |
 | Place area (City -> Area) | id, governorate (the City), Arabic and English names, centre, school count, active, merged into; server only (placeInternal, never read by the app): source (OpenStreetMap or admin), outline (simplified), address count (admins see it through the admin panel) | Many per governorate; has many place districts. Not the per-school Area below (owner decision 16 Nov 2026: both kept) |
 | Place district | id, place area id, governorate, Arabic and English names, centre, school count, active, merged into; server only (placeInternal): source (OpenStreetMap boundary, named place, admin), outline, address count | Belongs to a place area |
 | District request | user id, place area id, typed name, status (open, done) | "My district isn't listed" (F46); admins add, map or dismiss it; deleted with the account |
@@ -376,7 +376,18 @@ One cross-platform mobile codebase plus a small managed backend keeps cost and e
 - Verification queue with document viewer, approve and reject
 - Reports queue
 - Users list with suspend and ban
-- Schools and areas management
+- Schools and areas management. The Schools list (English by default)
+  covers every school, including hidden sample schools, schools awaiting
+  review and merged ones (switch "Show hidden and unapproved"): search by
+  name in Arabic or English (spelling variants such as ة/ه, ى/ي, أ/إ/ا
+  and small typos are found), filters City -> Area -> District (dependent
+  dropdowns; changing one clears the ones below), status, visibility in
+  the parents' search and source, sort by Arabic or English name, a count
+  of matches, pages of 50, "Clear filters", and every filter in the
+  address (bookmarkable). Table columns: Arabic name, English name, City,
+  Area, District, source, status. Served by `adminSearchSchools` (admin
+  only, rate limited, first page of each search in the audit log without
+  the typed text); Firestore, not Algolia, so hidden schools are found too.
 
 ## 11. Non-functional requirements, risks and open questions
 

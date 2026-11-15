@@ -5,8 +5,10 @@ import 'package:material_ui/material_ui.dart';
 Future<void> pickFromDropdown(WidgetTester tester, Key key, String label) async {
   await tester.tap(find.byKey(key));
   await tester.pumpAndSettle();
+  // The item inside the open menu (MenuItemButton), not the same text
+  // elsewhere on the page (for example a "Cairo" cell of a results table).
   // Long menus (27 cities) scroll: bring the item into view before tapping.
-  final Finder item = find.text(label).last;
+  final Finder item = find.descendant(of: find.byType(MenuItemButton), matching: find.text(label)).last;
   await tester.ensureVisible(item);
   await tester.pumpAndSettle();
   await tester.tap(item);

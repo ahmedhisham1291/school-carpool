@@ -90,7 +90,29 @@ Limits below are the public free allowances as understood in November 2026.
 - **App Check on the web:** reCAPTCHA Enterprise has a free monthly
   allowance (check the current number on Google's pricing page); admins
   make few calls.
-- **Upgrade when:** never needed for the panel alone at pilot size.
+- **Schools list search (`adminSearchSchools`):** Firestore, not
+  Algolia. The parents' Algolia index holds only active, visible schools,
+  and admins must also find hidden sample, awaiting-review and merged
+  schools; a second "admin" Algolia index would double the records and
+  sync calls and spend the free 10,000 searches a month on staff, and dev
+  would still need a Firestore path. Without text: one query of 50 plus a
+  `count()` (one read per 1,000 matches). With text: Firestore returns
+  schools holding any of the typed words' 3-letter grams (the start and three picks of the first four letters, so one typo there is still found)
+  (`adminSearchGrams`), ordered by name; the function checks each in
+  memory (typos, spelling variants) and reads at most 600 schools per page
+  (`SCAN_CAP`) to fill the page and count matches. Capped at 120 searches
+  per admin per 10 minutes, typing waits 0.4 s. A few admins doing 100
+  text searches a day: at most about 60,000 reads (usually far fewer: a
+  rare word matches a few dozen schools), about USD 0.02 a day above the
+  free 50,000 in the worst case. Extra writes: one rate-limit counter and
+  one audit entry per new search; the grams ride along with every school
+  write (no extra write) and `schools:admin-grams` fills existing schools
+  once (one read per school, one write per school that needs it).
+  13 new composite indexes on `schools` (field + name; Firestore merges them
+  for any mix of filters): index storage only, a few MB.
+- **Upgrade when:** never needed for the panel alone at pilot size. If
+  admins search far more (the audit log counts `school.search`), move the
+  text search to an Algolia admin index.
 
 ## Schools list (Prompt 4B)
 

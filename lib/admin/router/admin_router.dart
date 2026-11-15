@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
+import 'package:school_carpool/admin/data/school_filters.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/admin/screens/admin_gallery_screen.dart';
 import 'package:school_carpool/admin/screens/admins_screen.dart';
@@ -75,7 +76,9 @@ GoRouter buildAdminRouter({
           ),
           GoRoute(
             path: AdminRoutes.schools,
-            builder: (BuildContext context, GoRouterState state) => const SchoolsScreen(),
+            // The search and filters live in the URL (bookmarkable).
+            builder: (BuildContext context, GoRouterState state) =>
+                SchoolsScreen(filters: SchoolFilters.fromQuery(state.uri.queryParameters)),
             routes: <RouteBase>[
               GoRoute(
                 path: 'new',
