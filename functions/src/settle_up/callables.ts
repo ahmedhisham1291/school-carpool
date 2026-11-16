@@ -1,5 +1,4 @@
-import * as logger from "firebase-functions/logger";
-import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { onCall, type CallableRequest } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
 import { ipOf, requireAdminCaller } from "../admin_panel/access";
 import { FirestoreListsStore } from "../admin_panel/store";
@@ -15,7 +14,6 @@ import {
 import { featureGatedCall, featureOffError, features, featureSessionCall, requireFeature } from "../features/gate";
 import { FeatureOffError } from "../features/model";
 import { accessReason } from "../privacy/photos";
-import { reportError } from "../sentry";
 import {
   adminListSettleUps as adminListFlow,
   contacts as contactsFlow,
@@ -31,6 +29,7 @@ import {
 } from "./flow";
 import { DEFAULT_SETTLE_LIMITS, SETTLE_ERROR_CODES, SettleError, type SettleLimits } from "./model";
 import { FirestoreSettleStore } from "./store";
+import { callerOf, reasonErrorMapper, runCallable, unavailable } from "../common/callable";
 
 /**
  * Settle up by InstaPay (F45): the pilot's payment feature. The app never
@@ -63,25 +62,14 @@ export function settleDeps(): SettleDeps {
 }
 
 function caller(request: CallableRequest): Caller {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
-  return { uid, verifiedClaim: request.auth?.token?.verified === true };
+  return callerOf(request);
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    if (error instanceof FeatureOffError) throw featureOffError(error.feature);
-    if (error instanceof SettleError) {
-      throw new HttpsError(SETTLE_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason, ...error.details });
-    }
-    // Never the request data: it holds an address, an amount or a note.
-    logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-    await reportError(error);
-    throw new HttpsError("unavailable", "settle-up-unavailable", { reason: "settle-up-unavailable" });
-  }
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, {
+    map: [(error) => (error instanceof FeatureOffError ? featureOffError(error.feature) : undefined), reasonErrorMapper(SettleError, SETTLE_ERROR_CODES, "details")],
+    fallback: unavailable("settle-up-unavailable"),
+  });
 }
 
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK, minInstances: MIN_INSTANCES };

@@ -1,6 +1,5 @@
 import * as logger from "firebase-functions/logger";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { HttpsError, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
 import {
   ALGOLIA_APP_ID,
@@ -21,34 +20,15 @@ import { FirestorePlaceLocator, placeOfPoint } from "../places/store";
 import { realParentSessionCall, sessionCall } from "../privacy/device_gate";
 import { gramsToWrite } from "../admin_panel/school_search";
 import { ADMIN_SEARCH_GRAMS } from "../admin_panel/school_search_store";
+import { reasonErrorMapper, requireUid, runCallable } from "../common/callable";
 
 /**
  * Schools list functions (F4): the parent's "Other" school, the search key
  * for the app, and the sync from Firestore to the search index.
  */
 
-function requireUid(request: CallableRequest): string {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
-  return uid;
-}
-
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    if (error instanceof OtherSchoolError) {
-      throw new HttpsError(OTHER_SCHOOL_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
-    }
-    if (error instanceof SearchKeyError) {
-      throw new HttpsError(SEARCH_KEY_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
-    }
-    // Never the request data (a typed school name is harmless, but the rule is simple).
-    logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-    await reportError(error);
-    throw new HttpsError("internal", "Something went wrong.");
-  }
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, { map: [reasonErrorMapper(OtherSchoolError, OTHER_SCHOOL_ERROR_CODES), reasonErrorMapper(SearchKeyError, SEARCH_KEY_ERROR_CODES)] });
 }
 
 /**
