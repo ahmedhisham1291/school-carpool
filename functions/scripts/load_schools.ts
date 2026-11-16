@@ -41,6 +41,7 @@ import {
   planImport,
   planSampleHiding,
   planUnhide,
+  planUnmerge,
   type MergedImport,
 } from "../src/schools/catalog";
 import { readAll } from "../src/schools/paged";
@@ -138,7 +139,11 @@ async function main(): Promise<void> {
 
   initializeApp({ projectId });
   const db = getFirestore();
-  const existing = await readExistingSchools(db);
+  const existingRead = await readExistingSchools(db);
+  // Merged by an earlier import, a school of its own in this run: active
+  // again (then updated like any other school).
+  const unmerge = new Set(planUnmerge(existingRead, incoming));
+  const existing = existingRead.map((s) => (unmerge.has(s.id) ? { ...s, status: "active", mergedInto: "", mergedBy: "" } : s));
   const plan = planImport(incoming, existing);
   const hide = sampleFile ? planSampleHiding(existing, sampleKeys, incoming) : [];
   // Duplicates the import merged (dedupe.py): their earlier documents are
@@ -164,6 +169,7 @@ async function main(): Promise<void> {
   for (const d of nowDropped) droppedReasons.set(d.reason, (droppedReasons.get(d.reason) ?? 0) + 1);
   console.log(`  loaded earlier, dropped by the rules now, taken out of the list (kept as documents): ${nowDropped.length}`
     + (nowDropped.length ? ` (${[...droppedReasons].map(([r, n]) => `${r} ${n}`).join(", ")})` : ""));
+  if (unmerge.size) console.log(`  merged by an earlier import, a school of its own now, back in the list: ${unmerge.size}`);
   if (unhide.length) console.log(`  hidden earlier, kept by the rules now, back in the list: ${unhide.length}`);
   if (merges.cancelled.length) console.log(`  import writes skipped because an admin-edited school keeps the group: ${merges.cancelled.length}`);
   if (merges.editedKept.length) console.log(`  admin-edited schools left alone in a merged group: ${merges.editedKept.length}`);
@@ -188,6 +194,15 @@ async function main(): Promise<void> {
     }),
     ...hide.map((id) => (batch: Batch) => {
       batch.update(db.collection(SCHOOLS).doc(id), { searchHidden: true, updatedAt: FieldValue.serverTimestamp() });
+    }),
+    ...[...unmerge].map((id) => (batch: Batch) => {
+      batch.update(db.collection(SCHOOLS).doc(id), {
+        status: "active",
+        mergedInto: FieldValue.delete(),
+        mergedBy: FieldValue.delete(),
+        mergedAt: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
     }),
     ...unhide.map((id) => (batch: Batch) => {
       batch.update(db.collection(SCHOOLS).doc(id), { searchHidden: false, hiddenReason: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() });

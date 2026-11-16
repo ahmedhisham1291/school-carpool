@@ -9,6 +9,7 @@ import {
   planDroppedHiding,
   planImport,
   planUnhide,
+  planUnmerge,
   recordWarning,
   type ExistingSchool,
   type MergedImport,
@@ -57,6 +58,32 @@ describe("automatic merges in Firestore", () => {
     const merges = planAutoMerges(inc, ex, planImport(inc, ex));
     assert.deepEqual(merges.hide, []);
     assert.deepEqual(merges.parentLookalikes, [{ id: "p1", like: "osm-n1" }]);
+  });
+
+  it("brings back a school an earlier import merged when this run keeps it apart (validator B2)", () => {
+    const ex = [
+      existing("osm-n1", { sourceKeys: ["osm:n1", "osm:n2"] }),
+      existing("osm-n2", { sourceKeys: ["osm:n2"], status: "merged", mergedInto: "osm-n1", mergedBy: "import" }),
+      existing("osm-n3", { sourceKeys: ["osm:n3"], status: "merged", mergedInto: "osm-n1" }), // an admin's merge
+    ];
+    const inc = [incoming("osm-n1", ["osm:n1"], []), incoming("osm-n2", ["osm:n2"], []), incoming("osm-n3", ["osm:n3"], [])];
+    assert.deepEqual(planUnmerge(ex, inc), ["osm-n2"]);
+    // Still merged in this run: stays merged.
+    assert.deepEqual(planUnmerge(ex, [incoming("osm-n1", ["osm:n1", "osm:n2"], ["osm-n2"]), incoming("osm-n2", ["osm:n2"], [])]), []);
+  });
+
+  it("re-points a school an earlier import merged when its group has another survivor", () => {
+    const ex = [
+      existing("osm-n1", { sourceKeys: ["osm:n1"] }),
+      existing("osm-n2", { sourceKeys: ["osm:n2"] }),
+      existing("osm-n3", { sourceKeys: ["osm:n3"], status: "merged", mergedInto: "osm-n1", mergedBy: "import" }),
+    ];
+    const inc = [incoming("osm-n1", ["osm:n1"], []), incoming("osm-n2", ["osm:n2", "osm:n3"], ["osm-n3"])];
+    const merges = planAutoMerges(inc, ex, planImport(inc, ex));
+    assert.deepEqual(merges.hide, [{ id: "osm-n3", into: "osm-n2" }]);
+    // Run again with it already pointing there: nothing to write.
+    const ex2 = ex.map((s) => (s.id === "osm-n3" ? { ...s, mergedInto: "osm-n2" } : s));
+    assert.deepEqual(planAutoMerges(inc, ex2, planImport(inc, ex2)).hide, []);
   });
 
   it("reads mergedFrom from schools.json", () => {

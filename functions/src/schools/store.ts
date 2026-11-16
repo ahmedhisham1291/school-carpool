@@ -88,6 +88,7 @@ export class FirestoreOtherSchoolsStore implements OtherSchoolsStore {
 export const EXISTING_SCHOOL_FIELDS = [
   "status", "adminEdited", "sourceKeys", "nameAr", "nameEn", "kind", "governorate", "city", "cityAr", "location",
   "searchHidden", "placeAreaId", "placeAreaNameAr", "placeAreaNameEn", "placeDistrictId", "source", "hiddenReason",
+  "mergedInto", "mergedBy",
 ] as const;
 
 /**
@@ -121,6 +122,8 @@ export function existingSchoolFrom(id: string, d: DocumentData): ExistingSchool 
     placeDistrictId: typeof d.placeDistrictId === "string" ? d.placeDistrictId : null,
     source: text(d.source),
     hiddenReason: text(d.hiddenReason),
+    mergedInto: text(d.mergedInto),
+    mergedBy: text(d.mergedBy),
   };
 }
 

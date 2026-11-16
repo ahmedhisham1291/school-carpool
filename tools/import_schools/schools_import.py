@@ -1369,7 +1369,7 @@ def _cells(lat: float, lng: float) -> tuple[int, int]:
 
 
 def find_duplicates(
-    schools: list[School], links: list[MergeLink] | None = None
+    schools: list[School], links: list[MergeLink] | None = None, separate: list[tuple[str, str]] | None = None
 ) -> tuple[list[School], list[list[School]], list[LikelyDuplicate]]:
     """Merges the same school found more than once (rules in dedupe.py:
     same name within 500 m, 85 % alike within 300 m, Arabic/English alike
@@ -1395,6 +1395,14 @@ def find_duplicates(
     # Cheap first check: two names that share no core word and no consonant
     # skeleton cannot match any rule (thousands of schools within 2 km in Cairo).
     keys = [dedupe.quick_keys(s) for s in schools]
+    # Generic names ("النور", "Al Nour"): only the same site merges (dedupe.py).
+    common_set = dedupe.common_cores(schools)
+    common = [dedupe.is_common(s, common_set) for s in schools]
+    # Pairs a reviewer kept apart (decisions.csv "separate").
+    apart = {frozenset(p) for p in (separate or [])}
+
+    def kept_apart(a: School, b: School) -> bool:
+        return any(frozenset((x, y)) in apart for x in a.source_keys for y in b.source_keys)
 
     def judged(i: int, j: int) -> tuple[dedupe.Verdict, float] | None:
         key = (min(i, j), max(i, j))
@@ -1403,7 +1411,10 @@ def find_duplicates(
             if a.lat is None or b.lat is None:
                 return None
             d = distance_m(a.lat, a.lng, b.lat, b.lng)  # type: ignore[arg-type]
-            verdict_of[key] = (dedupe.judge(a, b, d), d)
+            if kept_apart(a, b):
+                verdict_of[key] = (dedupe.Verdict(None, "separate", 0.0), d)
+            else:
+                verdict_of[key] = (dedupe.judge(a, b, d, common[key[0]] or common[key[1]]), d)
         return verdict_of[key]
 
     for i, s in enumerate(schools):
@@ -1421,7 +1432,9 @@ def find_duplicates(
                         continue
                     if d > dedupe.FAR_SAME_NAME_M:
                         continue
-                    v = dedupe.judge(s, t, d)
+                    if kept_apart(s, t):
+                        continue
+                    v = dedupe.judge(s, t, d, common[i] or common[j])
                     verdict_of[(i, j)] = (v, d)
                     if v.rule:
                         merge_pairs.append((d, i, j, v.rule))
@@ -1444,6 +1457,7 @@ def find_duplicates(
         if s.city:
             same_city = {j for j in candidates if normalize_text(schools[j].city) in (normalize_text(s.city), "") or normalize_text(schools[j].city_ar) == normalize_text(s.city_ar)}
             candidates = same_city or candidates
+        candidates = {j for j in candidates if not kept_apart(s, schools[j])}
         verdicts = {j: compare(s, schools[j]) for j in candidates}
         mergeable = sorted(j for j, v in verdicts.items() if v[0] == "merge")
         if len(mergeable) == 1:
@@ -1588,7 +1602,12 @@ def run(folder: Path, decisions: list["Decision"] | None = None) -> Result:
     apply_entry_decisions(decisions or [], entries, review)
     cleaned, dropped = clean(entries, boundaries)
     links: list[MergeLink] = []
-    merged, groups, likely = find_duplicates(cleaned, links)
+    # "separate": two entries the rules would merge that are different schools.
+    separate = [(d.key, d.value) for d in (decisions or []) if d.action == "separate"]
+    for d in decisions or []:
+        if d.action == "separate":
+            review.count(d.action)
+    merged, groups, likely = find_duplicates(cleaned, links, separate)
     merged, groups = apply_merge_decisions(decisions or [], merged, groups, links, review)
     # A reviewer's kind is final, also after merges.
     kinds = {d.key: d.value for d in (decisions or []) if d.action == "set_kind"}
@@ -1619,7 +1638,7 @@ def run(folder: Path, decisions: list["Decision"] | None = None) -> Result:
 REVIEW_FOLDER = "review"
 DECISIONS_FILE = "decisions.csv"
 DECISION_COLUMNS = ("source", "source_id", "action", "value", "reason")
-DECISION_ACTIONS = ("drop", "rename_ar", "rename_en", "merge_into", "keep", "set_kind")
+DECISION_ACTIONS = ("drop", "rename_ar", "rename_en", "merge_into", "separate", "keep", "set_kind")
 _OSM_LONG_ID = re.compile(r"^(node|way|relation)/(\d+)$")
 
 
@@ -1682,9 +1701,9 @@ def load_decisions(path: Path) -> tuple[list[Decision], list[str]]:
         if action == "set_kind" and value not in ("school", "kindergarten"):
             problems.append(f"{path.name} line {n}: set_kind value must be school or kindergarten")
             continue
-        if action == "merge_into":
+        if action in ("merge_into", "separate"):
             if ":" not in value and "," not in value:
-                problems.append(f"{path.name} line {n}: merge_into value must be a source key like osm:n123")
+                problems.append(f"{path.name} line {n}: {action} value must be a source key like osm:n123")
                 continue
             vs, vi = re.split("[:,]", value, maxsplit=1)
             value = ":".join(normalize_key(vs, vi))
@@ -1699,7 +1718,7 @@ def apply_entry_decisions(decisions: list[Decision], entries: list[RawEntry], re
     for e in entries:
         by_key.setdefault(f"{e.source}:{e.source_id}", []).append(e)
     order = {"keep": 0, "set_kind": 1, "rename_ar": 2, "rename_en": 2, "drop": 3}
-    for d in sorted((d for d in decisions if d.action != "merge_into"), key=lambda d: (order[d.action], d.line)):
+    for d in sorted((d for d in decisions if d.action not in ("merge_into", "separate")), key=lambda d: (order[d.action], d.line)):
         targets = by_key.get(d.key)
         if not targets:
             review.unmatched.append(d)

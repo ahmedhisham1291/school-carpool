@@ -26,6 +26,16 @@ branches of a chain ("Manarat Al Farouk - New Cairo" and "- Maadi") have
 different cores and never merge, whatever the distance; more than 2 km
 apart nothing merges.
 
+Common names (validator B1, 16 Nov 2026): a core name found in 3 or more
+places of Egypt (about 2 km cells, so one school listed by three sources
+counts once) is generic: "النور", "Al Nour", "الشهيد أحمد", "السلام". Two
+different schools with such a name can be a few hundred metres apart, so
+for a pair where either side has a common core only the same site counts:
+  - same name, 85 % alike or Arabic/English alike: at most 150 m;
+  - one name inside the other, or a KG and a school: at most 100 m;
+  - never the 2 km rule.
+Farther apart they stay separate ("common name, different place").
+
 Never merged (deliberately left as "to check", with the reason):
   - different stages (primary / preparatory / secondary) or boys / girls:
     separate schools that often share a name and a site;
@@ -61,6 +71,10 @@ REPORT_M = 1500.0
 REPORT_SIMILAR_M = 500.0
 
 CONTAINED_FAR_M = 300.0
+# Common (generic) names: see the module docstring.
+COMMON_PLACES = 3  # distinct ~2 km cells holding the core name
+COMMON_SAME_M = 150.0
+COMMON_NEAR_M = 100.0
 RULES = ("same_name_500m", "similar_300m", "cross_script_300m", "contained_100m", "contained_300m", "kg_section_300m", "same_name_2km")
 RULE_TEXT = {
     "same_name_500m": "same name within 500 m",
@@ -81,6 +95,8 @@ KEEP_TEXT = {
     "branches": "same chain, different branch or area",
     "chain_conflict": "would join two groups, or matches a member but not the group's main entry",
     "list": "owner list entry without a pin matching several schools",
+    "common_name": "common name, different place (more than 150 m apart)",
+    "separate": "kept apart by the review (decisions.csv separate)",
 }
 
 # Arabic -> Latin, one deterministic choice per letter (Egyptian usage:
@@ -181,9 +197,27 @@ class Verdict:
     similarity: float
 
 
-def judge(a, b, distance: float) -> Verdict:
+def common_cores(schools) -> frozenset[tuple[str, ...]]:
+    """Core names found in COMMON_PLACES or more distinct ~2 km cells of the
+    input (pinned entries; deterministic for a given input)."""
+    places: dict[tuple[str, ...], set[tuple[int, int]]] = {}
+    for s in schools:
+        if s.lat is None or s.lng is None:
+            continue
+        cell = cells(s.lat, s.lng)
+        for c in cores_of(s):
+            places.setdefault(tuple(t.lstrip("~") for t in c), set()).add(cell)
+    return frozenset(c for c, where in places.items() if len(where) >= COMMON_PLACES)
+
+
+def is_common(s, common: frozenset[tuple[str, ...]]) -> bool:
+    return any(tuple(t.lstrip("~") for t in c) in common for c in cores_of(s))
+
+
+def judge(a, b, distance: float, common: bool = False) -> Verdict:
     """Same school or not (see the module docstring). [a] and [b] are
-    schools_import.School objects with pins."""
+    schools_import.School objects with pins; [common]: either has a common
+    core name (common_cores), so only the same site merges."""
     stages_a, stages_b = a.stages - {"kg"}, b.stages - {"kg"}
     cores_a, cores_b = cores_of(a), cores_of(b)
     best = 0.0
@@ -208,9 +242,19 @@ def judge(a, b, distance: float) -> Verdict:
     if people and not same:
         return Verdict(None, "people", best)
     if a.kind != b.kind:
-        if same and distance <= SIMILAR_M and {a.kind, b.kind} == {"school", "kindergarten"}:
+        if same and distance <= (COMMON_NEAR_M if common else SIMILAR_M) and {a.kind, b.kind} == {"school", "kindergarten"}:
             return Verdict("kg_section_300m", None, best)
         return Verdict(None, None, best)  # a kindergarten and a school with other names
+    if common:
+        if same and distance <= COMMON_SAME_M:
+            return Verdict("same_name_500m", None, 1.0)
+        if best >= SIMILAR_MIN and distance <= COMMON_SAME_M:
+            return Verdict("similar_300m", None, best)
+        if cross >= SIMILAR_MIN and distance <= COMMON_SAME_M:
+            return Verdict("cross_script_300m", None, cross)
+        if contained and distance <= COMMON_NEAR_M:
+            return Verdict("contained_100m", None, best)
+        return Verdict(None, "common_name" if distance <= REPORT_SIMILAR_M else None, max(best, cross))
     if same and distance <= SAME_NAME_M:
         return Verdict("same_name_500m", None, 1.0)
     if best >= SIMILAR_MIN and distance <= SIMILAR_M:

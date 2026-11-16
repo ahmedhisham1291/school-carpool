@@ -71,6 +71,9 @@ export interface ExistingSchool {
   source?: string;
   /** Why the import took it out of the list (planDroppedHiding); "" when it did not. */
   hiddenReason?: string;
+  /** For a merged school: the school it was merged into, and "import" when the import did it. */
+  mergedInto?: string;
+  mergedBy?: string;
   placeAreaId?: string;
   placeAreaNameAr?: string;
   placeAreaNameEn?: string;
@@ -373,6 +376,8 @@ export function planAutoMerges(incoming: MergedImport[], existing: ExistingSchoo
     return match?.id ?? school.id;
   };
   const imported = (s: ExistingSchool) => s.source !== "parent" && s.status === "active";
+  // Merged by an earlier import into another school: re-pointed when this run's group has another survivor.
+  const importMerged = (s: ExistingSchool) => s.source !== "parent" && s.status === "merged" && s.mergedBy === "import" && !s.adminEdited;
   for (const school of incoming) {
     const from = new Set(school.mergedFrom ?? []);
     if (from.size === 0) continue;
@@ -382,7 +387,7 @@ export function planAutoMerges(incoming: MergedImport[], existing: ExistingSchoo
       (s) =>
         s.id !== target &&
         !hidden.has(s.id) &&
-        imported(s) &&
+        (imported(s) || importMerged(s)) &&
         (from.has(s.id) || (s.sourceKeys.length > 0 && s.sourceKeys.every((k) => keys.has(k)))),
     );
     if (members.length === 0) continue;
@@ -402,6 +407,7 @@ export function planAutoMerges(incoming: MergedImport[], existing: ExistingSchoo
     }
     for (const m of members) {
       if (m.id === survivor) continue;
+      if (importMerged(m) && m.mergedInto === survivor) continue; // already so
       if (m.adminEdited) {
         out.editedKept.push(m.id);
         continue;
@@ -452,6 +458,21 @@ export function planDroppedHiding(
     )
     .map((s) => ({ id: s.id, reason: reasonOf.get(s.sourceKeys[0]) ?? "dropped" }))
     .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Schools an earlier import merged (status "merged", mergedBy "import") that
+ * this run keeps as a school of their own (the rules changed, or a review
+ * "separate" row): back to "active", so a merge is never final. Admin
+ * merges, admin-edited and parents' schools are never touched.
+ */
+export function planUnmerge(existing: ExistingSchool[], incoming: MergedImport[]): string[] {
+  const ids = new Set(incoming.map((s) => s.id));
+  const mergedAway = new Set(incoming.flatMap((s) => s.mergedFrom ?? []));
+  return existing
+    .filter((s) => s.status === "merged" && s.mergedBy === "import" && !s.adminEdited && s.source !== "parent" && ids.has(s.id) && !mergedAway.has(s.id))
+    .map((s) => s.id)
+    .sort();
 }
 
 /** Schools the import hid earlier that the rules keep again (a name repaired): back in the list. */
