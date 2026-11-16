@@ -107,7 +107,7 @@ function adminCall<T>(
 function usersDeps(): UsersDeps {
   return {
     store: new FirestoreUsersStore(adminDb()),
-    claims: new FirebaseClaimsService(adminAuth()),
+    claims: new FirebaseClaimsService(adminAuth(), adminDb()),
     now: () => Date.now(),
     searchLimit: ADMIN_SEARCH_LIMIT.value(),
     searchWindowMs: SEARCH_WINDOW_MS,

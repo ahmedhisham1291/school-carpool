@@ -127,6 +127,34 @@ describe("security review: another family's data", () => {
   });
 });
 
+describe("security review: suspended or banned parent with a token from before", () => {
+  it("reads no child, carpool, trip or location data, even with verified: true still in the token", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await db.doc("users/sam").set({ firstName: "Sam", status: "verified" });
+      await db.doc("children/c9").set({ ownerUid: "sam", firstName: "Omar" });
+      await db.doc("homes/sam").set({ lat: 29.9, lng: 31.2 });
+      await db.doc("memberships/k1_sam").set({ carpoolId: "k1", uid: "sam", status: "approved", role: "member" });
+      await db.doc("trips/t9").set({ driverUid: "alice", viewerUids: ["alice", "sam"], status: "active" });
+      await db.doc("trips/t9/points/p1").set({ lat: 29.9, lng: 31.2 });
+    });
+    const sam = parent("sam").firestore();
+    // Control: while verified, sam reads them.
+    await assertSucceeds(sam.doc("children/c9").get());
+    await assertSucceeds(sam.doc("trips/t9").get());
+    await assertSucceeds(sam.doc("carpools/k1/pickupPoints/alice").get());
+    for (const change of [{ status: "suspended" }, { status: "verified", banned: true }]) {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await ctx.firestore().doc("users/sam").set({ firstName: "Sam", ...change });
+      });
+      for (const path of ["children/c9", "homes/sam", "trips/t9", "trips/t9/points/p1", "carpools/k1/pickupPoints/alice", "carpools/k1/members/alice"]) {
+        await assertFails(sam.doc(path).get());
+      }
+      await assertFails(sam.collection("trips").where("viewerUids", "array-contains", "sam").get());
+    }
+  });
+});
+
 describe("security review: server-only data", () => {
   it("national IDs, cases, the audit log, review access and sign-in codes are closed to parents", async () => {
     const db = parent("mallory").firestore();

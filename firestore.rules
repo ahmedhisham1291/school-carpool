@@ -40,8 +40,18 @@ service cloud.firestore {
           || (request.auth.token.auth_time is int
             && request.auth.token.auth_time >= userRecord().sessionsValidAfter));
     }
+    // Security review (16 Nov 2026), defence in depth: a suspended or
+    // banned parent reads no child, carpool, trip or location data even
+    // with an ID token issued before the suspension (the functions also
+    // set sessionsValidAfter when they suspend).
+    function notBlocked() {
+      return !hasUserRecord()
+        || (userRecord().get('status', '') != 'suspended'
+          && userRecord().get('banned', false) != true);
+    }
     function deviceChecked() {
       return sessionValid()
+        && notBlocked()
         && (!hasUserRecord()
           || !('newDeviceCheck' in userRecord())
           || userRecord().newDeviceCheck == null

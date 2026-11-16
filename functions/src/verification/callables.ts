@@ -137,7 +137,7 @@ function deps(forSubmit: boolean): VerificationDeps {
         bundleKey: VALIFY_BUNDLE_KEY.value(),
       },
     }),
-    claims: new FirebaseClaimsService(adminAuth()),
+    claims: new FirebaseClaimsService(adminAuth(), adminDb()),
     nationalIdKey: forSubmit ? nationalIdKey() : "",
     now: () => Date.now(),
     reportError: onError,
