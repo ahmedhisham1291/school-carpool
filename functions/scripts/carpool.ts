@@ -86,6 +86,7 @@ function tripDeps(): TripDeps {
     releaseRuns: async () => 0,
     now: () => Date.now(),
     newToken: () => none(),
+    newContactToken: () => none(),
     roll: () => 99,
     log: (message, data) => console.log(message, data ?? ""),
   };

@@ -646,6 +646,7 @@ class FakeAdminFeaturesApi implements AdminFeaturesApi {
       AppFeature.yearlyChecks => switches.copyWith(yearlyChecks: on),
       AppFeature.settleUp => switches.copyWith(settleUp: on),
       AppFeature.contributions => switches.copyWith(contributions: on),
+      AppFeature.activityCarpools => switches.copyWith(activityCarpools: on),
     };
     return switches;
   }
@@ -654,5 +655,21 @@ class FakeAdminFeaturesApi implements AdminFeaturesApi {
   Future<List<AdminSettleRecord>> settleUps({required String uid, required AccessReasonCode reason}) async {
     await _maybeFail('settleUps:$uid:${reason.name}');
     return records;
+  }
+
+  /// R5: prod, closed until the PDPC licences are granted.
+  AdminLaunch launchValue = const AdminLaunch(pdpcLicensed: false, signUpOpen: false, env: 'prod');
+
+  @override
+  Future<AdminLaunch> launch() async {
+    await _maybeFail('launch');
+    return launchValue;
+  }
+
+  @override
+  Future<AdminLaunch> setLaunch({required bool pdpcLicensed, String licenceRefs = ''}) async {
+    await _maybeFail('setLaunch:$pdpcLicensed:$licenceRefs');
+    launchValue = AdminLaunch(pdpcLicensed: pdpcLicensed, signUpOpen: pdpcLicensed, env: launchValue.env);
+    return launchValue;
   }
 }

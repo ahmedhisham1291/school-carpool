@@ -452,6 +452,8 @@ ensure_secret() { # name random|unused provider-key fake-default
 }
 ensure_secret OTP_HMAC_KEY random
 ensure_secret NATIONAL_ID_HMAC_KEY random
+# R2: encrypts the number and IP in the Anti-Cybercrime sign-in log; never rotate.
+ensure_secret SIGNIN_LOG_KEY random
 ensure_secret WHATSAPP_ACCESS_TOKEN unused WHATSAPP_PROVIDER
 
 # --- Algolia (school search over the whole list; docs/algolia-setup.md) ---
@@ -1006,6 +1008,12 @@ deploy_links() {
     # Data protection officer on the privacy policy (Law 151/2020; docs/legal/owner-actions.md).
     if [ -n "${DPO_EMAIL:-}" ]; then legal+=(--dpo-email "${DPO_EMAIL}"); fi
     if [ -n "${DPO_NAME:-}" ]; then legal+=(--dpo-name "${DPO_NAME}"); fi
+    # R8: the operator's registered address on the terms, privacy and support pages.
+    if [ -n "${OPERATOR_ADDRESS:-}" ]; then
+      legal+=(--operator-address "${OPERATOR_ADDRESS}")
+    else
+      todo "legal pages: add OPERATOR_ADDRESS=\"<registered address>\" in front of this script once the company is registered (R8; required for prod)."
+    fi
   fi
   python3 tool/links_site.py --team-id "${APPLE_TEAM_ID}" --bundle-id "${BUNDLE_ID}" "${legal[@]}"
   fb deploy --only hosting:links

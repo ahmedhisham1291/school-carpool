@@ -98,6 +98,7 @@ class AdminIncident {
     this.pdpcNotifiedAt,
     this.pdpcReference,
     this.subjectsNotifiedAt,
+    this.targetAt,
   });
 
   factory AdminIncident.fromJson(Json j) => AdminIncident(
@@ -116,6 +117,7 @@ class AdminIncident {
     pdpcNotifiedAt: j.time('pdpcNotifiedAtMs'),
     pdpcReference: j.strOrNull('pdpcReference'),
     subjectsNotifiedAt: j.time('subjectsNotifiedAtMs'),
+    targetAt: j.time('targetAtMs'),
   );
 
   final String id;
@@ -137,6 +139,10 @@ class AdminIncident {
   final DateTime? pdpcNotifiedAt;
   final String? pdpcReference;
   final DateTime? subjectsNotifiedAt;
+
+  /// R15: our internal target for the PDPC notice (24 hours for children's
+  /// or biometric data, at once for national security, else 72 hours).
+  final DateTime? targetAt;
 
   bool get closed => status == 'closed';
 }

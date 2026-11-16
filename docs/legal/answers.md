@@ -11,7 +11,8 @@
 > law, COPPA, Apple rules) is used only to justify the safe choice. Each
 > answer says whether a licensed Egyptian lawyer must still sign it off.
 > Nothing here changes an owner decision; recommended changes are listed for
-> the coordinator at the end.
+> the coordinator at the end. **Update 16 Nov 2026:** the owner approved all
+> fifteen; each is marked DONE with its commit.
 
 Owner instruction (16 Nov 2026): "review Egyptian and international law and
 answer the questions yourself from your point of view and research".
@@ -809,25 +810,33 @@ features as guarantees.
 
 ---
 
-## Recommended changes (for the coordinator; nothing implemented)
+## Recommended changes (owner approved all on 16 Nov 2026: "implement everything"; status below)
 
-| # | Priority | Change | From |
-| --- | --- | --- | --- |
-| R5 | P1 | **Keep prod closed to real parents until the three PDPC licences are granted** (ops rule; no code). | 1.2 |
-| R1 | P1 | Consent records: retention **1 → 3 years after closure** (`functions/src/privacy/retention.ts` `consents`, `KEPT_AFTER_DELETION` text, privacy pages, record of processing). | 1.6 |
-| R2 | P1 | Sign-in log kept **180 days from each event, surviving account deletion**, in a restricted store (uid, encrypted phone, time, IP, device, platform, app version; judicial-order disclosure only); privacy and delete-account pages say so. **Conflicts with owner decision 16 Nov: owner decides.** Also fix the stale "90 days" comment in `functions/src/privacy/devices.ts`. | 4.2 |
-| R3 | P1 | Sensitive-data consents (ID + face, guardian declaration, transfer abroad): separate unticked box + typed full name + device re-auth; record method and text hash; a copy the parent can open. | 1.4 |
-| R4 | P1 | Guardian declaration: extra line for children aged 15+ ("my child was told and agrees"). | 1.7 |
-| R6 | P2 | Emergency contact: parent attests the contact agreed; confirmation link; first message names the parent and how to stop. | 1.8 |
-| R7 | P2 | Breach register retention: 5 years after closing (documented rule). | 1.11 |
-| R8 | P2 | Terms/privacy wording: "same school or activity"; operator legal name and address; incident section (122/123, report in app, insurance pool within 15 days, lawful disclosure); log and consent retention lines. Lawyer approves. | 2.3, 2.4, 4.1, 5.1, 5.2, 9.1 |
-| R9 | P2 | Activity carpools: one venue/activity, approval by all parents, no public ride offers; keep F39 off in the pilot until the lawyer's opinion covers it. | 2.4 |
-| R10 | P2 | Processor contract checklist (24 h breach notice, Art. 5 contents, region, no reuse, deletion, sub-processors); Sentry and Algolia EU regions if available. | 1.5, 1.12, 8.2 |
-| R11 | P3 | DPIA for live location of children; consider route archive 1 year → 90 days (owner/lawyer). | 1.9 |
-| R12 | P3 | Consider deleting ID images N days after the decision (keep hash, expiry, result). Owner decision conflict. | 8.1 |
-| R13 | P3 | Annual penetration test (Decree 1699/2020 Art. 2); cost. | 4.1 |
-| R14 | P3 | Trademark search and filing after incorporation. | 7.2 |
-| R15 | P3 | Runbook: name the Public Prosecution / MoI IT-crimes unit; staging with real tester numbers counts as personal data. | 1.10 |
+| # | Priority | Change | From | Status |
+| --- | --- | --- | --- | --- |
+| R5 | P1 | **Keep prod closed to real parents until the three PDPC licences are granted** (ops rule; no code). | 1.2 | DONE (`03cf773`) |
+| R1 | P1 | Consent records: retention **1 → 3 years after closure** (`functions/src/privacy/retention.ts` `consents`, `KEPT_AFTER_DELETION` text, privacy pages, record of processing). | 1.6 | DONE (`8a0ac62`) |
+| R2 | P1 | Sign-in log kept **180 days from each event, surviving account deletion**, in a restricted store (uid, encrypted phone, time, IP, device, platform, app version; judicial-order disclosure only); privacy and delete-account pages say so. **Conflicts with owner decision 16 Nov: owner decides.** Also fix the stale "90 days" comment in `functions/src/privacy/devices.ts`. | 4.2 | DONE (`6620425`) |
+| R3 | P1 | Sensitive-data consents (ID + face, guardian declaration, transfer abroad): separate unticked box + typed full name + device re-auth; record method and text hash; a copy the parent can open. | 1.4 | DONE (`15c20c0`) |
+| R4 | P1 | Guardian declaration: extra line for children aged 15+ ("my child was told and agrees"). | 1.7 | DONE (`68a44f7`) |
+| R6 | P2 | Emergency contact: parent attests the contact agreed; confirmation link; first message names the parent and how to stop. | 1.8 | DONE (`4ae2111`) |
+| R7 | P2 | Breach register retention: 5 years after closing (documented rule). | 1.11 | DONE (`66fd5e4`) |
+| R8 | P2 | Terms/privacy wording: "same school or activity"; operator legal name and address; incident section (122/123, report in app, insurance pool within 15 days, lawful disclosure); log and consent retention lines. Lawyer approves. | 2.3, 2.4, 4.1, 5.1, 5.2, 9.1 | DONE (`4f0e30a`) |
+| R9 | P2 | Activity carpools: one venue/activity, approval by all parents, no public ride offers; keep F39 off in the pilot until the lawyer's opinion covers it. | 2.4 | DONE (`e161407`) |
+| R10 | P2 | Processor contract checklist (24 h breach notice, Art. 5 contents, region, no reuse, deletion, sub-processors); Sentry and Algolia EU regions if available. | 1.5, 1.12, 8.2 | DONE (`ae1ced2`) |
+| R11 | P3 | DPIA for live location of children; consider route archive 1 year → 90 days (owner/lawyer). | 1.9 | DONE (`da57c7d`) |
+| R12 | P3 | Consider deleting ID images N days after the decision (keep hash, expiry, result). Owner decision conflict. | 8.1 | DONE (`ee7a2c3`) |
+| R13 | P3 | Annual penetration test (Decree 1699/2020 Art. 2); cost. | 4.1 | DONE (`899e4b2`) |
+| R14 | P3 | Trademark search and filing after incorporation. | 7.2 | DONE (`1e310be`) |
+| R15 | P3 | Runbook: name the Public Prosecution / MoI IT-crimes unit; staging with real tester numbers counts as personal data. | 1.10 | DONE (`ee77ebd`) |
+
+Notes on how they were built (branch `legal-changes`,
+docs/progress/legal-changes.md): R5 is enforced in code (`config/launch`);
+R6 follows 1.8 (alerts still go before the contact confirms; the first
+introduces the parent); R11 and R12 were built as the shorter periods
+(90-day routes; case images 30 days after the decision), which the lawyer
+should confirm because they replace earlier lawyer-confirmed periods;
+R10, R13 and R14 are documents and owner actions.
 
 ## Still essential for a licensed Egyptian lawyer or an official act
 

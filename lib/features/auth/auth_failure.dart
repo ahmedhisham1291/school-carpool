@@ -17,6 +17,15 @@ enum AuthFailureKind {
   emailInUse,
   outdatedTerms,
 
+  /// R5: prod is not open to new parents yet (PDPC licences pending).
+  launchClosed,
+
+  /// R3: the typed name is not a full name.
+  signatureName,
+
+  /// R3: no passcode on the phone and the sign-in is older than 10 minutes.
+  reauthRequired,
+
   /// The session was revoked or expired; sign in again with a new code.
   signInAgain,
   offline,
@@ -95,6 +104,9 @@ class AuthFailure implements AppFailure {
       'send-failed' => AuthFailureKind.sendFailed,
       'suspended' => AuthFailureKind.suspended,
       'outdated-terms' => AuthFailureKind.outdatedTerms,
+      'signature-name' || 'signature-required' => AuthFailureKind.signatureName,
+      'reauth-required' => AuthFailureKind.reauthRequired,
+      'launch-closed' => AuthFailureKind.launchClosed,
       _ => switch (error.code) {
         'unavailable' || 'deadline-exceeded' => AuthFailureKind.offline,
         'unauthenticated' => AuthFailureKind.signInAgain,
@@ -125,6 +137,9 @@ class AuthFailure implements AppFailure {
       AuthFailureKind.invalidEmail => l10n.emailErrorInvalid,
       AuthFailureKind.emailInUse => l10n.errorEmailInUse,
       AuthFailureKind.outdatedTerms => l10n.errorOutdatedTerms,
+      AuthFailureKind.signatureName => l10n.signNameError,
+      AuthFailureKind.reauthRequired => l10n.signReauth,
+      AuthFailureKind.launchClosed => l10n.launchSoonBody,
       AuthFailureKind.signInAgain => l10n.errorSignInAgain,
       AuthFailureKind.offline => l10n.errorOffline,
       AuthFailureKind.unknown => l10n.errorGeneric,

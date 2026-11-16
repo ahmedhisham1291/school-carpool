@@ -10,14 +10,17 @@ import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
+import 'package:school_carpool/features/auth/consent_signature.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
+import 'package:school_carpool/features/wallet/device_auth.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
 import '../helpers/test_app.dart';
+import '../helpers/wallet_fakes.dart';
 
 class _CodeSent extends SignupFlowController {
   @override
@@ -33,6 +36,7 @@ Future<GoRouter> _pump(
   required FakeAuthRepository repository,
   SessionState session = const SessionSignedOut(),
   bool codeSent = false,
+  FakeDeviceAuth? deviceAuth,
 }) async {
   final GoRouter router = buildAppRouter(showDevTools: false, initialLocation: location);
   addTearDown(router.dispose);
@@ -41,7 +45,7 @@ Future<GoRouter> _pump(
       overrides: [
         flavorConfigProvider.overrideWithValue(testStagingConfig),
         settingsStoreProvider.overrideWithValue(InMemorySettingsStore()),
-        ...authOverrides(session: session, repository: repository),
+        ...authOverrides(session: session, repository: repository, deviceAuth: deviceAuth),
         if (codeSent) signupFlowProvider.overrideWith(_CodeSent.new),
       ],
       child: MaterialApp.router(
@@ -118,6 +122,20 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(find.text('This code has expired. Ask for a new one.'), findsOneWidget);
+    });
+
+    testWidgets('R5: prod closed to new parents shows "Opening soon" and goes back to the phone step', (WidgetTester tester) async {
+      final FakeAuthRepository repository = FakeAuthRepository()..failure = const AuthFailure(AuthFailureKind.launchClosed);
+      final GoRouter router = await _pump(tester, location: AuthRoutes.code, repository: repository, codeSent: true);
+      await tester.enterText(find.byKey(const Key('code.field')), '123456');
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Opening soon'), findsOneWidget);
+      expect(find.byKey(const Key('code.launchClosed')), findsOneWidget);
+      expect(find.textContaining('No account was created'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('code.launchOk')));
+      await tester.pumpAndSettle();
+      expect(router.routerDelegate.currentConfiguration.uri.path, AuthRoutes.phone);
     });
 
     testWidgets('resend waits for the countdown', (WidgetTester tester) async {
@@ -211,11 +229,46 @@ void main() {
           expect(repository.calls, isEmpty, reason: key);
         }
       }
+      // R3: not ready until the full name is typed (the written signature).
       await tester.ensureVisible(find.byKey(const Key('terms.accept')));
       await tester.tap(find.byKey(const Key('terms.accept')));
       await tester.pump();
+      expect(repository.calls, isEmpty, reason: 'no signature yet');
+      expect(find.text('Tick each box, type your name, then confirm with Face ID or your passcode.'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('terms.signName')), 'Omar');
+      await tester.pump();
+      expect(find.text('Type your first and family name, letters only.'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('terms.signName')), 'Omar Hassan');
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('terms.accept')));
+      await tester.tap(find.byKey(const Key('terms.accept')));
+      // Not pumpAndSettle: after a success the button keeps its spinner
+      // until the router moves on (the fake session does not change).
+      for (int i = 0; i < 3; i++) {
+        await tester.pump();
+      }
       expect(repository.calls, <String>['acceptConsents']);
       expect(repository.acceptedWhatsApp, isFalse);
+      expect(repository.acceptedSignature?.fullName, 'Omar Hassan');
+      expect(repository.acceptedSignature?.method, SignMethod.deviceAuth, reason: 'Face ID / passcode asked right before sending');
+    });
+
+    testWidgets('R3: cancelling Face ID / passcode sends nothing', (WidgetTester tester) async {
+      final FakeAuthRepository repository = FakeAuthRepository();
+      await _pump(tester, location: AuthRoutes.terms, repository: repository, deviceAuth: FakeDeviceAuth(DeviceAuthResult.cancelled));
+      for (final String key in <String>['terms.terms', 'terms.privacy', 'terms.conduct', 'terms.transfer']) {
+        final Finder box = find.descendant(of: find.byKey(Key(key)), matching: find.byType(Checkbox));
+        await tester.ensureVisible(box);
+        await tester.tap(box);
+        await tester.pump();
+      }
+      await tester.enterText(find.byKey(const Key('terms.signName')), 'Omar Hassan');
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('terms.accept')));
+      await tester.tap(find.byKey(const Key('terms.accept')));
+      await tester.pump();
+      expect(repository.calls, isEmpty);
+      expect(find.text('Not signed. Nothing was sent.'), findsOneWidget);
     });
   });
 

@@ -52,11 +52,16 @@ enum Keep {
   /// Kept while the account is open and 1 year after it closes.
   yearAfterClosure,
 
+  /// Kept while the account is open and 3 years after it closes (the
+  /// proof of consent: CONSENT_AFTER_CLOSURE_DAYS on the server, R1 in
+  /// docs/legal/answers.md).
+  threeYearsAfterClosure,
+
   /// Deleted within 24 hours of each run.
   oneDay,
 
-  /// 1 year after the run.
-  yearAfterRun,
+  /// 90 days after the run (R11: archived routes; ROUTE_ARCHIVE_DAYS on the server).
+  ninetyDaysAfterRun,
 
   /// For the life of the chat and 1 year after it ends.
   yearAfterChat,
@@ -86,9 +91,11 @@ Keep keepOf(DataType t) => switch (t) {
   // is open, and 1 year after).
   // Owner decision 16 Nov 2026 (App Review 5.1.1(v)): ID photos, selfies
   // and the face reference go with the account (Keep.untilDeletion).
-  DataType.consents || DataType.trips || DataType.settleUp => Keep.yearAfterClosure,
+  DataType.trips || DataType.settleUp => Keep.yearAfterClosure,
+  // Proof of consent: 3 years after closure (owner decision 16 Nov 2026, R1).
+  DataType.consents => Keep.threeYearsAfterClosure,
   DataType.liveLocation => Keep.oneDay,
-  DataType.routeArchive => Keep.yearAfterRun,
+  DataType.routeArchive => Keep.ninetyDaysAfterRun,
   DataType.chat => Keep.yearAfterChat,
   DataType.notifications || DataType.analytics => Keep.sixtyDays,
   DataType.devices => Keep.days180,
@@ -108,6 +115,9 @@ enum ConsentKind {
   id,
   face,
   childData,
+
+  /// R4: the 15+ child's agreement, declared by the guardian.
+  teenAgreement,
   walletTerms,
   analytics,
   showOnMap;
@@ -142,7 +152,7 @@ enum WithdrawEffect {
 
 @immutable
 class ConsentView {
-  const ConsentView({required this.kind, required this.active, this.acceptedAt, this.withdrawnAt, this.version});
+  const ConsentView({required this.kind, required this.active, this.acceptedAt, this.withdrawnAt, this.version, this.signed = false});
 
   static ConsentView? fromMap(Map<Object?, Object?> m) {
     final ConsentKind? kind = ConsentKind.fromName(m['kind']);
@@ -155,6 +165,7 @@ class ConsentView {
       acceptedAt: _time(m['acceptedAtMs']),
       withdrawnAt: _time(m['withdrawnAtMs']),
       version: m['version'] is String ? m['version']! as String : null,
+      signed: m['signed'] == true,
     );
   }
 
@@ -163,6 +174,66 @@ class ConsentView {
   final DateTime? acceptedAt;
   final DateTime? withdrawnAt;
   final String? version;
+
+  /// R3: the latest record carries a written signature; the parent opens a copy.
+  final bool signed;
+}
+
+/// How a signed consent was confirmed (server: SIGN_METHODS).
+enum SignedWith { deviceAuth, recentSignIn }
+
+/// R3: the parent's copy of a signed consent (server: privacy/consent_copy.ts).
+@immutable
+class ConsentCopy {
+  const ConsentCopy({
+    required this.kind,
+    required this.version,
+    required this.text,
+    required this.acceptedAt,
+    required this.method,
+    required this.platform,
+    required this.appVersion,
+    required this.fingerprint,
+    this.signedName,
+    this.withdrawnAt,
+  });
+
+  /// null when the map is not a copy (an older, unsigned consent: the empty state).
+  static ConsentCopy? fromMap(Object? value) {
+    if (value is! Map<Object?, Object?>) {
+      return null;
+    }
+    final ConsentKind? kind = ConsentKind.fromName(value['kind']);
+    final DateTime? at = _time(value['acceptedAtMs']);
+    final Object? text = value['text'];
+    if (kind == null || at == null || text is! String) {
+      return null;
+    }
+    String str(Object? v) => v is String ? v : '';
+    return ConsentCopy(
+      kind: kind,
+      version: str(value['version']),
+      text: text,
+      acceptedAt: at,
+      withdrawnAt: _time(value['withdrawnAtMs']),
+      method: value['method'] == 'recentSignIn' ? SignedWith.recentSignIn : SignedWith.deviceAuth,
+      platform: str(value['platform']),
+      appVersion: str(value['appVersion']),
+      fingerprint: str(value['fingerprint']),
+      signedName: value['signedName'] is String ? value['signedName']! as String : null,
+    );
+  }
+
+  final ConsentKind kind;
+  final String version;
+  final String text;
+  final DateTime acceptedAt;
+  final DateTime? withdrawnAt;
+  final SignedWith method;
+  final String platform;
+  final String appVersion;
+  final String fingerprint;
+  final String? signedName;
 }
 
 /// What a logged privacy request was (server: REQUEST_KINDS).

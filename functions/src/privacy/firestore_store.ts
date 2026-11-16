@@ -29,7 +29,8 @@ import type { ExportSource } from "./export";
 import { PLACE_INTERNAL, internalId } from "../places/catalog";
 import type { RetentionReport, RetentionStore } from "./jobs";
 import { responseDueAt, type ConsentRow, type PrivacyRequest } from "./requests";
-import { ABUSE_COUNTER_DAYS, DAY_MS, DEVICE_STALE_DAYS, LOGIN_HISTORY_DAYS, type DataTypeId } from "./retention";
+import type { SignatureRecord } from "../auth/signature";
+import { ABUSE_COUNTER_DAYS, consentPurgeAt, DAY_MS, DEVICE_STALE_DAYS, LOGIN_HISTORY_DAYS, routeArchiveCutoff, type DataTypeId } from "./retention";
 
 /**
  * Firestore and Storage side of Prompt 12. Every collection here is closed
@@ -415,9 +416,12 @@ export class FirestoreDeletionRunner implements DeletionRunner {
       parentId: c.purgedAtMs === null ? c.parentId : null,
       closedAt: ts(c.closedAtMs),
       // The next date the daily job has work here (closedAccountsToWork):
-      // the evidence date, then the 1-year date of the kept records.
-      purgeAt: ts(nextWorkAt(c) ?? c.purgeAtMs),
+      // the evidence date, then the 1-year date of the kept records, then
+      // the 3-year date of the proof of consent (R1).
+      purgeAt: ts(nextWorkAt(c) ?? c.consentsPurgeAtMs),
       recordsPurgeAt: ts(c.purgeAtMs),
+      consentsPurgeAt: ts(c.consentsPurgeAtMs),
+      consentsPurgedAt: c.consentsPurgedAtMs === null ? null : ts(c.consentsPurgedAtMs),
       hold: c.hold,
       evidenceAt: ts(c.evidenceAtMs),
       evidenceDoneAt: c.evidenceDoneAtMs === null ? null : ts(c.evidenceDoneAtMs),
@@ -651,6 +655,23 @@ async function applyTripRetention(db: Firestore, docs: QueryDocumentSnapshot[], 
   return deleted;
 }
 
+/** A stored consent signature (R3), or null for an unsigned record. */
+function signatureFrom(value: unknown): SignatureRecord | null {
+  if (typeof value !== "object" || value === null) return null;
+  const v = value as Record<string, unknown>;
+  if ((v.method !== "deviceAuth" && v.method !== "recentSignIn") || typeof v.textHash !== "string") return null;
+  return {
+    method: v.method,
+    nameHash: text(v.nameHash),
+    nameMatched: typeof v.nameMatched === "boolean" ? v.nameMatched : null,
+    textHash: v.textHash,
+    language: v.language === "en" ? "en" : "ar",
+    deviceKey: typeof v.deviceKey === "string" ? v.deviceKey : null,
+    platform: v.platform === "android" || v.platform === "web" ? v.platform : "ios",
+    appVersion: text(v.appVersion) || "unknown",
+  };
+}
+
 function closedFromDoc(uid: string, d: DocumentData): ClosedAccount {
   return {
     uid,
@@ -663,6 +684,10 @@ function closedFromDoc(uid: string, d: DocumentData): ClosedAccount {
     evidenceAtMs: d.evidenceAt ? millis(d.evidenceAt) : millis(d.closedAt),
     evidenceDoneAtMs: d.evidenceDoneAt ? millis(d.evidenceDoneAt) : null,
     purgeAtMs: d.recordsPurgeAt ? millis(d.recordsPurgeAt) : millis(d.purgeAt),
+    // R1 (3 years): a record written before it has no consent date; an
+    // account already purged under the 1-year rule lost its consents then.
+    consentsPurgeAtMs: d.consentsPurgeAt ? millis(d.consentsPurgeAt) : consentPurgeAt(millis(d.closedAt)),
+    consentsPurgedAtMs: d.consentsPurgedAt ? millis(d.consentsPurgedAt) : d.purgedAt ? millis(d.purgedAt) : null,
     banned: d.banned === true,
     failed: Array.isArray(d.failed) ? d.failed.filter((x: unknown): x is string => typeof x === "string") : [],
     purgedAtMs: d.purgedAt ? millis(d.purgedAt) : null,
@@ -688,12 +713,16 @@ export class FirestoreRetentionStore implements RetentionStore {
   }
 
   async deleteRouteArchivesDue(nowMs: number, limit: number): Promise<number> {
-    const snap = await this.db.collection(ROUTE_ARCHIVES).where("purgeAt", "<=", ts(nowMs)).limit(limit).get();
-    for (const d of snap.docs) {
+    const due = await this.db.collection(ROUTE_ARCHIVES).where("purgeAt", "<=", ts(nowMs)).limit(limit).get();
+    // R11: routes archived under the older 1-year rule carry a later purge
+    // date; they go once the run is ROUTE_ARCHIVE_DAYS (90) old.
+    const old = await this.db.collection(ROUTE_ARCHIVES).where("endedAt", "<=", ts(routeArchiveCutoff(nowMs))).limit(limit).get();
+    const docs = new Map([...due.docs, ...old.docs].map((d) => [d.id, d]));
+    for (const d of docs.values()) {
       await this.bucket.file(text(d.get("path"))).delete({ ignoreNotFound: true });
       await d.ref.delete();
     }
-    return snap.size;
+    return docs.size;
   }
 
   async endClosedCarpoolChats(nowMs: number, limit: number, freeze: (cid: string) => Promise<void>): Promise<number> {
@@ -867,7 +896,16 @@ export class FirestorePrivacyStore {
       version: text(d.get("version")) || null,
       acceptedAtMs: millis(d.get("acceptedAt")),
       withdrawnAtMs: d.get("withdrawnAt") ? millis(d.get("withdrawnAt")) : null,
+      signature: signatureFrom(d.get("signature")),
     }));
+  }
+
+  /** R3: the typed name of the latest signature of [type] (users/{uid}.signedNames; gone with the account). */
+  async signedName(uid: string, type: string): Promise<string | null> {
+    const snap = await this.db.collection(USERS).doc(uid).get();
+    const names: unknown = snap.get("signedNames");
+    const name = typeof names === "object" && names !== null ? (names as Record<string, unknown>)[type] : null;
+    return typeof name === "string" ? name : null;
   }
 
   /** A new consent record (given), or withdrawnAt on the open ones of [type] (withdrawn). */

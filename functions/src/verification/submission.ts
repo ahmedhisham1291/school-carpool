@@ -1,3 +1,4 @@
+import { parseSignature, type SignatureInput } from "../auth/signature";
 import { isRealDate, parseNationalId } from "./national_id";
 
 /**
@@ -56,9 +57,17 @@ export const VERIFICATION_CONSENT_VERSIONS = {
   // written (explicit) consent; the child consent is the guardian's
   // declaration and covers the child's whereabouts during runs (children's
   // data is sensitive under Law 151 of 2020, Art. 1 and Art. 12).
-  id: "2026-11-16",
-  face: "2026-11-16",
-  childData: "2026-11-16",
+  // 2026-11-17 (R3): separate unticked boxes for the ID and the face
+  // matching, each signed with the typed full name (must match the ID
+  // name) and a fresh device check; "written" consent wording.
+  id: "2026-11-17",
+  face: "2026-11-17",
+  childData: "2026-11-17",
+  // R4 (answers.md 1.7): for a child aged 15 to 18, the guardian declares
+  // that the child was told what is shared and agrees (Decree 816/2025
+  // Art. 15: "the child or their guardian"; both, until the PDPC sets its
+  // mechanism).
+  teenAgreement: "2026-11-17",
 } as const;
 
 export type VerificationConsent = keyof typeof VERIFICATION_CONSENT_VERSIONS;
@@ -66,6 +75,11 @@ export type VerificationConsent = keyof typeof VERIFICATION_CONSENT_VERSIONS;
 /** School grades, kindergarten to grade 12 (codes shared with the app). */
 export const GRADES = ["kg1", "kg2", "g1", "g2", "g3", "g4", "g5", "g6", "g7", "g8", "g9", "g10", "g11", "g12"] as const;
 export type Grade = (typeof GRADES)[number];
+
+/** R4: from this age the child's own agreement is collected through the parent. */
+export const TEEN_AGE = 15;
+/** Grades where a child is usually 15 or older (safe side when the age says less). */
+export const TEEN_GRADES: readonly Grade[] = ["g10", "g11", "g12"];
 
 export const MAX_CHILDREN = 10;
 export const CHILD_MIN_AGE = 2;
@@ -99,6 +113,25 @@ export interface ChildSubmission {
   schoolId: string;
   /** The name the app showed; the server keeps it only if it is one of the school's names. */
   schoolName: string;
+  /** R4: optional "YYYY-MM-DD"; when given, the age must agree with it (within a year). */
+  birthDate: string | null;
+}
+
+/** Whole years between [birthDate] and [today] ("YYYY-MM-DD" both). */
+export function ageOn(birthDate: string, today: string): number {
+  const [by, bm, bd] = birthDate.split("-").map(Number);
+  const [ty, tm, td] = today.split("-").map(Number);
+  return ty - by - (tm < bm || (tm === bm && td < bd) ? 1 : 0);
+}
+
+/**
+ * R4: a child counts as 15 or older when the date of birth says so, the
+ * age says so, or the grade is 10 to 12 (whichever is higher wins: the
+ * safe side asks for the child's agreement).
+ */
+export function isTeen(child: Pick<ChildSubmission, "age" | "grade" | "birthDate">, today: string): boolean {
+  const fromBirth = child.birthDate ? ageOn(child.birthDate, today) : 0;
+  return fromBirth >= TEEN_AGE || child.age >= TEEN_AGE || TEEN_GRADES.includes(child.grade);
 }
 
 export interface DriverSubmission {
@@ -115,6 +148,8 @@ export interface Submission {
   children: ChildSubmission[];
   driver: DriverSubmission | null;
   consents: VerificationConsent[];
+  /** R3: the written signature of the consents (null when none is needed: a car-only update). */
+  signature: SignatureInput | null;
 }
 
 /** Upload names in verification/{uid}/pending/ (storage.rules allows only these). */
@@ -210,7 +245,7 @@ function parseIdentity(raw: Record<string, unknown>, today: string): IdentitySub
   return { firstName, lastName, nationalId, idExpiry, livenessChallenge: challenge };
 }
 
-function parseChild(value: unknown): ChildSubmission {
+function parseChild(value: unknown, today: string): ChildSubmission {
   const raw = record(value);
   if (!raw) throw new VerificationError("invalid-child");
   const ref = typeof raw.ref === "string" && REF.test(raw.ref) ? raw.ref : null;
@@ -222,10 +257,14 @@ function parseChild(value: unknown): ChildSubmission {
   const schoolName = raw.schoolName === undefined || raw.schoolName === null ? "" : cleanText(raw.schoolName, 2, 120);
   const ageOk = typeof age === "number" && Number.isInteger(age) && age >= CHILD_MIN_AGE && age <= CHILD_MAX_AGE;
   const idOk = childId === null || (typeof childId === "string" && DOC_ID.test(childId));
-  if (!ref || !firstName || !ageOk || !grade || !schoolId || schoolName === null || !idOk) {
+  const birthDate = raw.birthDate === undefined || raw.birthDate === null ? null : cleanDate(raw.birthDate);
+  const birthOk =
+    (raw.birthDate === undefined || raw.birthDate === null || birthDate !== null) &&
+    (birthDate === null || (birthDate < today && Math.abs(ageOn(birthDate, today) - (age as number)) <= 1));
+  if (!ref || !firstName || !ageOk || !grade || !schoolId || schoolName === null || !idOk || !birthOk) {
     throw new VerificationError("invalid-child", { ref });
   }
-  return { ref, childId: childId as string | null, firstName, age: age as number, grade, schoolId, schoolName };
+  return { ref, childId: childId as string | null, firstName, age: age as number, grade, schoolId, schoolName, birthDate };
 }
 
 function parseDriver(raw: Record<string, unknown>, today: string): DriverSubmission {
@@ -273,7 +312,7 @@ export function parseSubmission(data: unknown, options: { today: string; verifie
 
   const identity = identityRaw ? parseIdentity(identityRaw, options.today) : null;
   if (raw.children.length > MAX_CHILDREN) throw new VerificationError("too-many-children");
-  const children = raw.children.map(parseChild);
+  const children = raw.children.map((c: unknown) => parseChild(c, options.today));
   if (new Set(children.map((c) => c.ref)).size !== children.length) throw new VerificationError("invalid-child");
   const editIds = children.flatMap((c) => (c.childId ? [c.childId] : []));
   if (new Set(editIds).size !== editIds.length) throw new VerificationError("invalid-child");
@@ -285,9 +324,11 @@ export function parseSubmission(data: unknown, options: { today: string; verifie
   const needed: VerificationConsent[] = [
     ...(identity ? (["id", "face"] as const) : []),
     ...(children.length > 0 ? (["childData"] as const) : []),
+    ...(children.some((c) => isTeen(c, options.today)) ? (["teenAgreement"] as const) : []),
   ];
   const consents = parseConsents(raw.consents, needed);
-  return { identity, children, driver, consents };
+  const signature = needed.length > 0 ? parseSignature(raw.signature) : null;
+  return { identity, children, driver, consents, signature };
 }
 
 /** Reasons an admin can give (codes shared with the app, which translates them). */

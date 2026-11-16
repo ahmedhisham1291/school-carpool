@@ -7,9 +7,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
+import 'package:school_carpool/features/auth/consent_signature.dart';
 import 'package:school_carpool/features/auth/legal_documents.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/verification/child_form_screen.dart';
+import 'package:school_carpool/features/verification/guardian_sign_sheet.dart';
 import 'package:school_carpool/features/verification/review_status_badge.dart';
 import 'package:school_carpool/features/verification/verification_draft.dart';
 import 'package:school_carpool/features/verification/verification_failure.dart';
@@ -58,22 +60,35 @@ class _ChildrenScreenState extends ConsumerState<ChildrenScreen> {
     if (child == null || photo == null || !mounted) {
       return;
     }
-    // A fresh guardian declaration for this child's data (sensitive data,
-    // Law 151 of 2020; docs/legal/egypt-legal-review.md).
+    // A fresh, signed guardian declaration for this child's data (sensitive
+    // data, Law 151 of 2020; R3: unticked box, typed ID name, Face ID).
     final AppLocalizations l10n = context.l10n;
-    final bool guardian = await showConfirmDialog(
-      context: context,
-      title: l10n.verifyGuardianLabel,
-      body: l10n.verifyGuardianHelper,
-      confirmLabel: l10n.verifyGuardianConfirm,
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final Account? account = accountOf(ref.read(sessionProvider));
+    final GuardianSignature? signed = await showGuardianSignSheet(
+      context,
+      firstName: account?.firstName ?? '',
+      lastName: account?.lastName ?? '',
+      teen: child.isTeen,
     );
-    if (!guardian || !mounted) {
+    if (signed == null || !mounted) {
+      return;
+    }
+    final SignOutcome outcome = await signConsent(
+      ref,
+      fullName: signed.fullName,
+      reason: l10n.signAuthReason,
+      language: Localizations.localeOf(context).languageCode == 'en' ? 'en' : 'ar',
+    );
+    if (outcome is! Signed) {
+      showAppSnackBarOn(messenger, l10n.signCancelled);
       return;
     }
     await _send(<String, Uint8List>{schoolIdFileName(_slot): photo}, <String, Object?>{
       'children': <Map<String, Object?>>[child.toPayload()],
       'driver': null,
-      'consents': LegalDocuments.verification,
+      'consents': LegalDocuments.verificationConsents(id: false, face: false, childData: true, teenAgreement: signed.teenAgreement),
+      'signature': outcome.signature.toPayload(),
     });
   }
 

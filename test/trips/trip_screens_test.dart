@@ -702,9 +702,25 @@ void main() {
       expect(find.text('Enter an Egyptian mobile, e.g. 010 1234 5678.'), findsOneWidget);
       await tester.enterText(find.byKey(const Key('contact.phone')), '01012345678');
       await _tap(tester, 'contact.relation.sibling');
+      // R6: not saved until the parent ticks "This person agreed".
       await _tap(tester, 'contact.save');
-      expect(trips.calls, contains('saveContact:sibling'));
+      expect(trips.calls.where((String c) => c.startsWith('saveContact')), isEmpty);
+      await _tap(tester, 'contact.agreed');
+      await _tap(tester, 'contact.save');
+      expect(trips.calls, contains('saveContact:sibling:true'));
       expect(find.text('Contact saved'), findsOneWidget);
+      // Pending: a status line and "Send the link".
+      expect(find.byKey(const Key('contact.status.pending')), findsOneWidget);
+      expect(find.byKey(const Key('contact.sendLink')), findsOneWidget);
+    });
+
+    testWidgets('R6: a confirmed contact shows its status and no link button', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository()
+        ..contact = EmergencyContact(name: 'Sara', phone: '+201012345678', relation: Relation.sibling, status: ContactStatus.confirmed, token: 'a' * 64);
+      addTearDown(trips.dispose);
+      await _pump(tester, ProfileRoutes.emergencyContact, overrides: _overrides(trips: trips));
+      expect(find.byKey(const Key('contact.status.confirmed')), findsOneWidget);
+      expect(find.byKey(const Key('contact.sendLink')), findsNothing);
     });
 
     testWidgets('the group sees emergencies with the car\'s point and can call 123', (WidgetTester tester) async {

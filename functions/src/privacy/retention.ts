@@ -24,14 +24,41 @@ export const YEAR_DAYS = 365;
  */
 export const AFTER_CLOSURE_DAYS = YEAR_DAYS;
 /**
+ * The proof of consent (users/{uid}/consents) is kept 3 years after the
+ * account closes (owner decision 16 Nov 2026, recommended change R1 in
+ * docs/legal/answers.md 1.6): misdemeanours under Law 151 of 2020 lapse
+ * after 3 years (Criminal Procedure Code Art. 15), tort claims 3 years from
+ * knowledge (Civil Code Art. 172), and Decree 816/2025 Art. 2 asks the
+ * controller to be able to prove every consent. The records hold no name,
+ * phone or ID number (type, version, times, method; a keyed hash of the
+ * typed name for the sensitive-data consents, R3).
+ */
+export const CONSENT_RECORD_YEARS = 3;
+export const CONSENT_AFTER_CLOSURE_DAYS = CONSENT_RECORD_YEARS * YEAR_DAYS;
+/**
  * Safety hold (owner decision 16 Nov 2026): when an open report or rating
  * flag about the parent exists at deletion, the evidence (photos, face
  * reference, case records, routes of runs they drove) waits this long so
  * the admins can finish the case; then it is deleted whatever the state.
  */
 export const SAFETY_HOLD_DAYS = 30;
-/** Archived routes (one per run) are kept this long after the run. */
-export const ROUTE_ARCHIVE_DAYS = YEAR_DAYS;
+/**
+ * R12 (owner decision 16 Nov 2026, answers.md 8.1): the images of a
+ * decided verification case (ID front and back, the selfies of the check,
+ * school ID, licences) are deleted this long after the decision; the case
+ * keeps the result, the keyed ID hash and the expiry date. The face
+ * reference (faceRefs/, needed for the selfie checks before runs) and the
+ * approved driver photo stay while the account is open and go with it.
+ * Supersedes "photos kept while the account is active" for these images.
+ */
+export const ID_IMAGE_DAYS_AFTER_DECISION = 30;
+/**
+ * Archived routes (one per run) are kept this long after the run: 90 days
+ * (R11, owner decision 16 Nov 2026; was 1 year). A child's whereabouts are
+ * children's data (sensitive); the DPIA (docs/legal/dpia-live-location.md)
+ * found 90 days enough for safety reviews, which are raised within days.
+ */
+export const ROUTE_ARCHIVE_DAYS = 90;
 /** Chat history is kept for the life of the chat plus this long. */
 export const CHAT_AFTER_END_DAYS = YEAR_DAYS;
 /** A handled report keeps its copy of the messages this long, then only the decision stays. */
@@ -51,8 +78,10 @@ export const AUDIT_LOG_DAYS = 2 * YEAR_DAYS;
  * traffic data, device) for 180 continuous days. Whether the app is a
  * service provider in that sense is a question for the lawyer
  * (docs/legal/egypt-legal-review.md section 4); keeping 180 days is the
- * safe side. NOTE: these records still go at once when the parent deletes
- * the account (lawyer question 4.2).
+ * safe side. The list the parent sees (users/{uid}/logins) goes with the
+ * account; the legal log (signInLog, R2, owner decision 16 Nov 2026) keeps
+ * each line 180 days from its sign-in even after the account is deleted
+ * (privacy/signin_log.ts).
  */
 export const LOGIN_HISTORY_DAYS = 180;
 /** A device signed out (or not seen) this long is dropped from the list. */
@@ -66,6 +95,16 @@ export const ABUSE_COUNTER_DAYS = 2;
  * confirmed, owner answer 14 Nov 2026 13:29, DECISIONS.md).
  */
 export const TRANSFER_RECORD_YEARS = 5;
+/**
+ * Breach register (breachRegister): each entry is kept 5 years after the
+ * incident is closed (R7, answers.md 1.11: the law sets no period;
+ * misdemeanour limitation 3 years from the last act, PDPC inspections and
+ * the 3-year licence renewal cycle). The entries hold no personal data.
+ * Nothing deletes them automatically yet (the first date is 5 years after
+ * the first closed incident); a deletion job needs the owner's go.
+ */
+export const BREACH_REGISTER_YEARS = 5;
+
 /** Security alerts for admins once handled. */
 export const SECURITY_ALERT_DAYS = YEAR_DAYS;
 /** A closed carpool (card, members, runs, swaps, balances) is deleted 1 year after it closed (Prompt 12 review); its trips stay per parent (owner, 14 Nov 2026 13:29). */
@@ -130,11 +169,12 @@ export type DataTypeId = (typeof DATA_TYPES)[number];
 
 export const RETENTION: readonly RetentionRule[] = [
   { id: "account", where: "users/{uid}, parentIds (ID reserved forever, not personal), Firebase Auth", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
-  { id: "consents", where: "users/{uid}/consents", days: AFTER_CLOSURE_DAYS, from: "accountClosed", enforcedBy: ["retentionDaily"] },
+  { id: "consents", where: "users/{uid}/consents", days: CONSENT_AFTER_CLOSURE_DAYS, from: "accountClosed", enforcedBy: ["retentionDaily"] },
   {
     id: "idPhotos",
     // With the account; at most SAFETY_HOLD_DAYS later when an open report about the parent exists.
-    where: "Storage verification/{uid}/cases, faceRefs/{uid}, driverPhotos/{uid}, selfieArchive/{uid} (KMS key), verifications/{caseId}",
+    // R12: the case images (verification/{uid}/cases) go ID_IMAGE_DAYS_AFTER_DECISION after the decision.
+    where: "Storage verification/{uid}/cases (30 days after the decision, R12), faceRefs/{uid}, driverPhotos/{uid}, selfieArchive/{uid} (KMS key), verifications/{caseId}",
     days: 0,
     from: "accountClosed",
     enforcedBy: ["accountDeletion", "retentionDaily"],
@@ -161,7 +201,13 @@ export const RETENTION: readonly RetentionRule[] = [
   { id: "handover", where: "handoverAdults/{childId}", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "emergencyContact", where: "emergencyContacts/{uid}", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "notifications", where: "users/{uid}/notifications (60 days), notificationEvents (30 days), pushTokens, notificationSettings", days: 60, from: "created", enforcedBy: ["firestoreTtl", "accountDeletion"] },
-  { id: "devices", where: "users/{uid}/devices, users/{uid}/logins (90 days)", days: LOGIN_HISTORY_DAYS, from: "created", enforcedBy: ["firestoreTtl", "accountDeletion"] },
+  {
+    id: "devices",
+    where: "users/{uid}/devices, users/{uid}/logins (180 days; deleted with the account); signInLog (Law 175/2018 log: 180 days from each sign-in, kept after deletion, server-only)",
+    days: LOGIN_HISTORY_DAYS,
+    from: "created",
+    enforcedBy: ["firestoreTtl", "accountDeletion"],
+  },
   // Transfer records: 5 years (DECISIONS.md, owner answers 14 Nov 13:29).
   // Nothing deletes them yet (MONEY: append-only); a deletion job at the
   // end of the period needs the owner's go.
@@ -193,7 +239,8 @@ export const KEPT_AFTER_DELETION = [
   { what: "closedAccounts/{uid}", why: "the purge date and the deletion report (no name, phone or ID)" },
   { what: "settleUps", why: "payment records between two parents stay for the other parent while either account is active + 1 year; the deleted parent shows as an initial" },
   { what: "trips", why: "run summaries shared with other families: the deleted parent is an initial at once; their part is anonymised 1 year after closure" },
-  { what: "users/{uid}/consents", why: "proof of consent (document version and time, no name), 1 year after closure" },
+  { what: "signInLog", why: "the Anti-Cybercrime sign-in log (Law 175/2018 Art. 2): time, IP, phone kind, app version and the number (encrypted) of each sign-in, 180 days from that sign-in; disclosed only on a judicial order" },
+  { what: "users/{uid}/consents", why: "proof of consent (document version, time and method, no name), 3 years after closure" },
   { what: "evidence under a safety hold", why: "only when an open report about the parent exists at deletion: photos, face reference, case records and routes wait at most 30 days, then are deleted" },
 ] as const;
 
@@ -206,7 +253,7 @@ export const DELETED_WITH_ACCOUNT = [
   "ID photos, selfies, school ID, licence and driver photos, the face reference, verification case records",
   "home address and exact pin, children, car, emergency contact",
   "every chat message the parent wrote (private and group chats)",
-  "devices, sign-in history, push tokens, notifications",
+  "devices, the sign-in list shown in the app, push tokens, notifications (the legal sign-in log stays 180 days from each sign-in)",
   "archived routes of the runs the parent drove",
 ] as const;
 
@@ -226,9 +273,19 @@ export function purgeAfterClosure(closedAtMs: number, days = AFTER_CLOSURE_DAYS)
   return closedAtMs + days * DAY_MS;
 }
 
+/** When the proof of consent of a closed account is deleted (3 years, R1). */
+export function consentPurgeAt(closedAtMs: number): number {
+  return closedAtMs + CONSENT_AFTER_CLOSURE_DAYS * DAY_MS;
+}
+
 /** When a run's archived route is deleted. */
 export function routeArchivePurgeAt(runEndedAtMs: number): number {
   return runEndedAtMs + ROUTE_ARCHIVE_DAYS * DAY_MS;
+}
+
+/** Runs that ended before this are past their archive period (R11; also for routes archived under the 1-year rule). */
+export function routeArchiveCutoff(nowMs: number): number {
+  return nowMs - ROUTE_ARCHIVE_DAYS * DAY_MS;
 }
 
 /** When an ended chat (carpool closed, a private chat whose parent left or blocked) is deleted. */

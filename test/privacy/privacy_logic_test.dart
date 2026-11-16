@@ -289,9 +289,9 @@ void main() {
       // Settle up records: same rule as trips.
       expect(keepOf(DataType.settleUp), Keep.yearAfterClosure);
       expect(keepOf(DataType.idPhotos), Keep.untilDeletion, reason: 'photos go with the account (16 Nov 2026)');
-      expect(keepOf(DataType.consents), Keep.yearAfterClosure);
+      expect(keepOf(DataType.consents), Keep.threeYearsAfterClosure, reason: 'R1: proof of consent 3 years after closure');
       expect(keepOf(DataType.trips), Keep.yearAfterClosure);
-      expect(keepOf(DataType.routeArchive), Keep.yearAfterRun);
+      expect(keepOf(DataType.routeArchive), Keep.ninetyDaysAfterRun, reason: 'R11: 90 days after the run');
       expect(keepOf(DataType.chat), Keep.yearAfterChat);
       expect(keepOf(DataType.liveLocation), Keep.oneDay);
       expect(keepOf(DataType.wallet), Keep.law);

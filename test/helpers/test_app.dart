@@ -6,6 +6,7 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/auth_repository.dart';
+import 'package:school_carpool/features/auth/consent_signature.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/chat/chat_provider.dart';
@@ -157,6 +158,9 @@ class FakeAuthRepository implements AuthRepository {
   AuthFailure? failure;
   bool emailConfirmed = false;
   bool? acceptedWhatsApp;
+
+  /// R3: the signature sent with the storage-abroad consent.
+  ConsentSignature? acceptedSignature;
   String? lastPhone;
   String? lastCode;
 
@@ -192,8 +196,9 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> acceptConsents({required bool whatsapp}) async {
+  Future<void> acceptConsents({required bool whatsapp, required ConsentSignature signature}) async {
     acceptedWhatsApp = whatsapp;
+    acceptedSignature = signature;
     await _maybeFail('acceptConsents');
   }
 

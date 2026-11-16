@@ -45,6 +45,9 @@ class _CarpoolSearchScreenState extends ConsumerState<CarpoolSearchScreen> {
   String? _areaId;
   String? _morning;
   int _radiusKm = 5;
+
+  /// R9: the one activity searched for (typed by the parent).
+  String _activityName = '';
   String? _parentUid;
   String? _searchedKey;
   int _request = 0;
@@ -120,14 +123,19 @@ class _CarpoolSearchScreenState extends ConsumerState<CarpoolSearchScreen> {
   Widget _content(BuildContext context, List<MySchool> schools) {
     final AppLocalizations l10n = context.l10n;
     final String language = Localizations.localeOf(context).languageCode;
+    // R9: activity carpools (F39) only while their switch is on (off in the pilot).
+    final bool activitiesOn = ref.watch(featureSwitchesProvider).activityCarpools;
+    if (!activitiesOn && _kind == CarpoolKind.activity) {
+      _kind = CarpoolKind.school;
+    }
     if (schools.isEmpty && _kind == CarpoolKind.school) {
       return EmptyStateView(
         key: const Key('search.noSchool'),
         icon: Icons.school_outlined,
         title: l10n.nearbyNoSchoolTitle,
         body: l10n.carpoolSearchNoSchoolBody,
-        actionLabel: l10n.carpoolSearchActivities,
-        onAction: () => setState(() => _kind = CarpoolKind.activity),
+        actionLabel: activitiesOn ? l10n.carpoolSearchActivities : null,
+        onAction: activitiesOn ? () => setState(() => _kind = CarpoolKind.activity) : null,
       );
     }
     final MySchool? school = schools.isEmpty
@@ -140,9 +148,11 @@ class _CarpoolSearchScreenState extends ConsumerState<CarpoolSearchScreen> {
 
     final CarpoolQuery query = _kind == CarpoolKind.school
         ? CarpoolQuery(schoolId: school?.id, areaId: area?.id, morning: _morning, parentUid: _parentUid)
-        : CarpoolQuery(kind: CarpoolKind.activity, morning: _morning, radiusKm: _radiusKm);
+        : CarpoolQuery(kind: CarpoolKind.activity, morning: _morning, radiusKm: _radiusKm, activityName: _activityName.trim());
     final String key = query.toJson().toString();
-    if (key != _searchedKey) {
+    // R9: an activity search waits for the activity's name.
+    final bool waitingForActivity = _kind == CarpoolKind.activity && _activityName.trim().length < 2;
+    if (key != _searchedKey && !waitingForActivity) {
       _searchedKey = key;
       WidgetsBinding.instance.addPostFrameCallback((Duration _) {
         if (mounted) {
@@ -170,6 +180,14 @@ class _CarpoolSearchScreenState extends ConsumerState<CarpoolSearchScreen> {
         ),
       if (_kind == CarpoolKind.activity)
         AppChip(
+          key: const Key('search.activityChip'),
+          label: _activityName.trim().isEmpty ? l10n.carpoolActivityNameChip : _activityName.trim(),
+          icon: Icons.edit_outlined,
+          selected: _activityName.trim().isNotEmpty,
+          onSelected: (bool _) => unawaited(_chooseActivityName()),
+        ),
+      if (_kind == CarpoolKind.activity)
+        AppChip(
           key: const Key('search.radiusChip'),
           label: l10n.nearbyRadiusKm(_radiusKm),
           icon: Icons.radar_rounded,
@@ -192,7 +210,18 @@ class _CarpoolSearchScreenState extends ConsumerState<CarpoolSearchScreen> {
         ),
     ];
 
-    final List<Widget> results = switch (_results) {
+    final List<Widget> results = waitingForActivity
+        ? <Widget>[
+            EmptyStateView(
+              key: const Key('search.activityFirst'),
+              icon: Icons.sports_soccer_outlined,
+              title: l10n.carpoolActivityFirstTitle,
+              body: l10n.carpoolActivityFirstBody,
+              actionLabel: l10n.carpoolActivityNameChip,
+              onAction: () => unawaited(_chooseActivityName()),
+            ),
+          ]
+        : switch (_results) {
       AsyncData<List<Carpool>>(:final List<Carpool> value) when value.isEmpty => <Widget>[
         EmptyStateView(
           key: const Key('search.empty'),
@@ -255,7 +284,7 @@ class _CarpoolSearchScreenState extends ConsumerState<CarpoolSearchScreen> {
       l10n.carpoolSearchForSheet,
       <(String?, String)>[
         for (final MySchool s in schools) (s.id, s.name(language)),
-        (activity, l10n.carpoolActivities),
+        if (ref.read(featureSwitchesProvider).activityCarpools) (activity, l10n.carpoolActivities),
       ],
       current,
       'search.target',
@@ -273,6 +302,17 @@ class _CarpoolSearchScreenState extends ConsumerState<CarpoolSearchScreen> {
         _schoolId = picked;
       }
     });
+  }
+
+  /// R9: the one activity to search for (a club, a sport, lessons).
+  Future<void> _chooseActivityName() async {
+    final String? name = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dialogContext) => _ActivityNameDialog(initial: _activityName),
+    );
+    if (mounted && name != null) {
+      setState(() => _activityName = name);
+    }
   }
 
   Future<void> _chooseArea(List<SchoolArea> areas, String language) async {
@@ -317,4 +357,42 @@ class _Choice<T> {
   const _Choice(this.value);
 
   final T? value;
+}
+
+class _ActivityNameDialog extends StatefulWidget {
+  const _ActivityNameDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_ActivityNameDialog> createState() => _ActivityNameDialogState();
+}
+
+class _ActivityNameDialogState extends State<_ActivityNameDialog> {
+  late String _name = widget.initial;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
+    final bool ok = _name.trim().length >= 2 && _name.trim().length <= 60;
+    return AlertDialog(
+      title: Semantics(header: true, child: OneLineText(l10n.carpoolActivityNameTitle, scaleDown: true)),
+      content: AppTextField(
+        key: const Key('search.activityName'),
+        label: l10n.carpoolActivityNameLabel,
+        helperText: l10n.carpoolActivityNameHelper,
+        initialValue: widget.initial,
+        autofocus: true,
+        onChanged: (String v) => setState(() => _name = v),
+      ),
+      actions: <Widget>[
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(MaterialLocalizations.of(context).cancelButtonLabel)),
+        FilledButton(
+          key: const Key('search.activityNameOk'),
+          onPressed: ok ? () => Navigator.of(context).pop(_name.trim()) : null,
+          child: OneLineText(l10n.carpoolActivityNameSearch),
+        ),
+      ],
+    );
+  }
 }

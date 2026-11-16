@@ -84,6 +84,7 @@ export function deps(): CarpoolDeps {
     linkBase: INVITE_LINK_BASE.value(),
     deadlines: deadlineSettings(SCHEDULE_CONFIRM_BY.value(), SCHEDULE_LATE_LEAD_MIN.value()),
     contributionsOn: () => featureOn("contributions"),
+    activityCarpoolsOn: () => featureOn("activityCarpools"),
   };
 }
 

@@ -106,6 +106,26 @@ describe("sign-in codes", () => {
     await expectReason(check("123456"), "expired");
   });
 
+  it("R5: prod closed to new real parents - a new number gets launch-closed after a right code, nothing is created", async () => {
+    const existing = new Set<string>();
+    let open = false;
+    deps.launch = { open: async () => open, hasAccount: async (p) => existing.has(p) };
+    await ask();
+    await expectReason(check("123456"), "launch-closed");
+    assert.deepEqual(accounts.signIns, [], "no account created");
+    // An existing account (staff, testers) keeps signing in.
+    existing.add(E164);
+    now += 61_000;
+    await ask();
+    assert.equal((await check("234567")).uid, "uid-1");
+    // Once the licences are granted, new numbers come in.
+    existing.clear();
+    open = true;
+    now += 61_000;
+    await ask();
+    assert.equal((await check("345678")).uid, "uid-1");
+  });
+
   it("refuses a wrong code and says how many tries are left", async () => {
     await ask();
     const error = await expectReason(check("000000"), "wrong-code");
@@ -353,6 +373,12 @@ describe("App Review sign-in (Prompt 13)", () => {
     const stored = JSON.stringify([...store.codes.entries(), ...store.limits.entries(), review]);
     assert.ok(!stored.includes(REVIEW_CODE), "plain code stored");
     assert.ok(!stored.includes("1012345678"), "plain phone stored");
+  });
+
+  it("R5: the App Review demo phone signs in while prod is closed to new parents", async () => {
+    deps.launch = { open: async () => false, hasAccount: async () => false };
+    await ask();
+    assert.equal((await check(REVIEW_CODE)).uid, "uid-1");
   });
 
   it("the code is single use, and every limit and lock still applies", async () => {

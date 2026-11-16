@@ -18,7 +18,8 @@ import { VerificationError } from "../../src/verification/submission";
 /** In-memory stand-ins for Firestore, Cloud Storage and Auth claims (unit tests). */
 
 export interface MemoryUser extends UserSnapshot {
-  firstName?: string;
+  firstName?: string | null;
+  lastName?: string | null;
 }
 
 export class MemoryVerificationStore implements VerificationStore {
@@ -29,7 +30,9 @@ export class MemoryVerificationStore implements VerificationStore {
   readonly nationalIds = new Map<string, string>();
   readonly banned = new Set<string>();
   readonly audit: Array<{ actorUid: string; action: string; target: string }> = [];
-  readonly consents: Array<{ uid: string; type: string }> = [];
+  readonly consents: Array<{ uid: string; type: string; signature?: unknown }> = [];
+  /** R3: users/{uid}.signedNames (one typed name per submission here). */
+  readonly signedNames = new Map<string, string>();
   readonly vehicles = new Map<string, { status: string; caseId: string }>();
   /** Schools children may be linked to; "nile" is active by default. */
   readonly schools = new Map<string, SchoolChoice>([
@@ -91,9 +94,11 @@ export class MemoryVerificationStore implements VerificationStore {
       if (c.identity) {
         user.status = "pending";
         user.firstName = c.identity.firstName;
+        user.lastName = c.identity.lastName;
       }
     }
-    for (const type of write.consents) this.consents.push({ uid: c.uid, type });
+    for (const type of write.consents) this.consents.push({ uid: c.uid, type, signature: write.signatures[type] ?? null });
+    if (write.signedName) this.signedNames.set(c.uid, write.signedName);
   }
 
   async getCase(caseId: string): Promise<CaseRecord | undefined> {
@@ -108,6 +113,7 @@ export class MemoryVerificationStore implements VerificationStore {
     c.reviewerUid = w.reviewerUid;
     c.reasonCode = w.reasonCode;
     c.purgeAtMs = w.purgeAtMs;
+    this.decidedAt.set(c.id, w.decidedAtMs);
     const user = this.users.get(w.uid);
     if (user) {
       user.caseOpen = false;
@@ -174,6 +180,16 @@ export class MemoryVerificationStore implements VerificationStore {
   async casesDueForPurge(nowMs: number, limit: number): Promise<Array<{ id: string; uid: string; status: string }>> {
     return [...this.cases.values()]
       .filter((c) => c.purgeAtMs !== null && c.purgeAtMs <= nowMs)
+      .slice(0, limit)
+      .map((c) => ({ id: c.id, uid: c.uid, status: c.status }));
+  }
+
+  /** When each case was decided (R12). */
+  readonly decidedAt = new Map<string, number>();
+
+  async decidedCasesWithImages(decidedBeforeMs: number, limit: number): Promise<Array<{ id: string; uid: string; status: string }>> {
+    return [...this.cases.values()]
+      .filter((c) => (c.status === "approved" || c.status === "rejected") && !c.imagesDeleted && (this.decidedAt.get(c.id) ?? Infinity) <= decidedBeforeMs)
       .slice(0, limit)
       .map((c) => ({ id: c.id, uid: c.uid, status: c.status }));
   }

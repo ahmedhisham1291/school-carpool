@@ -66,6 +66,8 @@ beforeEach(async () => {
     await db.doc("schools/s1").set({ nameAr: "مدرسة", nameEn: "School", status: "active" });
     await db.doc("areas/a1").set({ schoolId: "s1", nameAr: "حي", nameEn: "Area" });
     await db.doc("breachRegister/b1").set({ id: "b1", status: "open", awareAtMs: 1, summary: "Test incident (fake)" });
+    await db.doc("config/launch").set({ pdpcLicensed: false });
+    await db.doc("signInLog/l1").set({ uid: "alice", event: "signIn", phoneEnc: "v1:fake", ipEnc: null, platform: "ios", appVersion: "1.0.0" });
   });
 });
 
@@ -78,6 +80,29 @@ describe("breach register (Law 151/2020 Art. 7): only the audited admin callable
       await assertFails(db.collection("breachRegister").add({ status: "open" }));
       await assertFails(db.doc("breachRegister/b1").update({ status: "closed" }));
       await assertFails(db.doc("breachRegister/b1").delete());
+    }
+  });
+});
+
+describe("launch gate (R5): config/launch is server-only", () => {
+  it("no client reads or writes it, super admins included (only adminSetLaunch)", async () => {
+    for (const make of [asAdmin, asSuperAdmin, asParent, signedOut]) {
+      const db = make().firestore();
+      await assertFails(db.doc("config/launch").get());
+      await assertFails(db.doc("config/launch").set({ pdpcLicensed: true }));
+    }
+  });
+});
+
+describe("sign-in log (Law 175/2018 Art. 2, R2): server-only, even for its own parent", () => {
+  it("nobody reads, lists, creates, edits or deletes it from a client: the parent it is about, admins and super admins included", async () => {
+    for (const make of [asAdmin, asSuperAdmin, asParent, asParentWithMfa, signedOut]) {
+      const db = make().firestore();
+      await assertFails(db.doc("signInLog/l1").get());
+      await assertFails(db.collection("signInLog").where("uid", "==", "alice").get());
+      await assertFails(db.collection("signInLog").add({ uid: "alice", event: "signIn" }));
+      await assertFails(db.doc("signInLog/l1").update({ uid: "bob" }));
+      await assertFails(db.doc("signInLog/l1").delete());
     }
   });
 });

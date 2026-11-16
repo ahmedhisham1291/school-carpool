@@ -156,6 +156,24 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
         : availableAt.difference(DateTime.now());
     final bool canResend = remaining <= Duration.zero && !_verifying;
 
+    // R5: prod is closed to new parents until the PDPC licences are granted.
+    // Nothing was created; the parent goes back to the phone step.
+    if (failure?.kind == AuthFailureKind.launchClosed) {
+      return OnboardingLayout(
+        title: l10n.launchSoonTitle,
+        body: l10n.launchSoonBody,
+        primary: AppButton(
+          key: const Key('code.launchOk'),
+          label: l10n.launchSoonOk,
+          expand: true,
+          onPressed: _changeNumber,
+        ),
+        children: <Widget>[
+          AppInlineMessage(key: const Key('code.launchClosed'), message: l10n.launchSoonNote, icon: Icons.schedule_rounded),
+        ],
+      );
+    }
+
     return OnboardingLayout(
       step: 2,
       title: l10n.codeTitle,

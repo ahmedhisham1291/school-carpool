@@ -231,7 +231,15 @@ class _PrivacyContentState extends ConsumerState<_PrivacyContent> {
               subtitle: c.active
                   ? l10n.privacyConsentGivenOn(c.acceptedAt == null ? '' : shortDate(context, c.acceptedAt!))
                   : l10n.privacyConsentNotGiven,
-              showChevron: c.active,
+              showChevron: c.active && !c.signed,
+              // R3: a signed consent has a copy the parent opens and downloads.
+              trailing: c.signed
+                  ? TextButton(
+                      key: Key('privacy.consentCopy.${c.kind.name}'),
+                      onPressed: () => context.go(PrivacyRoutes.consentCopyOf(c.kind.name)),
+                      child: OneLineText(l10n.consentCopyOpen),
+                    )
+                  : null,
               onTap: c.active ? () => unawaited(_setConsent(c, false)) : null,
             ),
         AppSectionHeader(l10n.privacyCorrectSection),

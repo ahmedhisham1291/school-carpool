@@ -78,7 +78,8 @@ what is kept. **The lawyer is to confirm** the list of kept records
   reference; the verification case records; children, car, home address and
   exact pin; every chat message the parent wrote (private and group chats);
   devices, sign-in history and push tokens; the archived routes of the runs
-  the parent drove.
+  the parent drove. (**R2, 16 Nov 2026:** the legal sign-in log is kept
+  180 days from each sign-in, see "Legal changes R1-R15".)
 - **Safety hold:** only when an open report or rating flag about the parent
   exists at deletion, the photos, case records and routes wait 30 days
   (`SAFETY_HOLD_DAYS`) so the admins can finish the case; then they are
@@ -86,7 +87,8 @@ what is kept. **The lawyer is to confirm** the list of kept records
 - **Kept, minimised and detached from the profile** (no name, phone,
   address, photo or ID number): run summaries shared with other families
   (the parent as an initial; their part anonymised 1 year after closure),
-  the consent records (1 year), Settle up records (1 year, an initial),
+  the consent records (1 year; **3 years since R1, 16 Nov 2026**, see
+  "Legal changes R1-R15" below), Settle up records (1 year, an initial),
   transfer records (5 years), reports about the parent, the admin audit
   log (2 years), the keyed ID hash on the ban list (banned parents only),
   the reserved parent ID.
@@ -515,3 +517,119 @@ acknowledgement at create/join; every money feature off (see the owner
 decision above).
 
 - Research answers available (docs/legal/answers.md), pending owner/lawyer confirmation.
+
+## Legal changes R1-R15 (owner, 16 Nov 2026): "implement everything"
+
+The owner approved every recommended change of docs/legal/answers.md
+(R1-R15) through the coordinator (Arabic: "yes of course, implement
+everything"). Built on branch `legal-changes` (docs/progress/legal-changes.md).
+Where an item replaces an earlier decision, it says so.
+
+- **R1 - proof of consent 3 years after closure** (was 1 year):
+  `CONSENT_AFTER_CLOSURE_DAYS` in `functions/src/privacy/retention.ts`; the
+  run summaries and Settle up records keep their 1 year. Reason: the
+  limitation periods (misdemeanours 3 years, tort claims 3 years from
+  knowledge; answers.md 1.6).
+- **R2 - sign-in log kept 180 days from each sign-in, also after account
+  deletion.** **Supersedes, for this log only, "devices, sign-in history
+  ... deleted with the account" (16 Nov 2026)**: the list the parent sees
+  (`users/{uid}/logins`) still goes with the account. The legal log
+  (`signInLog`, `functions/src/privacy/signin_log.ts`) holds per sign-in:
+  uid, a keyed hash of the number, the number and IP encrypted (secret
+  `SIGNIN_LOG_KEY`), time, device hash, platform, app version; no message
+  text, names, photos or location. Server-only (rules deny every client,
+  admins too); TTL 180 days from each line; read only through the
+  super-admin callable `adminDiscloseSignInLog` (judicial-order reference,
+  authority and date required, sign-in < 30 minutes, audit entry first).
+  Reason: Law 175/2018 Art. 2 and Decree 1699/2020 (answers.md 4.2).
+- **R3 - written consent for sensitive data.** Storage abroad (sign-up),
+  the ID, face matching and the guardian's declaration (verification and
+  every child added later) are each a separate unticked box, signed with
+  the typed full name (must match the ID name after Arabic normalisation;
+  at sign-up there is no ID name yet, so only its form is checked) and a
+  fresh Face ID / passcode check (a phone without a lock: a sign-in less
+  than 10 minutes old). Each record keeps the method, a keyed hash of the
+  name, a SHA-256 of the exact text, device key, platform and app version
+  (`functions/src/auth/signature.ts`; texts in `consent_texts.ts`, tested
+  equal to the ARB files). The typed name sits on `users/{uid}.signedNames`
+  and goes with the account. The parent opens and downloads a copy under
+  Privacy (`getConsentCopy`). The ID and face consents are now two boxes.
+  Versions: transferAbroad, id, face, childData `2026-11-17`.
+- **R4 - children 15 to 18.** When a child is 15 or older (by an optional
+  date of birth, the age or grade 10-12; the higher wins) the guardian
+  also ticks and signs "my child was told what is shared and agrees"
+  (consent `teenAgreement`, version `2026-11-17`; child record
+  `teenAgreed`). The date of birth is used for the check only, never
+  stored. The app derives it from the age and grade it already asks.
+- **R5 - prod closed to new real parents until the three PDPC licences
+  are granted** (controller, sensitive data, transfer abroad). Server
+  setting `config/launch.pdpcLicensed` (missing = false), read only by
+  the server: in prod a NEW number gets "Opening soon" after its code is
+  checked and no account is created; existing accounts (staff, testers)
+  and the App Review demo phones still sign in; dev and staging are
+  always open. A super admin switches it in Admin panel > Settings >
+  Launch (sign-in < 30 minutes, the licence numbers are required to open,
+  audit entry). Pilot with real families only after it is on.
+- **R6 - emergency contact opt-in** (adds to the 15 Nov "no opt-in needed"
+  answer): saving a contact needs the box "this person agreed"; the
+  contact gets a confirm / stop link (`/ec/<token>` on the links site,
+  function `emergencyContactReply`) that the parent sends from their own
+  phone. Until the contact confirms, alerts STILL go (child safety, as
+  answers.md 1.8 says), but the first one uses the template
+  `cp_emergency_contact_intro` (names the parent, why, how to stop); a
+  contact who tapped "stop" gets nothing. Name, number, status and the
+  link token only; deleted with the account.
+- **R7 - breach register kept 5 years after an incident closes**
+  (`BREACH_REGISTER_YEARS`, `retainUntilMs` set on close; runbook and
+  record of processing). No deletion job yet.
+- **R8 - terms and privacy wording** (drafts until the lawyer approves,
+  answers.md 5.2): same school OR the same activity at one venue, closed
+  carpools (approval, no public offers); "Emergencies, accidents and
+  insurance" (122/123, report in the app, the driving parent notifies the
+  compulsory insurance pool and the insurer within 15 days, Law 155/2024
+  Art. 51; run records disclosed only on a lawful request); the operator's
+  registered address after its name (`tool/links_site.py
+  --operator-address`, `--require-address` for prod); consent (3 years)
+  and sign-in log (180 days) lines. Versions terms and privacy
+  `2026-11-17`: every account accepts them again (and signs storage
+  abroad, R3) on the next app start.
+- **R9 - activity carpools (F39) off in the pilot.** New switch
+  `activityCarpools` (default off everywhere): creating, searching and
+  joining an activity carpool are refused with `feature-off` and the app
+  hides the option. When switched on (only after the lawyer's written Law
+  87/2018 opinion covers F39): one activity at one venue (a search names
+  the activity), joining by approval plus every parent's driver consent
+  (F26), no public offers (never on the nearby map's parent list).
+- **R10 - processor contracts:** `docs/legal/processor-checklist.md`
+  (clauses C1-C13: instructions only, no reuse or model training, 24-hour
+  breach notice with the Regs Art. 5 contents, region, sub-processors,
+  deletion, audit); big vendors' standard DPAs accepted as they are;
+  Sentry and Algolia move to EU regions where the plan allows (owner).
+- **R11 - live location of children: DPIA, and the route archive 1 year
+  -> 90 days** (`ROUTE_ARCHIVE_DAYS`; supersedes "Location history ...
+  kept 1 year" of 14 Nov 2026, which the lawyer had confirmed: the
+  shorter period is the safe side; the lawyer is told). Routes archived
+  under the 1-year rule go once the run is 90 days old (the daily job
+  checks `endedAt`); the Storage lifecycle deletes `routeArchive/` files
+  after 120 days as a safety net. DPIA: `docs/legal/dpia-live-location.md`.
+- **R12 - case images deleted 30 days after the review decision**
+  (`ID_IMAGE_DAYS_AFTER_DECISION`; ID front and back, the verification
+  selfies, school ID and licences, with their admin thumbnails); the case
+  keeps the result, the keyed ID hash and the expiry date. **Supersedes,
+  for these images, "photos kept while the account is active" (14 and 16
+  Nov 2026)**; the face reference (needed for the selfie checks before
+  runs), the approved driver photo and the run selfies stay while the
+  account is open and go with it. Cases decided earlier are found by
+  their decision time. The lawyer is told (answers.md 8.1).
+- **R13 - annual penetration test** (Decree 1699/2020 Art. 2): before the
+  pilot, then every 12 months and after big changes; owner action 16,
+  SECURITY.md, COSTS.md.
+- **R14 - trademark search and filing after incorporation**, and the
+  pilot school's **written no-objection** before the pilot there (owner
+  actions 6 and 7a; never suggest school or Ministry endorsement).
+- **R15 - breach runbook:** crimes go to the Public Prosecution and/or
+  the Ministry of Interior's General Directorate for IT Crimes; staging
+  with real testers' numbers counts as personal data; a 24-hour internal
+  target for the PDPC notice when children's or biometric data is
+  involved (`SENSITIVE_TARGET_HOURS`, `targetAtMs` on the register entry;
+  the Incidents page shows it and turns overdue after 24 hours).

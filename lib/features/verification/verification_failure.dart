@@ -18,6 +18,13 @@ enum VerificationFailureKind {
   missingUpload,
   uploadFailed,
   outdatedConsent,
+
+  /// R3: the typed name is not a full name, or does not match the ID name.
+  signatureName,
+  signatureMismatch,
+
+  /// R3: no phone passcode and the sign-in is older than 10 minutes.
+  reauthRequired,
   suspended,
   camera,
   cameraDenied,
@@ -66,6 +73,9 @@ class VerificationFailure implements AppFailure {
         'case-open' => VerificationFailureKind.caseOpen,
         'missing-upload' => VerificationFailureKind.missingUpload,
         'outdated-consent' => VerificationFailureKind.outdatedConsent,
+        'signature-name' || 'signature-required' => VerificationFailureKind.signatureName,
+        'signature-name-mismatch' => VerificationFailureKind.signatureMismatch,
+        'reauth-required' => VerificationFailureKind.reauthRequired,
         'suspended' => VerificationFailureKind.suspended,
         _ => switch (error.code) {
           'unavailable' || 'deadline-exceeded' => VerificationFailureKind.offline,
@@ -112,6 +122,9 @@ class VerificationFailure implements AppFailure {
     VerificationFailureKind.caseOpen => l10n.verifyErrorCaseOpen,
     VerificationFailureKind.missingUpload || VerificationFailureKind.uploadFailed => l10n.verifyErrorUpload,
     VerificationFailureKind.outdatedConsent => l10n.errorOutdatedTerms,
+    VerificationFailureKind.signatureName => l10n.signNameError,
+    VerificationFailureKind.signatureMismatch => l10n.signNameMismatchShort,
+    VerificationFailureKind.reauthRequired => l10n.signReauth,
     VerificationFailureKind.suspended => l10n.errorSuspended,
     VerificationFailureKind.camera => l10n.captureErrorCamera,
     VerificationFailureKind.cameraDenied => l10n.captureErrorDenied,

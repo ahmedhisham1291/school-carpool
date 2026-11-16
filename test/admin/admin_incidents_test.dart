@@ -32,6 +32,8 @@ class FakeIncidentsApi implements AdminIncidentsApi {
       pdpcState: pdpcAt != null ? DeadlineState.done : (sensitive ? DeadlineState.now : DeadlineState.onTime),
       subjectsState: DeadlineState.onTime,
       pdpcNotifiedAt: pdpcAt,
+      // R15: 24-hour internal target for children's or biometric data.
+      targetAt: sensitive ? aware.add(const Duration(hours: 24)) : aware.add(const Duration(hours: 72)),
     );
   }
 
@@ -111,7 +113,8 @@ void main() {
     expect(api.lastDraft?.sensitive, isTrue);
     expect(api.lastDraft?.approxPeople, 40);
     expect(find.byKey(const Key('incident.b1')), findsOneWidget);
-    expect(find.text('Immediately'), findsOneWidget);
+    // R15: immediately, with the 24-hour target shown.
+    expect(find.textContaining('Now, at the latest'), findsOneWidget);
     expect(find.text('Now'), findsOneWidget);
   });
 

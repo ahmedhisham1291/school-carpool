@@ -46,7 +46,9 @@ class CommonHeaders(unittest.TestCase):
                 csp = directives(h["Content-Security-Policy"])
                 self.assertEqual(csp["frame-ancestors"], ["'none'"])
                 self.assertIn("base-uri", csp)
-                self.assertEqual(csp["form-action"], ["'none'"])
+                # Admin: no forms at all. Links: only same-origin posts (the
+                # emergency contact's confirm/stop buttons, /ec/**, R6).
+                self.assertEqual(csp["form-action"], ["'none'"] if target == "admin" else ["'self'"])
 
 
 class AdminPanel(unittest.TestCase):

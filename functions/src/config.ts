@@ -92,6 +92,15 @@ export const WHATSAPP_TEMPLATE_LANG_EN = defineString("WHATSAPP_TEMPLATE_LANG_EN
  */
 export const NATIONAL_ID_HMAC_KEY = defineSecret("NATIONAL_ID_HMAC_KEY");
 
+/**
+ * Key that encrypts the phone number and IP address in the Anti-Cybercrime
+ * sign-in log (privacy/signin_log.ts, R2) and keys its phone lookup hash.
+ * Separate from the other keys; never rotated while lines younger than 180
+ * days exist (they could no longer be opened for a court order). The
+ * emulators use a fixed dev key.
+ */
+export const SIGNIN_LOG_KEY = defineSecret("SIGNIN_LOG_KEY");
+
 /** "fake" (answer from config/kyc.fakeResult; refused in prod) or "valify". */
 export const KYC_PROVIDER = defineString("KYC_PROVIDER", { default: "fake" });
 

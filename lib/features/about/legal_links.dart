@@ -47,6 +47,9 @@ class LegalLinks {
   Uri? get support => _page('support');
   Uri? get deleteAccount => _page('delete-account');
 
+  /// R6: the emergency contact's confirm / stop page for [token].
+  Uri? contactLink(String token) => RegExp(r'^[0-9a-f]{64}$').hasMatch(token) ? _page('ec/$token') : null;
+
   /// The support address, or null when it is not set or not an address.
   String? get email => _email.hasMatch(supportEmail.trim()) ? supportEmail.trim() : null;
 

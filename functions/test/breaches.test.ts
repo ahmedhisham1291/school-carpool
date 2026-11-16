@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { AuditEntry } from "../src/admin_panel/types";
 import { listIncidents, reportIncident, updateIncident, type BreachDeps, type BreachStore } from "../src/privacy/breach_callables";
-import { addWorkingDays, applyBreachUpdate, BreachError, breachView, newBreach, pdpcDeadline, type BreachRecord } from "../src/privacy/breaches";
+import { addWorkingDays, applyBreachUpdate, BreachError, breachView, newBreach, pdpcDeadline, type BreachRecord, breachRetainUntil, pdpcTarget, SENSITIVE_TARGET_HOURS } from "../src/privacy/breaches";
+import { BREACH_REGISTER_YEARS } from "../src/privacy/retention";
 import { DAY_MS } from "../src/privacy/retention";
 
 /**
@@ -56,6 +57,21 @@ describe("breach register: deadlines", () => {
     assert.deepEqual(pdpcDeadline(SUN, false, false), { dueAtMs: SUN + 72 * HOUR, immediate: false });
     assert.deepEqual(pdpcDeadline(SUN, true, false), { dueAtMs: SUN, immediate: true });
     assert.deepEqual(pdpcDeadline(SUN, false, true), { dueAtMs: SUN, immediate: true });
+  });
+
+  it("R15: our internal target: 24 h for children's or biometric data, at once for national security, else 72 h", () => {
+    assert.equal(SENSITIVE_TARGET_HOURS, 24);
+    assert.equal(pdpcTarget(SUN, false, true), SUN + 24 * HOUR);
+    assert.equal(pdpcTarget(SUN, true, true), SUN);
+    assert.equal(pdpcTarget(SUN, false, false), SUN + 72 * HOUR);
+    const kids = newBreach("b", input({ categories: ["children"] }), "a", SUN);
+    assert.equal(kids.targetAtMs, SUN + 24 * HOUR);
+    assert.equal(breachView(kids, SUN + 23 * HOUR).pdpcState, "now");
+    assert.equal(breachView(kids, SUN + 25 * HOUR).pdpcState, "overdue", "past the 24-hour target");
+    assert.equal(breachView(kids, SUN + 25 * HOUR).targetAtMs, SUN + 24 * HOUR);
+    // An entry written before R15 gets its target computed.
+    const { targetAtMs: _t, ...old } = kids;
+    assert.equal(breachView(old as typeof kids, SUN).targetAtMs, SUN + 24 * HOUR);
   });
 
   it("children's or biometric data makes the breach sensitive", () => {
@@ -135,6 +151,10 @@ describe("breach register: the record", () => {
     r = applyBreachUpdate(r, { action: "subjectsNotified" }, "a", SUN + DAY_MS);
     r = applyBreachUpdate(r, { action: "closed", text: "Root cause fixed" }, "a", SUN + 2 * DAY_MS);
     assert.equal(r.status, "closed");
+    // R7: kept 5 years after closing.
+    assert.equal(r.retainUntilMs, SUN + 2 * DAY_MS + 5 * 365 * DAY_MS);
+    assert.equal(breachRetainUntil(0), 5 * 365 * DAY_MS);
+    assert.equal(BREACH_REGISTER_YEARS, 5);
     assert.deepEqual(r.events.map((e) => e.action), ["reported", "contained", "pdpcNotified", "subjectsNotified", "closed"]);
     assert.throws(() => applyBreachUpdate(r, { action: "note", text: "x" }, "a", SUN + 3 * DAY_MS), BreachError, "closed is final");
   });

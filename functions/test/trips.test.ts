@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
+import { contactReplyPage, contactRequest, WindowLimiter } from "../src/trips/contact_page";
 import { TEXTS } from "../src/notifications/texts";
 import { routeFor, TYPES } from "../src/notifications/catalog";
 import { cairoToUtcMs } from "../src/schedule/cairo";
@@ -14,6 +17,8 @@ import {
   endDriverTrips,
   checkId,
   EMERGENCY_TEMPLATE,
+  EMERGENCY_INTRO_TEMPLATE,
+  answerContactLink,
   getHandoverAdults,
   hashToken,
   prepareTrip,
@@ -46,6 +51,7 @@ import {
   TripError,
   tripSettings,
   viewersOf,
+  contactMessage,
   type Stop,
 } from "../src/trips/model";
 import { FakeChatServer } from "../src/chat/server";
@@ -157,6 +163,11 @@ function harness(start = AM - 10 * MIN): Harness {
       let n = 0;
       return () => `token-${++n}-abcdefghijklmnopqrstuvwxyz`;
     })(),
+    newContactToken: (() => {
+      let n = 0;
+      return () => (++n).toString(16).padStart(64, "0");
+    })(),
+    linkBase: "https://links.example",
     roll: () => h.roll.value,
     log: () => undefined,
   };
@@ -632,7 +643,9 @@ describe("trips: quick buttons (F35) and emergency (F20)", () => {
 
   it("emergency: every carpool member (critical) and the saved contact by WhatsApp with the location", async () => {
     const h = harness();
-    await setEmergencyContact(h.deps, driver, { name: "Sara", phone: "01012345678", relation: "sibling" });
+    await setEmergencyContact(h.deps, driver, { name: "Sara", phone: "01012345678", relation: "sibling", agreed: true });
+    // Already confirmed: the usual alert (the first-message introduction is tested below, R6).
+    h.store.contacts.set(driver.uid, { ...h.store.contacts.get(driver.uid)!, status: "confirmed" });
     await startTrip(h.deps, driver, ids());
     const r = await emergency(h.deps, driver, { ...ids(), point: { lat: 30.012345, lng: 31.2 } });
     assert.equal(r.contactSent, true);
@@ -661,6 +674,65 @@ describe("trips: quick buttons (F35) and emergency (F20)", () => {
     assert.equal(await reason(setEmergencyContact(h.deps, driver, { name: "Sara", phone: "123", relation: "sibling" })), "invalid-request");
     assert.equal(await reason(setEmergencyContact(h.deps, driver, { name: "Sara", phone: "01012345678", relation: "boss" })), "invalid-request");
     assert.equal((await setEmergencyContact(h.deps, driver, { clear: true })).saved, false);
+  });
+
+  it("R6: the parent declares the contact agreed; the contact gets a link to confirm or stop", async () => {
+    const h = harness();
+    assert.equal(await reason(setEmergencyContact(h.deps, driver, { name: "Sara", phone: "01012345678", relation: "sibling" })), "contact-not-agreed");
+    const saved = await setEmergencyContact(h.deps, driver, { name: "Sara", phone: "01012345678", relation: "sibling", agreed: true });
+    const c = h.store.contacts.get(driver.uid)!;
+    assert.equal(c.status, "pending");
+    assert.match(c.token ?? "", /^[0-9a-f]{64}$/);
+    assert.equal(saved.link, `https://links.example/ec/${c.token}`);
+    assert.ok(typeof c.attestedAtMs === "number");
+    // Saving the same number again keeps the link and the answer; a new number starts over.
+    h.store.contacts.set(driver.uid, { ...c, status: "confirmed" });
+    await setEmergencyContact(h.deps, driver, { name: "Sara A", phone: "01012345678", relation: "sibling", agreed: true });
+    assert.equal(h.store.contacts.get(driver.uid)!.status, "confirmed");
+    assert.equal(h.store.contacts.get(driver.uid)!.token, c.token);
+    await setEmergencyContact(h.deps, driver, { name: "Ali", phone: "01112345678", relation: "sibling", agreed: true });
+    assert.equal(h.store.contacts.get(driver.uid)!.status, "pending");
+    assert.notEqual(h.store.contacts.get(driver.uid)!.token, c.token);
+  });
+
+  it("R6: the first alert to an unconfirmed contact introduces the parent and says how to stop; then the usual alert; a stopped contact gets nothing", async () => {
+    const h = harness();
+    await setEmergencyContact(h.deps, driver, { name: "Sara", phone: "01012345678", relation: "sibling", agreed: true });
+    const token = h.store.contacts.get(driver.uid)!.token!;
+    await startTrip(h.deps, driver, ids());
+    await emergency(h.deps, driver, { ...ids(), point: { lat: 30.012345, lng: 31.2 } });
+    assert.deepEqual(h.sent[0], {
+      to: "+201012345678",
+      template: EMERGENCY_INTRO_TEMPLATE,
+      params: ["Dina", "https://maps.google.com/?q=30.01234,31.20000", `https://links.example/ec/${token}`],
+    });
+    await emergency(h.deps, driver, ids());
+    assert.equal(h.sent[1].template, EMERGENCY_TEMPLATE, "introduced once");
+    // The contact taps "stop" on the link page: nothing more is sent.
+    assert.deepEqual(await answerContactLink(h.deps, token, "stop"), { found: true, status: "stopped", parentFirstName: "Mona" });
+    const r = await emergency(h.deps, driver, ids());
+    assert.equal(r.contactSent, false);
+    assert.equal(h.sent.length, 2);
+    // Viewing the page changes nothing; a bad token finds nothing.
+    assert.equal((await answerContactLink(h.deps, token, "view")).status, "stopped");
+    assert.equal((await answerContactLink(h.deps, "nope", "yes")).found, false);
+    assert.equal((await answerContactLink(h.deps, "f".repeat(64), "yes")).found, false);
+    assert.equal((await answerContactLink(h.deps, token, "yes")).status, "confirmed");
+    assert.equal(contactMessage({ status: "confirmed", introSent: false }), "alert");
+  });
+
+  it("R6: if the introduction template is refused (not approved yet), the alert itself still goes", async () => {
+    const h = harness();
+    await setEmergencyContact(h.deps, driver, { name: "Sara", phone: "01012345678", relation: "sibling", agreed: true });
+    const send = h.deps.whatsapp.sendTemplate.bind(h.deps.whatsapp);
+    h.deps.whatsapp.sendTemplate = async (to, template, language, params, preview) => {
+      if (template === EMERGENCY_INTRO_TEMPLATE) throw new Error("template not approved");
+      return send(to, template, language, params, preview);
+    };
+    await startTrip(h.deps, driver, ids());
+    const r = await emergency(h.deps, driver, ids());
+    assert.equal(r.contactSent, true);
+    assert.equal(h.sent.at(-1)?.template, EMERGENCY_TEMPLATE);
   });
 });
 
@@ -873,5 +945,44 @@ describe("trips: review fixes", () => {
     await endTrip(h.deps, driver, ids());
     h.clock.now += 31 * MIN;
     assert.equal(await reason(emergency(h.deps, driver, ids())), "trip-not-active");
+  });
+});
+
+describe("R6: the emergency contact's page", () => {
+  const token = "a".repeat(64);
+  it("asks first (the bare page changes nothing), escapes the name, never shows a number", () => {
+    const page = contactReplyPage({ found: true, status: "pending", parentFirstName: "<Mona>" }, token);
+    assert.ok(page.includes(`/ec/${token}/yes`) && page.includes(`/ec/${token}/stop`));
+    // Answers are buttons that POST; there is no GET link that changes anything.
+    assert.ok(page.includes(`<form method="post" action="/ec/${token}/yes">`));
+    assert.ok(!page.includes("<a "), "no links: a GET never answers");
+    assert.ok(page.includes("&lt;Mona&gt;") && !page.includes("<Mona>"));
+    assert.ok(!/\+20\d+/.test(page));
+    assert.ok(page.indexOf("أوافق") < page.indexOf("I agree"), "Arabic first");
+    assert.ok(contactReplyPage({ found: true, status: "stopped", parentFirstName: "Mona" }, token).includes("no more messages"));
+    assert.ok(contactReplyPage({ found: false, status: "pending", parentFirstName: "" }, "x").includes("not valid"));
+    const hosting = JSON.parse(readFileSync(join(__dirname, "..", "..", "..", "firebase.json"), "utf8")) as { hosting: Array<{ target: string; rewrites: Array<{ source: string; function?: { functionId: string } }> }> };
+    const links = hosting.hosting.find((h) => h.target === "links")!;
+    assert.equal(links.rewrites.find((r) => r.source === "/ec/**")?.function?.functionId, "emergencyContactReply");
+  });
+
+  it("only a POST answers; GET of /yes or /stop just shows the page; other methods are refused", () => {
+    assert.deepEqual(contactRequest("GET", `/ec/${token}`), { token, answer: "view" });
+    assert.deepEqual(contactRequest("GET", `/ec/${token}/yes`), { token, answer: "view" });
+    assert.deepEqual(contactRequest("HEAD", `/ec/${token}/stop`), { token, answer: "view" });
+    assert.deepEqual(contactRequest("POST", `/ec/${token}/yes`), { token, answer: "yes" });
+    assert.deepEqual(contactRequest("POST", `/ec/${token}/stop`), { token, answer: "stop" });
+    assert.deepEqual(contactRequest("POST", `/ec/${token}/other`), { token, answer: "view" });
+    assert.equal(contactRequest("PUT", `/ec/${token}/yes`), null);
+    assert.equal(contactRequest("DELETE", `/ec/${token}`), null);
+  });
+
+  it("limits requests per address and per instance in each window", () => {
+    const limiter = new WindowLimiter(2, 3, 60_000);
+    assert.ok(limiter.take("a", 0) && limiter.take("a", 1));
+    assert.ok(!limiter.take("a", 2), "per address");
+    assert.ok(limiter.take("b", 3));
+    assert.ok(!limiter.take("c", 4), "per instance");
+    assert.ok(limiter.take("a", 60_000), "a new window");
   });
 });

@@ -29,7 +29,7 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
   email; ID, selfie, school ID, licence and driver photos, the face
   reference and the verification case records; children, car, home
   address and exact pin; every chat message the parent wrote; devices,
-  sign-in history and push tokens; the archived routes of runs the parent
+  the sign-in list shown in the app and push tokens; the archived routes of runs the parent
   drove. A step that fails is retried by the daily job (within 24 hours)
   and reported to the admins.
 - **Safety hold, 30 days at most:** only when an open report or rating
@@ -37,8 +37,16 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
   routes wait 30 days, then are deleted whatever the state of the case.
 - **Kept, minimised and detached from the profile** (no name, phone,
   address, photo or ID number): summaries of runs shared with other
-  families (an initial; 1 year), the consent record (1 year), reports, the admin audit log (2 years), the keyed ID hash on
+  families (an initial; 1 year), the consent record (3 years, R1), reports, the admin audit log (2 years), the keyed ID hash on
   the ban list (banned accounts only).
+- **Kept because a law requires it (R2, owner decision 16 Nov 2026):** the
+  Anti-Cybercrime sign-in log (Law 175/2018 Art. 2): for each sign-in the
+  time, IP address, kind of phone, app version, the keyed device hash and
+  the mobile number (number and IP encrypted), 180 days from that
+  sign-in, also after deletion; server-only, disclosed only on a judicial
+  order. Declared under Phone Number and Device ID (purpose App
+  Functionality: security and the legal record of sign-ins); no new data
+  type and no tracking. The policy and the delete screen say so.
 - The Delete account screen, `/delete-account` and the privacy policy say
   the same. **The lawyer confirms that the kept records are the ones the
   law requires (open item B13).**
@@ -83,9 +91,9 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
 | Contact Info | Physical Address | Home location (exact for the parent, rounded about 500 m for others) and pickup points | Us; Google Maps (address search, arrival times) | Yes | No | App Functionality |
 | Health & Fitness | — | Not collected | | | | |
 | Financial Info | — | **Not collected.** No money in the app (owner decision 16 Nov 2026, docs/DECISIONS.md): rides are free volunteer turns; the wallet, Settle up (InstaPay address, payment records) and the contribution per child are switched off in every environment, so no amount, payment address, bank account or card number is collected. **If any of them is ever switched on, add "Other Financial Info" back here AND in `tool/ios/PrivacyInfo.xcprivacy` before the build ships.** | | | | |
-| Location | Precise Location | The driver's car during a run (While Using + background mode, live points deleted within 24 h; one compressed route kept 1 year, admins only); the home pin from "use my location" | Us; Google Routes (car and stops, for arrival times) | Yes | No | App Functionality |
+| Location | Precise Location | The driver's car during a run (While Using + background mode, live points deleted within 24 h; one compressed route kept 90 days after the run (R11), admins only); the home pin from "use my location" | Us; Google Routes (car and stops, for arrival times) | Yes | No | App Functionality |
 | Location | Coarse Location | City-level area that Google Analytics derives from the IP address (only after the parent said yes to usage statistics; off by default) | Google Analytics | No | No | Analytics |
-| Sensitive Info | Sensitive Info | Face images used for face matching (biometric): identity selfie as the face reference, live selfie checks, new-phone selfies | Us; Valify (when contracted) | Yes | No | App Functionality (identity, fraud prevention, child safety) |
+| Sensitive Info | Sensitive Info | Face images used for face matching (biometric): identity selfie as the face reference, live selfie checks, new-phone selfies (the verification case images are deleted 30 days after the decision, R12) | Us; Valify (when contracted) | Yes | No | App Functionality (identity, fraud prevention, child safety) |
 | Contacts | — | Not collected (the address book is never read) | | | | |
 | User Content | Emails or Text Messages | — not used (in-app chat is declared below) | | | | |
 | User Content | Photos or Videos | ID front/back, selfie, child's school ID, driver's and car licence, driver photo; chat photos | Us; Stream (chat photos); Valify (ID and selfie, when contracted) | Yes | No | App Functionality |

@@ -390,6 +390,11 @@ emulators need none of this.
    without re-hashing, the ban list depends on it):
    `openssl rand -hex 32 | firebase functions:secrets:set NATIONAL_ID_HMAC_KEY --project dev --data-file=-`
    The emulators use a fixed dev key when it is not set.
+   **Sign-in log key (R2, Law 175/2018):** encrypts the number and IP of
+   the legal sign-in log (`signInLog`); `tool/cloud_setup.sh` creates it.
+   By hand: `openssl rand -hex 32 | firebase functions:secrets:set SIGNIN_LOG_KEY --project dev --data-file=-`.
+   Never rotate it while lines younger than 180 days exist. Add the TTL
+   policy with `tool/setup_retention.sh` (`signInLog`, field `expiresAt`).
 2. **Provider settings** in `functions/.env.<alias>`: `KYC_PROVIDER=fake`
    (default; refused when `APP_ENV=prod`) or `valify` once the contract is
    signed (`VALIFY_ENABLED=true`, `VALIFY_BASE_URL`, `VALIFY_USERNAME`,

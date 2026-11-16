@@ -20,6 +20,34 @@ abstract interface class AdminFeaturesApi {
   /// One parent's settle-up records. The server logs the access with
   /// [reason] first and never returns an InstaPay address or a note.
   Future<List<AdminSettleRecord>> settleUps({required String uid, required AccessReasonCode reason});
+
+  /// R5: the launch gate (any admin).
+  Future<AdminLaunch> launch();
+
+  /// R5: opens prod to new parents ([licenceRefs]: the three PDPC licence
+  /// numbers) or closes it. Super admins with a fresh sign-in; audited.
+  Future<AdminLaunch> setLaunch({required bool pdpcLicensed, String licenceRefs = ''});
+}
+
+/// R5: production stays closed to new real parents until the PDPC
+/// licences are granted (config/launch.pdpcLicensed; staging/dev always open).
+@immutable
+class AdminLaunch {
+  const AdminLaunch({required this.pdpcLicensed, required this.signUpOpen, required this.env});
+
+  factory AdminLaunch.fromJson(Json j) => AdminLaunch(
+    pdpcLicensed: j.flag('pdpcLicensed'),
+    signUpOpen: j.flag('signUpOpen'),
+    env: j.str('env', 'prod'),
+  );
+
+  final bool pdpcLicensed;
+
+  /// New parents can sign up right now (always outside prod).
+  final bool signUpOpen;
+  final String env;
+
+  bool get isProd => env == 'prod';
 }
 
 /// One settle-up record as the admin sees it: no address, no note.
@@ -93,6 +121,7 @@ class FirebaseAdminFeaturesApi implements AdminFeaturesApi {
       yearlyChecks: f.flag('yearlyChecks'),
       settleUp: f.flag('settleUp'),
       contributions: f.flag('contributions'),
+      activityCarpools: f.flag('activityCarpools'),
     );
   }
 
@@ -108,6 +137,13 @@ class FirebaseAdminFeaturesApi implements AdminFeaturesApi {
     final Json j = await _call('adminListSettleUps', <String, Object?>{'uid': uid, 'reason': reason.name});
     return j.list('records').map(AdminSettleRecord.fromJson).toList();
   }
+
+  @override
+  Future<AdminLaunch> launch() async => AdminLaunch.fromJson(await _call('adminGetLaunch'));
+
+  @override
+  Future<AdminLaunch> setLaunch({required bool pdpcLicensed, String licenceRefs = ''}) async =>
+      AdminLaunch.fromJson(await _call('adminSetLaunch', <String, Object?>{'pdpcLicensed': pdpcLicensed, 'licenceRefs': licenceRefs}));
 }
 
 final Provider<AdminFeaturesApi> adminFeaturesApiProvider = Provider<AdminFeaturesApi>(

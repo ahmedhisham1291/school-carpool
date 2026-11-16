@@ -43,8 +43,10 @@ VerificationDraft completeDraft() => VerificationDraft(
       schoolIdPhoto: fakePhoto,
     ),
   ],
-  consent: true,
+  consentId: true,
+  consentFace: true,
   guardianConsent: true,
+  signedName: 'Mona Ahmed Hassan',
 );
 
 Account account(AccountStatus status, {VerificationSummary? verification}) => Account(
@@ -89,7 +91,13 @@ void main() {
     });
 
     test('needs consent, a child, both selfies and a valid expiry', () {
-      expect(completeDraft().copyWith(consent: false).readyToSubmit(today), isFalse);
+      // R3: one unticked box per purpose, and the typed ID name.
+      expect(completeDraft().readyToSubmit(today), isTrue);
+      expect(completeDraft().copyWith(consentId: false).readyToSubmit(today), isFalse);
+      expect(completeDraft().copyWith(consentFace: false).readyToSubmit(today), isFalse);
+      expect(completeDraft().copyWith(signedName: 'Mona').readyToSubmit(today), isFalse);
+      expect(completeDraft().copyWith(signedName: 'Hoda Hassan').readyToSubmit(today), isFalse, reason: 'must match the ID name');
+      expect(completeDraft().copyWith(signedName: 'منى حسن').readyToSubmit(today), isFalse);
       // The guardian's consent for the children is separate and required too.
       expect(completeDraft().copyWith(guardianConsent: false).readyToSubmit(today), isFalse);
       expect(completeDraft().copyWith(children: <ChildDraft>[]).readyToSubmit(today), isFalse);
@@ -99,6 +107,24 @@ void main() {
       );
       expect(completeDraft().copyWith(idExpiry: DateTime(2026, 11, 12)).detailsComplete(today), isFalse);
       expect(completeDraft().copyWith(firstName: 'M0na').detailsComplete(today), isFalse);
+    });
+
+    test('R4: a child of 15+ (age or grade 10 to 12) needs the "my child agrees" box', () {
+      final ChildDraft teen = completeDraft().children.single;
+      final VerificationDraft d = completeDraft().copyWith(
+        children: <ChildDraft>[
+          ChildDraft(ref: teen.ref, firstName: 'Omar', age: 15, grade: Grade.g9, schoolId: 'nile', schoolName: 'Nile School', schoolIdPhoto: fakePhoto),
+        ],
+      );
+      expect(d.hasTeen, isTrue);
+      expect(d.readyToSubmit(today), isFalse);
+      final VerificationDraft agreed = d.copyWith(teenAgreement: true);
+      expect(agreed.readyToSubmit(today), isTrue);
+      expect((agreed.toPayload()['consents']! as Map<String, String>)['teenAgreement'], '2026-11-17');
+      expect(const ChildDraft(ref: 'c2', age: 14, grade: Grade.g10).isTeen, isTrue, reason: 'grade 10 counts');
+      expect(const ChildDraft(ref: 'c2', age: 14, grade: Grade.g9).isTeen, isFalse);
+      expect(completeDraft().hasTeen, isFalse);
+      expect((completeDraft().copyWith(teenAgreement: true).toPayload()['consents']! as Map<String, String>).containsKey('teenAgreement'), isFalse);
     });
 
     test('driving details are needed only when driving', () {
@@ -128,7 +154,9 @@ void main() {
       expect(identity['idExpiry'], '2030-05-01');
       expect(identity['livenessChallenge'], 'right');
       expect(payload['driver'], isNull);
-      expect(payload['consents'], <String, String>{'id': '2026-11-16', 'face': '2026-11-16', 'childData': '2026-11-16'});
+      // R3: only the ticked boxes, each with its version (2026-11-17: signed).
+      expect(payload['consents'], <String, String>{'id': '2026-11-17', 'face': '2026-11-17', 'childData': '2026-11-17'});
+      expect(completeDraft().copyWith(consentFace: false).toPayload()['consents'], <String, String>{'id': '2026-11-17', 'childData': '2026-11-17'});
       final List<Map<String, Object?>> children = payload['children']! as List<Map<String, Object?>>;
       expect(children.single, <String, Object?>{
         'ref': 'c1',

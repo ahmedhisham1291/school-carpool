@@ -10,7 +10,7 @@ import type {
   TripReport,
   TripStore,
 } from "../../src/trips/flow";
-import type { CarCard, EmergencyContact, EtaRecord, HandoverAdult, TripCheck, TripPoint, TripRecord, TripStops } from "../../src/trips/model";
+import type { CarCard, ContactStatus, EmergencyContact, EtaRecord, HandoverAdult, TripCheck, TripPoint, TripRecord, TripStops } from "../../src/trips/model";
 
 const clone = <T>(v: T): T => (v === undefined ? v : (JSON.parse(JSON.stringify(v)) as T));
 
@@ -131,6 +131,18 @@ export class MemoryTripStore implements TripStore {
   async putEmergencyContact(uid: string, c: EmergencyContact | null) {
     if (c) this.contacts.set(uid, c);
     else this.contacts.delete(uid);
+  }
+  async contactByToken(token: string) {
+    for (const [uid, contact] of this.contacts) if (contact.token === token) return { uid, contact, parentFirstName: "Mona" };
+    return null;
+  }
+  async setContactStatus(uid: string, status: ContactStatus) {
+    const c = this.contacts.get(uid);
+    if (c) this.contacts.set(uid, { ...c, status });
+  }
+  async markContactIntroduced(uid: string) {
+    const c = this.contacts.get(uid);
+    if (c) this.contacts.set(uid, { ...c, introSent: true });
   }
   async addEmergency(carpoolId: string, e: { driverUid: string; point: LatLng | null; expiresAtMs: number }) {
     const id = `em${this.emergencies.length + 1}`;

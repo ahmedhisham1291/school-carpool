@@ -357,14 +357,45 @@ class EmergencyAlert {
 /// emergencyContacts/{uid} (F20): the parent's own contact.
 @immutable
 class EmergencyContact {
-  const EmergencyContact({required this.name, required this.phone, required this.relation});
+  const EmergencyContact({
+    required this.name,
+    required this.phone,
+    required this.relation,
+    this.status = ContactStatus.pending,
+    this.token = '',
+  });
 
-  factory EmergencyContact.fromDoc(Map<String, dynamic> d) =>
-      EmergencyContact(name: _text(d['name']), phone: _text(d['phone']), relation: Relation.fromName(d['relation']));
+  factory EmergencyContact.fromDoc(Map<String, dynamic> d) => EmergencyContact(
+    name: _text(d['name']),
+    phone: _text(d['phone']),
+    relation: Relation.fromName(d['relation']),
+    status: ContactStatus.fromName(d['status']),
+    token: _text(d['token']),
+  );
 
   final String name;
   final String phone;
   final Relation relation;
+
+  /// R6: the contact's own answer on the link page.
+  final ContactStatus status;
+
+  /// R6: the link token (`/ec/<token>`) the parent sends to the contact.
+  final String token;
+}
+
+/// R6 (server: CONTACT_STATUSES): pending until the contact confirms on
+/// the link; stopped when the contact asked for no messages.
+enum ContactStatus {
+  pending,
+  confirmed,
+  stopped;
+
+  static ContactStatus fromName(Object? v) => switch (v) {
+    'confirmed' => ContactStatus.confirmed,
+    'stopped' => ContactStatus.stopped,
+    _ => ContactStatus.pending,
+  };
 }
 
 enum TripFailureKind {
@@ -384,6 +415,9 @@ enum TripFailureKind {
   wrongState,
   noChildren,
   childrenOnBoard,
+
+  /// R6: the parent did not declare that the contact agreed.
+  contactNotAgreed,
   invalid,
   locationOff,
   unknown,
@@ -420,6 +454,7 @@ class TripFailure implements AppFailure {
         'wrong-state' => TripFailureKind.wrongState,
         'no-children' => TripFailureKind.noChildren,
         'children-on-board' => TripFailureKind.childrenOnBoard,
+        'contact-not-agreed' => TripFailureKind.contactNotAgreed,
         'invalid-request' || 'not-found' || 'no-contact' => TripFailureKind.invalid,
         _ => switch (error.code) {
           'unavailable' || 'deadline-exceeded' => TripFailureKind.offline,
@@ -460,6 +495,7 @@ class TripFailure implements AppFailure {
     TripFailureKind.wrongState => l10n.tripErrorWrongStep,
     TripFailureKind.noChildren => l10n.tripErrorNoChildren,
     TripFailureKind.childrenOnBoard => l10n.tripErrorOnBoard,
+    TripFailureKind.contactNotAgreed => l10n.emergencyContactAgreeError,
     TripFailureKind.locationOff => l10n.tripErrorLocationOff,
     TripFailureKind.invalid || TripFailureKind.unknown => l10n.stateErrorBody,
   };

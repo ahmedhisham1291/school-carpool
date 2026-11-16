@@ -72,7 +72,29 @@ class LegalPagesTest(unittest.TestCase):
             for must in ("6 working days", "6 أيام عمل", "72 hours", "Storage abroad", "Articles 14 to 16", "Data protection officer",
                          "mailto:help@schoolcarpool.org", "180 days", "explicit consent", "parent or guardian"):
                 self.assertIn(must, privacy)
-            self.assertNotIn("30 days", privacy.replace("up to 30 days", ""))
+            self.assertNotIn("30 days", privacy.replace("up to 30 days", "").replace("30 days after the review decision", ""))
+            # R1 (owner, 16 Nov 2026): proof of consent 3 years after closure.
+            self.assertIn("then 3 years after it closes, as proof of consent", privacy)
+            self.assertIn("ثم 3 سنوات بعد إغلاقه", privacy)
+            deletion = (out / "delete-account.html").read_text(encoding="utf-8")
+            self.assertIn("as proof of consent: 3 years after deletion", deletion)
+            self.assertNotIn("as proof of consent: 1 year", deletion)
+            # R3: written consent (typed name + Face ID / passcode) and a copy on the Privacy screen.
+            self.assertIn("your full name typed (it must match your ID)", privacy)
+            self.assertIn("open and download a copy on the Privacy screen", privacy)
+            # R12: case images 30 days after the decision.
+            self.assertIn("deleted 30 days after the review decision", privacy)
+            # R11: routes 90 days after the run.
+            self.assertIn("a compressed route (90 days after the run)", privacy)
+            # R6: emergency contact opt-in.
+            self.assertIn("send them, from your phone, a link to confirm or say no", privacy)
+            # R4: children 15 to 18.
+            self.assertIn("the child was told what is shared and agrees", privacy)
+            # R2 (owner, 16 Nov 2026): the legal sign-in log survives deletion, 180 days from each sign-in.
+            self.assertIn("also after you delete your account", privacy)
+            self.assertIn("disclosed only on an order of a competent judicial authority", privacy)
+            self.assertNotIn("deleted with the account if you delete it sooner", privacy)
+            self.assertIn("180 days from each sign-in", deletion)
             terms = (out / "terms.html").read_text(encoding="utf-8")
             for must in ("Arabic text prevails", "النص العربي", "Law No. 87 of 2018", "gross negligence", "compulsory insurance"):
                 self.assertIn(must, terms)
@@ -87,6 +109,27 @@ class LegalPagesTest(unittest.TestCase):
             # The invite page is still there for /c/<code>.
             self.assertIn("carpool invite", (out / "invite.html").read_text(encoding="utf-8"))
             self.assertIn("https://apps.apple.com/app/id1234567890", (out / "index.html").read_text(encoding="utf-8"))
+
+    def test_terms_r8_activity_incidents_insurance_and_address(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool LLC",
+                             operator_address="12 Nile St, Zamalek, Cairo")
+            terms = (out / "terms.html").read_text(encoding="utf-8")
+            for must in ("same activity at one venue", "النشاط نفسه", "no public ride offers", "within 15 days of the accident",
+                         "خلال 15 يومًا", "Law No. 155 of 2024, Article 51", "lawful request or a judicial order",
+                         "School Carpool LLC, 12 Nile St, Zamalek, Cairo", "School Carpool LLC، 12 Nile St"):
+                self.assertIn(must, terms)
+            for name in ("privacy", "support"):
+                self.assertIn("12 Nile St, Zamalek, Cairo", (out / f"{name}.html").read_text(encoding="utf-8"), name)
+            privacy = (out / "privacy.html").read_text(encoding="utf-8")
+            self.assertIn(links_site.document_versions()["privacy"], privacy)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool LLC")
+            self.assertNotIn("__ADDRESS", (out / "terms.html").read_text(encoding="utf-8"), "no address: the name alone")
+            with self.assertRaises(SystemExit):
+                self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool LLC", require_address=True)
+            with self.assertRaises(SystemExit):
+                self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool LLC", operator_address="<b>")
 
     def test_data_protection_officer(self):
         with tempfile.TemporaryDirectory() as tmp:

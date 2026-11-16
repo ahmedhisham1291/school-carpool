@@ -3,7 +3,9 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_carpool/config/app_version.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
+import 'package:school_carpool/features/auth/consent_signature.dart';
 import 'package:school_carpool/features/auth/install_id.dart';
 import 'package:school_carpool/features/auth/legal_documents.dart';
 import 'package:school_carpool/features/auth/session.dart';
@@ -41,8 +43,9 @@ abstract interface class AuthRepository {
   Future<bool> confirmEmail();
 
   /// Records acceptance of the terms, privacy policy and code of conduct,
-  /// and the optional WhatsApp alerts choice.
-  Future<void> acceptConsents({required bool whatsapp});
+  /// the signed storage-abroad consent (R3) and the optional WhatsApp
+  /// alerts choice.
+  Future<void> acceptConsents({required bool whatsapp, required ConsentSignature signature});
 
   Future<void> updateLanguage(String languageCode);
 
@@ -119,6 +122,8 @@ class FirebaseAuthRepository implements AuthRepository {
       'language': language,
       // Prompt 12: shown in the parent's list of phones.
       'platform': platformName(),
+      // R2: the sign-in log the Anti-Cybercrime Law requires (no personal data).
+      'appVersion': appVersionLabel(),
     });
     final Object? token = data['token'];
     if (token is! String || token.isEmpty) {
@@ -150,10 +155,11 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> acceptConsents({required bool whatsapp}) async {
+  Future<void> acceptConsents({required bool whatsapp, required ConsentSignature signature}) async {
     await _call('acceptConsents', <String, Object?>{
       'documents': LegalDocuments.required,
       'whatsapp': whatsapp,
+      'signature': signature.toPayload(),
     });
   }
 

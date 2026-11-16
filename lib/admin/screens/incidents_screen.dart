@@ -220,7 +220,12 @@ class _IncidentCard extends StatelessWidget {
                   label: l10n.incidentPdpcBy,
                   value: i.pdpcNotifiedAt != null
                       ? adminDateTime(context, i.pdpcNotifiedAt)
-                      : (i.immediate ? l10n.incidentImmediately : adminDateTime(context, i.pdpcDueAt)),
+                      : (i.immediate
+                            // R15: "immediately", with our 24-hour target for children's or biometric data.
+                            ? (i.targetAt != null && i.targetAt!.isAfter(i.awareAt)
+                                  ? l10n.incidentImmediatelyBy(adminDateTime(context, i.targetAt))
+                                  : l10n.incidentImmediately)
+                            : adminDateTime(context, i.pdpcDueAt)),
                 ),
               ),
               AppStatusBadge(key: Key('incident.${i.id}.pdpc'), label: pdpcLabel, tone: pdpcTone),

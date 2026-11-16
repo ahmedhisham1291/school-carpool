@@ -77,6 +77,8 @@ export class FirestoreVerificationStore implements VerificationStore {
       emailVerified: data.emailVerified === true,
       termsAccepted: data.termsAcceptedAt != null,
       caseOpen: verification?.status === "pending",
+      firstName: typeof data.firstName === "string" ? data.firstName : null,
+      lastName: typeof data.lastName === "string" ? data.lastName : null,
     };
   }
 
@@ -148,6 +150,8 @@ export class FirestoreVerificationStore implements VerificationStore {
         grade: child.grade,
         schoolId: child.schoolId,
         schoolName: child.schoolName,
+        // R4: the guardian declared the 15+ child was told and agrees (teenAgreement consent).
+        teenAgreed: child.teen === true,
         status: "pending",
         schoolIdChecked: false,
         reasonCode: null,
@@ -183,15 +187,21 @@ export class FirestoreVerificationStore implements VerificationStore {
       // Admin search by name (F14): normalized full name and its words.
       Object.assign(userUpdate, nameSearchFields(c.identity.firstName, c.identity.lastName));
     }
+    // R3: the typed names (deleted with the user record); the kept consent records hold only a keyed hash.
+    if (write.signedName) {
+      for (const type of write.consents) userUpdate[`signedNames.${type}`] = write.signedName;
+    }
     tx.update(userRef, userUpdate);
 
     for (const type of write.consents) {
+      const signature = write.signatures[type];
       tx.create(userRef.collection("consents").doc(), {
         type,
         version: VERIFICATION_CONSENT_VERSIONS[type],
         acceptedAt: now,
         withdrawnAt: null,
         source: "verification",
+        ...(signature ? { signature } : {}),
       });
     }
     });
@@ -385,6 +395,17 @@ export class FirestoreVerificationStore implements VerificationStore {
     const snap = await this.db
       .collection(VERIFICATIONS)
       .where("purgeAt", "<=", Timestamp.fromMillis(nowMs))
+      .limit(limit)
+      .get();
+    return snap.docs.map((doc) => ({ id: doc.id, uid: String(doc.get("uid")), status: String(doc.get("status") ?? "") }));
+  }
+
+  async decidedCasesWithImages(decidedBeforeMs: number, limit: number): Promise<Array<{ id: string; uid: string; status: string }>> {
+    const snap = await this.db
+      .collection(VERIFICATIONS)
+      .where("status", "in", ["approved", "rejected"])
+      .where("imagesDeletedAt", "==", null)
+      .where("decidedAt", "<=", Timestamp.fromMillis(decidedBeforeMs))
       .limit(limit)
       .get();
     return snap.docs.map((doc) => ({ id: doc.id, uid: String(doc.get("uid")), status: String(doc.get("status") ?? "") }));

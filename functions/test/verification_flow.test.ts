@@ -15,6 +15,7 @@ import {
   type VerificationDeps,
 } from "../src/verification/flow";
 import { thumbPath } from "../src/privacy/photos";
+import { ID_IMAGE_DAYS_AFTER_DECISION } from "../src/privacy/retention";
 import { FakeKycProvider, type KycResult } from "../src/verification/kyc";
 import { nationalIdHash } from "../src/verification/national_id";
 import {
@@ -24,12 +25,17 @@ import {
   parseSubmission,
   VERIFICATION_CONSENT_VERSIONS,
   VerificationError,
+  ageOn,
+  isTeen,
 } from "../src/verification/submission";
 import { MemoryClaims, MemoryFiles, MemoryVerificationStore } from "./helpers/memory_verification";
+import { SignatureError } from "../src/auth/signature";
 
 const KEY = "test-national-id-key";
 const NOW = Date.parse("2026-11-13T10:00:00Z");
 const NID = "29001150123456";
+
+const SIGNED = { fullName: "Mona Hassan", method: "deviceAuth", deviceId: "0123456789abcdef", platform: "ios", appVersion: "1.0.0+1", language: "ar" };
 
 function submission(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -43,6 +49,8 @@ function submission(overrides: Record<string, unknown> = {}): Record<string, unk
     children: [{ ref: "c1", firstName: "Omar", age: 8, grade: "g3", schoolId: "nile", schoolName: "Nile School" }],
     driver: null,
     consents: { ...VERIFICATION_CONSENT_VERSIONS },
+    // R3: the written signature (the typed ID name and a device check).
+    signature: SIGNED,
     ...overrides,
   };
 }
@@ -242,7 +250,7 @@ describe("decideVerification", () => {
     return (await submitVerification(deps, "alice", submission({ driver }))).caseId;
   }
 
-  it("approve: verified status, claim set, children and vehicle approved, images kept while the account is active", async () => {
+  it("approve: verified status, claim set, children and vehicle approved, images kept 30 days after the decision (R12)", async () => {
     const caseId = await submitted();
     await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
     assert.equal(store.users.get("alice")?.status, "verified");
@@ -250,7 +258,7 @@ describe("decideVerification", () => {
     assert.ok([...store.children.values()].every((c) => c.status === "approved"));
     assert.equal(store.vehicles.get("alice")?.status, "approved");
     // Prompt 12 (owner decision): no purge date; deleted 1 year after the account closes.
-    assert.equal(store.cases.get(caseId)?.purgeAtMs, null);
+    assert.equal(store.cases.get(caseId)?.purgeAtMs, clock + 30 * DAY_MS, "R12: images go 30 days after the decision");
     assert.deepEqual(store.audit.at(-1), { actorUid: "admin1", action: "verification.approved", target: `verifications/${caseId}` });
   });
 
@@ -342,6 +350,84 @@ describe("decideVerification", () => {
   });
 });
 
+describe("written consent (R3)", () => {
+  it("each consent is recorded with the signature; the typed name only on the user record", async () => {
+    uploadAll("alice");
+    await submitVerification(deps, "alice", submission());
+    const mine = store.consents.filter((c) => c.uid === "alice");
+    assert.deepEqual(mine.map((c) => c.type), ["id", "face", "childData"], "separate records per purpose");
+    for (const c of mine) {
+      const sig = c.signature as Record<string, unknown>;
+      assert.equal(sig.method, "deviceAuth");
+      assert.equal(sig.nameMatched, true);
+      assert.match(String(sig.textHash), /^[0-9a-f]{64}$/);
+      assert.ok(!JSON.stringify(sig).includes("Mona"), "no name in the kept record");
+    }
+    assert.notEqual((mine[0].signature as Record<string, unknown>).textHash, (mine[1].signature as Record<string, unknown>).textHash, "each its own text");
+    assert.equal(store.signedNames.get("alice"), "Mona Hassan");
+  });
+
+  it("the typed name must match the ID name (normalised); longer Egyptian names are fine", async () => {
+    uploadAll("alice");
+    await assert.rejects(
+      submitVerification(deps, "alice", submission({ signature: { ...SIGNED, fullName: "Hoda Ali" } })),
+      (e: unknown) => e instanceof SignatureError && e.reason === "signature-name-mismatch",
+    );
+    await submitVerification(deps, "alice", submission({ signature: { ...SIGNED, fullName: "mona  ahmed HASSAN" } }));
+  });
+
+  it("no signature, a one-word name, or an old sign-in without a phone passcode is refused", async () => {
+    uploadAll("alice");
+    await assert.rejects(submitVerification(deps, "alice", submission({ signature: undefined })), (e: unknown) => e instanceof SignatureError && e.reason === "signature-required");
+    await assert.rejects(submitVerification(deps, "alice", submission({ signature: { ...SIGNED, fullName: "Mona" } })), (e: unknown) => e instanceof SignatureError && e.reason === "signature-name");
+    const recent = { ...SIGNED, method: "recentSignIn" };
+    await assert.rejects(
+      submitVerification(deps, "alice", submission({ signature: recent }), (NOW - 11 * 60_000) / 1000),
+      (e: unknown) => e instanceof SignatureError && e.reason === "reauth-required",
+    );
+    await submitVerification(deps, "alice", submission({ signature: recent }), (NOW - 60_000) / 1000);
+    assert.equal((store.consents.find((c) => c.uid === "alice")?.signature as Record<string, unknown>).method, "recentSignIn");
+  });
+});
+
+describe("children 15 to 18 (R4)", () => {
+  const teen = { ref: "c1", firstName: "Omar", age: 15, grade: "g9", schoolId: "nile", schoolName: "Nile School" };
+  const { teenAgreement: _t, ...withoutTeen } = VERIFICATION_CONSENT_VERSIONS;
+
+  it("a child of 15 or older needs the guardian's 'my child was told and agrees' declaration", async () => {
+    uploadAll("alice");
+    await assert.rejects(submitVerification(deps, "alice", submission({ children: [teen], consents: withoutTeen })), expectReason("outdated-consent"));
+    await submitVerification(deps, "alice", submission({ children: [teen] }));
+    const mine = store.consents.filter((c) => c.uid === "alice").map((c) => c.type);
+    assert.deepEqual(mine, ["id", "face", "childData", "teenAgreement"], "its own signed record");
+    assert.ok(store.consents.every((c) => c.signature), "signed like the others");
+  });
+
+  it("15+ from the date of birth, the age or the grade (the higher wins); younger children need no declaration", () => {
+    const today = "2026-11-16";
+    assert.equal(isTeen({ age: 14, grade: "g9", birthDate: "2011-11-16" }, today), true, "15 today by birth date");
+    assert.equal(isTeen({ age: 14, grade: "g9", birthDate: "2011-11-17" }, today), false, "15 tomorrow");
+    assert.equal(isTeen({ age: 15, grade: "g8", birthDate: null }, today), true);
+    assert.equal(isTeen({ age: 14, grade: "g10", birthDate: null }, today), true, "grade 10 to 12");
+    assert.equal(isTeen({ age: 8, grade: "g3", birthDate: null }, today), false);
+    assert.equal(ageOn("2011-02-28", "2026-02-27"), 14);
+    const parsed = parseSubmission(submission({ consents: withoutTeen }), { today, verified: false });
+    assert.deepEqual(parsed.consents, ["id", "face", "childData"]);
+    // A birth date that disagrees with the age by more than a year is refused.
+    assert.throws(() => parseSubmission(submission({ children: [{ ...teen, birthDate: "2020-01-01" }] }), { today, verified: false }), expectReason("invalid-child"));
+    assert.throws(() => parseSubmission(submission({ children: [{ ...teen, birthDate: "2011-13-01" }] }), { today, verified: false }), expectReason("invalid-child"));
+    assert.equal(parseSubmission(submission({ children: [{ ...teen, birthDate: "2011-06-01" }] }), { today, verified: false }).children[0].birthDate, "2011-06-01");
+  });
+
+  it("the birth date is not kept; the child record says the 15+ child agreed", async () => {
+    uploadAll("alice");
+    const { caseId } = await submitVerification(deps, "alice", submission({ children: [{ ...teen, birthDate: "2011-06-01" }] }));
+    const child = store.cases.get(caseId)!.children[0];
+    assert.equal(child.teen, true);
+    assert.ok(!("birthDate" in child), "only used for the check");
+  });
+});
+
 describe("verified parent updates (F3)", () => {
   async function verifiedAlice(): Promise<string> {
     uploadAll("alice");
@@ -360,6 +446,7 @@ describe("verified parent updates (F3)", () => {
         { ref: "c3", childId, firstName: "Omar", age: 9, grade: "g4", schoolId: "nile", schoolName: "Nile School" },
       ],
       consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
+      signature: SIGNED,
     });
     assert.equal(store.children.get(childId)?.status, "pending");
     assert.equal(store.users.get("alice")?.status, "verified");
@@ -385,6 +472,7 @@ describe("verified parent updates (F3)", () => {
       submitVerification(deps, "carol", {
         children: [{ ref: "c1", childId, firstName: "Omar", age: 9, grade: "g4", schoolId: "nile", schoolName: "Nile School" }],
         consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
+        signature: SIGNED,
       }),
       expectReason("not-found"),
     );
@@ -437,42 +525,54 @@ describe("the child's school (F4)", () => {
 });
 
 describe("purgeVerificationImages (retention job)", () => {
-  it("Prompt 12: keeps the images of decided cases (approved and rejected) while the account is active", async () => {
+  it("R12: the images of an approved case go 30 days after the decision; result, ID hash and expiry stay", async () => {
     uploadAll("alice");
     const { caseId } = await submitVerification(deps, "alice", submission());
     const prefix = casePrefix("alice", caseId);
     assert.equal((await files.list(prefix)).length, 5);
-    clock = NOW + 30 * DAY_MS;
+    clock = NOW + 3 * DAY_MS;
     await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
-    clock += 400 * DAY_MS;
+    assert.equal(ID_IMAGE_DAYS_AFTER_DECISION, 30);
+    files.put(thumbPath(`${prefix}id_front.jpg`)!, "thumb");
+    clock += 29 * DAY_MS;
     assert.deepEqual(await purgeVerificationImages(deps), { cases: 0, files: 0 });
-    assert.equal((await files.list(prefix)).length, 5);
-    // A decided case opens only with a stated reason, which is logged (Prompt 12).
+    // Until then a decided case opens only with a stated reason, which is logged (Prompt 12).
     await assert.rejects(openVerificationCase(deps, "admin1", { caseId }), expectReason("reason-required"));
-    await assert.rejects(openVerificationCase(deps, "admin1", { caseId, reason: "curious" }), expectReason("reason-required"));
     const view = await openVerificationCase(deps, "admin1", { caseId, reason: "investigation" });
     assert.equal(Object.keys(view.images).length, 5);
-    assert.deepEqual(view.thumbs, {}, "no thumbnails made in this test");
+    clock += DAY_MS;
+    assert.deepEqual(await purgeVerificationImages(deps), { cases: 1, files: 5 });
+    assert.equal((await files.list(prefix)).length, 0);
+    assert.equal(await files.exists(thumbPath(`${prefix}id_front.jpg`)!), false, "the admin thumbnail goes too");
+    const kept = store.cases.get(caseId)!;
+    assert.equal(kept.status, "approved");
+    assert.equal(kept.imagesDeleted, true);
+    assert.ok(kept.nationalIdHash, "the keyed ID hash stays");
+    assert.equal(kept.identity?.idExpiry, "2030-05-01", "the expiry stays");
+    assert.equal(store.nationalIds.get(nationalIdHash(KEY, NID)), "alice");
   });
 
-  it("Prompt 12: rejected cases keep their images too", async () => {
+  it("R12: rejected cases lose their images 30 days after the decision too", async () => {
     uploadAll("alice");
     const { caseId } = await submitVerification(deps, "alice", submission());
     await decideVerification(deps, "admin1", { caseId, decision: "reject", reasonCode: "selfie_mismatch" });
     clock += 30 * DAY_MS;
     await purgeVerificationImages(deps);
-    assert.equal((await files.list(casePrefix("alice", caseId))).length, 5);
+    assert.equal((await files.list(casePrefix("alice", caseId))).length, 0);
   });
 
-  it("Prompt 12: an old purge date on a decided case (set before the owner's decision) is cleared, not acted on", async () => {
+  it("R12: cases decided before R12 (no date) are found by their decision time; a case waiting for review is never touched", async () => {
     uploadAll("alice");
     const { caseId } = await submitVerification(deps, "alice", submission());
     await decideVerification(deps, "admin1", { caseId, decision: "approve", nameCheck: "match" });
-    store.cases.get(caseId)!.purgeAtMs = clock; // as written by the Prompt 3 code
-    clock += DAY_MS;
-    assert.deepEqual(await purgeVerificationImages(deps), { cases: 0, files: 0 });
-    assert.equal(store.cases.get(caseId)?.purgeAtMs, null);
-    assert.equal((await files.list(casePrefix("alice", caseId))).length, 5);
+    store.cases.get(caseId)!.purgeAtMs = null; // as written by the Prompt 12 code
+    clock += 31 * DAY_MS;
+    assert.deepEqual(await purgeVerificationImages(deps), { cases: 1, files: 5 });
+    uploadAll("bob");
+    const waiting = await submitVerification(deps, "bob", submission({ identity: { firstName: "Mona", lastName: "Hassan", nationalId: "29001150123464", idExpiry: "2030-05-01", livenessChallenge: "left" } }));
+    store.cases.get(waiting.caseId)!.purgeAtMs = clock; // an odd date on an open case
+    await purgeVerificationImages(deps);
+    assert.equal((await files.list(casePrefix("bob", waiting.caseId))).length, 5);
   });
 
   it("removes old uploads never submitted and orphaned case folders, keeps fresh ones", async () => {
@@ -559,6 +659,7 @@ describe("claim before status (review fix)", () => {
     const update = await submitVerification(deps, "alice", {
       children: [{ ref: "c2", firstName: "Laila", age: 5, grade: "kg2", schoolId: "nile", schoolName: "Nile School" }],
       consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
+      signature: SIGNED,
     });
     await decideVerification(deps, "admin1", { caseId: update.caseId, decision: "approve", nameCheck: "match" });
     assert.deepEqual(store.events, ["status:unchanged"]);

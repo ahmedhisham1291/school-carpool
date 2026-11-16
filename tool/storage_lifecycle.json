@@ -59,7 +59,7 @@
         "type": "Delete"
       },
       "condition": {
-        "age": 400,
+        "age": 120,
         "matchesPrefix": [
           "routeArchive/"
         ]

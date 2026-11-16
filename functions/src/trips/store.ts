@@ -16,8 +16,10 @@ import { CHILDREN, VEHICLES } from "../verification/store";
 import { usableVehicle } from "../verification/vehicle";
 import type { CarpoolPlace, HandoverEntry, TripAccount, TripChange, TripReport, TripStore } from "./flow";
 import {
+  CONTACT_STATUSES,
   QUICK_KINDS,
   RELATIONS,
+  type ContactStatus,
   type CarCard,
   type EmergencyContact,
   type EtaRecord,
@@ -42,6 +44,19 @@ export const TRIP_STOPS = "tripStops";
 export const TRIP_CHECKS = "tripChecks";
 export const HANDOVER_ADULTS = "handoverAdults";
 export const EMERGENCY_CONTACTS = "emergencyContacts";
+
+function contactFrom(d: DocumentData): EmergencyContact {
+  const status = CONTACT_STATUSES.includes(d.status) ? (d.status as ContactStatus) : "pending";
+  return {
+    name: text(d.name),
+    phone: text(d.phone),
+    relation: relation(d.relation),
+    status,
+    token: typeof d.token === "string" ? d.token : null,
+    introSent: d.introSent === true,
+    attestedAtMs: d.attestedAt instanceof Timestamp ? d.attestedAt.toMillis() : null,
+  };
+}
 export const EMERGENCIES = "emergencies";
 export const TRIP_LIMITS = "tripLimits";
 
@@ -398,13 +413,33 @@ export class FirestoreTripStore implements TripStore {
   async emergencyContact(uid: string): Promise<EmergencyContact | null> {
     const snap = await this.db.collection(EMERGENCY_CONTACTS).doc(uid).get();
     if (!snap.exists || typeof snap.get("phone") !== "string") return null;
-    return { name: text(snap.get("name")), phone: text(snap.get("phone")), relation: relation(snap.get("relation")) };
+    return contactFrom(snap.data() ?? {});
   }
 
   async putEmergencyContact(uid: string, contact: EmergencyContact | null, nowMs: number): Promise<void> {
     const ref = this.db.collection(EMERGENCY_CONTACTS).doc(uid);
-    if (contact) await ref.set({ ...contact, updatedAt: ts(nowMs) });
-    else await ref.delete();
+    if (!contact) {
+      await ref.delete();
+      return;
+    }
+    const { attestedAtMs, ...rest } = contact;
+    await ref.set({ ...rest, attestedAt: attestedAtMs ? ts(attestedAtMs) : null, ownerUid: uid, updatedAt: ts(nowMs) });
+  }
+
+  async contactByToken(token: string): Promise<{ uid: string; contact: EmergencyContact; parentFirstName: string } | null> {
+    const snap = await this.db.collection(EMERGENCY_CONTACTS).where("token", "==", token).limit(1).get();
+    const doc = snap.docs[0];
+    if (!doc) return null;
+    const user = await this.db.collection(USERS).doc(doc.id).get();
+    return { uid: doc.id, contact: contactFrom(doc.data()), parentFirstName: text(user.get("firstName")) };
+  }
+
+  async setContactStatus(uid: string, status: ContactStatus, nowMs: number): Promise<void> {
+    await this.db.collection(EMERGENCY_CONTACTS).doc(uid).update({ status, answeredAt: ts(nowMs), updatedAt: ts(nowMs) });
+  }
+
+  async markContactIntroduced(uid: string): Promise<void> {
+    await this.db.collection(EMERGENCY_CONTACTS).doc(uid).update({ introSent: true });
   }
 
   async addEmergency(

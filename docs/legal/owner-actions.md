@@ -34,8 +34,14 @@ docs/legal/egypt-legal-review.md. **This is not legal advice: take steps 1 to
      encryption, private bucket, admin access log, App Check), the
      retention table, the DPO.
    - The PDPC decides within 90 working days of a complete file; no answer
-     means refused. **Ask the lawyer (question 1.2) whether the pilot may
-     start after filing.** Keep the application numbers.
+     means refused. Keep the application numbers.
+   - **Prod stays closed to new real parents until all three licences are
+     granted (R5, owner decision 16 Nov 2026).** The app enforces it:
+     `config/launch.pdpcLicensed` is off by default; a new number in prod
+     sees "Opening soon". When the three licence decisions arrive, a super
+     admin opens Admin panel > Settings > Launch, switches "PDPC licences
+     granted" on and types the three licence numbers (audited). Staging
+     and TestFlight with testers and fake children work meanwhile.
 5. **Insurance.** Every driving parent must have a valid driving licence,
    a private car licence and the car's compulsory insurance (it covers
    death and injury up to EGP 100,000 under Law 155/2024). Advise parents
@@ -43,9 +49,22 @@ docs/legal/egypt-legal-review.md. **This is not legal advice: take steps 1 to
    comprehensive cover and a passenger personal-accident policy. The app
    never sells insurance and never takes a referral fee. Ask the lawyer
    question 2.3.
-6. **The pilot school.** Tell the school about the pilot and ask whether it
-   has rules on parents carrying other pupils (question 3.1); keep its
-   answer.
+6. **The pilot school: a written no-objection (answers.md 3.1).** Send the
+   school a short letter (Arabic): the app is a free tool for its pupils'
+   parents to share school runs by turns in their own cars; the school
+   does not run, check or endorse it; ask whether it has rules on parents
+   carrying other pupils or on the gate, and ask for its **written
+   no-objection**. Keep the signed reply with the company records. Do not
+   start the pilot at that school without it. Never use the school's logo
+   or wording that suggests the school or the Ministry endorses the app.
+7a. **Trademark (R14, answers.md 7.2), after incorporation.** Ask an IP
+   lawyer for a search at the Egyptian Intellectual Property Authority
+   (trademarks, Law 82/2002, Authority under Law 163/2023) for the app's
+   Arabic and English names, then file the mark in the company's name in
+   the classes for software (9) and the online service (39/42, the lawyer
+   chooses). The company name also needs the Commercial Registry's
+   non-confusion certificate (step 1). Until then avoid logos or wording
+   that suggest a school, the Ministry or another brand.
 
 ## Settings and deploys
 
@@ -58,9 +77,12 @@ docs/legal/egypt-legal-review.md. **This is not legal advice: take steps 1 to
    ```
    python3 tool/links_site.py --team-id <TEAM ID> --bundle-id org.schoolcarpool.app \
      --support-email <address> --operator-name "<legal name>" \
+     --operator-address "<registered address>" --require-address \
      --dpo-email <dpo address> --dpo-name "<DPO name>" --require-legal
    ```
-   (Cloud Shell: put `DPO_EMAIL=... DPO_NAME="..."` in front of
+   (R8: the registered address is required for prod: Law 175/2018 Art. 2
+   asks a service provider to publish its name and address.)
+   (Cloud Shell: put `OPERATOR_ADDRESS="..." DPO_EMAIL=... DPO_NAME="..."` in front of
    `bash tool/cloud_setup.sh ...`.) Ask the lawyer to approve the Arabic
    texts of the privacy policy and terms (question 5.2); the Arabic text is
    the governing one.
@@ -72,11 +94,24 @@ docs/legal/egypt-legal-review.md. **This is not legal advice: take steps 1 to
 10. **Processor contracts.** Accept or sign the data processing terms of
     Google Cloud/Firebase, Meta (WhatsApp Business), Algolia, Sentry, the
     email provider and Valify; note each one's data region in
-    `docs/legal/records-of-processing.md`.
+    `docs/legal/records-of-processing.md`. Go through
+    `docs/legal/processor-checklist.md` (R10) for each one: 24-hour breach
+    notice in the contracts we can negotiate (Valify, email provider), and
+    **move Sentry and Algolia to their EU regions** before the pilot if
+    the plans allow it (steps in that file).
 11. **Existing testers.** The terms, privacy policy and ID consents changed
     (version 2026-11-16) and a new "Storage abroad" consent was added.
     Recommended (safe side): ask every existing account to accept again
     (open item B2) before the pilot.
+
+## Every year
+
+16. **Penetration test (R13).** Book an outside tester for the app, the
+    admin panel, the functions and the rules: once before the pilot, then
+    every 12 months and after any big change (PM Decree 1699/2020 Art. 2
+    asks IT service providers for an annual test). Give them SECURITY.md
+    and docs/security/threat-model.md; keep the report and the fixes with
+    the company records. Costs: docs/COSTS.md.
 
 ## Running the app
 

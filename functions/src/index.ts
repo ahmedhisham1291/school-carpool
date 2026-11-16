@@ -174,6 +174,8 @@ export {
 // (location stopped, child not confirmed, deleting live points).
 export {
   confirmHandover,
+  // R6: the emergency contact's confirm / stop page (links site /ec/**).
+  emergencyContactReply,
   endTrip,
   endTripsOnUserWrite,
   getHandoverAdults,
@@ -265,6 +267,7 @@ export {
   deleteMyAccount,
   exportMyData,
   getPrivacyOverview,
+  getConsentCopy,
   listDevices,
   makePhotoThumbnail,
   requestCorrection,
@@ -278,6 +281,10 @@ export {
 // Personal data breach register (Law 151 of 2020 Art. 7, Decree 816/2025
 // Art. 5; docs/legal/breach-runbook.md): admin panel > Incidents.
 export { adminListIncidents, adminReportIncident, adminUpdateIncident } from "./privacy/breach_callables";
+// R5: prod closed to new real parents until the PDPC licences are granted (super admins switch it).
+export { adminGetLaunch, adminSetLaunch } from "./launch/callables";
+// R2: the Anti-Cybercrime sign-in log, disclosed only on a judicial order (super admins).
+export { adminDiscloseSignInLog } from "./privacy/signin_log_callables";
 
 // Pilot feature switches (owner decision 14 Nov 2026): config/features,
 // changed by super admins from the admin panel's Settings (audit log).

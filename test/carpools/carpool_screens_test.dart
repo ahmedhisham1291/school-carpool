@@ -222,9 +222,28 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('search.target.__activity')));
       await tester.pumpAndSettle();
+      // R9: one activity at a time: nothing is searched before its name.
+      final int before = carpools.searches.length;
+      expect(find.byKey(const Key('search.activityFirst')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('search.activityChip')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.descendant(of: find.byKey(const Key('search.activityName')), matching: find.byType(TextFormField)), 'Swimming');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('search.activityNameOk')));
+      await tester.pumpAndSettle();
+      expect(carpools.searches.length, before + 1);
       expect(carpools.searches.last.kind, CarpoolKind.activity);
+      expect(carpools.searches.last.activityName, 'Swimming');
       expect(carpools.searches.last.radiusKm, 5);
       expect(find.byKey(const Key('search.radiusChip')), findsOneWidget);
+    });
+
+    testWidgets('R9: activity carpools are hidden while their switch is off (pilot)', (WidgetTester tester) async {
+      final FakeCarpoolRepository carpools = FakeCarpoolRepository();
+      await _pump(tester, CarpoolRoutes.search, overrides: _overrides(carpools: carpools, features: FeatureSwitches.allOn.copyWith(activityCarpools: false)));
+      await tester.tap(find.byKey(const Key('search.targetChip')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('search.target.__activity')), findsNothing);
     });
 
     testWidgets('nothing found offers Start a carpool; offline and too many tries', (WidgetTester tester) async {

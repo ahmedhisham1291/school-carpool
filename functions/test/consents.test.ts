@@ -3,7 +3,9 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { newUserRecord, verifiedEmail } from "../src/auth/accounts";
 import { CONSENT_VERSIONS, ConsentError, parseConsentRequest } from "../src/auth/consents";
+import { SignatureError } from "../src/auth/signature";
 
+const signature = { fullName: "Omar Hassan", method: "deviceAuth", deviceId: "0123456789abcdef", platform: "ios", appVersion: "1.0.0+1", language: "en" };
 const current = { terms: CONSENT_VERSIONS.terms, privacy: CONSENT_VERSIONS.privacy, conduct: CONSENT_VERSIONS.conduct, transferAbroad: CONSENT_VERSIONS.transferAbroad };
 
 function reason(fn: () => unknown): string {
@@ -18,8 +20,17 @@ function reason(fn: () => unknown): string {
 
 describe("parseConsentRequest", () => {
   it("records terms, privacy and conduct, plus WhatsApp when chosen", () => {
-    assert.deepEqual(parseConsentRequest({ documents: current, whatsapp: true }).accepted, ["terms", "privacy", "conduct", "transferAbroad", "whatsapp"]);
-    assert.deepEqual(parseConsentRequest({ documents: current, whatsapp: false }).accepted, ["terms", "privacy", "conduct", "transferAbroad"]);
+    assert.deepEqual(parseConsentRequest({ documents: current, whatsapp: true, signature }).accepted, ["terms", "privacy", "conduct", "transferAbroad", "whatsapp"]);
+    assert.deepEqual(parseConsentRequest({ documents: current, whatsapp: false, signature }).accepted, ["terms", "privacy", "conduct", "transferAbroad"]);
+  });
+
+  it("R3: the storage-abroad consent needs the written signature (typed full name + method)", () => {
+    assert.throws(() => parseConsentRequest({ documents: current, whatsapp: false }), (e: unknown) => e instanceof SignatureError && e.reason === "signature-required");
+    assert.throws(() => parseConsentRequest({ documents: current, whatsapp: false, signature: { ...signature, fullName: "Omar" } }), (e: unknown) => e instanceof SignatureError && e.reason === "signature-name");
+    assert.throws(() => parseConsentRequest({ documents: current, whatsapp: false, signature: { ...signature, method: "tick" } }), (e: unknown) => e instanceof SignatureError && e.reason === "signature-required");
+    assert.equal(parseConsentRequest({ documents: current, whatsapp: false, signature }).signature.fullName, "Omar Hassan");
+    // An old build (old versions, no signature) is asked to update first.
+    assert.equal(reason(() => parseConsentRequest({ documents: { ...current, transferAbroad: "2026-11-16" }, whatsapp: false })), "outdated-terms");
   });
 
   it("needs every required document", () => {

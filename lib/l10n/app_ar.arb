@@ -532,13 +532,13 @@
   "@termsDraftNotice": {
     "description": "Notice on draft legal texts"
   },
-  "termsTermsText": "التطبيق مجاني وغير ربحي. يساعد الأهالي الموثّقين في المدرسة نفسها على التناوب في توصيل أبنائهم، تطوعًا وبلا مقابل. التطبيق لا يقدّم خدمة نقل ولا يوظّف سائقين ولا يأخذ أي رسوم، ولا يدفع أي ولي أمر لآخر مقابل التوصيل. يقود كل ولي أمر سيارته على مسؤوليته، برخصة سارية وبالتأمين الإجباري للسيارة، ويلتزم بقواعد المرور. يمكننا إيقاف أي حساب يخالف هذه الشروط أو قواعد السلوك. يمكنك حذف حسابك في أي وقت. يسري القانون المصري، والنص العربي هو المعتمد.",
+  "termsTermsText": "التطبيق مجاني وغير ربحي. يساعد الأهالي الموثّقين في المدرسة نفسها، أو في النشاط نفسه في مكان واحد حين تتاح هذه الخاصية، على التناوب في توصيل أبنائهم، تطوعًا وبلا مقابل. المجموعات مغلقة: الانضمام بموافقة أولياء الأمور ولا توجد عروض توصيل عامة. التطبيق لا يقدّم خدمة نقل ولا يوظّف سائقين ولا يأخذ أي رسوم، ولا يدفع أي ولي أمر لآخر مقابل التوصيل. يقود كل ولي أمر سيارته على مسؤوليته، برخصة سارية وبالتأمين الإجباري للسيارة، ويلتزم بقواعد المرور. بعد أي حادث: اطمئن على الأطفال، واتصل بـ 122 أو 123 إذا لزم، وأبلغنا من التطبيق، وأخطر مجمعة التأمين الإجباري وشركة تأمينك خلال 15 يومًا (القانون رقم 155 لسنة 2024). لا نشارك سجلات المشاوير إلا مع جهة مختصة بطلب قانوني. يمكننا إيقاف أي حساب يخالف هذه الشروط أو قواعد السلوك. يمكنك حذف حسابك في أي وقت. يسري القانون المصري، والنص العربي هو المعتمد.",
   "@termsTermsText": {
-    "description": "Terms of use summary (legal review 16 Nov 2026)"
+    "description": "In-app terms (R8: activity carpools, incidents and insurance notice, lawful disclosure). Draft until the lawyer approves."
   },
-  "termsPrivacyText": "نجمع ما نحتاجه لتوثيق الأهالي وتنظيم المشاوير وحماية الأطفال: رقم الموبايل والبريد، ثم صورة البطاقة والسيلفي (بيانات بيومترية) وبيانات الأطفال ورخص القيادة. لا نجمع أي بيانات مالية. تُحفظ الصور مشفّرة ما دام حسابك مفتوحًا، وتُحذف عند حذف حسابك. نحتفظ بملخص كل مشوار ومسار مضغوط له لمدة أقصاها سنة للتحقيق في السلامة، ويراه المسؤولون فقط مع سبب مسجّل. عند حذف حسابك تُحذف صورك ورسائلك وعنوانك ومساراتك، ولا يبقى إلا ما يتطلبه القانون أو السلامة، بلا اسمك. تُخزَّن البيانات في بلجيكا (الاتحاد الأوروبي)؛ راجع «التخزين خارج مصر». إذا وافقت فقط نجمع إحصاءات استخدام بلا أسماء أو أرقام أو أماكن. تقارير الأعطال تُرسل دائمًا بعد حذف البيانات الشخصية منها لنصلح الأخطاء. يرى الأهالي الآخرون اسمك الأول ومدرستك ومنطقتك وشارة التوثيق فقط. لا نبيع بياناتك أبدًا. يمكنك من شاشة الخصوصية رؤية بياناتك وتصحيحها وتنزيلها وحذفها وسحب أي موافقة، ونرد على الطلبات خلال 6 أيام عمل.",
+  "termsPrivacyText": "نجمع ما نحتاجه لتوثيق الأهالي وتنظيم المشاوير وحماية الأطفال: رقم الموبايل والبريد، ثم صورة البطاقة والسيلفي (بيانات بيومترية) وبيانات الأطفال ورخص القيادة. لا نجمع أي بيانات مالية. الموافقات على البيانات الحساسة كتابية: خانة مستقلة واسمك الكامل مكتوبًا وبصمة الوجه أو رمز الهاتف، ويمكنك فتح نسخة منها في شاشة الخصوصية. تُحفظ صور البطاقة والمستندات مشفّرة وتُحذف بعد 30 يومًا من قرار المراجعة؛ وتبقى صورة مطابقة الوجه ما دام حسابك مفتوحًا وتُحذف معه. نحتفظ بملخص كل مشوار (سنة بعد إغلاق حسابك) وبمسار مضغوط له 90 يومًا للتحقيق في السلامة، ويراه المسؤولون فقط مع سبب مسجّل. عند حذف حسابك تُحذف صورك ورسائلك وعنوانك ومساراتك، ولا يبقى إلا ما يتطلبه القانون أو السلامة، بلا اسمك: سجل موافقاتك (3 سنوات)، وسجل الدخول (الوقت وعنوان IP ونوع الهاتف ونسخة التطبيق ورقمك مشفّرًا) لمدة 180 يومًا من كل دخول كما يفرض قانون مكافحة جرائم تقنية المعلومات رقم 175 لسنة 2018، ولا يُفتح إلا بأمر قضائي. تُخزَّن البيانات في بلجيكا (الاتحاد الأوروبي)؛ راجع «التخزين خارج مصر». إذا وافقت فقط نجمع إحصاءات استخدام بلا أسماء أو أرقام أو أماكن. تقارير الأعطال تُرسل دائمًا بعد حذف البيانات الشخصية منها لنصلح الأخطاء. يرى الأهالي الآخرون اسمك الأول ومدرستك ومنطقتك وشارة التوثيق فقط. لا نبيع بياناتك أبدًا. يمكنك من شاشة الخصوصية رؤية بياناتك وتصحيحها وتنزيلها وحذفها وسحب أي موافقة، ونرد على الطلبات خلال 6 أيام عمل.",
   "@termsPrivacyText": {
-    "description": "Privacy policy summary (legal review 16 Nov 2026)"
+    "description": "In-app privacy summary (R1, R2, R3, R8, R11). Draft until the lawyer approves."
   },
   "termsConductText": "احترم الأهالي الآخرين والأطفال. التزم بمواعيدك وأبلغ المجموعة مبكرًا إذا لم تستطع القيادة. لا تشارك بيانات أو صور الأطفال خارج المجموعة. قُد بأمان وبحزام أمان لكل طفل. أبلغ عن أي سلوك غير آمن. لا تسامح مع المحتوى المسيء أو المستخدمين المسيئين: يُمنع السب والتحرش والتهديد والمحتوى الجنسي أو العنيف. يمكنك الإبلاغ عن أي شخص أو حظره من المحادثة؛ نراجع البلاغات خلال 24 ساعة ونحذف المحتوى ونوقف صاحبه.",
   "@termsConductText": {
@@ -984,14 +984,6 @@
   "verifyReviewNoDriving": "لا",
   "@verifyReviewNoDriving": {
     "description": "Summary"
-  },
-  "verifyConsentLabel": "أوافق على التحقق",
-  "@verifyConsentLabel": {
-    "description": "Consent checkbox"
-  },
-  "verifyConsentHelper": "أوافق صراحةً على معالجة بطاقة الرقم القومي وصور وجهي (بيانات بيومترية) للتحقق مني ولفحص السيلفي أثناء المشاوير. تُحفظ الصور ما دام حسابي مفتوحًا وتُحذف عند حذفه. يمكنني سحب الموافقة من شاشة الخصوصية، وهذا يغلق الحساب.",
-  "@verifyConsentHelper": {
-    "description": "Consent helper (ID and face: explicit consent to sensitive data)"
   },
   "verifySubmit": "أرسل للمراجعة",
   "@verifySubmit": {
@@ -3797,7 +3789,7 @@
   },
   "carpoolActivityNameLabel": "اسم النشاط",
   "@carpoolActivityNameLabel": {
-    "description": "Field label"
+    "description": "R9: dialog field label. One line."
   },
   "carpoolActivityNameHint": "مثلًا: سباحة النادي",
   "@carpoolActivityNameHint": {
@@ -8115,7 +8107,7 @@
   "@dataIdPhotos": {
     "description": "Data type"
   },
-  "dataIdPhotosBody": "البطاقة والسيلفي وبطاقات المدرسة والرخص وصورة السائق وصور السيلفي أثناء المشاوير. مشفّرة بمفتاحنا، ويراها المسؤولون فقط بسبب مسجّل.",
+  "dataIdPhotosBody": "البطاقة وسيلفي التحقق وبطاقات المدرسة والرخص: تُحذف بعد 30 يومًا من قرار المراجعة. صورة مطابقة الوجه وصورة السائق وصور السيلفي أثناء المشاوير تبقى ما دام حسابك مفتوحًا. مشفّرة بمفتاحنا، ويراها المسؤولون فقط بسبب مسجّل.",
   "@dataIdPhotosBody": {
     "description": "Data type details"
   },
@@ -8235,9 +8227,9 @@
   "@dataDevices": {
     "description": "Data type"
   },
-  "dataDevicesBody": "نوع كل هاتف دخلت منه ووقت الدخول، بلا معرّف للجهاز.",
+  "dataDevicesBody": "نوع كل هاتف دخلت منه ووقت الدخول، بلا معرّف للجهاز. وبشكل منفصل يفرض القانون رقم 175 لسنة 2018 سجلًا للدخول: الوقت وعنوان IP ونوع الهاتف ونسخة التطبيق ورقمك (مشفّرًا)، يُحفظ 180 يومًا من كل دخول حتى بعد حذف حسابك، ولا يُفتح إلا بأمر قضائي.",
   "@dataDevicesBody": {
-    "description": "Data type details"
+    "description": "Privacy screen: what the devices data type holds (R2: the legal sign-in log)."
   },
   "dataWallet": "المحفظة",
   "@dataWallet": {
@@ -8281,10 +8273,6 @@
   },
   "keepOneDay": "تُحذف خلال 24 ساعة",
   "@keepOneDay": {
-    "description": "Retention"
-  },
-  "keepYearAfterRun": "سنة بعد المشوار",
-  "@keepYearAfterRun": {
     "description": "Retention"
   },
   "keepYearAfterChat": "طوال المحادثة وسنة بعدها",
@@ -8343,11 +8331,11 @@
   "@deleteNowBody": {
     "description": "Card body"
   },
-  "deleteYearTitle": "يبقى سنة بلا اسمك",
+  "deleteYearTitle": "يبقى بلا اسمك",
   "@deleteYearTitle": {
-    "description": "Card title"
+    "description": "Delete account step 1: group title for records kept after deletion without the parent's name. One line."
   },
-  "deleteYearBody": "ملخصات المشاوير المشتركة مع أسر أخرى (تظهر بحرف واحد)، وسجل موافقاتك.",
+  "deleteYearBody": "ملخصات المشاوير المشتركة مع أسر أخرى (تظهر بحرف واحد): سنة. وسجل موافقاتك (النسخة والتاريخ وطريقة الموافقة) إثباتًا لها: 3 سنوات.",
   "@deleteYearBody": {
     "description": "Delete account: what stays for a while (no money in the app)"
   },
@@ -8355,9 +8343,9 @@
   "@deleteKeptTitle": {
     "description": "Card title"
   },
-  "deleteKeptBody": "سجلات التحويلات كما يطلب القانون، والبلاغات عنك، وسجل المشرفين، ورمز البطاقة المشفّر في قائمة الحظر إن كنت محظورًا.",
+  "deleteKeptBody": "البلاغات عنك، وسجل المشرفين، ورمز البطاقة المشفّر في قائمة الحظر إن كنت محظورًا، وسجل الدخول الذي يفرضه القانون (الوقت وعنوان IP ونوع الهاتف ونسخة التطبيق ورقمك مشفّرًا): 180 يومًا من كل دخول، ولا يُفتح إلا بأمر قضائي.",
   "@deleteKeptBody": {
-    "description": "Card body"
+    "description": "Delete account step 1: what stays after deletion (R2: the Anti-Cybercrime sign-in log survives deletion for 180 days from each sign-in)."
   },
   "deleteExportHint": "نزّل بياناتك أولًا إن أردت نسخة.",
   "@deleteExportHint": {
@@ -10443,13 +10431,9 @@
   "@verifyGuardianLabel": {
     "description": "Checkbox and dialog title: guardian declaration for children's data. One line."
   },
-  "verifyGuardianHelper": "أقرّ بأنني الوالد أو الولي القانوني للأطفال الذين أضيفهم، وأوافق صراحةً على معالجة بياناتهم (الاسم الأول والسن والصف والمدرسة وصورة كارنيه المدرسة) ومكانهم أثناء المشاوير، فقط لتنظيم مشاويرهم المدرسية وحمايتها. يمكنني سحب ذلك بحذف الأطفال.",
+  "verifyGuardianHelper": "أقرّ بأنني الوالد أو الولي القانوني للأطفال الذين أضيفهم، وأوافق صراحةً وكتابةً على معالجة بياناتهم (الاسم الأول والسن والصف والمدرسة وصورة كارنيه المدرسة) ومكانهم أثناء المشاوير، فقط لتنظيم مشاويرهم المدرسية وحمايتها. يمكنني سحب ذلك بحذف الأطفال.",
   "@verifyGuardianHelper": {
-    "description": "Guardian declaration (children's data is sensitive data, Law 151/2020)"
-  },
-  "verifyGuardianConfirm": "أؤكد",
-  "@verifyGuardianConfirm": {
-    "description": "Dialog button. One line."
+    "description": "Guardian declaration text (legal text, part of the signed record, R3)."
   },
   "keepDays180": "180 يومًا (حسب القانون)",
   "@keepDays180": {
@@ -10704,12 +10688,322 @@
   "@incidentConfirm": {
     "description": "Dialog button. One line."
   },
-  "termsUpdatedBody": "حدّثنا الشروط وسياسة الخصوصية، وأضفنا موافقة مستقلة على التخزين خارج مصر. اقرأها ووافق عليها للمتابعة. يمكنك تنزيل بياناتك أو حذف حسابك من «الخصوصية».",
+  "termsUpdatedBody": "حدّثنا الشروط وسياسة الخصوصية: موافقات كتابية باسمك المكتوب، والحوادث والتأمين، ومدة حفظ السجلات. اقرأها ووافق عليها للمتابعة. يمكنك تنزيل بياناتك أو حذف حسابك من «الخصوصية».",
   "@termsUpdatedBody": {
-    "description": "Terms screen text when an existing account is asked once to accept updated documents (legal review 16 Nov 2026)."
+    "description": "Body when an existing account is asked once to accept updated documents (legal changes 2026-11-17)."
   },
   "termsUpdatedPrivacy": "الخصوصية",
   "@termsUpdatedPrivacy": {
     "description": "Tertiary button on the updated-terms screen: opens Privacy (export, delete account). One line."
+  },
+  "keepThreeYearsAfterClosure": "ما دام مفتوحًا و3 سنوات بعده",
+  "@keepThreeYearsAfterClosure": {
+    "description": "Retention label (privacy screen): the proof of consent is kept while the account is open and 3 years after it closes (R1). One line."
+  },
+  "verifyConsentIdLabel": "أوافق على فحص البطاقة",
+  "@verifyConsentIdLabel": {
+    "description": "Verification review: separate unticked box for the national ID consent (R3). One line."
+  },
+  "verifyConsentIdHelper": "أوافق صراحةً وكتابةً على معالجة بطاقة الرقم القومي (صورتا الوجهين؛ ويُحفظ الرقم رمزًا مشفّرًا فقط مع تاريخ الانتهاء) للتحقق مني. تُحفظ ما دام حسابي مفتوحًا وتُحذف عند حذفه. سحب الموافقة يغلق الحساب.",
+  "@verifyConsentIdHelper": {
+    "description": "Verification review: what the ID consent covers (R3; legal text, part of the signed record)."
+  },
+  "verifyConsentFaceLabel": "أوافق على مطابقة الوجه",
+  "@verifyConsentFaceLabel": {
+    "description": "Verification review: separate unticked box for the biometric consent (R3). One line."
+  },
+  "verifyConsentFaceHelper": "أوافق صراحةً وكتابةً على معالجة صور وجهي (بيانات بيومترية): تُقارن صورة السيلفي بصورة البطاقة وتُحفظ مرجعًا لفحص السيلفي قبل المشاوير. تُحفظ ما دام حسابي مفتوحًا وتُحذف عند حذفه. سحب الموافقة يغلق الحساب.",
+  "@verifyConsentFaceHelper": {
+    "description": "Verification review: what the face consent covers (R3; legal text, part of the signed record)."
+  },
+  "signTitle": "توقيعك",
+  "@signTitle": {
+    "description": "Section header above the typed-name signature (R3). One line."
+  },
+  "signNameLabel": "اكتب اسمك الكامل",
+  "@signNameLabel": {
+    "description": "Field label: the typed full name that signs the sensitive-data consents (R3). One line."
+  },
+  "signNameHelper": "اسمك المكتوب هو توقيعك الكتابي.",
+  "@signNameHelper": {
+    "description": "Helper under the signature field at sign-up."
+  },
+  "signNameHelperId": "كما في بطاقتك. اسمك المكتوب هو توقيعك الكتابي.",
+  "@signNameHelperId": {
+    "description": "Helper under the signature field at verification."
+  },
+  "signNameError": "اكتب اسمك الأول واسم العائلة، بالحروف فقط.",
+  "@signNameError": {
+    "description": "Error: the typed name is not a full name."
+  },
+  "signNameMismatch": "اكتب الاسم الموجود في بطاقتك: {name}",
+  "@signNameMismatch": {
+    "description": "Error: the typed name does not match the ID name; shows the name to type.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "signAuthReason": "أكّد موافقتك الموقّعة",
+  "@signAuthReason": {
+    "description": "Face ID / passcode prompt reason when signing a consent (R3)."
+  },
+  "signCancelled": "لم يتم التوقيع. لم يُرسل شيء.",
+  "@signCancelled": {
+    "description": "Snack bar: the device check was cancelled."
+  },
+  "signReauth": "للتوقيع، سجّل الدخول من جديد أو ضع رمز قفل للهاتف.",
+  "@signReauth": {
+    "description": "Error: the phone has no passcode and the sign-in is older than 10 minutes."
+  },
+  "signHint": "علّم كل خانة واكتب اسمك ثم أكّد ببصمة الوجه أو رمز الهاتف.",
+  "@signHint": {
+    "description": "Hint under the boxes while something is missing (R3)."
+  },
+  "consentCopyOpen": "عرض النسخة",
+  "@consentCopyOpen": {
+    "description": "Action on a signed consent row in Privacy: opens the copy (R3). One line."
+  },
+  "consentCopySignedBy": "وقّعها",
+  "@consentCopySignedBy": {
+    "description": "Copy screen label. One line."
+  },
+  "consentCopyDate": "التاريخ والوقت",
+  "@consentCopyDate": {
+    "description": "Copy screen label. One line."
+  },
+  "consentCopyMethod": "طريقة التأكيد",
+  "@consentCopyMethod": {
+    "description": "Copy screen label. One line."
+  },
+  "consentCopyMethodDevice": "بصمة الوجه أو رمز الهاتف",
+  "@consentCopyMethodDevice": {
+    "description": "Copy screen value. One line."
+  },
+  "consentCopyMethodSignIn": "تسجيل دخول حديث",
+  "@consentCopyMethodSignIn": {
+    "description": "Copy screen value. One line."
+  },
+  "consentCopyVersion": "النسخة",
+  "@consentCopyVersion": {
+    "description": "Copy screen label. One line."
+  },
+  "consentCopyApp": "نسخة التطبيق",
+  "@consentCopyApp": {
+    "description": "Copy screen label. One line."
+  },
+  "consentCopyFingerprint": "بصمة النص",
+  "@consentCopyFingerprint": {
+    "description": "Copy screen label: the first characters of the text hash. One line."
+  },
+  "consentCopyDownload": "تنزيل النسخة",
+  "@consentCopyDownload": {
+    "description": "Primary action on the copy screen. One line."
+  },
+  "consentCopyReady": "فُتحت النسخة. يعمل الرابط ساعة واحدة.",
+  "@consentCopyReady": {
+    "description": "Snack bar after the download link opened."
+  },
+  "consentCopyNotOpened": "تعذّر فتح النسخة. حاول مرة أخرى.",
+  "@consentCopyNotOpened": {
+    "description": "Snack bar: the link did not open."
+  },
+  "consentCopyEmptyTitle": "لا توجد نسخة بعد",
+  "@consentCopyEmptyTitle": {
+    "description": "Empty state title. One line."
+  },
+  "consentCopyEmptyBody": "أُعطيت هذه الموافقة قبل بدء النسخ الموقّعة. أعطها من جديد لتحصل على نسخة.",
+  "@consentCopyEmptyBody": {
+    "description": "Empty state body."
+  },
+  "signNameMismatchShort": "يجب أن يطابق الاسم المكتوب الاسم الموجود في بطاقتك.",
+  "@signNameMismatchShort": {
+    "description": "Error from the server: the signature name does not match the ID name (R3)."
+  },
+  "guardianSignTitle": "وقّع الإقرار",
+  "@guardianSignTitle": {
+    "description": "Sheet title when a verified parent adds or edits a child (R3). One line."
+  },
+  "guardianSignAction": "وقّع وأرسل",
+  "@guardianSignAction": {
+    "description": "Sheet primary action (R3). One line."
+  },
+  "verifyTeenLabel": "ابني (15 سنة فأكثر) موافق",
+  "@verifyTeenLabel": {
+    "description": "Separate unticked box shown when a child is 15 or older (R4). One line."
+  },
+  "verifyTeenHelper": "أقرّ بأن ابني أو ابنتي (15 سنة فأكثر) أُبلغ بما يُشارك (الاسم الأول والسن والصف والمدرسة ومكانه أثناء المشاوير) ووافق عليه.",
+  "@verifyTeenHelper": {
+    "description": "R4: the teenager's own agreement, collected through the parent (legal text, part of the signed record)."
+  },
+  "consentTeenAgreement": "موافقة الابن (15+)",
+  "@consentTeenAgreement": {
+    "description": "Privacy screen: consent title (R4). One line."
+  },
+  "launchSoonTitle": "قريبًا",
+  "@launchSoonTitle": {
+    "description": "R5: sign-up in prod while the PDPC licences are pending. One line."
+  },
+  "launchSoonBody": "«مشوار المدرسة» غير متاح للأسر الجديدة بعد. ننتظر تراخيص حماية البيانات.",
+  "@launchSoonBody": {
+    "description": "R5: why a new number cannot sign up in prod yet."
+  },
+  "launchSoonNote": "لم يُنشأ حساب ولم يُحفظ شيء. حاول مرة أخرى بعد الافتتاح.",
+  "@launchSoonNote": {
+    "description": "R5: what happened to the data."
+  },
+  "launchSoonOk": "حسنًا",
+  "@launchSoonOk": {
+    "description": "R5: back to the phone step. One line."
+  },
+  "adminLaunchTitle": "الإطلاق",
+  "@adminLaunchTitle": {
+    "description": "Admin Settings: section title (R5). One line."
+  },
+  "adminLaunchLicensed": "صدرت تراخيص المركز",
+  "@adminLaunchLicensed": {
+    "description": "Admin Settings switch: prod open to new parents (R5). One line."
+  },
+  "adminLaunchHelpClosed": "مغلق: لا يمكن لأولياء أمور جدد التسجيل في الإنتاج. يمكن للفريق والمختبرين ومراجعة Apple.",
+  "@adminLaunchHelpClosed": {
+    "description": "Admin Settings helper (R5)."
+  },
+  "adminLaunchHelpOpen": "مفتوح: يمكن لأولياء الأمور الجدد التسجيل في الإنتاج.",
+  "@adminLaunchHelpOpen": {
+    "description": "Admin Settings helper (R5)."
+  },
+  "adminLaunchHelpTest": "بيئتا التطوير والاختبار مفتوحتان دائمًا.",
+  "@adminLaunchHelpTest": {
+    "description": "Admin Settings helper outside prod (R5)."
+  },
+  "adminLaunchRefsLabel": "أرقام التراخيص",
+  "@adminLaunchRefsLabel": {
+    "description": "Admin dialog field: the three PDPC licence numbers (R5). One line."
+  },
+  "adminLaunchOpenTitle": "فتح التسجيل للأهالي الجدد؟",
+  "@adminLaunchOpenTitle": {
+    "description": "Admin confirm title (R5). One line."
+  },
+  "adminLaunchOpenBody": "فقط بعد أن يصدر المركز تراخيص المتحكم والبيانات الحساسة والنقل للخارج. اكتب أرقامها.",
+  "@adminLaunchOpenBody": {
+    "description": "Admin confirm body (R5)."
+  },
+  "adminLaunchCloseTitle": "إغلاق التسجيل للأهالي الجدد؟",
+  "@adminLaunchCloseTitle": {
+    "description": "Admin confirm title (R5). One line."
+  },
+  "adminLaunchCloseBody": "سترى الأرقام الجديدة «قريبًا». تظل الحسابات الحالية تعمل.",
+  "@adminLaunchCloseBody": {
+    "description": "Admin confirm body (R5)."
+  },
+  "adminLaunchSaved": "حُفظ إعداد الإطلاق",
+  "@adminLaunchSaved": {
+    "description": "Admin snack bar (R5). One line."
+  },
+  "emergencyContactAgreeLabel": "هذا الشخص وافق",
+  "@emergencyContactAgreeLabel": {
+    "description": "R6: unticked box before saving the emergency contact. One line."
+  },
+  "emergencyContactAgreeHelper": "أؤكد أن هذا الشخص وافق على أن يكون جهة الطوارئ الخاصة بي وأن تصله رسالة واتساب إذا ضغطت زر الطوارئ. سأرسل له رابط التأكيد.",
+  "@emergencyContactAgreeHelper": {
+    "description": "R6: the parent's declaration (answers.md 1.8)."
+  },
+  "emergencyContactAgreeError": "علّم «هذا الشخص وافق» أولًا.",
+  "@emergencyContactAgreeError": {
+    "description": "R6: server refusal contact-not-agreed."
+  },
+  "emergencyContactPending": "لم يؤكد {name} بعد. أرسل له الرابط. تصل التنبيهات رغم ذلك؛ وأولها يذكر من أنت وكيف يوقفها.",
+  "@emergencyContactPending": {
+    "description": "R6: status line, contact pending.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "emergencyContactConfirmed": "أكّد {name} أنه جهة الطوارئ الخاصة بك.",
+  "@emergencyContactConfirmed": {
+    "description": "R6: status line, contact confirmed.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "emergencyContactStopped": "طلب {name} عدم إرسال رسائل. لن تصله التنبيهات؛ اختر جهة أخرى.",
+  "@emergencyContactStopped": {
+    "description": "R6: status line, contact stopped.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "emergencyContactSendLink": "أرسل الرابط",
+  "@emergencyContactSendLink": {
+    "description": "R6: opens WhatsApp with the confirm link. One line."
+  },
+  "emergencyContactShareText": "أضفتك جهةً للطوارئ في تطبيق «مشوار المدرسة». تصلك رسالة واتساب فقط إذا ضغطت زر الطوارئ أثناء مشوار مدرسي. من فضلك أكّد أو ارفض من هنا: {link}",
+  "@emergencyContactShareText": {
+    "description": "R6: WhatsApp text the parent sends to the contact.",
+    "placeholders": {
+      "link": {
+        "type": "String"
+      }
+    }
+  },
+  "emergencyContactLinkCopied": "نُسخ الرابط. الصقه في رسالة إلى جهة الطوارئ.",
+  "@emergencyContactLinkCopied": {
+    "description": "R6: WhatsApp could not open."
+  },
+  "emergencyContactNoLink": "الرابط غير متاح في هذه النسخة.",
+  "@emergencyContactNoLink": {
+    "description": "R6: no links site configured (dev)."
+  },
+  "adminFeatureActivity": "مجموعات الأنشطة",
+  "@adminFeatureActivity": {
+    "description": "Admin Settings switch (R9, F39). One line."
+  },
+  "adminFeatureActivityHelper": "مجموعات لمكان نشاط واحد (نادٍ، دروس). اتركها متوقفة حتى يشملها رأي المحامي المكتوب.",
+  "@adminFeatureActivityHelper": {
+    "description": "Admin Settings helper (R9)."
+  },
+  "carpoolActivityNameChip": "أي نشاط؟",
+  "@carpoolActivityNameChip": {
+    "description": "R9: chip and action to type the one activity searched for. One line."
+  },
+  "carpoolActivityFirstTitle": "اكتب اسم النشاط",
+  "@carpoolActivityFirstTitle": {
+    "description": "R9: empty state before an activity search. One line."
+  },
+  "carpoolActivityFirstBody": "مجموعات الأنشطة لنشاط واحد في مكان واحد. اكتبه كما يسميه النادي أو المدرب.",
+  "@carpoolActivityFirstBody": {
+    "description": "R9: why the activity name is needed."
+  },
+  "carpoolActivityNameTitle": "النشاط",
+  "@carpoolActivityNameTitle": {
+    "description": "R9: dialog title. One line."
+  },
+  "carpoolActivityNameHelper": "مثال: سباحة، نادي الزمالك",
+  "@carpoolActivityNameHelper": {
+    "description": "R9: dialog field helper."
+  },
+  "carpoolActivityNameSearch": "ابحث",
+  "@carpoolActivityNameSearch": {
+    "description": "R9: dialog primary action. One line."
+  },
+  "keepNinetyDaysAfterRun": "90 يومًا بعد المشوار",
+  "@keepNinetyDaysAfterRun": {
+    "description": "Retention label: archived routes (R11). One line."
+  },
+  "incidentImmediatelyBy": "فورًا، وبحد أقصى {time}",
+  "@incidentImmediatelyBy": {
+    "description": "R15: PDPC notice for a children's or biometric data breach: immediately, with the 24-hour internal target. One line.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
   }
 }

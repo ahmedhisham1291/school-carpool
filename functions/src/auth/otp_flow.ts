@@ -1,6 +1,7 @@
 import { randomInt } from "node:crypto";
 import type { Language, WhatsAppSender } from "../whatsapp/sender";
 import { hmacHex, safeEqualHex } from "./hash";
+import { mayEnter } from "../launch/flow";
 import { toEgyptE164 } from "./phone";
 
 /**
@@ -175,6 +176,12 @@ export interface OtpDeps {
   newCode?: () => string;
   limits?: OtpLimits;
   reportError?: (error: unknown) => void;
+  /**
+   * R5 (launch/model.ts): prod stays closed to NEW real parents until the
+   * PDPC licences are granted. open(): sign-up is open; hasAccount(): this
+   * number already has an account (staff and testers keep signing in).
+   */
+  launch?: { open(): Promise<boolean>; hasAccount(phoneE164: string): Promise<boolean> };
 }
 
 export type OtpErrorReason =
@@ -187,7 +194,8 @@ export type OtpErrorReason =
   | "rate-limited"
   | "too-soon"
   | "send-failed"
-  | "suspended";
+  | "suspended"
+  | "launch-closed";
 
 export interface OtpErrorDetails {
   attemptsLeft?: number;
@@ -381,6 +389,11 @@ export interface VerifyCodeResult {
 
 export async function verifyCode(deps: OtpDeps, input: VerifyCodeInput): Promise<VerifyCodeResult> {
   const phone = await checkCode(deps, input);
+  if (deps.launch && !(await deps.launch.open())) {
+    // R5: after a right code only (no number enumeration), before any account is created.
+    const review = isReviewPhone(deps.review ? await deps.review() : null, deps.hmacKey, phone, deps.now());
+    if (!mayEnter(false, await deps.launch.hasAccount(phone), review)) throw new OtpError("launch-closed");
+  }
   const { uid, suspended } = await deps.accounts.signInWithPhone(phone, input.language);
   if (suspended) throw new OtpError("suspended");
   if (deps.review && deps.onReviewSignIn) {

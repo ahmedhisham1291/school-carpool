@@ -36,6 +36,7 @@ class Account {
     required this.termsAccepted,
     required this.language,
     this.firstName,
+    this.lastName,
     this.verification,
     this.claimsUpdatedAtMs,
     this.whatsappOptIn = false,
@@ -52,6 +53,7 @@ class Account {
     termsAccepted: data['termsAcceptedAt'] != null,
     language: data['language'] as String? ?? 'ar',
     firstName: data['firstName'] as String?,
+    lastName: data['lastName'] as String?,
     verification: VerificationSummary.fromMap(data['verification']),
     claimsUpdatedAtMs: switch (data['claimsUpdatedAt']) {
       final Timestamp t => t.toDate().millisecondsSinceEpoch,
@@ -84,6 +86,9 @@ class Account {
 
   /// Set from the ID details once documents are submitted (Prompt 3).
   final String? firstName;
+
+  /// The family name from the ID (R3: the typed signature must match it).
+  final String? lastName;
 
   /// The latest submission for review, or null before the first one.
   final VerificationSummary? verification;
@@ -130,6 +135,7 @@ class Account {
       other.termsVersion == termsVersion &&
       other.language == language &&
       other.firstName == firstName &&
+      other.lastName == lastName &&
       other.verification == verification &&
       other.claimsUpdatedAtMs == claimsUpdatedAtMs &&
       other.newDeviceCheck == newDeviceCheck;
@@ -145,6 +151,7 @@ class Account {
     termsVersion,
     language,
     firstName,
+    lastName,
     verification,
     claimsUpdatedAtMs,
     newDeviceCheck,

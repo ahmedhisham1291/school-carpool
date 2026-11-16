@@ -68,6 +68,8 @@ ttl expiresAt tripChecks
 ttl expiresAt privacyRequests
 ttl expiresAt abuseCounters
 ttl expiresAt logins
+# R2: the Anti-Cybercrime sign-in log, 180 days from each sign-in (kept after deletion).
+ttl expiresAt signInLog
 ttl expiresAt devices
 ttl expiresAt mail
 ttl expiresAt retentionRuns

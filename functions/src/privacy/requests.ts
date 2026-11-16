@@ -1,3 +1,4 @@
+import type { SignatureRecord } from "../auth/signature";
 import { DAY_MS, PRIVACY_REQUEST_DAYS } from "./retention";
 
 /**
@@ -114,7 +115,7 @@ export function adminQueue<T extends Pick<PrivacyRequest, "status" | "createdAtM
  *   childData, removing the children). The answer says so; nothing is
  *   withdrawn half way.
  */
-export const CONSENT_KINDS = ["terms", "privacy", "conduct", "transferAbroad", "whatsapp", "id", "face", "childData", "walletTerms", "analytics", "showOnMap"] as const;
+export const CONSENT_KINDS = ["terms", "privacy", "conduct", "transferAbroad", "whatsapp", "id", "face", "childData", "teenAgreement", "walletTerms", "analytics", "showOnMap"] as const;
 export type ConsentKind = (typeof CONSENT_KINDS)[number];
 
 export type WithdrawEffect = "whatsappOff" | "analyticsOff" | "hiddenFromMap" | "walletClosed" | "needsDeletion" | "needsChildRemoval";
@@ -130,6 +131,7 @@ export function withdrawEffect(kind: ConsentKind): WithdrawEffect {
     case "walletTerms":
       return "walletClosed";
     case "childData":
+    case "teenAgreement":
       return "needsChildRemoval";
     default:
       return "needsDeletion";
@@ -162,6 +164,8 @@ export interface ConsentView {
   acceptedAtMs: number | null;
   withdrawnAtMs: number | null;
   active: boolean;
+  /** R3: the latest record carries a written signature: the parent can open a copy. */
+  signed: boolean;
 }
 
 export interface ConsentRow {
@@ -169,19 +173,28 @@ export interface ConsentRow {
   version: string | null;
   acceptedAtMs: number;
   withdrawnAtMs: number | null;
+  /** R3: the written signature of a sensitive-data consent, if any. */
+  signature?: SignatureRecord | null;
 }
 
 /** The latest record of each kind wins; kinds never given show as not active. */
 export function consentViews(rows: readonly ConsentRow[], extra: { showOnMap: boolean; analytics: boolean | null }): ConsentView[] {
   return CONSENT_KINDS.map((kind) => {
-    if (kind === "showOnMap") return { kind, version: null, acceptedAtMs: null, withdrawnAtMs: null, active: extra.showOnMap };
+    if (kind === "showOnMap") return { kind, version: null, acceptedAtMs: null, withdrawnAtMs: null, active: extra.showOnMap, signed: false };
     const latest = rows.filter((r) => r.type === kind).sort((a, b) => b.acceptedAtMs - a.acceptedAtMs)[0];
     if (kind === "analytics" && !latest) {
       // Off until the parent says yes (owner decision 16 Nov 2026, App
       // Review guideline 5.1.1(ii)).
-      return { kind, version: null, acceptedAtMs: null, withdrawnAtMs: null, active: extra.analytics ?? false };
+      return { kind, version: null, acceptedAtMs: null, withdrawnAtMs: null, active: extra.analytics ?? false, signed: false };
     }
-    if (!latest) return { kind, version: null, acceptedAtMs: null, withdrawnAtMs: null, active: false };
-    return { kind, version: latest.version, acceptedAtMs: latest.acceptedAtMs, withdrawnAtMs: latest.withdrawnAtMs, active: latest.withdrawnAtMs === null };
+    if (!latest) return { kind, version: null, acceptedAtMs: null, withdrawnAtMs: null, active: false, signed: false };
+    return {
+      kind,
+      version: latest.version,
+      acceptedAtMs: latest.acceptedAtMs,
+      withdrawnAtMs: latest.withdrawnAtMs,
+      active: latest.withdrawnAtMs === null,
+      signed: latest.signature != null,
+    };
   });
 }

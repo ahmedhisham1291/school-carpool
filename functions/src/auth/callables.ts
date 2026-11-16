@@ -21,7 +21,8 @@ import {
 } from "../config";
 import { reportError } from "../sentry";
 import { asLanguage, createWhatsAppSender, type WhatsAppSender } from "../whatsapp/sender";
-import { FirebaseAccountService, USERS, verifiedEmail } from "./accounts";
+import { errorCode, FirebaseAccountService, USERS, verifiedEmail } from "./accounts";
+import { signUpOpenNow } from "../launch/callables";
 import { clientIp } from "./client_ip";
 import { CONSENT_VERSIONS, ConsentError, parseConsentRequest, recordConsents } from "./consents";
 import {
@@ -36,7 +37,12 @@ import {
 import { FirestoreOtpStore } from "./otp_store";
 import { emailConfirmationIsNew } from "./sign_in_policy";
 import { afterSignIn } from "../privacy/callables";
+import { logSignIn, SIGNIN_LOG_SECRETS } from "../privacy/signin_log_callables";
+import { toEgyptE164 } from "./phone";
 import { classesMapper, requireUid, runCallable } from "../common/callable";
+import { sessionKey } from "../privacy/devices";
+import { consentText } from "./consent_texts";
+import { authTimeOf, checkMethod, SIGNATURE_ERROR_CODES, SignatureError, signatureRecord } from "./signature";
 
 /**
  * Callable functions for sign-up and sign-in (F1). App Check is enforced in
@@ -58,6 +64,7 @@ const OTP_ERROR_CODES: Record<OtpErrorReason, FunctionsErrorCode> = {
   "too-soon": "resource-exhausted",
   "send-failed": "unavailable",
   suspended: "permission-denied",
+  "launch-closed": "failed-precondition",
 };
 
 export function toHttpsError(error: unknown): HttpsError {
@@ -68,6 +75,9 @@ export function toHttpsError(error: unknown): HttpsError {
   if (error instanceof ConsentError) {
     const code: FunctionsErrorCode = error.reason === "outdated-terms" ? "failed-precondition" : "invalid-argument";
     return new HttpsError(code, error.reason, { reason: error.reason });
+  }
+  if (error instanceof SignatureError) {
+    return new HttpsError(SIGNATURE_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
   }
   return new HttpsError("internal", "Something went wrong.");
 }
@@ -131,6 +141,19 @@ export function otpDeps(): OtpDeps {
         time: FieldValue.serverTimestamp(),
       });
     },
+    // R5: prod is closed to new real parents until the PDPC licences are granted.
+    launch: {
+      open: signUpOpenNow,
+      hasAccount: async (phone) => {
+        try {
+          const user = await adminAuth().getUserByPhoneNumber(phone);
+          return (await db.collection(USERS).doc(user.uid).get()).exists;
+        } catch (error) {
+          if (errorCode(error) === "auth/user-not-found") return false;
+          throw error;
+        }
+      },
+    },
     store: new FirestoreOtpStore(db),
     sender: lazyWhatsAppSender(),
     accounts: new FirebaseAccountService(adminAuth(), db),
@@ -151,7 +174,7 @@ function field(request: CallableRequest, name: string): unknown {
 
 /** Logs unexpected errors (never the request data) and converts them. */
 function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  return runCallable(name, body, { map: [classesMapper([OtpError, ConsentError], toHttpsError)] });
+  return runCallable(name, body, { map: [classesMapper([OtpError, ConsentError, SignatureError], toHttpsError)] });
 }
 
 const signInOptions = {
@@ -193,7 +216,7 @@ export const requestCode = onCall({ ...signInOptions, consumeAppCheckToken: true
  * and, for a verified parent, asks for a fresh selfie before chats, the
  * wallet and child data open (privacy/devices.ts).
  */
-export const verifyCode = onCall(signInOptions, (request) =>
+export const verifyCode = onCall({ ...signInOptions, secrets: [...signInOptions.secrets, ...SIGNIN_LOG_SECRETS] }, (request) =>
   run("verifyCode", async () => {
     const result = await verifyCodeFlow(otpDeps(), {
       phone: field(request, "phone"),
@@ -202,6 +225,19 @@ export const verifyCode = onCall(signInOptions, (request) =>
       language: asLanguage(field(request, "language")),
     });
     const device = await afterSignIn(result.uid, field(request, "deviceId"), field(request, "platform"));
+    // R2 (Law 175/2018 Art. 2): one line per sign-in, kept 180 days even after deletion.
+    const phone = toEgyptE164(field(request, "phone"));
+    if (phone) {
+      const platform = field(request, "platform");
+      await logSignIn({
+        uid: result.uid,
+        phoneE164: phone,
+        ip: clientIp(request.rawRequest.headers, request.rawRequest.ip, CLIENT_IP_HOP.value()),
+        deviceKey: device.deviceKey,
+        platform: platform === "android" || platform === "web" ? platform : "ios",
+        appVersion: field(request, "appVersion"),
+      });
+    }
     return { token: result.token, newDevice: device.newDevice, freshSelfieRequired: device.freshSelfieRequired };
   }),
 );
@@ -235,11 +271,18 @@ export const confirmEmail = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (requ
   }),
 );
 
-/** { documents: { terms, privacy, conduct: version }, whatsapp } -> { ok } */
-export const acceptConsents = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+/**
+ * { documents: { terms, privacy, conduct, transferAbroad: version }, whatsapp,
+ *   signature: { fullName, method, deviceId, platform, appVersion, language } } -> { ok }
+ * R3: the storage-abroad consent is signed (typed full name + Face ID /
+ * passcode on the phone, or a sign-in less than 10 minutes old).
+ */
+export const acceptConsents = onCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [OTP_HMAC_KEY] }, (request) =>
   run("acceptConsents", async () => {
     const uid = requireUid(request);
     const parsed = parseConsentRequest(request.data);
+    const nowMs = Date.now();
+    checkMethod(parsed.signature.method, authTimeOf(request), nowMs);
     const snap = await adminDb().collection(USERS).doc(uid).get();
     if (!snap.exists) throw new HttpsError("failed-precondition", "No account record.");
     // Prompt 12 (review 2, item 7): the email step comes first on the
@@ -247,7 +290,12 @@ export const acceptConsents = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (re
     // nothing again (consent changes later go through the privacy screen).
     if (snap.get("emailVerified") !== true) throw new HttpsError("failed-precondition", "email-first", { reason: "email-first" });
     if (snap.get("termsAcceptedAt") && snap.get("termsVersion") === CONSENT_VERSIONS.terms) return { ok: true };
-    await recordConsents(adminDb(), uid, parsed);
+    const key = otpHmacKey();
+    const text = consentText("transferAbroad", CONSENT_VERSIONS.transferAbroad, parsed.signature.language);
+    if (text === null) throw new Error("no consent text for transferAbroad");
+    const deviceKey = parsed.signature.deviceId ? sessionKey(key, parsed.signature.deviceId) : null;
+    // No ID name yet at sign-up: the typed name is checked for form only (nameMatched null).
+    await recordConsents(adminDb(), uid, parsed, signatureRecord(key, uid, parsed.signature, text, null, deviceKey));
     return { ok: true };
   }),
 );

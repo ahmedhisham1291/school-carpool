@@ -7,6 +7,7 @@ import {
   ENFORCE_APP_CHECK,
   KYC_PROVIDER,
   NATIONAL_ID_HMAC_KEY,
+  OTP_HMAC_KEY,
   VALIFY_BASE_URL,
   VALIFY_BUNDLE_KEY,
   VALIFY_CLIENT_ID,
@@ -30,6 +31,7 @@ import { CloudStorageFiles, FirebaseClaimsService, FirestoreVerificationStore, r
 import { VerificationError, type VerificationErrorReason } from "./submission";
 import { gatedCall, realParentCall } from "../privacy/device_gate";
 import { classesMapper, requireUid, runCallable } from "../common/callable";
+import { authTimeOf, SIGNATURE_ERROR_CODES, SignatureError } from "../auth/signature";
 
 /**
  * Callable functions for verification (F2, F3, F18) and the daily
@@ -74,6 +76,9 @@ export function toVerificationHttpsError(error: unknown): HttpsError {
   if (error instanceof VerificationError) {
     return new HttpsError(ERROR_CODES[error.reason], error.reason, { reason: error.reason, ...error.details });
   }
+  if (error instanceof SignatureError) {
+    return new HttpsError(SIGNATURE_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
+  }
   return new HttpsError("internal", "Something went wrong.");
 }
 
@@ -93,6 +98,15 @@ function nationalIdKey(): string {
   if (key) return key;
   if (process.env.FUNCTIONS_EMULATOR === "true") return EMULATOR_ONLY_NATIONAL_ID_KEY;
   logger.error("NATIONAL_ID_HMAC_KEY is not set");
+  throw new HttpsError("internal", "Verification is not configured.");
+}
+
+/** R3: keys the signature's name hash and device key (same key as the sign-in device keys). */
+function signatureKey(): string {
+  const key = OTP_HMAC_KEY.value();
+  if (key) return key;
+  if (process.env.FUNCTIONS_EMULATOR === "true") return "emulator-only-otp-key-not-for-cloud";
+  logger.error("OTP_HMAC_KEY is not set");
   throw new HttpsError("internal", "Verification is not configured.");
 }
 
@@ -140,13 +154,14 @@ function deps(forSubmit: boolean): VerificationDeps {
     }),
     claims: new FirebaseClaimsService(adminAuth(), adminDb()),
     nationalIdKey: forSubmit ? nationalIdKey() : "",
+    signatureKey: forSubmit ? signatureKey() : "",
     now: () => Date.now(),
     reportError: onError,
   };
 }
 
 function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  return runCallable(name, body, { map: [classesMapper([VerificationError], toVerificationHttpsError)] });
+  return runCallable(name, body, { map: [classesMapper([VerificationError, SignatureError], toVerificationHttpsError)] });
 }
 
 /**
@@ -158,7 +173,7 @@ export async function requireAdmin(request: CallableRequest): Promise<string> {
   return (await requireAdminCaller(request)).uid;
 }
 
-const options = { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [NATIONAL_ID_HMAC_KEY], timeoutSeconds: 120 };
+const options = { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [NATIONAL_ID_HMAC_KEY, OTP_HMAC_KEY], timeoutSeconds: 120 };
 
 /**
  * Parent: submit documents for review.
@@ -167,7 +182,7 @@ const options = { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [NATIONAL_ID_HMAC
  */
 // Not for App Review demo parents: they hold fake data only and are never sent to the ID review.
 export const submitVerification = realParentCall(options, (request) =>
-  run("submitVerification", () => submitFlow(deps(true), requireUid(request), request.data)),
+  run("submitVerification", () => submitFlow(deps(true), requireUid(request), request.data, authTimeOf(request))),
 );
 
 /** Parent: remove a child (F3). { childId } -> { ok } */
