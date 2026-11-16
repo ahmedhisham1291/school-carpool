@@ -315,10 +315,14 @@ emulators need none of this.
    codes are pending (they would stop matching for 5 minutes, nothing more).
 2. **Custom tokens.** `verifyCode` signs a Firebase custom token, which needs
    the role **Service Account Token Creator** for the functions' service
-   account. Google Cloud console > IAM > find
-   `<project-number>-compute@developer.gserviceaccount.com` > Edit > Add
-   role "Service Account Token Creator". Without it, sign-in fails with
-   "internal" after a correct code.
+   account, granted ON THAT ACCOUNT ONLY (security review: project-wide it
+   could mint tokens for every service account). Google Cloud console >
+   IAM & Admin > Service accounts >
+   `<project-number>-compute@developer.gserviceaccount.com` > Permissions >
+   Grant access > principal: the same account > role "Service Account
+   Token Creator". `tool/cloud_setup.sh` does this (and removes an older
+   project-wide grant). Without it, sign-in fails with "internal" after a
+   correct code.
 3. **Authentication > Sign-in method > Email/Password: enable** (the email
    confirmation link needs it; nobody signs in with a password). Then
    **Authentication > Settings > User actions: untick "Enable create
