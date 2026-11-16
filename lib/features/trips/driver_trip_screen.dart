@@ -8,7 +8,6 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/schedule/schedule_labels.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
-import 'package:school_carpool/features/trips/always_location_screen.dart';
 import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
 import 'package:school_carpool/features/trips/run_recovery.dart';
@@ -50,8 +49,8 @@ class _Pending {
 /// then Start run. Start run first passes the driving gate
 /// (location_gate.dart, Prompt 13): Location Services, "While Using the
 /// App" and Precise Location, with blocking steps for what is missing
-/// (notifications off only warn, they never block; "Always" is never required; the optional run-recovery step
-/// may follow, always_location_screen.dart). During the run: one card per
+/// (notifications off only warn, they never block; "Always" is never
+/// asked for). During the run: one card per
 /// child with large buttons (Arrived, Picked up, Dropped), the three quick
 /// buttons and the emergency button, and a one-line hint to keep the app
 /// open. If location is lost mid-run (Location Services off, permission or
@@ -244,13 +243,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     }
     if (!mounted) {
       return;
-    }
-    if (!resume) {
-      // Optional "Always" (run recovery), once per install, never required.
-      await offerAlwaysIfUseful(context, ref);
-      if (!mounted) {
-        return;
-      }
     }
     setState(() {
       _busy = true;

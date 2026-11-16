@@ -27,7 +27,6 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:run_recovery/run_recovery.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/app.dart';
@@ -958,28 +957,6 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 600));
         await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$gate.png'));
-      });
-      final String always = 'trips_always_${locale}_$mode';
-      testWidgets(always, skip: skip, (WidgetTester tester) async {
-        final FakeTripRepository trips = FakeTripRepository(trip: testTrip());
-        addTearDown(trips.dispose);
-        await _pumpScreen(
-          tester,
-          location: CarpoolRoutes.drive('k1', '2026-11-14_am'),
-          locale: locale,
-          themeMode: mode,
-          direction: 'a',
-          logicalSize: const Size(390, 844),
-          pixelRatio: 3,
-          trips: trips,
-          recovery: FakeRecoveryNative(supported: true, status: RecoveryAuthorization.whenInUse),
-          extraOverrides: verificationOverrides(repository: FakeVerificationRepository()),
-        );
-        await tester.pump(const Duration(milliseconds: 400));
-        await tester.tap(find.byKey(const Key('drive.start')));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 600));
-        await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$always.png'));
       });
       for (final bool steps in <bool>[false, true]) {
         final String banner = steps ? 'home_location_steps_${locale}_$mode' : 'home_location_banner_${locale}_$mode';

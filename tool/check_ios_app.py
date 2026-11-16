@@ -20,13 +20,15 @@ PURPOSE_KEYS = (
     "NSCameraUsageDescription",
     "NSPhotoLibraryUsageDescription",
     "NSLocationWhenInUseUsageDescription",
-    "NSLocationAlwaysAndWhenInUseUsageDescription",
     "NSFaceIDUsageDescription",
 )
 # Permissions the app never asks for: a key here means a plugin or a
 # template added something we would have to justify to App Review.
 UNUSED_KEYS = (
     "NSUserTrackingUsageDescription",
+    # "Always" location is never asked (16 Nov 2026, guideline 5.1.1).
+    "NSLocationAlwaysAndWhenInUseUsageDescription",
+    "NSLocationAlwaysUsageDescription",
     "NSContactsUsageDescription",
     "NSMicrophoneUsageDescription",
     "NSMotionUsageDescription",

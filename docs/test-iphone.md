@@ -85,7 +85,7 @@ Set up: a run today with A as the confirmed driver and Laila riding.
 | # | Steps | Expect |
 | --- | --- | --- |
 | L1 | A: Settings > School Carpool > Location **Never**. Open the app > Home | Banner "Location is off" with **Steps**; the rest of the app works (chats, carpools) |
-| L2 | A: Settings > School Carpool > Location **Ask Next Time** (so it is "not asked"), open the run > **Start run** | iOS asks location: options show **Allow While Using App** (the gate never asks for "Always"). Choose it. Then the notifications prompt (if never asked), then (first run only) the optional "Resume runs by itself" screen (T0) |
+| L2 | A: Settings > School Carpool > Location **Ask Next Time** (so it is "not asked"), open the run > **Start run** | iOS asks location: options show **Allow While Using App** (the gate never asks for "Always"). Choose it. Then the notifications prompt (if never asked). The app never shows an "Always" request, and Settings > School Carpool > Location offers no "Always" choice |
 | L3 | A: Settings > School Carpool > Location > **Precise Location off**. Start run | Full-screen "Before you drive" with only "Precise Location" and its 3 steps; Open Settings goes to the app's settings page |
 | L4 | Turn Precise Location on in Settings, come back to the app | The page closes by itself and the run starts |
 | L5 | A: Settings > Privacy & Security > Location Services **off**. Start run | "Location Services" with 4 steps (Settings > Privacy & Security > Location Services > on). Close (X): back on the run screen, no run started |
@@ -115,17 +115,17 @@ relaunching the app). Note the iOS version of phone A.
 
 | # | Steps | Expect |
 | --- | --- | --- |
-| T0 | **Always step:** first run on a phone with "While Using": after the gate, the screen "Resume runs by itself" appears once. Run the tests below once with **Not now** (A-) and once with **Allow Always** (A+; Settings > School Carpool > Location shows "Always") | The run starts either way; never asked again |
+| T0 | **No "Always":** first run on a phone with "While Using" | The run starts straight after the gate; no "Always" screen and no iOS "Change to Always Allow" prompt, now or days later; Settings > School Carpool > Location lists Never, Ask Next Time, While Using the App only |
+| T0b | **Notifications off:** Settings > School Carpool > Notifications off, then Start run | A warning "Notifications are off" with **Open Settings** and **Start anyway**; Start anyway starts the run |
 | T1 | **Lock screen 10 min:** start the run, press the side button, drive 10 minutes | The blue location indicator stays (top left when unlocked); B's map keeps moving every few seconds; no "Location stopped" |
 | T2 | **Switch to WhatsApp 5 min:** during the run open WhatsApp (send a message, browse) for 5 minutes | Same as T1 |
 | T3 | **Phone call 5 min:** during the run take (or make) a 5-minute call, phone at the ear | Same as T1; after the call the run screen is unchanged |
 | T4 | **Waiting:** stand still at a gate for 4 minutes with the app open or locked | B's map stays on the car; no "Location stopped" (a fix a minute is sent while still) |
-| T5 | **Swipe away WITHOUT Always (A-):** during the run, swipe School Carpool up in the app switcher | Within about 2 minutes: A gets "Run still on — open the app to continue" (push); B gets "Location stopped". Open the app from the push: the run screen comes back and tracking resumes (B's map moves) |
-| T6 | **Swipe away WITH Always (A+):** during the run swipe the app away, then keep driving at least 500 m to 1 km | To be confirmed on the device: usually within a few minutes after moving (iOS decides; often after about 500 m), A gets the local notification "Tracking resumed" without opening the app, and B's map moves again. If B got "Location stopped" before that, it is expected (2-minute rule). Write down the time from swipe to "Tracking resumed" and the distance |
-| T7 | **After the run with Always:** finish the run (last drop-off), then drive 1 km | No "Tracking resumed", the blue indicator does not come back (the marker and monitoring end with the run) |
-| T8 | **Low Power Mode:** Settings > Battery > Low Power Mode on, repeat T1 and T6 | Tracking continues (points may come a little less often); note gaps on B's map and whether B got "Location stopped"; note whether T6 still resumes |
+| T5 | **Swipe away:** during the run, swipe School Carpool up in the app switcher | Within about 2 minutes: A gets "Run still on — open the app to continue" (push); B gets "Location stopped". Open the app from the push: the run screen comes back and tracking resumes (B's map moves) |
+| T6 | **After the run:** finish the run (last drop-off), then drive 1 km | No "Tracking resumed", the blue indicator does not come back |
+| T8 | **Low Power Mode:** Settings > Battery > Low Power Mode on, repeat T1 and T5 | Tracking continues (points may come a little less often); note gaps on B's map and whether B got "Location stopped" |
 | T9 | **No signal:** airplane mode for 1 minute during the run, then back | Points sent after signal returns (no gap on B's map after the run); taps made offline are sent once |
-| T10 | **Battery:** A's battery % at the start and end of a 20-minute run (A- and A+) | Report the numbers (for the paid-plugin decision) |
+| T10 | **Battery:** A's battery % at the start and end of a 20-minute run | Report the numbers (for the paid-plugin decision) |
 
 ## 8. Chat, reports, ratings
 
@@ -217,5 +217,5 @@ Display & Brightness > Text Size at the largest, nothing overlaps.
 
 ## Done
 
-Send back: the ticked list, the swipe-away timings (T5, T6), the battery
+Send back: the ticked list, the swipe-away timings (T5), the battery
 numbers (T10), the Low Power Mode result (T8) and any screenshots. Known gaps are in docs/open-items.md.

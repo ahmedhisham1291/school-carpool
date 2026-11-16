@@ -33,8 +33,6 @@ enum AnalyticsEvent {
   accountDeleted('account_deleted', <String>{}),
   appLockChanged('app_lock_changed', <String>{'enabled'}),
   deviceSignedOut('device_signed_out', <String>{'all'}),
-  // Prompt 13: the driver's answer to the optional "Always" step.
-  alwaysLocation('always_location', <String>{'granted'}),
   // Settle up (F45): the kind of record and the step taken. Never an
   // amount, a name, a note or an InstaPay address.
   settleUpCreated('settle_up_created', <String>{'kind', 'purpose'}),

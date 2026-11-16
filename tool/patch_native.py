@@ -81,16 +81,14 @@ PERMISSION_TEXTS = {
     # Prompt 9 (image_picker): choose a photo to send in a chat.
     "NSPhotoLibraryUsageDescription":
         "Choose a photo to send in a chat. Its location data is removed before it is sent.",
-    # Prompt 13: "While Using the App" is the only location permission asked.
+    # "While Using the App" is the only location permission asked.
     "NSLocationWhenInUseUsageDescription":
         "Your location sets your home on the map. When you drive a school run, it shows your car "
         "to the parents of the children in it, also with the phone locked, until the run ends.",
-    # Prompt 13 (owner request 13:44): "Always" is OPTIONAL, offered once to
-    # drivers so a run resumes if iOS closes the app (run_recovery plugin).
-    "NSLocationAlwaysAndWhenInUseUsageDescription":
-        "Optional: with Always, a school run you drive usually starts sharing your location again by itself, "
-        "a few minutes after the car moves, if iPhone closes the app. Used only during runs you start, with the blue indicator, "
-        "for the parents of the children in your car; it stops when the run ends.",
+    # 16 Nov 2026 (owner, App Review guideline 5.1.1): the app never asks
+    # for "Always", so there is no NSLocationAlwaysAndWhenInUse text; the
+    # key is removed from a generated Info.plist (REMOVED_INFO_KEYS) and
+    # geolocator is built without its "Always" request (geolocator_bypass).
     "NSFaceIDUsageDescription":
         "Face ID unlocks the app when you turn on App lock, and confirms money transfers.",
     "NSLocalNetworkUsageDescription":
@@ -234,7 +232,45 @@ def patch_privacy_manifest() -> None:
         log("privacy manifest: ios/Runner/PrivacyInfo.xcprivacy")
 
 
-REMOVED_INFO_KEYS = ("NSMotionUsageDescription", "TSLocationManagerLicense")
+REMOVED_INFO_KEYS = (
+    "NSMotionUsageDescription",
+    "TSLocationManagerLicense",
+    # "Always" location is never asked (16 Nov 2026).
+    "NSLocationAlwaysAndWhenInUseUsageDescription",
+    "NSLocationAlwaysUsageDescription",
+)
+
+# geolocator_apple's documented switch: built with this, the plugin has no
+# "Always" request, so iOS never needs an "Always" purpose text. CocoaPods
+# builds get it from the Podfile (geolocator_bypass); Swift Package Manager
+# builds read the environment variable of the same name (codemagic.yaml).
+GEOLOCATOR_BYPASS = "BYPASS_PERMISSION_LOCATION_ALWAYS=1"
+GEOLOCATOR_BYPASS_BLOCK = """    # school-carpool: no "Always" location (tool/patch_native.py).
+    if target.name == 'geolocator_apple'
+      target.build_configurations.each do |config|
+        defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
+        defs = [defs] if defs.is_a?(String)
+        defs << '""" + GEOLOCATOR_BYPASS + """' unless defs.include?('""" + GEOLOCATOR_BYPASS + """')
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
+      end
+    end
+"""
+
+
+def geolocator_bypass(podfile: str) -> str:
+    """Adds the geolocator switch to the Podfile's post_install (idempotent).
+
+    Flutter's Podfile calls flutter_additional_ios_build_settings(target)
+    inside `installer.pods_project.targets.each do |target|`; the block
+    goes right after that call. A Podfile without it is returned unchanged
+    (the built-app check then reports an "Always" request, if any).
+    """
+    if GEOLOCATOR_BYPASS in podfile:
+        return podfile
+    match = re.search(r"^[ \t]*flutter_additional_ios_build_settings\(target\)[ \t]*\n", podfile, flags=re.M)
+    if not match:
+        return podfile
+    return podfile[: match.end()] + GEOLOCATOR_BYPASS_BLOCK + podfile[match.end():]
 REMOVED_BG_TASKS = ("com.transistorsoft.fetch",)
 
 
@@ -273,6 +309,10 @@ def patch_ios(bundle_id: str, display_name: str, flavor: str | None = None) -> N
     if podfile.exists():
         patch_text(podfile, lambda t: re.sub(r"^#?\s*platform :ios, '[0-9.]+'",
                                              f"platform :ios, '{MIN_IOS}'", t, flags=re.M))
+        patch_text(podfile, geolocator_bypass)
+        if GEOLOCATOR_BYPASS not in podfile.read_text(encoding="utf-8"):
+            log("WARNING: Podfile has no flutter_additional_ios_build_settings(target); "
+                "geolocator keeps its Always request (set BYPASS_PERMISSION_LOCATION_ALWAYS=1)")
 
     info_path = ios / "Runner" / "Info.plist"
     with info_path.open("rb") as f:

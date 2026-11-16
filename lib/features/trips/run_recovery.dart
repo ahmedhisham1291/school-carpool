@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:run_recovery/run_recovery.dart';
-import 'package:school_carpool/features/analytics/analytics.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/notifications/local_alarms.dart';
 import 'package:school_carpool/features/trips/location_tracker.dart';
@@ -21,14 +20,15 @@ import 'package:school_carpool/settings/settings_store.dart';
 /// `location` mode, no automatic pausing, the blue indicator) and nothing
 /// in the app stops it on `paused`, `inactive` or `hidden`. iOS can still
 /// close the app (memory, a swipe away). Then:
-/// - with the optional "Always", the run_recovery plugin's significant
-///   location changes make iOS relaunch the app in the background; at
-///   start (before any screen), [RunRecoveryService.recover] reads the
-///   local [RunMarker], checks the run on the server and restarts the
-///   tracker, sends the points waiting on the phone and shows "Tracking
-///   resumed";
-/// - without it, the server pushes the driver "Run still on" after 2
-///   minutes and tells the parents (the fallback).
+/// - the server pushes the driver "Run still on, open the app" after 2
+///   minutes and tells the parents;
+/// - when the driver opens the app (from that alert or by hand), at start
+///   and before any screen [RunRecoveryService.recover] reads the local
+///   [RunMarker], checks the run on the server and restarts the tracker,
+///   sends the points waiting on the phone and shows "Tracking resumed".
+/// The app never asks for "Always" location (owner decision 16 Nov 2026,
+/// App Review guideline 5.1.1): "While Using the App" is the only location
+/// permission, so iOS does not relaunch the app by itself.
 ///
 /// The marker holds IDs and a start time only (no coordinates, no names).
 
@@ -141,11 +141,8 @@ RecoveryDecision decideRecovery({
 /// The native side, behind an interface (tests use [FakeRecoveryNative]).
 abstract interface class RecoveryNative {
   bool get supported;
-  Future<RecoveryAuthorization> authorization();
-  Future<RecoveryAuthorization> requestAlways();
   Future<bool> startRun();
   Future<void> stopRun();
-  Future<bool> launchedForLocation();
 }
 
 class PluginRecoveryNative implements RecoveryNative {
@@ -157,57 +154,29 @@ class PluginRecoveryNative implements RecoveryNative {
   bool get supported => _plugin.supported;
 
   @override
-  Future<RecoveryAuthorization> authorization() => _plugin.authorization();
-
-  @override
-  Future<RecoveryAuthorization> requestAlways() => _plugin.requestAlways();
-
-  @override
   Future<bool> startRun() => _plugin.startRun();
 
   @override
   Future<void> stopRun() => _plugin.stopRun();
-
-  @override
-  Future<bool> launchedForLocation() => _plugin.launchedForLocation();
 }
 
 /// Tests, the web, Android and the gallery.
 class FakeRecoveryNative implements RecoveryNative {
-  FakeRecoveryNative({this.supported = false, this.status = RecoveryAuthorization.unsupported, this.afterRequest});
+  FakeRecoveryNative({this.supported = false});
 
   @override
   final bool supported;
-  RecoveryAuthorization status;
-
-  /// What the "system prompt" answers; null: unchanged.
-  RecoveryAuthorization? afterRequest;
-  int requests = 0;
   int starts = 0;
   int stops = 0;
-  bool launched = false;
-
-  @override
-  Future<RecoveryAuthorization> authorization() async => status;
-
-  @override
-  Future<RecoveryAuthorization> requestAlways() async {
-    requests++;
-    status = afterRequest ?? status;
-    return status;
-  }
 
   @override
   Future<bool> startRun() async {
     starts++;
-    return status == RecoveryAuthorization.always;
+    return supported;
   }
 
   @override
   Future<void> stopRun() async => stops++;
-
-  @override
-  Future<bool> launchedForLocation() async => launched;
 }
 
 enum RecoveryOutcome { nothing, resumed, cleared, failed }
@@ -225,9 +194,6 @@ class RunRecoveryService {
   static DateTime _utcNow() => DateTime.now().toUtc();
 
   static const String markerKey = 'runMarker.v1';
-
-  /// The optional "Always" screen is shown once per install.
-  static const String alwaysAskedKey = 'runRecovery.alwaysAsked';
 
   final SettingsStore _store;
   final RecoveryNative _native;
@@ -258,7 +224,7 @@ class RunRecoveryService {
     await _guard(_native.stopRun);
   }
 
-  /// At app start (also a background relaunch, before any screen).
+  /// At app start, before any screen.
   Future<RecoveryOutcome> recover(String? signedInUid) async {
     final RunMarker? m = marker;
     RecoveryDecision decision = decideRecovery(marker: m, signedInUid: signedInUid, now: _now());
@@ -295,22 +261,6 @@ class RunRecoveryService {
     }
   }
 
-  /// The optional "Always" step: only on iPhone, only with "While Using
-  /// the App" already given, once per install.
-  Future<bool> shouldOfferAlways() async {
-    if (!_native.supported || _store.read(alwaysAskedKey) != null) {
-      return false;
-    }
-    return await _native.authorization() == RecoveryAuthorization.whenInUse;
-  }
-
-  Future<bool> requestAlways() async {
-    await _store.write(alwaysAskedKey, '1');
-    return await _native.requestAlways() == RecoveryAuthorization.always;
-  }
-
-  Future<void> declineAlways() => _store.write(alwaysAskedKey, '1');
-
   static Future<void> _guard(Future<Object?> Function() body) async {
     try {
       await body();
@@ -336,8 +286,7 @@ final Provider<RunRecoveryService> runRecoveryProvider = Provider<RunRecoverySer
   );
 });
 
-/// Read once in bootstrap.dart (before the first frame, so it also runs
-/// when iOS relaunches the app in the background): recovers a run when the
+/// Read once in bootstrap.dart (before the first frame): recovers a run when the
 /// session is known, and forgets the marker when tracking stops.
 final Provider<void> runRecoveryLauncherProvider = Provider<void>((Ref ref) {
   bool tried = false;
@@ -360,7 +309,3 @@ final Provider<void> runRecoveryLauncherProvider = Provider<void>((Ref ref) {
   });
   ref.onDispose(sub.cancel);
 });
-
-/// Analytics for the optional step (no location data).
-void trackAlwaysChoice(Analytics analytics, {required bool granted}) =>
-    analytics.track(AnalyticsEvent.alwaysLocation, <String, Object?>{'granted': granted});
