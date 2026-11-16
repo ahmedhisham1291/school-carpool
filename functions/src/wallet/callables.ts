@@ -1,5 +1,5 @@
 import * as logger from "firebase-functions/logger";
-import { HttpsError, onCall, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { onCall, type CallableRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminDb } from "../admin";
 import { ipOf, requireAdminCaller } from "../admin_panel/access";
@@ -37,6 +37,7 @@ import { WALLET_ERROR_CODES, WalletError } from "./model";
 import { createWalletProvider, FakeWalletProvider, walletConfigProblem, type WalletProvider } from "./provider";
 import { noteAbuse } from "../privacy/abuse_hook";
 import { featureGatedCall, featureSessionCall, requireFeature, skipWhenOff } from "../features/gate";
+import { callerOf, reasonErrorMapper, runCallable, unavailable } from "../common/callable";
 
 /**
  * Wallet functions (Prompt 11B: F43, F44). The ONLY place the wallet
@@ -78,24 +79,11 @@ function deps(): WalletDeps {
 }
 
 function caller(request: CallableRequest): Caller {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
-  return { uid, verifiedClaim: request.auth?.token.verified === true };
+  return callerOf(request);
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    if (error instanceof WalletError) {
-      throw new HttpsError(WALLET_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason, ...error.details });
-    }
-    // Never the request data: it holds amounts, names and notes.
-    logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-    await reportError(error);
-    throw new HttpsError("unavailable", "wallet-unavailable", { reason: "wallet-unavailable" });
-  }
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, { map: [reasonErrorMapper(WalletError, WALLET_ERROR_CODES, "details")], fallback: unavailable("wallet-unavailable") });
 }
 
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK, minInstances: MIN_INSTANCES_WALLET, timeoutSeconds: 60 };
@@ -123,7 +111,6 @@ function abuseKey(data: unknown, ...fields: string[]): string {
   const raw = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
   return fields.map((f) => String(raw[f] ?? "")).join("|").slice(0, 64);
 }
-
 
 /** { carpoolId? } -> { contacts }: parents of my carpools. */
 export const walletContacts = featureGatedCall("wallet", opts, (r) =>

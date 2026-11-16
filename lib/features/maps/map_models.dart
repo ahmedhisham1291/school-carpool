@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/core/app_failure.dart';
 import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/places/address_models.dart';
+import 'package:school_carpool/firebase/callable_error.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 String _text(Object? value) => value is String ? value : '';
@@ -124,7 +126,7 @@ class PlaceResult {
 enum MapFailureKind { offline, rateLimited, notVerified, noHome, notYourSchool, outsideEgypt, invalid, suspended, unknown }
 
 /// Why a maps call failed, from `details.reason` (functions/src/maps).
-class MapFailure implements Exception {
+class MapFailure implements AppFailure {
   const MapFailure(this.kind, {this.demo, this.retryAfter = Duration.zero});
 
   factory MapFailure.from(Object error) {
@@ -138,7 +140,7 @@ class MapFailure implements Exception {
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
-      final Object? reason = details is Map<Object?, Object?> ? details['reason'] : null;
+      final String? reason = callableReason(error);
       final Object? retry = details is Map<Object?, Object?> ? details['retryAfterSeconds'] : null;
       final MapFailureKind kind = switch (reason) {
         'rate-limited' => MapFailureKind.rateLimited,
@@ -167,8 +169,10 @@ class MapFailure implements Exception {
   final DemoRefusal? demo;
   final Duration retryAfter;
 
+  @override
   bool get isOffline => kind == MapFailureKind.offline;
 
+  @override
   String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
 
   String _kindMessage(AppLocalizations l10n) => switch (kind) {

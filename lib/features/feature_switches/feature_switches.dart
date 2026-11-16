@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/firebase/collections.dart';
 
 /// Optional features the owner can switch on or off from the admin panel
 /// without an app release (docs/DECISIONS.md, "Improvements, revised").
@@ -112,8 +113,8 @@ final StreamProvider<FeatureSwitches> featureSwitchesStreamProvider = StreamProv
     }
     return ref
         .watch(firestoreProvider)
-        .collection('config')
-        .doc('features')
+        .collection(Collections.config)
+        .doc(Docs.features)
         .snapshots()
         .map((DocumentSnapshot<Map<String, dynamic>> snapshot) => FeatureSwitches.fromMap(snapshot.data()));
   },

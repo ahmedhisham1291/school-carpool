@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:school_carpool/core/app_failure.dart';
 import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -27,7 +28,7 @@ enum VerificationFailureKind {
 /// A verification problem the parent can act on, from the `details.reason`
 /// our functions send (functions/src/verification/submission.ts) or from
 /// Storage and the camera.
-class VerificationFailure implements Exception {
+class VerificationFailure implements AppFailure {
   const VerificationFailure(this.kind, {this.demo, this.missing = const <String>[]});
 
   factory VerificationFailure.from(Object error) {
@@ -91,9 +92,11 @@ class VerificationFailure implements Exception {
   /// Upload names the server did not find (missingUpload).
   final List<String> missing;
 
+  @override
   bool get isOffline => kind == VerificationFailureKind.offline;
 
   /// What to tell the parent, including what to do.
+  @override
   String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
 
   String _kindMessage(AppLocalizations l10n) => switch (kind) {

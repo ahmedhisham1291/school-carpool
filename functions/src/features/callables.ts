@@ -1,15 +1,14 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import * as logger from "firebase-functions/logger";
-import { HttpsError, onCall, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { onCall } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
 import { ipOf, requireAdminCaller } from "../admin_panel/access";
 import { ADMIN_ERROR_CODES, AdminError } from "../admin_panel/errors";
 import { AUDIT_LOG, auditDoc } from "../admin_panel/store";
 import { ENFORCE_APP_CHECK } from "../config";
-import { reportError } from "../sentry";
 import { getFeatures, setFeature, type FeatureAdminDeps } from "./admin";
 import { clearFeatureCache } from "./gate";
 import { FEATURES_DOC } from "./model";
+import { reasonErrorMapper, runCallable } from "../common/callable";
 
 /**
  * Admin panel > Settings: the pilot feature switches (features/model.ts).
@@ -35,16 +34,8 @@ function deps(): FeatureAdminDeps {
   };
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    if (error instanceof AdminError) throw new HttpsError(ADMIN_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
-    logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-    await reportError(error);
-    throw new HttpsError("internal", "Something went wrong.");
-  }
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, { map: [reasonErrorMapper(AdminError, ADMIN_ERROR_CODES)] });
 }
 
 const options = { enforceAppCheck: ENFORCE_APP_CHECK };

@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:school_carpool/core/app_failure.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 enum AdminFailureKind {
@@ -28,7 +29,7 @@ enum AdminFailureKind {
 
 /// An admin panel problem with a message that says what to do. Built from
 /// `details.reason` of our functions or from Firebase Auth errors.
-class AdminFailure implements Exception {
+class AdminFailure implements AppFailure {
   const AdminFailure(this.kind, {this.field, this.code});
 
   factory AdminFailure.from(Object error) {
@@ -106,8 +107,10 @@ class AdminFailure implements Exception {
   /// Firebase Auth's short error code for a failure we do not recognise.
   final String? code;
 
+  @override
   bool get isOffline => kind == AdminFailureKind.offline;
 
+  @override
   String message(AppLocalizations l10n) => switch (kind) {
     AdminFailureKind.wrongPassword => l10n.adminErrWrongPassword,
     AdminFailureKind.wrongCode => l10n.adminErrWrongCode,

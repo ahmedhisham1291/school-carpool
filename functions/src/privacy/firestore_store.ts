@@ -29,7 +29,7 @@ import type { ExportSource } from "./export";
 import { PLACE_INTERNAL, internalId } from "../places/catalog";
 import type { RetentionReport, RetentionStore } from "./jobs";
 import type { ConsentRow, PrivacyRequest } from "./requests";
-import { ABUSE_COUNTER_DAYS, DAY_MS, LOGIN_HISTORY_DAYS, type DataTypeId } from "./retention";
+import { ABUSE_COUNTER_DAYS, DAY_MS, DEVICE_STALE_DAYS, LOGIN_HISTORY_DAYS, type DataTypeId } from "./retention";
 
 /**
  * Firestore and Storage side of Prompt 12. Every collection here is closed
@@ -132,7 +132,7 @@ function deviceToDoc(d: DeviceRecord): DocumentData {
     signedOutAt: d.signedOutAtMs === null ? null : ts(d.signedOutAtMs),
     signOutReason: d.signOutReason,
     // Firestore TTL: a phone not seen for 180 days drops off the list.
-    expiresAt: ts(d.lastSeenAtMs + 180 * DAY_MS),
+    expiresAt: ts(d.lastSeenAtMs + DEVICE_STALE_DAYS * DAY_MS),
   };
 }
 
@@ -194,7 +194,7 @@ export class FirestoreDeviceStore implements DeviceStore {
     if (create) {
       await ref.set(deviceToDoc({ key, platform, firstSignInAtMs: nowMs, lastSignInAtMs: nowMs, lastSeenAtMs: nowMs, signedOutAtMs: null, signOutReason: null }));
     } else {
-      await ref.update({ lastSeenAt: ts(nowMs), platform, expiresAt: ts(nowMs + 180 * DAY_MS) });
+      await ref.update({ lastSeenAt: ts(nowMs), platform, expiresAt: ts(nowMs + DEVICE_STALE_DAYS * DAY_MS) });
     }
   }
 

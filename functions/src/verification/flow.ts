@@ -219,8 +219,6 @@ export interface VerificationDeps {
 
 export const ROOT = "verification";
 export const DAY_MS = 24 * 60 * 60 * 1000;
-/** Images are deleted this long after the decision; the daily job adds at most one day. */
-export const IMAGE_RETENTION_MS = 5 * DAY_MS; // Withdrawn cases only (Prompt 12).
 /** Uploads never submitted are deleted after this long. */
 export const PENDING_MAX_AGE_MS = 3 * DAY_MS;
 /** Admin image links expire quickly (no download, spec section 7). */

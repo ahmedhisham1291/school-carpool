@@ -33,6 +33,7 @@ import { createPushSender } from "./push";
 import { FirestoreNotifyStore } from "./store";
 import { runNotificationTick } from "./tick";
 import { gatedCall, sessionCall } from "../privacy/device_gate";
+import { requireUid, runCallable } from "../common/callable";
 
 /**
  * Notifications (Prompt 8: F12, F23).
@@ -145,26 +146,20 @@ function deviceDeps(): DeviceDeps {
 }
 
 function uidOf(request: CallableRequest): string {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
-  return uid;
+  return requireUid(request);
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    if (error instanceof DeviceError) {
-      throw new HttpsError(error.reason === "rate-limited" ? "resource-exhausted" : "invalid-argument", error.reason, {
-        reason: error.reason,
-        retryAfterSeconds: Math.ceil(error.retryAfterMs / 1000),
-      });
-    }
-    logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-    await reportError(error);
-    throw new HttpsError("internal", "Something went wrong.");
-  }
+/** A rate limit is "resource-exhausted" (with retryAfterSeconds); any other device error is "invalid-argument". */
+function deviceErrorMapper(error: unknown): HttpsError | undefined {
+  if (!(error instanceof DeviceError)) return undefined;
+  return new HttpsError(error.reason === "rate-limited" ? "resource-exhausted" : "invalid-argument", error.reason, {
+    reason: error.reason,
+    retryAfterSeconds: Math.ceil(error.retryAfterMs / 1000),
+  });
+}
+
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, { map: [deviceErrorMapper] });
 }
 
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK };

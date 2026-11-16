@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
+import 'package:school_carpool/firebase/collections.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
 /// Home, map settings, driving schools and the nearby parents map
@@ -81,7 +82,7 @@ class FirebaseMapRepository implements MapRepository {
 
   @override
   Stream<HomeLocation?> watchHome(String uid) => _db
-      .collection('homes')
+      .collection(Collections.homes)
       .doc(uid)
       .snapshots()
       .map((DocumentSnapshot<Map<String, dynamic>> snap) {
@@ -141,7 +142,7 @@ class FirebaseMapRepository implements MapRepository {
   @override
   Future<GeoPin?> schoolPin(String schoolId) async {
     try {
-      final DocumentSnapshot<Map<String, dynamic>> snap = await _db.collection('schools').doc(schoolId).get();
+      final DocumentSnapshot<Map<String, dynamic>> snap = await _db.collection(Collections.schools).doc(schoolId).get();
       final Object? loc = snap.data()?['location'];
       return loc is GeoPoint ? GeoPin(loc.latitude, loc.longitude) : null;
     } on FirebaseException {
