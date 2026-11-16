@@ -347,7 +347,8 @@ void main() {
           await _pump(tester, ProfileRoutes.wallet, _World(), FeatureSwitches.pilot, locale: locale, width: 320, textScale: scale);
           expectOneLine(find.byType(AppBar), 'feature off app bar $where', requireText: true);
           expectOneLine(find.byType(AppButton), 'feature off action $where', requireText: true);
-          await _pump(tester, AppTab.profile.path, _World(), FeatureSwitches.pilot, locale: locale, width: 320, textScale: scale);
+          // The Settle up row shows only while Settle up is on (off by default: no money in the app).
+          await _pump(tester, AppTab.profile.path, _World(), FeatureSwitches.allOn, locale: locale, width: 320, textScale: scale);
           expectOneLine(
             find.descendant(of: _key('profile.settleUp'), matching: find.byType(OneLineText)).first,
             'profile settle up row $where',

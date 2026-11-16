@@ -36,11 +36,14 @@ void main() {
       final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
       await pumpAdminPanel(tester, session: superAdmin, location: AdminRoutes.settings, features: api, locale: 'en');
       await _settle(tester);
-      expect(api.calls, <String>['features']);
+      // The shell reads the switches too (Wallet section only while on).
+      expect(api.calls.toSet(), <String>{'features'});
       expect(_row(tester, AppFeature.wallet).value, isFalse);
       expect(_row(tester, AppFeature.ratingsAndVouching).value, isFalse);
       expect(_row(tester, AppFeature.yearlyChecks).value, isFalse);
-      expect(_row(tester, AppFeature.settleUp).value, isTrue);
+      // No money in the app (16 Nov 2026): every money switch starts off.
+      expect(_row(tester, AppFeature.settleUp).value, isFalse);
+      expect(_row(tester, AppFeature.contributions).value, isFalse);
       expect(find.byType(AppSwitchRow), findsNWidgets(AppFeature.values.length));
       // Core features are named as always on, with no switch.
       expect(find.textContaining('are always on'), findsOneWidget);
@@ -67,12 +70,12 @@ void main() {
       await _settle(tester);
       expect(api.calls, contains('setFeature:wallet:true'));
       expect(_row(tester, AppFeature.wallet).value, isTrue);
-      expect(_row(tester, AppFeature.settleUp).value, isTrue, reason: 'the other switches keep their value');
+      expect(_row(tester, AppFeature.settleUp).value, isFalse, reason: 'the other switches keep their value');
       expect(find.text('Saved'), findsOneWidget);
     });
 
     testWidgets('turning a feature off asks too and says nothing is deleted', (WidgetTester tester) async {
-      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
+      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi()..switches = FeatureSwitches.allOn;
       await pumpAdminPanel(tester, session: superAdmin, location: AdminRoutes.settings, features: api, locale: 'en');
       await _settle(tester);
       _row(tester, AppFeature.settleUp).onChanged!(false);
@@ -93,7 +96,7 @@ void main() {
         expect(_row(tester, f).onChanged, isNull, reason: f.name);
       }
       expect(find.text('Only a super admin can change these switches.'), findsOneWidget);
-      expect(api.calls, <String>['features']);
+      expect(api.calls.toSet(), <String>{'features'});
     });
 
     testWidgets('a refused change shows the reason and leaves the switch as it was', (WidgetTester tester) async {
