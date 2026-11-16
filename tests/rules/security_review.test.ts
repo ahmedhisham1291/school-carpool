@@ -193,10 +193,10 @@ describe("security review: Storage", () => {
   it("no upload into another parent's folder, no other file names, no non-JPEG, nothing over 3 MB", async () => {
     const mallory = parent("mallory").storage();
     const jpeg = (size: number) => new Uint8Array(size);
-    await assertFails(mallory.ref("verification/alice/pending/selfie.jpg").put(jpeg(10), { contentType: "image/jpeg" }));
-    await assertFails(mallory.ref("verification/mallory/pending/evil.html").put(jpeg(10), { contentType: "text/html" }));
-    await assertFails(mallory.ref("verification/mallory/pending/selfie.jpg").put(jpeg(10), { contentType: "image/svg+xml" }));
-    await assertFails(mallory.ref("verification/mallory/pending/selfie.jpg").put(jpeg(3 * 1024 * 1024), { contentType: "image/jpeg" }));
-    await assertSucceeds(mallory.ref("verification/mallory/pending/selfie.jpg").put(jpeg(10), { contentType: "image/jpeg" }));
+    await assertFails(mallory.ref("verification/alice/pending/selfie.jpg").put(jpeg(10), { contentType: "image/jpeg" }).then(() => undefined));
+    await assertFails(mallory.ref("verification/mallory/pending/evil.html").put(jpeg(10), { contentType: "text/html" }).then(() => undefined));
+    await assertFails(mallory.ref("verification/mallory/pending/selfie.jpg").put(jpeg(10), { contentType: "image/svg+xml" }).then(() => undefined));
+    await assertFails(mallory.ref("verification/mallory/pending/selfie.jpg").put(jpeg(3 * 1024 * 1024), { contentType: "image/jpeg" }).then(() => undefined));
+    await assertSucceeds(mallory.ref("verification/mallory/pending/selfie.jpg").put(jpeg(10), { contentType: "image/jpeg" }).then(() => undefined));
   });
 });

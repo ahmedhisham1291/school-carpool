@@ -34,11 +34,10 @@ const asAdminNoMfa = (): RulesTestContext =>
 // Security review (16 Nov 2026): only TOTP counts; an SMS second factor
 // (SIM swap) or a custom-token sign-in with a forged-looking claim does not.
 const asAdminSmsFactor = (): RulesTestContext =>
-  env.authenticatedContext("admin1", {
+  env.authenticatedContext("admin1", withMfa({
     admin: true,
-    auth_time: nowSeconds() - 60,
-    firebase: { sign_in_provider: "password", sign_in_second_factor: "phone" },
-  });
+    firebase: { sign_in_provider: "password" as const, sign_in_second_factor: "phone" },
+  }));
 const asAdminOldSession = (): RulesTestContext =>
   env.authenticatedContext("admin1", withMfa({ admin: true, auth_time: nowSeconds() - 9 * 60 * 60 }));
 const asParent = (): RulesTestContext => env.authenticatedContext("alice", { verified: true });
