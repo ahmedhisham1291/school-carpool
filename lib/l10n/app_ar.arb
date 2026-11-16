@@ -540,7 +540,7 @@
   "@termsPrivacyText": {
     "description": "Draft privacy policy summary"
   },
-  "termsConductText": "احترم الأهالي الآخرين والأطفال. التزم بمواعيدك وأبلغ المجموعة مبكرًا إذا لم تستطع القيادة. لا تشارك بيانات أو صور الأطفال خارج المجموعة. قُد بأمان وبحزام أمان لكل طفل. أبلغ عن أي سلوك غير آمن.",
+  "termsConductText": "احترم الأهالي الآخرين والأطفال. التزم بمواعيدك وأبلغ المجموعة مبكرًا إذا لم تستطع القيادة. لا تشارك بيانات أو صور الأطفال خارج المجموعة. قُد بأمان وبحزام أمان لكل طفل. أبلغ عن أي سلوك غير آمن. لا تسامح مع المحتوى المسيء أو المستخدمين المسيئين: يُمنع السب والتحرش والتهديد والمحتوى الجنسي أو العنيف. يمكنك الإبلاغ عن أي شخص أو حظره من المحادثة؛ نراجع البلاغات خلال 24 ساعة ونحذف المحتوى ونوقف صاحبه.",
   "@termsConductText": {
     "description": "Draft code of conduct"
   },
@@ -5730,7 +5730,7 @@
   "@emergencyContactTitle": {
     "description": "App bar and Profile row title"
   },
-  "emergencyContactIntro": "إذا ضغطت زر الطوارئ أثناء المشوار، يصل لهذا الشخص رسالة واتساب بموقع السيارة.",
+  "emergencyContactIntro": "إذا ضغطت زر الطوارئ أثناء المشوار، يصل لهذا الشخص رسالة واتساب بموقع السيارة. وهذا لا يغني عن الاتصال بـ 122 أو 123.",
   "@emergencyContactIntro": {
     "description": "Intro text"
   },
@@ -6062,7 +6062,7 @@
   "@tripEmergencyTitle": {
     "description": "Dialog title"
   },
-  "tripEmergencyBody": "يصل لكل أولياء أمور المشوار ولجهة اتصال الطوارئ تنبيه بموقع السيارة.",
+  "tripEmergencyBody": "يصل لكل أولياء أمور المشوار ولجهة اتصال الطوارئ تنبيه بموقع السيارة. الزر لا يتصل بالنجدة أو الإسعاف: في الخطر اتصل بـ 122 أو 123.",
   "@tripEmergencyBody": {
     "description": "Dialog body"
   },
@@ -10330,5 +10330,17 @@
   "addressDistrictOptionalHelper": "اختياري. اكتبه إن كنت تعرفه.",
   "@addressDistrictOptionalHelper": {
     "description": "Address form: helper of the typed district in a city with no areas"
+  },
+  "aboutLegalSection": "الشروط والدعم",
+  "@aboutLegalSection": {
+    "description": "Section header on About: documents and support"
+  },
+  "aboutSupport": "تواصل مع الدعم",
+  "@aboutSupport": {
+    "description": "Row that opens an email to support; the address is the subtitle"
+  },
+  "aboutOpenWebPage": "فتح صفحة الويب",
+  "@aboutOpenWebPage": {
+    "description": "Button under a document: opens its public web page"
   }
 }

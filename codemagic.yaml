@@ -12,6 +12,7 @@
 #   - ios-staging: version tags (v*) and manual starts (Start new build).
 #     Never on a push to a branch, main included (owner, 14 Nov 2026).
 #   - ios-dev: manual starts only.
+#   - ios-prod: manual starts only (the App Store build).
 #
 # Placeholders to replace:
 #   CodemagicASC               name of the App Store Connect key integration
@@ -41,14 +42,20 @@ workflows:
       app_store_connect: CodemagicASC
     environment:
       <<: *env_versions
-      xcode: latest
+      # Pinned, not `latest` (App Review audit): Apple requires Xcode 26 or
+      # later for uploads, and an app built with the iOS 27 SDK (Xcode 27)
+      # must use the UIScene life cycle or it fails to launch. Our Runner is
+      # a classic app-delegate app (tool/patch_native.py, run recovery), so
+      # stay on Xcode 26 until that is migrated (docs/apple-review/audit.md).
+      xcode: 26.4
       ios_signing:
         distribution_type: app_store
         bundle_identifier: org.schoolcarpool.app.stg
       groups:
         # SENTRY_DSN_APP_STAGING, RECAPTCHA_SITE_KEY (web, later),
         # MAPS_API_KEY_IOS (Prompt 5; the staging project's iOS Maps key),
-        # INVITE_LINK_DOMAIN (optional, Prompt 6). No location licence:
+        # INVITE_LINK_DOMAIN (optional, Prompt 6), LEGAL_SITE_URL and
+        # SUPPORT_EMAIL (public pages and support address). No location licence:
         # Prompt 13 uses the free geolocator plugin (docs/testflight.md).
         - staging_defines
       vars:
@@ -77,7 +84,14 @@ workflows:
             --export-options-plist=/Users/builder/export_options.plist \
             --dart-define=SENTRY_DSN="${SENTRY_DSN_APP_STAGING:-}" \
             --dart-define=MAPS_ENABLED="${MAPS_API_KEY_IOS:+true}" \
+            --dart-define=LEGAL_SITE_URL="${LEGAL_SITE_URL:-}" \
+            --dart-define=SUPPORT_EMAIL="${SUPPORT_EMAIL:-}" \
             --dart-define=SENTRY_SAMPLE_RATE=1.0
+      - name: Check the built app (staging)
+        script: |
+          APP=$(ls -d build/ios/archive/Runner.xcarchive/Products/Applications/*.app | head -1)
+          # Reports only on staging (it shows what the prod check would stop).
+          python3 tool/check_ios_app.py "$APP" --flavor staging || echo "check_ios_app: problems above would stop the prod build"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
@@ -85,6 +99,72 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+
+  ios-prod:
+    # The App Store build. Started by hand only (Start new build): it
+    # uploads to App Store Connect; the owner submits it for review there
+    # (docs/apple-review/submission-kit.md). Never submitted automatically.
+    name: iOS prod to App Store Connect (manual)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: CodemagicASC
+    environment:
+      <<: *env_versions
+      # Pinned to Xcode 26, see ios-staging.
+      xcode: 26.4
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: org.schoolcarpool.app
+      groups:
+        # SENTRY_DSN_APP_PROD, MAPS_API_KEY_IOS (the prod project's iOS key),
+        # LEGAL_SITE_URL (https://<prod project>-links.web.app), SUPPORT_EMAIL,
+        # INVITE_LINK_DOMAIN (optional).
+        - prod_defines
+      vars:
+        # The prod app's Apple ID from App Store Connect; keep the quotes.
+        APP_STORE_APPLE_ID: "0000000000"
+    cache: *cache
+    scripts:
+      - name: Release checks (prod)
+        script: |
+          # Fails early instead of uploading a build App Review would reject.
+          if [ "$APP_STORE_APPLE_ID" = "0000000000" ]; then echo "Set APP_STORE_APPLE_ID of the prod app in codemagic.yaml"; exit 1; fi
+          if grep -q "PLACEHOLDER" lib/firebase/firebase_options_prod.dart; then echo "lib/firebase/firebase_options_prod.dart is still the placeholder (SETUP.md 3, Connect the app)"; exit 1; fi
+          case "${LEGAL_SITE_URL:-}" in https://*) ;; *) echo "LEGAL_SITE_URL is missing in prod_defines (the public privacy policy site)"; exit 1 ;; esac
+          case "${SUPPORT_EMAIL:-}" in *@*.*) ;; *) echo "SUPPORT_EMAIL is missing in prod_defines"; exit 1 ;; esac
+          if [ -z "${MAPS_API_KEY_IOS:-}" ]; then echo "MAPS_API_KEY_IOS is missing in prod_defines (the map would be empty)"; exit 1; fi
+          curl -fsS -o /dev/null "${LEGAL_SITE_URL%/}/privacy" || { echo "The privacy policy page does not open: ${LEGAL_SITE_URL%/}/privacy"; exit 1; }
+      - name: Bootstrap (prod)
+        script: FLAVOR=prod tool/bootstrap.sh
+      - name: Use signing profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          flutter build ipa --release \
+            -t lib/main_prod.dart \
+            --build-number=$((LATEST + 1)) \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=SENTRY_DSN="${SENTRY_DSN_APP_PROD:-}" \
+            --dart-define=MAPS_ENABLED="${MAPS_API_KEY_IOS:+true}" \
+            --dart-define=LEGAL_SITE_URL="${LEGAL_SITE_URL:-}" \
+            --dart-define=SUPPORT_EMAIL="${SUPPORT_EMAIL:-}" \
+            --dart-define=SENTRY_SAMPLE_RATE=0.2
+      - name: Check the built app (prod)
+        script: |
+          APP=$(ls -d build/ios/archive/Runner.xcarchive/Products/Applications/*.app | head -1)
+          python3 tool/check_ios_app.py "$APP" --flavor prod
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        # Uploaded for TestFlight internal testing and for the owner to pick
+        # in App Store Connect; never sent to review from here.
+        submit_to_testflight: false
+        submit_to_app_store: false
 
   ios-dev:
     # Started by hand only (no triggering): a dev build with the gallery and
@@ -97,7 +177,12 @@ workflows:
       app_store_connect: CodemagicASC
     environment:
       <<: *env_versions
-      xcode: latest
+      # Pinned, not `latest` (App Review audit): Apple requires Xcode 26 or
+      # later for uploads, and an app built with the iOS 27 SDK (Xcode 27)
+      # must use the UIScene life cycle or it fails to launch. Our Runner is
+      # a classic app-delegate app (tool/patch_native.py, run recovery), so
+      # stay on Xcode 26 until that is migrated (docs/apple-review/audit.md).
+      xcode: 26.4
       ios_signing:
         distribution_type: app_store
         bundle_identifier: org.schoolcarpool.app.dev

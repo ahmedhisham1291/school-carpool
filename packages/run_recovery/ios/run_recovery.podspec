@@ -9,6 +9,8 @@ Pod::Spec.new do |s|
   s.author           = { 'School Carpool' => 'dev@example.com' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
+  # Privacy manifest: the plugin keeps one flag in UserDefaults (reason CA92.1).
+  s.resource_bundles = { 'run_recovery_privacy' => ['Resources/PrivacyInfo.xcprivacy'] }
   s.dependency 'Flutter'
   s.frameworks       = 'CoreLocation'
   s.platform         = :ios, '15.0'

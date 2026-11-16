@@ -753,6 +753,25 @@ describe("trips: review fixes", () => {
     assert.equal(h.files.files.has("selfieChecks/d1/new.jpg"), true);
   });
 
+  it("App Review demo driver: starts without a face reference and is never picked for the selfie", async () => {
+    const h = harness();
+    h.files.files.delete(faceRefPath("d1"));
+    h.roll.value = 0; // every run would need a selfie
+    h.store.accounts.set("d1", { status: "verified", firstName: "Dina", drivingPaused: false, language: "en", reviewDemo: true });
+    const prepared = await prepareTrip(h.deps, driver, ids());
+    assert.equal(prepared.selfieRequired, false);
+    assert.equal(prepared.selfieStatus, "none");
+    const started = await startTrip(h.deps, driver, ids());
+    assert.ok(started.tripId);
+  });
+
+  it("the exemption is the flag only: the same driver without it still needs the reference", async () => {
+    const h = harness();
+    h.files.files.delete(faceRefPath("d1"));
+    h.store.accounts.set("d1", { status: "verified", firstName: "Dina", drivingPaused: false, language: "en", reviewDemo: false });
+    assert.equal(await reason(startTrip(h.deps, driver, ids())), "no-reference");
+  });
+
   it("no face reference: no run (item 6)", async () => {
     const h = harness();
     h.files.files.delete(faceRefPath("d1"));

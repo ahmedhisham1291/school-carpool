@@ -9,7 +9,8 @@ abstract final class LegalDocuments {
   static const String terms = '2026-11-13';
   // Prompt 12: the new retention schedule (DECISIONS.md, data retention).
   static const String privacy = '2026-11-14';
-  static const String conduct = '2026-11-13';
+  // App Review audit (guideline 1.2): no tolerance for objectionable content.
+  static const String conduct = '2026-11-16';
 
   /// Sent to acceptConsents as `documents`.
   static const Map<String, String> required = <String, String>{

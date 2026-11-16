@@ -1,7 +1,7 @@
 import * as logger from "firebase-functions/logger";
 import { HttpsError, onCall, type CallableOptions, type CallableRequest } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
-import { requireNoDeviceCheck, requireValidSession } from "../privacy/device_gate";
+import { refuseReviewDemo, requireNoDeviceCheck, requireValidSession } from "../privacy/device_gate";
 import { FeatureCache, FEATURES_DOC, type FeatureKey, type FeatureReader, type FeatureSwitches } from "./model";
 
 /**
@@ -49,11 +49,20 @@ export async function requireFeature(key: FeatureKey): Promise<void> {
   if (!(await cache.isOn(key))) throw featureOffError(key);
 }
 
+/**
+ * Features an App Review demo parent never uses (docs/reviews/
+ * apple-review.md, B1): the wallet moves real money and looks parents up
+ * by parent ID. Settle up stays open to them: the server allows it only
+ * between approved members of one carpool, and theirs is the demo carpool.
+ */
+const REAL_PARENTS_ONLY: ReadonlySet<FeatureKey> = new Set<FeatureKey>(["wallet"]);
+
 /** gatedCall (valid session, no open new-phone check) behind the switch of [key]. */
 export function featureGatedCall<T>(key: FeatureKey, options: CallableOptions, handler: (request: CallableRequest) => T | Promise<T>) {
   return onCall(options, async (request: CallableRequest) => {
     await requireFeature(key);
-    await requireNoDeviceCheck(request.auth);
+    await requireNoDeviceCheck(request);
+    if (REAL_PARENTS_ONLY.has(key)) refuseReviewDemo(request);
     return handler(request);
   });
 }
@@ -62,7 +71,8 @@ export function featureGatedCall<T>(key: FeatureKey, options: CallableOptions, h
 export function featureSessionCall<T>(key: FeatureKey, options: CallableOptions, handler: (request: CallableRequest) => T | Promise<T>) {
   return onCall(options, async (request: CallableRequest) => {
     await requireFeature(key);
-    await requireValidSession(request.auth);
+    await requireValidSession(request);
+    if (REAL_PARENTS_ONLY.has(key)) refuseReviewDemo(request);
     return handler(request);
   });
 }

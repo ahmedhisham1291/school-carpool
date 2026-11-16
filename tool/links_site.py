@@ -5,9 +5,16 @@ The site serves:
   /.well-known/apple-app-site-association  universal links for the iPhone app
   /c/<code>                                a static fallback page (no carpool
                                            data) when the app is not installed
+  /privacy /terms /support /delete-account the public legal and support pages
+                                           App Store Connect needs (Arabic and
+                                           English), built when --support-email
+                                           and --operator-name are given
+  /                                        a short page about the app (the
+                                           marketing URL)
 
   python3 tool/links_site.py --team-id ABCDE12345 --bundle-id org.schoolcarpool.app.dev \
-      [--app-store-url https://apps.apple.com/app/id0000000000]
+      [--app-store-url https://apps.apple.com/app/id0000000000] \
+      [--support-email help@your-domain --operator-name "Your legal name"] [--require-legal]
   firebase deploy --only hosting:links --project dev
 
 See SETUP.md section 16. Standard library only; idempotent.
@@ -28,6 +35,12 @@ OUT = ROOT / "build" / "links_site"
 
 TEAM_ID = re.compile(r"^[A-Z0-9]{10}$")
 BUNDLE_ID = re.compile(r"^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$")
+EMAIL = re.compile(r"^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$")
+# Addresses that would be a placeholder on a public page (guideline 2.1).
+PLACEHOLDER_EMAIL = re.compile(r"(example\.(com|org|net)|\.test|\.invalid|localhost)$", re.I)
+OPERATOR = re.compile(r"^[^<>&\"\n\r]{2,80}$")
+LEGAL_PAGES = ("privacy", "terms", "support", "delete-account")
+LEGAL_DOCUMENTS = ROOT / "lib" / "features" / "auth" / "legal_documents.dart"
 STORE_URL = re.compile(r"^https://(apps\.apple\.com|testflight\.apple\.com)/[A-Za-z0-9/._?=&-]*$")
 
 
@@ -45,7 +58,52 @@ def association(team_id: str, bundle_ids: list[str]) -> dict:
     }
 
 
-def build(team_id: str, bundle_ids: list[str], app_store_url: str, out: Path = OUT) -> Path:
+def document_versions() -> dict[str, str]:
+    """The versions parents accept in the app (lib/features/auth/legal_documents.dart)."""
+    text = LEGAL_DOCUMENTS.read_text(encoding="utf-8")
+    found = dict(re.findall(r"static const String (terms|privacy|conduct) = '(\d{4}-\d{2}-\d{2})';", text))
+    if set(found) != {"terms", "privacy", "conduct"}:
+        raise SystemExit("links_site: could not read the document versions from legal_documents.dart")
+    return found
+
+
+def escape(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def build_legal(out: Path, support_email: str, operator_name: str, app_store_url: str) -> None:
+    """Privacy policy, terms, support, account deletion and home pages."""
+    if not EMAIL.match(support_email) or PLACEHOLDER_EMAIL.search(support_email):
+        raise SystemExit("links_site: --support-email must be a real address you read (not an example address)")
+    if not OPERATOR.match(operator_name.strip()):
+        raise SystemExit("links_site: --operator-name must be the legal name of who runs the app")
+    versions = document_versions()
+    values = {
+        "__SUPPORT_EMAIL__": support_email,
+        "__OPERATOR__": escape(operator_name.strip()),
+        "__UPDATED__": max(versions["privacy"], versions["terms"]),
+        "__PRIVACY_VERSION__": versions["privacy"],
+        "__TERMS_VERSION__": versions["terms"],
+        "__APP_STORE_URL__": app_store_url or "#",
+    }
+    for name in (*LEGAL_PAGES, "home"):
+        page = (SOURCE / f"{name}.html").read_text(encoding="utf-8")
+        for key, value in values.items():
+            page = page.replace(key, value)
+        if "__" in re.sub(r"https?://\S+", "", page):
+            raise SystemExit(f"links_site: {name}.html still has a placeholder")
+        (out / ("index.html" if name == "home" else f"{name}.html")).write_text(page, encoding="utf-8")
+
+
+def build(
+    team_id: str,
+    bundle_ids: list[str],
+    app_store_url: str,
+    out: Path = OUT,
+    support_email: str = "",
+    operator_name: str = "",
+    require_legal: bool = False,
+) -> Path:
     if not TEAM_ID.match(team_id):
         raise SystemExit("links_site: --team-id must be the 10-character Apple Team ID")
     for b in bundle_ids:
@@ -61,6 +119,10 @@ def build(team_id: str, bundle_ids: list[str], app_store_url: str, out: Path = O
     page = (SOURCE / "invite.html").read_text(encoding="utf-8").replace("__APP_STORE_URL__", app_store_url or "#")
     (out / "invite.html").write_text(page, encoding="utf-8")
     (out / "index.html").write_text(page, encoding="utf-8")
+    if support_email or operator_name:
+        build_legal(out, support_email, operator_name, app_store_url)
+    elif require_legal:
+        raise SystemExit("links_site: --require-legal needs --support-email and --operator-name")
     return out
 
 
@@ -69,9 +131,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--team-id", required=True)
     parser.add_argument("--bundle-id", action="append", required=True, help="repeat for several flavors")
     parser.add_argument("--app-store-url", default="")
+    parser.add_argument("--support-email", default="", help="public support address shown on the pages")
+    parser.add_argument("--operator-name", default="", help="legal name of who runs the app")
+    parser.add_argument("--require-legal", action="store_true", help="fail when the legal pages are not built (staging, prod)")
     args = parser.parse_args(argv)
-    out = build(args.team_id, args.bundle_id, args.app_store_url)
-    print(f"links_site: wrote {out.relative_to(ROOT)}")
+    out = build(args.team_id, args.bundle_id, args.app_store_url, OUT, args.support_email, args.operator_name, args.require_legal)
+    legal = "with" if (out / "privacy.html").exists() else "WITHOUT"
+    print(f"links_site: wrote {out.relative_to(ROOT)} ({legal} the privacy, terms, support and delete-account pages)")
     return 0
 
 

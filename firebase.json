@@ -60,6 +60,7 @@
     {
       "target": "links",
       "public": "build/links_site",
+      "cleanUrls": true,
       "ignore": [
         "firebase.json",
         "**/node_modules/**"

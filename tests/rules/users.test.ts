@@ -94,6 +94,14 @@ describe("users/{uid}", () => {
     phone: "+201099999999",
     termsAcceptedAt: new Date(),
     whatsappOptIn: true,
+    // App Review demo accounts (functions/src/auth/review_access.ts): the
+    // exemption date and the demo mark are written by the owner's script
+    // only; a parent can neither give themselves the exemption nor remove
+    // the mark that confines a demo account.
+    reviewDemoUntilMs: Date.now() + 24 * 3600 * 1000,
+    reviewDemo: false,
+    sessionsValidAfter: 0,
+    newDeviceCheck: null,
   })) {
     it(`the owner cannot change ${field}`, async () => {
       const doc = asAlice().firestore().doc("users/alice");
@@ -102,6 +110,30 @@ describe("users/{uid}", () => {
       await assertFails(doc.set({ ...alice, [field]: value }));
     });
   }
+
+  it("a demo account cannot remove its own demo mark or extend its exemption", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc("users/alice").update({ reviewDemo: true, reviewDemoUntilMs: 1 });
+    });
+    const doc = asAliceVerified().firestore().doc("users/alice");
+    // Writing the record without the mark, or without the date, removes it: refused.
+    await assertFails(doc.set({ ...alice, reviewDemoUntilMs: 1 }));
+    await assertFails(doc.set({ ...alice, reviewDemo: true }));
+    await assertFails(doc.update({ reviewDemo: false }));
+    await assertFails(doc.update({ reviewDemoUntilMs: Date.now() + 1000 }));
+    await assertSucceeds(doc.update({ language: "en" }));
+  });
+
+  it("the review access settings (demo phones, code hashes, listed accounts) are closed to every parent", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc("config/reviewAccess").set({ enabled: true, phoneKey: "p_x", codeHash: "x", expiresAtMs: 1, demoUids: ["alice"] });
+    });
+    for (const ctx of [asAlice(), asAliceVerified(), signedOut()]) {
+      await assertFails(ctx.firestore().doc("config/reviewAccess").get());
+      await assertFails(ctx.firestore().doc("config/reviewAccess").set({ enabled: true }));
+      await assertFails(ctx.firestore().doc("config/reviewAccess").update({ demoUids: ["alice", "bob"] }));
+    }
+  });
 
   it("a verified-claim user still cannot change their own status", async () => {
     await assertFails(asAliceVerified().firestore().doc("users/alice").update({ status: "verified" }));

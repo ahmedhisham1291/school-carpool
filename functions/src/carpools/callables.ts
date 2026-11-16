@@ -40,7 +40,7 @@ import {
 import { CARPOOL_ERROR_CODES, CarpoolError } from "./model";
 import { FirestoreCarpoolStore } from "./store";
 import { noteAbuse } from "../privacy/abuse_hook";
-import { gatedCall } from "../privacy/device_gate";
+import { gatedCall, isReviewDemoCaller, demoAccountError, realParentCall } from "../privacy/device_gate";
 
 /**
  * Carpool callables (Prompt 6). Every membership, ownership and status
@@ -110,13 +110,34 @@ export async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
 
 export const opts = { enforceAppCheck: ENFORCE_APP_CHECK };
 
+/**
+ * App Review demo parents (privacy/device_gate.ts) stay inside the demo
+ * school: a school carpool is tied by the flows to the caller's own
+ * approved children's school (the hidden demo school), while an activity
+ * carpool is found by distance by any parent nearby. So for them only
+ * kind "school" is allowed here, and joining another carpool, opening an
+ * invite and posting "looking for a carpool" are refused (realParentCall).
+ */
+function schoolKindOnlyForReviewDemo(r: CallableRequest): void {
+  if (!isReviewDemoCaller(r)) return;
+  const kind = typeof r.data === "object" && r.data !== null ? (r.data as { kind?: unknown }).kind : undefined;
+  // The search reads a missing kind as "school"; the create flow refuses it.
+  if (kind !== "school" && kind !== undefined) throw demoAccountError();
+}
+
 /** F5, F25, F36, F39: { kind, schoolId|activity, areaId?, morning?, afternoon?, days, driveDays, seats, childIds, rules, contribution? } -> { carpoolId } */
-export const createCarpool = gatedCall(opts, (r) => run("createCarpool", () => createFlow(deps(), caller(r), r.data)));
+export const createCarpool = gatedCall(opts, (r) =>
+  run("createCarpool", () => {
+    schoolKindOnlyForReviewDemo(r);
+    return createFlow(deps(), caller(r), r.data);
+  }),
+);
 
 /** F5, F6: { kind, schoolId?, areaId?, morning?, afternoon?, radiusKm?, parentUid? } -> { carpools } */
 export const searchCarpools = gatedCall(opts, (r) =>
   run("searchCarpools", async () => {
     // Prompt 12: searching many schools and areas in an hour alerts the admins.
+    schoolKindOnlyForReviewDemo(r);
     const q = typeof r.data === "object" && r.data !== null ? (r.data as { schoolId?: unknown; areaId?: unknown }) : {};
     await noteAbuse(caller(r).uid, "areaSearches", `${String(q.schoolId ?? "")}|${String(q.areaId ?? "")}`.slice(0, 64));
     return searchFlow(deps(), caller(r), r.data);
@@ -124,7 +145,7 @@ export const searchCarpools = gatedCall(opts, (r) =>
 );
 
 /** F6: { carpoolId, childIds, acceptRules, acceptContribution } -> { status } */
-export const requestToJoinCarpool = gatedCall(opts, (r) => run("requestToJoinCarpool", () => requestToJoin(deps(), caller(r), r.data)));
+export const requestToJoinCarpool = realParentCall(opts, (r) => run("requestToJoinCarpool", () => requestToJoin(deps(), caller(r), r.data)));
 
 /** F6: { carpoolId } -> { status } */
 export const cancelJoinRequest = gatedCall(opts, (r) => run("cancelJoinRequest", () => cancelFlow(deps(), caller(r), r.data)));
@@ -145,10 +166,10 @@ export const setPickupSharing = gatedCall(opts, (r) => run("setPickupSharing", (
 export const createCarpoolInvite = gatedCall(opts, (r) => run("createCarpoolInvite", () => createInvite(deps(), caller(r), r.data)));
 
 /** F31: { code } -> { carpoolId } (verified parents only) */
-export const openCarpoolInvite = gatedCall(opts, (r) => run("openCarpoolInvite", () => openInvite(deps(), caller(r), r.data)));
+export const openCarpoolInvite = realParentCall(opts, (r) => run("openCarpoolInvite", () => openInvite(deps(), caller(r), r.data)));
 
 /** F32: { schoolId, areaId?, morning?, afternoon?, days, childIds } -> the post */
-export const saveCarpoolWanted = gatedCall(opts, (r) => run("saveCarpoolWanted", () => saveWanted(deps(), caller(r), r.data)));
+export const saveCarpoolWanted = realParentCall(opts, (r) => run("saveCarpoolWanted", () => saveWanted(deps(), caller(r), r.data)));
 
 /** F32: {} -> { deleted } */
 export const deleteCarpoolWanted = gatedCall(opts, (r) => run("deleteCarpoolWanted", () => deleteWanted(deps(), caller(r))));

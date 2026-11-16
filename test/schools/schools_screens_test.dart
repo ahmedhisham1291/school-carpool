@@ -280,7 +280,7 @@ void main() {
         await tester.pumpWidget(buildTestApp(const AboutScreen(), locale: locale));
         await tester.pumpAndSettle();
         expectOneLine(find.byType(AppBarTitle), 'About title');
-        for (final String key in <String>['about.osmLink', 'about.licenses']) {
+        for (final String key in <String>['about.privacy', 'about.terms', 'about.conduct', 'about.osmLink', 'about.licenses']) {
           expectOneLine(find.descendant(of: find.byKey(Key(key)), matching: find.byType(OneLineText)),
             key,
           );

@@ -2,6 +2,7 @@ import * as logger from "firebase-functions/logger";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { HttpsError, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
+import { DEMO_IDS } from "../auth/review_demo";
 import {
   ENFORCE_APP_CHECK,
   MAP_DRIVING_SCHOOL_CHANGES_PER_DAY,
@@ -31,7 +32,7 @@ import { autocomplete, FakePlacesProvider, GooglePlacesProvider, placeDetails as
 import { mapRefreshNeeded } from "./sync";
 import { FirestoreMapStore, FirestorePlaceCache } from "./store";
 import { noteAbuse } from "../privacy/abuse_hook";
-import { gatedCall, sessionCall } from "../privacy/device_gate";
+import { gatedCall, realParentCall, sessionCall } from "../privacy/device_gate";
 
 /**
  * Maps functions (Prompt 5: F21 to F24). The app sends the exact home only
@@ -96,9 +97,22 @@ export const updateMapSettings = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK 
 );
 
 /** { schoolIds: string[] } -> { schools: [{ id, nameAr, nameEn }] } */
-export const setDrivingSchools = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
-  run("setDrivingSchools", () => setDrivingSchoolsFlow(mapDeps(), requireUid(request), request.data)),
+// Not for App Review demo parents: driving schools decide whose map and carpools a parent may search.
+export const setDrivingSchools = realParentCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+  run("setDrivingSchools", () => {
+    // And the other way round: a real parent never picks the App Review
+    // demo school, so real and demo parents share no school (map, carpool
+    // search and chat requests all go by shared school).
+    if (namesReviewDemoSchool(request.data)) throw new HttpsError("invalid-argument", "invalid-school", { reason: "invalid-school" });
+    return setDrivingSchoolsFlow(mapDeps(), requireUid(request), request.data);
+  }),
 );
+
+/** True when a setDrivingSchools request lists the App Review demo school. */
+export function namesReviewDemoSchool(data: unknown): boolean {
+  const ids = typeof data === "object" && data !== null ? (data as { schoolIds?: unknown }).schoolIds : undefined;
+  return Array.isArray(ids) && ids.includes(DEMO_IDS.school);
+}
 
 /** { schoolId, radiusKm } -> { schoolId, radiusKm, parents: [{ id, firstName, schoolId, point }] } */
 export const searchNearbyParents = gatedCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>

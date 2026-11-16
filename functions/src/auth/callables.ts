@@ -96,13 +96,41 @@ function whatsAppSender(): WhatsAppSender {
   );
 }
 
+/**
+ * The sender, built on first use. App Review audit: a demo phone gets no
+ * WhatsApp message, so the reviewer's sign-in must not depend on the
+ * WhatsApp settings being complete; a parent then gets "send-failed"
+ * (reported) instead of an internal error.
+ */
+function lazyWhatsAppSender(): WhatsAppSender {
+  let real: WhatsAppSender | null = null;
+  const get = (): WhatsAppSender => (real ??= whatsAppSender());
+  return {
+    get kind() {
+      return get().kind;
+    },
+    sendCode: async (to, code, language) => get().sendCode(to, code, language),
+  };
+}
+
 export function otpDeps(): OtpDeps {
   const db = adminDb();
   return {
     // Prompt 13: App Review sign-in, off unless config/reviewAccess is on.
     review: () => readReviewAccess(db),
+    // Every demo sign-in is in the admin audit log (no number, no code).
+    onReviewSignIn: async (uid) => {
+      await db.collection("auditLog").doc().create({
+        actorUid: uid,
+        action: "auth.reviewAccess.signIn",
+        target: `users/${uid}`,
+        reasonCode: "appReview",
+        ip: null,
+        time: FieldValue.serverTimestamp(),
+      });
+    },
     store: new FirestoreOtpStore(db),
-    sender: whatsAppSender(),
+    sender: lazyWhatsAppSender(),
     accounts: new FirebaseAccountService(adminAuth(), db),
     hmacKey: otpHmacKey(),
     now: () => Date.now(),

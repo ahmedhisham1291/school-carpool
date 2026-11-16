@@ -986,12 +986,21 @@ fi
 # ============================================================== 13. links site
 step "13. Invite-links site (https://${LINKS_SITE}.web.app)"
 deploy_links() {
-  python3 tool/links_site.py --team-id "${APPLE_TEAM_ID}" --bundle-id "${BUNDLE_ID}"
+  # Legal and support pages (App Store Connect needs public URLs): built
+  # when SUPPORT_EMAIL and OPERATOR_NAME are given (docs/apple-review/submission-kit.md).
+  local legal=()
+  if [ -n "${SUPPORT_EMAIL:-}" ] && [ -n "${OPERATOR_NAME:-}" ]; then
+    legal=(--support-email "${SUPPORT_EMAIL}" --operator-name "${OPERATOR_NAME}" --require-legal)
+  fi
+  python3 tool/links_site.py --team-id "${APPLE_TEAM_ID}" --bundle-id "${BUNDLE_ID}" "${legal[@]}"
   fb deploy --only hosting:links
 }
 if [ -n "${APPLE_TEAM_ID}" ]; then
   run_step deploy_links
   if [ "${STEP_RC}" -eq 0 ]; then ok "links site deployed (check https://${LINKS_SITE}.web.app/.well-known/apple-app-site-association)"
+    if [ -z "${SUPPORT_EMAIL:-}" ] || [ -z "${OPERATOR_NAME:-}" ]; then
+      todo "privacy, terms and support pages: run this script again with SUPPORT_EMAIL=<address you read> OPERATOR_NAME=\"<your legal name>\" in front (App Store needs https://${LINKS_SITE}.web.app/privacy)."
+    fi
   else todo "links site: run this script again; if it fails, send the developer the error."; fi
 else
   todo "links site: run this script again with your Apple Team ID (APPLE_TEAM_ID=XXXXXXXXXX bash tool/cloud_setup.sh ...)."

@@ -55,6 +55,18 @@ const FlavorConfig testStagingConfig = FlavorConfig(
   mapsEnabled: false,
 );
 
+/// The store build (no developer tools, no tester notes).
+const FlavorConfig testProdConfig = FlavorConfig(
+  flavor: Flavor.prod,
+  useEmulators: false,
+  emulatorHost: 'localhost',
+  sentryDsn: '',
+  sentrySampleRate: 1,
+  recaptchaSiteKey: '',
+  appCheckDebugToken: '',
+  mapsEnabled: false,
+);
+
 /// Wraps [home] in a MaterialApp with our localizations and theme.
 Widget buildTestApp(
   Widget home, {
