@@ -27,12 +27,12 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:run_recovery/run_recovery.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/app.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/features/about/about_screen.dart';
+import 'package:school_carpool/features/analytics/analytics.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
@@ -110,6 +110,9 @@ Future<void> _pumpScreen(
   FakeTrustRepository? trust,
   FeatureSwitches? features,
   FakeSettleUpRepository? settle,
+  // Usage statistics already answered, so the Home card that asks once is
+  // only in its own screenshot.
+  bool analyticsAnswered = true,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -130,6 +133,7 @@ Future<void> _pumpScreen(
             LocaleController.storageKey: locale,
             ThemeModeController.storageKey: themeMode,
             DesignDirectionController.storageKey: direction,
+            if (analyticsAnswered) AnalyticsConsent.storageKey: 'false',
           }),
         ),
         routerProvider.overrideWithValue(router),
@@ -210,6 +214,8 @@ void main() {
     'email': (AuthRoutes.email, testEmailStageSession),
     'terms': (AuthRoutes.terms, testTermsStageSession),
     'verify_account': (AuthRoutes.verifyAccount, testUnverifiedSession),
+    // Owner decision 16 Nov 2026: opened from a place that needs the check.
+    'verify_needed': ('/verify-account?from=/carpools/search', testUnverifiedSession),
     'profile_unverified': ('/profile', testUnverifiedSession),
   };
   for (final MapEntry<String, (String, SessionState)> screen in signupScreens.entries) {
@@ -939,7 +945,7 @@ void main() {
       testWidgets(gate, skip: skip, (WidgetTester tester) async {
         final FakeTripRepository trips = FakeTripRepository(trip: testTrip());
         final FakeDrivingReadiness readiness = FakeDrivingReadiness(
-          current: const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.permission, GateItem.precise, GateItem.notifications}),
+          current: const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.permission, GateItem.precise}, notificationsOff: true),
         );
         addTearDown(trips.dispose);
         addTearDown(readiness.dispose);
@@ -961,33 +967,27 @@ void main() {
         await tester.pump(const Duration(milliseconds: 600));
         await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$gate.png'));
       });
-      final String always = 'trips_always_${locale}_$mode';
-      testWidgets(always, skip: skip, (WidgetTester tester) async {
-        final FakeTripRepository trips = FakeTripRepository(trip: testTrip());
-        addTearDown(trips.dispose);
+      // 16 Nov 2026: the card that asks once for usage statistics.
+      final String ask = 'home_analytics_ask_${locale}_$mode';
+      testWidgets(ask, skip: skip, (WidgetTester tester) async {
         await _pumpScreen(
           tester,
-          location: CarpoolRoutes.drive('k1', '2026-11-14_am'),
+          location: '/home',
           locale: locale,
           themeMode: mode,
           direction: 'a',
           logicalSize: const Size(390, 844),
           pixelRatio: 3,
-          trips: trips,
-          recovery: FakeRecoveryNative(supported: true, status: RecoveryAuthorization.whenInUse),
-          extraOverrides: verificationOverrides(repository: FakeVerificationRepository()),
+          analyticsAnswered: false,
         );
         await tester.pump(const Duration(milliseconds: 400));
-        await tester.tap(find.byKey(const Key('drive.start')));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 600));
-        await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$always.png'));
+        await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$ask.png'));
       });
       for (final bool steps in <bool>[false, true]) {
         final String banner = steps ? 'home_location_steps_${locale}_$mode' : 'home_location_banner_${locale}_$mode';
         testWidgets(banner, skip: skip, (WidgetTester tester) async {
           final FakeDrivingReadiness readiness = FakeDrivingReadiness(
-            current: const DrivingCheck(missing: <GateItem>{GateItem.permission, GateItem.notifications}),
+            current: const DrivingCheck(missing: <GateItem>{GateItem.permission}, notificationsOff: true),
           );
           addTearDown(readiness.dispose);
           await _pumpScreen(

@@ -14,11 +14,14 @@ import 'package:school_carpool/features/verification/verification_labels.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/features/verification/verification_repository.dart';
 import 'package:school_carpool/l10n/l10n.dart';
-import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 
 /// Where an account that is not verified yet lands (spec section 10,
-/// screen 9), and the verification status screen (Prompt 3, F2):
+/// screen 9), and the verification status screen (Prompt 3, F2). Since the
+/// owner decision of 16 Nov 2026 it is also the explanation shown when the
+/// parent opens something that needs the ID check ([from]): why we check
+/// (child safety) and "Later", which goes back to that tab. Never a dead
+/// end:
 /// - unverified: why and what it takes, "Get verified";
 /// - pending: "Under review" and what happens next;
 /// - rejected: the reason (and the reviewer's note) with "Fix and resubmit";
@@ -29,7 +32,11 @@ import 'package:school_carpool/router/session_redirect.dart';
 /// statuses above. Errors and offline are handled by the start screen,
 /// which the router shows when the session cannot load.
 class VerifyAccountScreen extends ConsumerWidget {
-  const VerifyAccountScreen({super.key});
+  const VerifyAccountScreen({this.from, super.key});
+
+  /// The place that needs a verified account, when the router sent the
+  /// parent here from it; null after sign-up or from Profile.
+  final String? from;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -110,6 +117,36 @@ class VerifyAccountScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  // Owner decision 16 Nov 2026: say why before asking.
+                  Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      AppSpacing.screenGutter,
+                      0,
+                      AppSpacing.screenGutter,
+                      AppSpacing.s8,
+                    ),
+                    child: AppCard(
+                      key: const Key('verify.why'),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          if (from != null) ...<Widget>[
+                            Text(l10n.verifyNeededFor, key: const Key('verify.neededFor'), style: context.text.bodyLarge),
+                            const SizedBox(height: AppSpacing.s8),
+                          ],
+                          Semantics(
+                            header: true,
+                            child: OneLineText(l10n.verifyWhyTitle, style: context.text.titleSmall),
+                          ),
+                          const SizedBox(height: AppSpacing.s4),
+                          Text(
+                            l10n.verifyWhyBody,
+                            style: context.text.bodyLarge?.copyWith(color: context.colors.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   // Short one-line row titles; the detail goes in the subtitle.
                   if (account.status == AccountStatus.pending) ...<Widget>[
                     AppSectionHeader(l10n.verifyPendingNextTitle),
@@ -182,12 +219,14 @@ class VerifyAccountScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: AppSpacing.s8),
                   ],
+                  // Owner decision 16 Nov 2026: look around first. Back to
+                  // the tab the parent came from (Home after sign-up).
                   AppButton(
-                    key: const Key('verify.openProfile'),
-                    label: l10n.verifyOpenProfile,
+                    key: const Key('verify.later'),
+                    label: l10n.verifyLater,
                     variant: canSubmit ? AppButtonVariant.tertiary : AppButtonVariant.primary,
                     expand: true,
-                    onPressed: () => context.go(AppTab.profile.path),
+                    onPressed: () => context.go(laterTarget(from)),
                   ),
                 ],
               ),

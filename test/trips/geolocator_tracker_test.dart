@@ -347,8 +347,8 @@ void main() {
         ..permission = LocationPermission.deniedForever;
       notifications.access = NotificationAccess.denied;
       final DrivingCheck c = await checkWith(source, notifications);
-      expect(c.items(locationOnly: false), <GateItem>[GateItem.service, GateItem.permission, GateItem.notifications]);
-      expect(c.items(locationOnly: true), <GateItem>[GateItem.service, GateItem.permission]);
+      expect(c.items, <GateItem>[GateItem.service, GateItem.permission]);
+      expect(c.notificationsOff, isTrue);
       expect(c.anyNotAsked, isFalse);
     });
 
@@ -359,11 +359,14 @@ void main() {
       expect(c.locationReady, isFalse);
     });
 
-    test('notifications only: location is ready (the home banner stays hidden)', () async {
+    test('notifications off never count as missing: the driver may start (guideline 4.5.4)', () async {
       notifications.access = NotificationAccess.denied;
       final DrivingCheck c = await checkWith(source, notifications);
       expect(c.locationReady, isTrue);
-      expect(c.isReady, isFalse);
+      expect(c.isReady, isTrue);
+      expect(c.missing, isEmpty);
+      expect(c.notificationsOff, isTrue);
+      expect(c.notificationsNotAsked, isFalse);
     });
 
     test('never asked: asks in the app first (While Using), never Always', () async {

@@ -31,14 +31,11 @@ account in **Sign-In Information** (section 2). Attach the run video
 > Precise Location, a parent can still use the whole app except starting a
 > run; the run screen shows the steps to turn them on.
 >
-> **"Always" is optional.** Before a driver's first run, one screen offers
-> "Always" so that, if iOS closes the app during a run, the run usually
-> resumes by itself within a few minutes after the car moves (significant
-> location changes relaunch the app; it then checks the run is still on and
-> shows "Tracking resumed"). It is used only for
-> drivers during school runs they start, with the blue indicator, and ends
-> with the run. Declining changes nothing else: the app works the same and
-> asks the driver to keep the app open during the run.
+> **The app never asks for "Always".** "While Using the App" is the only
+> location permission. If iOS closes the app during a run, the driver gets
+> "Run still on, open the app" and the run resumes when the app is opened.
+> Notifications are optional too: with notifications off the driver sees
+> one warning and can start the run.
 >
 > **Sign-in.** Parents sign in with a one-time code sent by WhatsApp (no
 > SMS, no password). For review, the demo phone number in Sign-In
@@ -49,12 +46,16 @@ account in **Sign-In Information** (section 2). Attach the run video
 > **Demo account.** The demo account is an already verified test parent
 > in a test carpool with test children (fake data). To see a run: Carpools
 > tab > the test carpool > Schedule > today's run > Start run (allow
-> location "While Using the App", Precise Location and notifications when
-> asked). The attached video shows a full run recorded on an iPhone.
+> location "While Using the App" and Precise Location when asked;
+> notifications are optional). The attached video shows a full run
+> recorded on an iPhone.
 >
 > **Identity check.** Real parents are verified with an ID photo and a
-> live selfie before they can join carpools. The demo account is already
-> verified, so you do not need to upload any document.
+> live selfie before they can join or start a carpool, drive, chat or see
+> other parents (other families' children ride with them). A new account
+> can sign up and look around first; the app explains the check on one
+> screen with a "Later" button. The demo account is already verified, so
+> you do not need to upload any document.
 >
 > **No payments.** The app is free and has no payment feature of any
 > kind: no in-app purchases, nothing digital is sold, and no money is
@@ -87,9 +88,11 @@ account in **Sign-In Information** (section 2). Attach the run video
   (docs/reviews/apple-review.md, B1 and B2). Signing in on Apple's phone still signs your own
   phones out of that account: do not use the demo driver account on your
   own phone during the review.
-- **Second demo account and demo data:** `REVIEW_PHONE_2` /
-  `REVIEW_CODE_2` and `npm --prefix functions run review-demo -- seed`
-  (docs/apple-review/submission-kit.md section B).
+- **Second demo account and demo data:** add `REVIEW_PHONE_2` /
+  `REVIEW_CODE_2`; `review-access -- on` then seeds the demo data by
+  itself, and `reviewDemoDaily` keeps the demo runs planned and confirmed
+  every evening while the access is on (docs/apple-review/submission-kit.md
+  section B). With one number only, `on` prints the one thing left to do.
 
 ## 3. Review sign-in code (server setting, off by default)
 

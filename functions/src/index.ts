@@ -28,6 +28,9 @@ export const debugTestError = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, asy
 // Sign-up and sign-in with a WhatsApp code (Prompt 2: F1, F44).
 export { acceptConsents, confirmEmail, requestCode, verifyCode } from "./auth/callables";
 
+// App Review: keeps the demo carpool's runs fresh while the review window is open.
+export { reviewDemoDaily } from "./auth/review_demo_job";
+
 // Identity verification, children and the automated ID check (Prompt 3: F2, F3, F18).
 export {
   decideVerification,

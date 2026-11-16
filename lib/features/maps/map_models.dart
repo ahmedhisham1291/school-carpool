@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/places/address_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
@@ -124,11 +125,16 @@ enum MapFailureKind { offline, rateLimited, notVerified, noHome, notYourSchool, 
 
 /// Why a maps call failed, from `details.reason` (functions/src/maps).
 class MapFailure implements Exception {
-  const MapFailure(this.kind, {this.retryAfter = Duration.zero});
+  const MapFailure(this.kind, {this.demo, this.retryAfter = Duration.zero});
 
   factory MapFailure.from(Object error) {
     if (error is MapFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return MapFailure(MapFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
@@ -156,11 +162,16 @@ class MapFailure implements Exception {
   }
 
   final MapFailureKind kind;
+
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
   final Duration retryAfter;
 
   bool get isOffline => kind == MapFailureKind.offline;
 
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     MapFailureKind.offline => l10n.errorOfflineShort,
     MapFailureKind.rateLimited => l10n.mapErrorTooMany,
     MapFailureKind.notVerified => l10n.mapErrorNotVerified,

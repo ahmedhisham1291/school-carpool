@@ -9,8 +9,12 @@ import 'package:school_carpool/settings/settings_store.dart';
 /// Usage analytics (owner decision, DECISIONS.md "Data retention and
 /// collection", 14 Nov 2026): screens and features used, with NO names,
 /// phone numbers, IDs, message text or coordinates. Crashes go to Sentry.
-/// On by default; the parent switches it off in Settings or on the privacy
-/// screen. The catalog of events is docs/analytics-events.md.
+/// OFF until the parent says yes (owner decision 16 Nov 2026, App Review
+/// guideline 5.1.1(ii)): the Home card asks once (analytics_ask_card.dart)
+/// and the switch is in Settings and on the privacy screen. No App
+/// Tracking Transparency prompt is needed: nothing is combined with other
+/// companies' data, there is no advertising and no IDFA (guideline
+/// 5.1.2(i)). The catalog of events is docs/analytics-events.md.
 ///
 /// Everything goes through [Analytics], which keeps only the events and
 /// parameter keys of [AnalyticsEvent] and drops any value that could be
@@ -33,8 +37,6 @@ enum AnalyticsEvent {
   accountDeleted('account_deleted', <String>{}),
   appLockChanged('app_lock_changed', <String>{'enabled'}),
   deviceSignedOut('device_signed_out', <String>{'all'}),
-  // Prompt 13: the driver's answer to the optional "Always" step.
-  alwaysLocation('always_location', <String>{'granted'}),
   // Settle up (F45): the kind of record and the step taken. Never an
   // amount, a name, a note or an InstaPay address.
   settleUpCreated('settle_up_created', <String>{'kind', 'purpose'}),
@@ -172,11 +174,15 @@ class Analytics {
 /// Overridden in bootstrap.dart with [FirebaseAnalyticsSink] on the phone.
 final Provider<AnalyticsSink> analyticsSinkProvider = Provider<AnalyticsSink>((Ref ref) => const NoAnalyticsSink());
 
-/// The parent's choice on this phone (default on, owner decision).
+/// The parent's choice on this phone. Off until the parent said yes.
 abstract final class AnalyticsConsent {
   static const String storageKey = 'analytics.enabled';
 
-  static bool read(SettingsStore store) => store.read(storageKey) != 'false';
+  /// True only after an explicit yes.
+  static bool read(SettingsStore store) => store.read(storageKey) == 'true';
+
+  /// The parent answered (yes or no): the Home card is not shown again.
+  static bool answered(SettingsStore store) => store.read(storageKey) != null;
 }
 
 final Provider<Analytics> analyticsProvider = Provider<Analytics>((Ref ref) {

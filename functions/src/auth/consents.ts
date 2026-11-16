@@ -17,6 +17,9 @@ export const CONSENT_VERSIONS = {
   // 16 Nov 2026 (legal review): answer within 6 working days, data
   // protection contact, transfer abroad section, breach notice, no
   // financial data, sign-in history 180 days.
+  // Also (owner, App Review 5.1.1): photos, messages, address and routes
+  // are deleted with the account; usage statistics only with the parent's
+  // yes. Deploy functions and app together.
   privacy: "2026-11-16",
   // App Review audit (guideline 1.2): no tolerance for objectionable content.
   conduct: "2026-11-16",

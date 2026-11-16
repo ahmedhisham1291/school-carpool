@@ -411,7 +411,7 @@ describe("wallet switched off: account deletion and export still work with no wa
     const walletCalls: string[] = [];
     const closed = new Map<string, ClosedAccount>();
     const runner: DeletionRunner = {
-      facts: async () => ({ exists: true, drivingNow: false, parentId: "ABCD2345", banned: false }),
+      facts: async () => ({ exists: true, drivingNow: false, parentId: "ABCD2345", banned: false, openCase: false }),
       // No wallets/{uid} document (the pilot): nothing to lock.
       lockWallet: async () => null,
       walletFacts: async () => {

@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/analytics/analytics_ask_card.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
+import 'package:school_carpool/features/onboarding/verify_prompt_card.dart';
 import 'package:school_carpool/features/places/address_screen.dart';
 import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/l10n/l10n.dart';
@@ -38,6 +40,11 @@ class HomeScreen extends ConsumerWidget {
         children: <Widget>[
           // Prompt 13: location off, refused or approximate (never blocks).
           const LocationOffBanner(),
+          // Owner decision 16 Nov 2026: before the ID check the parent may
+          // look around; the card says what opens after it.
+          VerifyPromptCard(from: AppTab.home.path),
+          // Asked once; statistics stay off until the parent says yes.
+          const AnalyticsAskCard(),
           AppSectionHeader(l10n.homeAroundYouSection),
           AppListRow(
             key: const Key('home.nearby'),

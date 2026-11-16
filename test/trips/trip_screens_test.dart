@@ -135,7 +135,7 @@ void main() {
       final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
       final FakeLocationTracker tracker = FakeLocationTracker();
       final FakeDrivingReadiness readiness = FakeDrivingReadiness(
-        current: const DrivingCheck(missing: <GateItem>{GateItem.permission, GateItem.notifications}, locationNotAsked: true, notificationsNotAsked: true),
+        current: const DrivingCheck(missing: <GateItem>{GateItem.permission}, locationNotAsked: true, notificationsOff: true, notificationsNotAsked: true),
         afterRequest: DrivingCheck.ready,
       );
       addTearDown(trips.dispose);
@@ -164,7 +164,7 @@ void main() {
       final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
       final FakeLocationTracker tracker = FakeLocationTracker();
       final FakeDrivingReadiness readiness = FakeDrivingReadiness(
-        current: const DrivingCheck(missing: <GateItem>{GateItem.precise, GateItem.notifications}),
+        current: const DrivingCheck(missing: <GateItem>{GateItem.precise}, notificationsOff: true),
       );
       addTearDown(trips.dispose);
       addTearDown(tracker.dispose);
@@ -174,7 +174,7 @@ void main() {
       expect(find.byKey(const Key('gate.screen')), findsOneWidget);
       expect(find.text('Before you drive'), findsOneWidget);
       expect(find.byKey(const Key('gate.item.precise')), findsOneWidget);
-      expect(find.byKey(const Key('gate.item.notifications')), findsOneWidget);
+      expect(find.byKey(const Key('gate.item.notifications')), findsNothing, reason: 'notifications never block');
       expect(find.byKey(const Key('gate.item.service')), findsNothing);
       expect(find.byKey(const Key('gate.item.permission')), findsNothing);
       expect(find.text('Turn on Precise Location.'), findsOneWidget);
@@ -192,6 +192,67 @@ void main() {
       expect(find.byKey(const Key('gate.screen')), findsNothing);
       expect(trips.calls, contains('start'));
       expect(tracker.starts, 1);
+    });
+
+    testWidgets('notifications off: a warning that can be skipped; the run starts (guideline 4.5.4)', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
+      final FakeLocationTracker tracker = FakeLocationTracker();
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness(current: const DrivingCheck(notificationsOff: true));
+      addTearDown(trips.dispose);
+      addTearDown(tracker.dispose);
+      addTearDown(readiness.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
+      await _tap(tester, 'drive.start');
+      expect(find.byKey(const Key('gate.screen')), findsNothing, reason: 'never the blocking steps');
+      expect(find.byKey(const Key('gate.notifWarning')), findsOneWidget);
+      expect(find.text('Notifications are off'), findsOneWidget);
+      expect(trips.calls.contains('start'), isFalse);
+
+      await _tap(tester, 'gate.notifWarning.continue');
+      expect(find.byKey(const Key('gate.notifWarning')), findsNothing);
+      expect(readiness.settingsOpened, 0);
+      expect(trips.calls, contains('start'));
+      expect(tracker.starts, 1);
+    });
+
+    testWidgets('notifications off: Open Settings starts nothing; the next Start run warns once more', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
+      final FakeLocationTracker tracker = FakeLocationTracker();
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness(current: const DrivingCheck(notificationsOff: true));
+      addTearDown(trips.dispose);
+      addTearDown(tracker.dispose);
+      addTearDown(readiness.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
+      await _tap(tester, 'drive.start');
+      await _tap(tester, 'gate.notifWarning.settings');
+      expect(readiness.settingsOpened, 1);
+      expect(find.byKey(const Key('gate.notifWarning')), findsNothing);
+      expect(trips.calls.contains('start'), isFalse);
+      expect(find.byKey(const Key('drive.start')), findsOneWidget, reason: 'no dead end');
+
+      // Turned on in Settings: no warning, the run starts.
+      readiness.current = DrivingCheck.ready;
+      await _tap(tester, 'drive.start');
+      expect(find.byKey(const Key('gate.notifWarning')), findsNothing);
+      expect(trips.calls, contains('start'));
+    });
+
+    testWidgets('notifications never asked: the system prompt, then the warning only if refused', (WidgetTester tester) async {
+      final FakeTripRepository trips = FakeTripRepository(run: _today(), trip: testTrip());
+      final FakeLocationTracker tracker = FakeLocationTracker();
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness(
+        current: const DrivingCheck(notificationsOff: true, notificationsNotAsked: true),
+        afterRequest: const DrivingCheck(notificationsOff: true),
+      );
+      addTearDown(trips.dispose);
+      addTearDown(tracker.dispose);
+      addTearDown(readiness.dispose);
+      await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
+      await _tap(tester, 'drive.start');
+      expect(readiness.requests, 1);
+      expect(find.byKey(const Key('gate.notifWarning')), findsOneWidget);
+      await _tap(tester, 'gate.notifWarning.continue');
+      expect(trips.calls, contains('start'));
     });
 
     testWidgets('gate closed: no run starts; the rest of the app stays open', (WidgetTester tester) async {
@@ -329,12 +390,12 @@ void main() {
       addTearDown(readiness.dispose);
       await _pump(tester, _drive(), overrides: _overrides(trips: trips, tracker: tracker, readiness: readiness));
       await _tap(tester, 'drive.start');
-      readiness.current = const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.notifications});
+      readiness.current = const DrivingCheck(missing: <GateItem>{GateItem.service}, notificationsOff: true);
       readiness.service(false);
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('gate.item.service')), findsOneWidget);
       expect(find.byKey(const Key('gate.item.notifications')), findsNothing, reason: 'location items only during a run');
-      readiness.current = const DrivingCheck(missing: <GateItem>{GateItem.notifications});
+      readiness.current = const DrivingCheck(notificationsOff: true);
       readiness.service(true);
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('gate.screen')), findsNothing);
@@ -712,7 +773,8 @@ void main() {
                   l10n.gateServiceTitle,
                   l10n.gatePermissionTitle,
                   l10n.gatePreciseTitle,
-                  l10n.gateNotificationsTitle,
+                  l10n.gateNotifWarnTitle,
+                  l10n.gateNotifWarnContinue,
                   l10n.locationBannerTitle,
                   l10n.locationBannerAction,
                   l10n.notifRunStillOnTitle,

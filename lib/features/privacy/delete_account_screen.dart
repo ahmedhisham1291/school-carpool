@@ -114,6 +114,9 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               _Group(icon: Icons.delete_outline_rounded, title: l10n.deleteNowTitle, body: l10n.deleteNowBody),
               _Group(icon: Icons.lock_clock_outlined, title: l10n.deleteYearTitle, body: l10n.deleteYearBody),
               _Group(icon: Icons.gavel_outlined, title: l10n.deleteKeptTitle, body: l10n.deleteKeptBody),
+              // Owner decision 16 Nov 2026: photos and routes go with the
+              // account; only an open report holds them, 30 days at most.
+              _Group(icon: Icons.shield_outlined, title: l10n.deleteHoldTitle, body: l10n.deleteHoldBody),
               const SizedBox(height: AppSpacing.s8),
               Text(l10n.deleteExportHint, style: quiet),
               const SizedBox(height: AppSpacing.s24),

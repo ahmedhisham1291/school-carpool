@@ -26,7 +26,8 @@ quality)
   flutter_background_geolocation is deferred to the Android stage or the
   pilot if tracking proves unreliable (docs/DECISIONS.md).
 - Chat: our own chat on Firestore (owner decision 14 Nov 2026, replaces
-  Stream). Cloud Functions decide who is a member of which carpool chat;
+  Stream; on branch chat-review-safe, merged after the first TestFlight
+  build works; main still runs Stream until then). Cloud Functions decide who is a member of which carpool chat;
   rules let only members read and write.
 - School search: Algolia, fed from Firestore by a Cloud Function.
 - ID check: Valify behind one interface (KycProvider).
@@ -36,7 +37,10 @@ quality)
 - Errors: Sentry in the app, the website and Cloud Functions.
 - Pilot feature switches: server settings turn features on or off without a
   new build; the wallet and other non-core features start off (docs/DECISIONS.md).
-- Payments in the pilot: "Settle up" by InstaPay. The app records who
+- Money: OFF (owner decision 16 Nov 2026). Rides are free volunteer turns
+  between parents; no cost or money anywhere in the app. Settle up and the
+  wallet stay in the code, switched off on the server, and their callables
+  refuse while off. Earlier plan, now off: "Settle up" by InstaPay. The app records who
   asked, who paid and who confirmed, and shows the payee's InstaPay address
   to the payer only. It never moves, holds or sees money. The wallet stays
   in the code, switched off.
@@ -155,9 +159,10 @@ PRIVACY (never skip)
   message text, and never send them to Sentry or Algolia.
 - Only fake data in dev and staging. Never copy production data.
 - ID, selfie, school ID, licence and driver photos go to a private bucket,
-  encrypted with our KMS key, and are kept while the account is active and
-  deleted 1 year after it closes (docs/DECISIONS.md, data retention). Admins
-  read them only through a logged reason.
+  encrypted with our KMS key, kept while the account is active and deleted
+  with the account (at most 30 days later only while an open report or
+  safety case needs them; owner decision 16 Nov 2026, docs/DECISIONS.md,
+  lawyer to confirm). Admins read them only through a logged reason.
 - Other parents get rounded home coordinates only. Exact pickup points are
   readable only by approved members of that carpool.
 

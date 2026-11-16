@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 
 /**
  * Kept photos (owner decision, 14 Nov 2026; CLAUDE.md PRIVACY): the
- * private bucket (KMS key), kept while the account is active, deleted 1
- * year after it closes, and opened by admins ONLY through a callable that
+ * private bucket (KMS key), kept while the account is active, deleted
+ * with the account (owner decision 16 Nov 2026), and opened by admins ONLY through a callable that
  * needs a reason and writes the audit log. Small thumbnails for the admin
  * panel are made on the server (thumbs/{uid}/...), so a list never loads
  * full ID images. Pure; unit-tested.

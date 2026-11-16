@@ -382,8 +382,8 @@ export function parseCreate(data: unknown): CreateInput {
 export async function createCarpool(deps: CarpoolDeps, caller: Caller, data: unknown): Promise<{ carpoolId: string }> {
   const input = parseCreate(data);
   if (input.contribution && !(await contributionsAllowed(deps))) throw new FeatureOffError("contributions");
-  if (!input.acceptVolunteer) throw new CarpoolError("must-accept");
   const account = await requireVerified(deps, caller);
+  if (!input.acceptVolunteer) throw new CarpoolError("must-accept");
   const children = await ownChildren(deps, caller.uid, input.childIds);
 
   let schoolNameAr = "";

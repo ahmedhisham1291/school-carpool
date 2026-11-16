@@ -10,7 +10,9 @@ import 'package:school_carpool/features/chat/chat_models.dart';
 import 'package:school_carpool/features/chat/chat_provider.dart';
 import 'package:school_carpool/features/chat/chat_repository.dart';
 import 'package:school_carpool/features/chat/chat_session.dart';
+import 'package:school_carpool/features/onboarding/verify_prompt_card.dart';
 import 'package:school_carpool/l10n/l10n.dart';
+import 'package:school_carpool/router/app_router.dart';
 
 /// "Now" for chat times (tests fix it).
 final Provider<DateTime Function()> chatClockProvider = Provider<DateTime Function()>((Ref ref) => DateTime.now);
@@ -42,7 +44,26 @@ class ChatsScreen extends ConsumerWidget {
 
     final Widget body;
     final Object? error = list.error;
-    if (error != null) {
+    final bool notVerified = error != null && ChatFailure.from(error).kind == ChatFailureKind.notVerified;
+    if (notVerified) {
+      // Owner decision 16 Nov 2026: before the ID check the tab explains
+      // why chat waits for it (not an error), with the way to verify.
+      body = ListView(
+        key: const Key('chats.notVerified'),
+        padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),
+        children: <Widget>[
+          VerifyPromptCard(from: AppTab.chats.path),
+          Padding(
+            padding: const EdgeInsetsDirectional.only(top: AppSpacing.s48),
+            child: EmptyStateView(
+              icon: Icons.chat_bubble_outline_rounded,
+              title: l10n.chatEmptyTitle,
+              body: l10n.chatErrorNotVerified,
+            ),
+          ),
+        ],
+      );
+    } else if (error != null) {
       void retry() => ref.invalidate(chatClientProvider);
       body = ChatFailure.from(error).isOffline ? OfflineStateView(onRetry: retry) : ErrorStateView(onRetry: retry);
     } else if (!list.hasValue) {
@@ -86,7 +107,8 @@ class ChatsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: AppBarTitle(l10n.tabChats),
-        actions: <Widget>[
+        // Requests and chat settings need a verified account.
+        actions: notVerified ? null : <Widget>[
           IconButton(
             key: const Key('chats.requests'),
             tooltip: l10n.chatRequestsTitle,

@@ -464,6 +464,15 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
   time out, set `minInstances: 1` on them (about USD 3 to 6 a month each;
   Prompt 2 review, note N2).
 
+## App Review demo (16 Nov 2026)
+
+- **Cloud Scheduler:** `reviewDemoDaily` once a day (18:30 Cairo) is one
+  more job (USD 0.10 a month per project once the 3 free jobs are used).
+- **Firestore:** one read of `config/reviewAccess` a day; only while review
+  access is on, a few reads and writes for the one demo carpool (two
+  weeks planned, at most 20 runs confirmed). Nothing else.
+- **Trigger to upgrade:** none.
+
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub

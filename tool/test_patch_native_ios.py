@@ -1,4 +1,4 @@
-"""Tests for the iOS launch patch in tool/patch_native.py (Prompt 13 review).
+"""Tests for the iOS launch patch in tool/patch_native.py (UIScene, 16 Nov 2026).
 
     python3 -m unittest discover -s tool -p 'test_*.py' -v
 """
@@ -54,7 +54,7 @@ SCENE_MANIFEST = {
     },
 }
 
-# What `flutter create` generated before (already classic).
+# What `flutter create` generated before UIScene (classic app delegate).
 OLD_CLASSIC_DELEGATE = """import Flutter
 import UIKit
 
@@ -72,6 +72,8 @@ import UIKit
 
 
 class IosLaunchPatchTest(unittest.TestCase):
+    """UIScene life cycle (16 Nov 2026; Flutter's "UIScene adoption" guide)."""
+
     def runner(self, tmp, delegate, scene, info):
         root = Path(tmp)
         runner = root / "ios" / "Runner"
@@ -91,24 +93,67 @@ class IosLaunchPatchTest(unittest.TestCase):
         with (runner / "Info.plist").open("rb") as f:
             return plistlib.load(f)
 
-    def test_scene_template_becomes_classic(self):
+    def scene_config(self, info):
+        return info["UIApplicationSceneManifest"]["UISceneConfigurations"]["UIWindowSceneSessionRoleApplication"][0]
+
+    def assert_scene_delegate(self, delegate):
+        self.assertIn(patch_native.SCENE_MARKER, delegate)
+        self.assertIn("FlutterImplicitEngineDelegate", delegate)
+        self.assertIn("GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)", delegate)
+        # No explicit engine, no window built by hand (crashes with UIScene).
+        self.assertNotIn("FlutterEngine(name", delegate)
+        self.assertNotIn("rootViewController", delegate)
+        self.assertNotIn("UIScreen.main", delegate)
+        self.assertNotIn("register(with: self)", delegate)
+
+    def test_scene_template_keeps_the_scene_and_gets_our_delegate(self):
         with tempfile.TemporaryDirectory() as tmp:
             info = {"UIApplicationSceneManifest": SCENE_MANIFEST, "UILaunchStoryboardName": "LaunchScreen", "UIMainStoryboardFile": "Main"}
             root, runner = self.runner(tmp, SCENE_APP_DELEGATE, SCENE_DELEGATE, info)
             self.patch(root)
-            delegate = (runner / "AppDelegate.swift").read_text(encoding="utf-8")
-            self.assertIn(patch_native.CLASSIC_MARKER, delegate)
-            self.assertNotIn("FlutterImplicitEngineDelegate", delegate)
-            self.assertIn("flutterEngine.run()", delegate)
-            self.assertIn("GeneratedPluginRegistrant.register(with: flutterEngine)", delegate)
-            # The engine starts before super, so plugins get the launch options.
-            self.assertLess(delegate.index("GeneratedPluginRegistrant"), delegate.index("super.application"))
-            scene = (runner / "SceneDelegate.swift").read_text(encoding="utf-8")
-            self.assertNotIn("FlutterSceneDelegate", scene)
+            self.assert_scene_delegate((runner / "AppDelegate.swift").read_text(encoding="utf-8"))
+            # The template's SceneDelegate (a FlutterSceneDelegate) is kept.
+            self.assertEqual((runner / "SceneDelegate.swift").read_text(encoding="utf-8"), SCENE_DELEGATE)
             patched = self.read_info(runner)
-            self.assertNotIn("UIApplicationSceneManifest", patched)
-            self.assertNotIn("UIMainStoryboardFile", patched)
+            self.assertEqual(patched["UIApplicationSceneManifest"], SCENE_MANIFEST)
+            self.assertEqual(patched["UIMainStoryboardFile"], "Main")
             self.assertEqual(patched["UILaunchStoryboardName"], "LaunchScreen")
+
+    def test_old_classic_template_is_migrated_to_uiscene(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, runner = self.runner(tmp, OLD_CLASSIC_DELEGATE, None, {"UIMainStoryboardFile": "Main"})
+            self.patch(root)
+            self.assert_scene_delegate((runner / "AppDelegate.swift").read_text(encoding="utf-8"))
+            self.assertFalse((runner / "SceneDelegate.swift").exists())
+            config = self.scene_config(self.read_info(runner))
+            # No SceneDelegate file: Flutter's own class.
+            self.assertEqual(config["UISceneDelegateClassName"], "FlutterSceneDelegate")
+            self.assertEqual(config["UISceneClassName"], "UIWindowScene")
+            self.assertEqual(config["UISceneConfigurationName"], "flutter")
+            self.assertEqual(config["UISceneStoryboardFile"], "Main")
+            self.assertIs(self.read_info(runner)["UIApplicationSceneManifest"]["UIApplicationSupportsMultipleScenes"], False)
+
+    def test_a_project_patched_by_the_old_classic_patch_is_migrated(self):
+        old_classic = (
+            "import Flutter\nimport UIKit\n\n// " + patch_native.CLASSIC_MARKER + " (tool/patch_native.py).\n"
+            "@main\n@objc class AppDelegate: FlutterAppDelegate {\n"
+            "  private lazy var flutterEngine = FlutterEngine(name: \"school_carpool\")\n}\n"
+        )
+        emptied = "// " + patch_native.CLASSIC_MARKER + ": not used (no UIScene; tool/patch_native.py).\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            root, runner = self.runner(tmp, old_classic, emptied, {"UILaunchStoryboardName": "LaunchScreen"})
+            self.patch(root)
+            self.assert_scene_delegate((runner / "AppDelegate.swift").read_text(encoding="utf-8"))
+            self.assertIn("class SceneDelegate: FlutterSceneDelegate", (runner / "SceneDelegate.swift").read_text(encoding="utf-8"))
+            info = self.read_info(runner)
+            self.assertEqual(self.scene_config(info)["UISceneDelegateClassName"], "$(PRODUCT_MODULE_NAME).SceneDelegate")
+            self.assertEqual(info["UIMainStoryboardFile"], "Main")
+
+    def test_manifest_pointing_at_a_missing_scene_delegate_is_fixed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, runner = self.runner(tmp, SCENE_APP_DELEGATE, None, {"UIApplicationSceneManifest": SCENE_MANIFEST})
+            self.patch(root)
+            self.assertEqual(self.scene_config(self.read_info(runner))["UISceneDelegateClassName"], "FlutterSceneDelegate")
 
     def test_idempotent_and_keeps_later_patches(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -117,43 +162,31 @@ class IosLaunchPatchTest(unittest.TestCase):
             # The Maps and alerts patches add lines after this one.
             delegate = runner / "AppDelegate.swift"
             with_alerts = delegate.read_text(encoding="utf-8").replace(
-                "    // Dart main() starts now", "    // alerts line\n    // Dart main() starts now"
+                "    return super.application", "    // alerts line\n    return super.application"
             )
             delegate.write_text(with_alerts, encoding="utf-8")
-            info_before = (runner / "Info.plist").read_bytes()
-            self.patch(root)
-            self.assertEqual(delegate.read_text(encoding="utf-8"), with_alerts)
-            self.assertEqual((runner / "Info.plist").read_bytes(), info_before)
-
-    def test_old_classic_template_gets_the_explicit_engine(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root, runner = self.runner(tmp, OLD_CLASSIC_DELEGATE, None, {"UIMainStoryboardFile": "Main"})
-            self.patch(root)
-            delegate = (runner / "AppDelegate.swift").read_text(encoding="utf-8")
-            self.assertIn(patch_native.CLASSIC_MARKER, delegate)
-            self.assertFalse((runner / "SceneDelegate.swift").exists())
-            self.assertNotIn("UIMainStoryboardFile", self.read_info(runner))
-
-    def test_already_patched_is_unchanged(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root, runner = self.runner(
-                tmp,
-                patch_native.CLASSIC_APP_DELEGATE,
-                patch_native.EMPTY_SCENE_DELEGATE,
-                {"UILaunchStoryboardName": "LaunchScreen"},
-            )
             before = {p.name: p.read_bytes() for p in runner.iterdir()}
             self.patch(root)
+            self.assertEqual(delegate.read_text(encoding="utf-8"), with_alerts)
             after = {p.name: p.read_bytes() for p in runner.iterdir()}
             self.assertEqual(before, after)
 
-    def test_maps_and_alerts_patches_still_find_did_finish_launching(self):
-        import re
-
-        match = re.search(r"didFinishLaunchingWithOptions[^{]*\{\n", patch_native.CLASSIC_APP_DELEGATE)
-        self.assertIsNotNone(match)
-        self.assertIn("import UIKit\n", patch_native.CLASSIC_APP_DELEGATE)
-
+    def test_maps_and_alerts_patches_still_go_into_did_finish_launching(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, runner = self.runner(tmp, SCENE_APP_DELEGATE, SCENE_DELEGATE, {"UIApplicationSceneManifest": SCENE_MANIFEST})
+            self.patch(root)
+            with mock.patch.object(patch_native, "ROOT", root), mock.patch.dict("os.environ", {"MAPS_API_KEY_IOS": ""}):
+                (root / "ios" / "Flutter").mkdir()
+                patch_native.patch_maps_ios()
+                patch_native.patch_alerts_ios()
+            delegate = (runner / "AppDelegate.swift").read_text(encoding="utf-8")
+            launch = delegate.index("didFinishLaunchingWithOptions")
+            engine = delegate.index("didInitializeImplicitFlutterEngine")
+            # Both run before launch ends (the notification delegate must),
+            # not in the engine callback.
+            for marker in (patch_native.MAPS_MARKER, patch_native.ALERTS_MARKER):
+                self.assertTrue(launch < delegate.index(marker) < engine, marker)
+            self.assertIn("import UserNotifications", delegate)
 
 if __name__ == "__main__":
     unittest.main()

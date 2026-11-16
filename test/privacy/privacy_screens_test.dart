@@ -38,7 +38,8 @@ class _World {
 /// The same overrides in every pump (one ProviderScope shape per test).
 List<Override> _overrides(_World w, FeatureSwitches? features) => <Override>[
   flavorConfigProvider.overrideWithValue(testDevConfig),
-  settingsStoreProvider.overrideWithValue(InMemorySettingsStore()),
+  // The parent said yes to usage statistics (off until then).
+  settingsStoreProvider.overrideWithValue(InMemorySettingsStore(<String, String>{AnalyticsConsent.storageKey: 'true'})),
   ...authOverrides(features: features),
   privacyRepositoryProvider.overrideWithValue(w.repo),
   analyticsSinkProvider.overrideWithValue(w.analytics),
@@ -106,12 +107,12 @@ void main() {
       }
     });
 
-    testWidgets('pilot switches: the wallet and ratings are not listed while off; Settle up is', (WidgetTester tester) async {
+    testWidgets('pilot switches: the wallet, Settle up and ratings are not listed while off (no money in the app)', (WidgetTester tester) async {
       final _World w = _World();
       await _pump(tester, PrivacyRoutes.privacy, w, features: FeatureSwitches.pilot);
       for (final DataType t in DataType.values) {
         final Finder row = find.byKey(Key('privacy.data.${t.name}'));
-        if (t == DataType.wallet || t == DataType.ratings) {
+        if (t == DataType.wallet || t == DataType.ratings || t == DataType.settleUp) {
           expect(row, findsNothing, reason: t.name);
         } else {
           await tester.scrollUntilVisible(row, 200, scrollable: find.byType(Scrollable).first);
@@ -165,7 +166,7 @@ void main() {
       final _World w = _World();
       await _pump(tester, PrivacyRoutes.devices, w);
       expect(find.text('This phone'), findsOneWidget);
-      expect(find.text('Android'), findsWidgets);
+      expect(find.text('Other phone'), findsWidgets);
       expect(find.text('Recent sign-ins'), findsOneWidget);
       await _tap(tester, find.byKey(Key('devices.device.s_${'b' * 40}')));
       expect(find.byType(AlertDialog), findsOneWidget);

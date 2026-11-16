@@ -49,9 +49,9 @@ export class VerificationError extends Error {
  * record"; Law 151). Must match lib/features/auth/legal_documents.dart.
  */
 export const VERIFICATION_CONSENT_VERSIONS = {
-  // Prompt 12: photos are now kept while the account is active and 1 year
-  // after it closes (DECISIONS.md, data retention), so the consent text and
-  // its version changed.
+  // 16 Nov 2026: photos are kept while the account is active and deleted
+  // with it (DECISIONS.md, "Data after account deletion"), so the consent
+  // text and its version changed.
   // 16 Nov 2026 (legal review): the face consent says biometric data and
   // written (explicit) consent; the child consent is the guardian's
   // declaration and covers the child's whereabouts during runs (children's

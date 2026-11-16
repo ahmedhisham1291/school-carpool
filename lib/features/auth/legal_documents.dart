@@ -9,6 +9,8 @@ abstract final class LegalDocuments {
   // Legal review (16 Nov 2026): free volunteer turns, Arabic text prevails.
   static const String terms = '2026-11-16';
   // Legal review (16 Nov 2026): 6 working days, contact, transfer abroad.
+  // 16 Nov 2026: photos, messages, address and routes are deleted with the
+  // account; usage statistics only with the parent's yes (DECISIONS.md).
   static const String privacy = '2026-11-16';
   // App Review audit (guideline 1.2): no tolerance for objectionable content.
   static const String conduct = '2026-11-16';

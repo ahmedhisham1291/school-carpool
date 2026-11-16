@@ -1,20 +1,35 @@
 /**
- * Retention schedule (spec section 7, Prompt 12, owner decision "Data
- * retention and collection" of 14 Nov 2026 in docs/DECISIONS.md). One
+ * Retention schedule (spec section 7, Prompt 12, owner decisions "Data
+ * retention and collection" of 14 Nov 2026 and "Data after account
+ * deletion" of 16 Nov 2026 in docs/DECISIONS.md). One
  * table for every data type: how long it is kept, from when, and what
  * deletes it. The privacy screen, the export, SECURITY.md and the App Store
  * answers list the same types (ids in DATA_TYPES). Pure; unit-tested.
  *
- * The lawyer confirmed the periods (docs/DECISIONS.md, owner update 14 Nov
- * 2026). Every period here is one constant, so a change is a one-line
- * change.
+ * The lawyer confirmed the 14 Nov periods (docs/DECISIONS.md, owner update
+ * 14 Nov 2026); the 16 Nov change (photos, face reference, case records,
+ * routes and chat messages deleted WITH the account) is shorter and waits
+ * for the lawyer's confirmation (docs/open-items.md B13). Every period
+ * here is one constant, so a change is a one-line change.
  */
 
 export const DAY_MS = 86_400_000;
 export const YEAR_DAYS = 365;
 
-/** Photos, trip summaries, consents and chat stay this long after the account closes. */
+/**
+ * The minimised records that stay after an account closes (the parent's
+ * part of shared run summaries, the proof of consent, Settle up records)
+ * are kept this long. Photos, the face reference, case records, routes
+ * and the parent's chat messages are NOT kept: they go with the account.
+ */
 export const AFTER_CLOSURE_DAYS = YEAR_DAYS;
+/**
+ * Safety hold (owner decision 16 Nov 2026): when an open report or rating
+ * flag about the parent exists at deletion, the evidence (photos, face
+ * reference, case records, routes of runs they drove) waits this long so
+ * the admins can finish the case; then it is deleted whatever the state.
+ */
+export const SAFETY_HOLD_DAYS = 30;
 /** Archived routes (one per run) are kept this long after the run. */
 export const ROUTE_ARCHIVE_DAYS = YEAR_DAYS;
 /** Chat history is kept for the life of the chat plus this long. */
@@ -118,10 +133,11 @@ export const RETENTION: readonly RetentionRule[] = [
   { id: "consents", where: "users/{uid}/consents", days: AFTER_CLOSURE_DAYS, from: "accountClosed", enforcedBy: ["retentionDaily"] },
   {
     id: "idPhotos",
+    // With the account; at most SAFETY_HOLD_DAYS later when an open report about the parent exists.
     where: "Storage verification/{uid}/cases, faceRefs/{uid}, driverPhotos/{uid}, selfieArchive/{uid} (KMS key), verifications/{caseId}",
-    days: AFTER_CLOSURE_DAYS,
+    days: 0,
     from: "accountClosed",
-    enforcedBy: ["retentionDaily"],
+    enforcedBy: ["accountDeletion", "retentionDaily"],
   },
   { id: "children", where: "children/{id}, handover lists", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "vehicle", where: "vehicles/{uid}", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
@@ -136,10 +152,10 @@ export const RETENTION: readonly RetentionRule[] = [
     enforcedBy: ["accountDeletion", "retentionDaily"],
   },
   { id: "schedule", where: "carpools/{id}/schedule (future runs released), swaps", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
-  { id: "trips", where: "trips/{id} run summaries (who drove, date, times, on time, children counted)", days: AFTER_CLOSURE_DAYS, from: "accountClosed", enforcedBy: ["retentionDaily"] },
+  { id: "trips", where: "trips/{id} run summaries (who drove, date, times, on time, children counted); a deleted parent is an initial at once", days: AFTER_CLOSURE_DAYS, from: "accountClosed", enforcedBy: ["accountDeletion", "retentionDaily"] },
   { id: "liveLocation", where: "trips/{id}/points, carpools/{id}/emergencies, tripStops/{id}", days: 1, from: "runEnd", enforcedBy: ["tripTick", "firestoreTtl", "retentionDaily"] },
-  { id: "routeArchive", where: "Storage routeArchive/{yyyy}/{tripId}.json.gz (Coldline), routeArchives/{tripId}", days: ROUTE_ARCHIVE_DAYS, from: "runEnd", enforcedBy: ["retentionDaily", "storageLifecycle"] },
-  { id: "chat", where: "Stream Chat (messages, first names, parent IDs), chatChannels", days: CHAT_AFTER_END_DAYS, from: "chatEnd", enforcedBy: ["retentionDaily"] },
+  { id: "routeArchive", where: "Storage routeArchive/{yyyy}/{tripId}.json.gz (Coldline), routeArchives/{tripId}; a deleted driver's routes go with the account", days: ROUTE_ARCHIVE_DAYS, from: "runEnd", enforcedBy: ["retentionDaily", "storageLifecycle", "accountDeletion"] },
+  { id: "chat", where: "Stream Chat (messages, first names, parent IDs), chatChannels; a deleted parent's own messages go with the account", days: CHAT_AFTER_END_DAYS, from: "chatEnd", enforcedBy: ["retentionDaily", "accountDeletion"] },
   { id: "ratings", where: "ratings, trustSummaries, ratingFlags", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "familyLinks", where: "guardianLinks, guardianRequests", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "handover", where: "handoverAdults/{childId}", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
@@ -170,13 +186,28 @@ export const RETENTION: readonly RetentionRule[] = [
 /** Kept after an account is deleted, and why (spec section 7, Prompt 12). */
 export const KEPT_AFTER_DELETION = [
   { what: "bannedIds/{hash}", why: "keyed national-ID hash on the ban list (only when the parent was banned)" },
-  { what: "reports (open)", why: "open reports against or by the parent until an admin handles them" },
+  { what: "reports", why: "reports about or by the parent (safety); a handled report loses its copy of the messages after 1 year" },
   { what: "transfers, transferResults", why: "transfer records for as long as the law requires (5 years, confirmed by the lawyer and the owner)" },
   { what: "auditLog", why: "admin actions (2 years)" },
   { what: "parentIds/{id}", why: "the parent ID is reserved forever so it is never reused (holds only the uid)" },
   { what: "closedAccounts/{uid}", why: "the purge date and the deletion report (no name, phone or ID)" },
   { what: "settleUps", why: "payment records between two parents stay for the other parent while either account is active + 1 year; the deleted parent shows as an initial" },
-  { what: "photos, trip summaries, route archives, consents, chat", why: "1 year after closure (owner decision 14 Nov 2026), admin-only with a logged reason" },
+  { what: "trips", why: "run summaries shared with other families: the deleted parent is an initial at once; their part is anonymised 1 year after closure" },
+  { what: "users/{uid}/consents", why: "proof of consent (document version and time, no name), 1 year after closure" },
+  { what: "evidence under a safety hold", why: "only when an open report about the parent exists at deletion: photos, face reference, case records and routes wait at most 30 days, then are deleted" },
+] as const;
+
+/**
+ * Deleted WITH the account (owner decision 16 Nov 2026, App Review
+ * guideline 5.1.1(v)); the public pages and the delete screen say the same.
+ */
+export const DELETED_WITH_ACCOUNT = [
+  "profile, phone number, email, parent ID link",
+  "ID photos, selfies, school ID, licence and driver photos, the face reference, verification case records",
+  "home address and exact pin, children, car, emergency contact",
+  "every chat message the parent wrote (private and group chats)",
+  "devices, sign-in history, push tokens, notifications",
+  "archived routes of the runs the parent drove",
 ] as const;
 
 export function rule(id: DataTypeId): RetentionRule {
@@ -185,7 +216,12 @@ export function rule(id: DataTypeId): RetentionRule {
   return r;
 }
 
-/** When something that waits for the account's closure is deleted. */
+/** When the evidence of a closed account is deleted: at once, or after the safety hold. */
+export function evidencePurgeAt(closedAtMs: number, hold: boolean): number {
+  return hold ? closedAtMs + SAFETY_HOLD_DAYS * DAY_MS : closedAtMs;
+}
+
+/** When a kept record that waits for the account's closure is deleted. */
 export function purgeAfterClosure(closedAtMs: number, days = AFTER_CLOSURE_DAYS): number {
   return closedAtMs + days * DAY_MS;
 }

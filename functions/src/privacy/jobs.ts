@@ -12,7 +12,7 @@ import { AUDIT_LOG_DAYS, CHAT_AFTER_END_DAYS, CLOSED_CARPOOL_DAYS, cutoff, EXPOR
  */
 
 export interface RetentionStore {
-  /** Closed accounts with failed steps, or whose purge date passed and are not purged yet. */
+  /** Closed accounts with failed steps, or whose next date passed (the end of a safety hold, then the 1-year date of the kept records). */
   closedAccountsToWork(nowMs: number, limit: number): Promise<ClosedAccount[]>;
   /** Archived routes past their date: deletes the file and its record; returns how many. */
   deleteRouteArchivesDue(nowMs: number, limit: number): Promise<number>;
@@ -96,7 +96,9 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
     }
   };
 
-  // Closed accounts: retry failed steps; purge photos, trips, consents, chat after 1 year.
+  // Closed accounts: retry failed steps; delete held evidence (photos,
+  // case records, routes) when its 30 days end; purge the kept records
+  // (consents, the parent's part of trips) after 1 year.
   await task("closedAccounts", async () => {
     let deleted = 0;
     let failed = 0;
@@ -105,7 +107,7 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
         report.failures.push(`account:${c.uid}:${step}`);
         deps.reportError(error);
       });
-      if (r.purged) deleted += 1;
+      if (r.purged || r.evidenceDeleted) deleted += 1;
       if (r.failed.length > 0) failed += 1;
     }
     return { deleted, failed };

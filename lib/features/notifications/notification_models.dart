@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// Notification types (Prompt 8). Same names as the server's catalog
@@ -266,11 +267,16 @@ class NotificationSettings {
 enum NotificationFailureKind { offline, rateLimited, unknown }
 
 class NotificationFailure implements Exception {
-  const NotificationFailure(this.kind);
+  const NotificationFailure(this.kind, {this.demo});
 
   factory NotificationFailure.from(Object error) {
     if (error is NotificationFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return NotificationFailure(NotificationFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       return switch (error.code) {
@@ -287,9 +293,14 @@ class NotificationFailure implements Exception {
 
   final NotificationFailureKind kind;
 
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
+
   bool get isOffline => kind == NotificationFailureKind.offline;
 
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     NotificationFailureKind.offline => l10n.errorOfflineShort,
     NotificationFailureKind.rateLimited => l10n.notifErrorTooMany,
     NotificationFailureKind.unknown => l10n.notifErrorSave,

@@ -42,11 +42,13 @@ periods with the lawyer** (as the legal section above requires for longer retent
 
 - **Photos** (national ID front/back, identity selfie, child school ID, driver's and car
   licence, driver photo, live selfie checks): kept while the account is active and deleted
-  1 year after the account closes. Stored in the private bucket, encrypted with our own key
+  1 year after the account closes (**superseded 16 Nov 2026: deleted WITH the account**,
+  see "Data after account deletion" below). Stored in the private bucket, encrypted with our own key
   (Cloud KMS), compressed on the phone, readable only by admins through a logged reason.
   The identity selfie is the face reference for the random driver selfie checks.
 - **Usage analytics:** collected (screens, features used, crashes) without names, phone
   numbers, IDs, message text or coordinates; parents can switch it off in Settings.
+  (**Superseded 16 Nov 2026: off until the parent says yes**, see "App Review risks" below.)
 - **Trip history:** run summaries (who drove, date, times, on time or late, children counted)
   kept while the account is active + 1 year.
 - **Location history:** live points are still deleted from the live collection within 24 hours,
@@ -59,6 +61,105 @@ periods with the lawyer** (as the legal section above requires for longer retent
   after 30 days, Coldline after 180 days), compressed route archives, and per-collection TTLs.
 - Every new data type is listed on the privacy screen, in the consent records and in the
   App Store privacy answers.
+
+## Data after account deletion (owner, 16 Nov 2026)
+
+Owner instruction: "All risks you're seeing, update the code and plan to be
+no risk at all." This **supersedes "photos kept 1 year after the account
+closes"** (and the same year for the verification records, the deleted
+parent's chat messages and the routes of runs they drove) in the section
+above. Reason: App Review guideline 5.1.1(v) and Apple's account-deletion
+rules allow keeping only what the law requires, and the parent must be told
+what is kept. **The lawyer is to confirm** the list of kept records
+(docs/open-items.md B13).
+
+- **Deleted with the account, in the same request:** profile, phone and
+  email; ID, selfie, school ID, licence and driver photos; the face
+  reference; the verification case records; children, car, home address and
+  exact pin; every chat message the parent wrote (private and group chats);
+  devices, sign-in history and push tokens; the archived routes of the runs
+  the parent drove.
+- **Safety hold:** only when an open report or rating flag about the parent
+  exists at deletion, the photos, case records and routes wait 30 days
+  (`SAFETY_HOLD_DAYS`) so the admins can finish the case; then they are
+  deleted whatever its state. Nothing else is held.
+- **Kept, minimised and detached from the profile** (no name, phone,
+  address, photo or ID number): run summaries shared with other families
+  (the parent as an initial; their part anonymised 1 year after closure),
+  the consent records (1 year), Settle up records (1 year, an initial),
+  transfer records (5 years), reports about the parent, the admin audit
+  log (2 years), the keyed ID hash on the ban list (banned parents only),
+  the reserved parent ID.
+- While an account is OPEN nothing changes: photos are kept (the face
+  reference is needed for the driver checks), routes 1 year after the run,
+  chat for the chat's life + 1 year.
+- Accounts already closed under the older rule: run
+  `npm --prefix functions run deletions:reapply` once after the deploy; the
+  next daily job deletes their photos, case records, routes and messages.
+- The privacy policy and the verification consent changed version
+  (2026-11-16): functions and app are deployed together.
+
+## App Review risks (owner, 16 Nov 2026)
+
+Owner instruction (16 Nov 2026): "All risks you're seeing, update the code
+and plan to be no risk at all." Decisions taken with it (branch
+`review-risks`; guideline numbers from developer.apple.com, read that day):
+
+- **Notifications are not required** (4.5.4, 5.1.2(i)): the driver gate is
+  location only. With notifications off the driver sees one warning ("You
+  may miss alerts") with Open Settings and Start anyway. Replaces "plus
+  notifications" in the 13:05 gate.
+- **No "Always" location** (5.1.1, 2.5.4): the optional Always screen, its
+  request, the significant-change monitoring and the
+  `NSLocationAlwaysAndWhenInUseUsageDescription` text are gone; geolocator
+  is built without its Always request. "While Using the App" + Precise +
+  the background mode + the blue indicator stay. A run that iOS closes
+  resumes from the local marker when the driver opens the app; the
+  server's "Run still on" push and the parents' "location stopped" alert
+  stay. Replaces the 13:44 optional Always screen.
+- **Account deletion deletes photos, the face reference, messages, the home
+  address and pin, and the routes promptly** (5.1.1(v)): see "Data after
+  account deletion" below. It supersedes the 1-year rule for those data.
+  **The lawyer is to confirm** the short list of records kept
+  (docs/open-items.md B13).
+- **Usage statistics are opt-in** (5.1.1(ii)): Firebase Analytics stays off
+  until the parent says yes on the Home card (asked once, never blocks) or
+  in Settings; withdrawable any time; no IDFA, no advertising, no App
+  Tracking Transparency prompt needed. Sentry error reports (scrubbed) stay
+  on and are disclosed in the policy.
+- **Look around before the ID check** (2.1): see the next section.
+- **The iOS Runner moves to the UIScene life cycle** (needed with the iOS
+  27 SDK): see "Location tracking on iPhone (13:44)" above.
+- **What code cannot make zero-risk:** App Review is a human judgement and
+  may ask for things no rule lists; the Apple Developer account must be an
+  Organization, not an Individual, because the app requires national IDs
+  and face images (5.1.1(ix); needs a D-U-N-S number); the lawyer must
+  confirm the retention list and the legal pages. These stay owner items.
+
+## Before the ID check: look around first (owner, 16 Nov 2026)
+
+Owner instruction (16 Nov 2026): remove every App Review risk. A reviewer
+(or a parent) who makes a new account cannot pass the ID check, so "Profile
+only until verified" (spec section 3) was a dead end (guideline 2.1). This
+**supersedes "Profile only"** for unverified, pending and rejected accounts:
+
+- **Open:** the five tabs (Carpools shows the parent's own list, empty;
+  Chats explains that chat opens after the check), the home address and
+  pin, driving schools, children and driver details (the verification
+  steps), notifications and their settings, privacy, settings, About.
+- **Needs the ID check** (child safety: anything with another family):
+  finding, starting, joining or opening a carpool, invite links (their
+  screen explains), runs and driving, chats, parents nearby, handover
+  adults and the emergency contact, ratings, family links, the yearly
+  check, phone change, Settle up and the wallet.
+- Opening one of those shows the verification screen: why we check (other
+  families' children ride with you), what is needed, "Get verified" and
+  "Later" (back to the tab). A card on Home, Carpools and Chats says the
+  same. No dead end.
+- One line for app and server: `needsVerification` in
+  `lib/router/session_redirect.dart`; the server refuses the same actions
+  with "not-verified" (`functions/test/verification_scope.test.ts`).
+- Suspended accounts still see only the suspension screen.
 
 ## Owner updates (14 Nov 2026, 12:30)
 
@@ -79,9 +180,11 @@ periods with the lawyer** (as the legal section above requires for longer retent
   pilot if tracking proves unreliable. Switching back is a one-file change.
 - **Permission:** "While Using the App" + Precise Location, background location mode on, blue
   indicator shown. We do not ask for "Always". (Updated 13:44: "Always" is offered once to drivers as an
-  OPTIONAL step for run recovery; the gate never requires it. See below.)
+  OPTIONAL step for run recovery; the gate never requires it. See below. **Superseded 16 Nov
+  2026: "Always" is never asked**, see "App Review risks" below.)
 - **Gate (owner chose option 1):** a driver cannot start a run without Location Services on,
-  app permission granted and Precise Location on (plus notifications). A full-screen blocking
+  app permission granted and Precise Location on (plus notifications; **16 Nov 2026:
+  notifications are a warning only, never a block**). A full-screen blocking
   sheet shows the steps (Arabic and English) and an "Open Settings" button, and re-checks on
   return. Other parents can use the rest of the app; they see a banner with the same steps.
   The whole app is NOT blocked (App Store guideline 5.1.1).
@@ -142,6 +245,9 @@ paid plugin, no new third-party dependency.
   ONE optional screen, once per install, offering "Always" so runs resume
   by themselves; declining changes nothing else (the "keep the app open"
   hint stays). Analytics record only whether Always was granted.
+  **Superseded 16 Nov 2026:** no "Always" screen, no significant-change
+  monitoring; the run resumes from the local marker when the driver opens
+  the app (see "App Review risks" below).
 - **Fallback:** the server's 2-minute "Run still on" push to the driver and
   the parents' "location stopped" alert stay.
 - **Verification:** relaunch behaviour can only be checked on a real iPhone
@@ -158,6 +264,17 @@ paid plugin, no new third-party dependency.
   a few minutes after the car moves. **Revisit** when Apple requires UIScene
   (announced for an SDK after iOS 26): then the AppDelegate must start a
   headless engine on a location launch instead.
+- **Superseded 16 Nov 2026 (review-risks item 8): UIScene life cycle.** The
+  background relaunch for location is gone with "Always" (item 2), so the
+  classic launch is no longer needed. `tool/patch_native.py` now follows
+  Flutter's "UIScene adoption" guide: plugins are registered in
+  `didInitializeImplicitFlutterEngine`, the scene manifest names
+  `FlutterSceneDelegate` (or the template's `SceneDelegate` subclass), the
+  Maps key and the notification-center delegate stay in
+  `didFinishLaunching` (they must be set before launch ends). A project
+  patched the old way is migrated. `tool/check_ios_app.py` fails any build
+  without the scene manifest. Xcode stays pinned at 26.4 until a staging
+  build on 27 is tested.
 
 ## Improvements (owner, 14 Nov 2026, 17:17): "do all of them"
 

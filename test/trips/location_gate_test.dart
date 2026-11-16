@@ -26,7 +26,7 @@ void main() {
 
   group('home banner (other parents, never blocks)', () {
     testWidgets('hidden when location is fine (also with notifications off)', (WidgetTester tester) async {
-      final FakeDrivingReadiness readiness = FakeDrivingReadiness(current: const DrivingCheck(missing: <GateItem>{GateItem.notifications}));
+      final FakeDrivingReadiness readiness = FakeDrivingReadiness(current: const DrivingCheck(notificationsOff: true));
       addTearDown(readiness.dispose);
       await _pumpHome(tester, readiness);
       expect(find.byKey(const Key('home.locationBanner')), findsNothing);
@@ -35,7 +35,7 @@ void main() {
 
     for (final GateItem item in <GateItem>[GateItem.service, GateItem.permission, GateItem.precise]) {
       testWidgets('shown when ${item.name} is missing; the steps show location items only', (WidgetTester tester) async {
-        final FakeDrivingReadiness readiness = FakeDrivingReadiness(current: DrivingCheck(missing: <GateItem>{item, GateItem.notifications}));
+        final FakeDrivingReadiness readiness = FakeDrivingReadiness(current: DrivingCheck(missing: <GateItem>{item}, notificationsOff: true));
         addTearDown(readiness.dispose);
         await _pumpHome(tester, readiness);
         expect(find.byKey(const Key('home.locationBanner')), findsOneWidget);
@@ -47,10 +47,9 @@ void main() {
         expect(find.byKey(const Key('gate.screen')), findsOneWidget);
         expect(find.text('Turn on location'), findsOneWidget);
         expect(find.byKey(Key('gate.item.${item.name}')), findsOneWidget);
-        expect(find.byKey(const Key('gate.item.notifications')), findsNothing);
 
         // Fixed in Settings: back in the app the steps close and the banner goes.
-        readiness.current = const DrivingCheck(missing: <GateItem>{GateItem.notifications});
+        readiness.current = const DrivingCheck(notificationsOff: true);
         tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
         tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
         await tester.pumpAndSettle();
@@ -81,7 +80,7 @@ void main() {
         testWidgets('[${locale.languageCode}] banner and steps at text x$scale', (WidgetTester tester) async {
           final bool normal = scale == 1;
           final FakeDrivingReadiness readiness = FakeDrivingReadiness(
-            current: const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.permission, GateItem.precise, GateItem.notifications}),
+            current: const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.permission, GateItem.precise}, notificationsOff: true),
           );
           addTearDown(readiness.dispose);
           await _pumpHome(tester, readiness, locale: locale, width: 320, textScale: scale);
@@ -114,7 +113,8 @@ void main() {
                       l10n.gateServiceTitle,
                       l10n.gatePermissionTitle,
                       l10n.gatePreciseTitle,
-                      l10n.gateNotificationsTitle,
+                      l10n.gateNotifWarnTitle,
+                      l10n.gateNotifWarnContinue,
                       l10n.locationBannerTitle,
                       l10n.locationBannerAction,
                       l10n.locationOpenSettings,

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// Chat (Prompt 9: F8, F9, F10, F13). The app's own picture of chat, so
@@ -333,11 +334,16 @@ enum ChatFailureKind {
 }
 
 class ChatFailure implements Exception {
-  const ChatFailure(this.kind);
+  const ChatFailure(this.kind, {this.demo});
 
   factory ChatFailure.from(Object error) {
     if (error is ChatFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return ChatFailure(ChatFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
@@ -368,10 +374,15 @@ class ChatFailure implements Exception {
 
   final ChatFailureKind kind;
 
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
+
   bool get isOffline => kind == ChatFailureKind.offline;
 
   /// One short sentence that says what happened and what to do.
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     ChatFailureKind.offline => l10n.errorOfflineShort,
     ChatFailureKind.notVerified => l10n.chatErrorNotVerified,
     ChatFailureKind.suspended => l10n.chatErrorSuspended,
