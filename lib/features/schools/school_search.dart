@@ -11,6 +11,7 @@ import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
 import 'package:school_carpool/features/schools/text_normalize.dart';
+import 'package:school_carpool/firebase/collections.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
 /// School search (F4) as the parent types, in Arabic or English, spelling
@@ -88,7 +89,7 @@ class FirestoreSchoolSearch implements SchoolSearch {
   Future<SchoolMatcher> _load() async {
     try {
       final QuerySnapshot<Map<String, dynamic>> snap = await _db
-          .collection('schools')
+          .collection(Collections.schools)
           .where('status', isEqualTo: 'active')
           .limit(limit)
           .get();

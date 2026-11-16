@@ -7,6 +7,7 @@ import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/install_id.dart';
 import 'package:school_carpool/features/auth/legal_documents.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/firebase/collections.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
 /// Answer to a code request.
@@ -158,7 +159,7 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> updateLanguage(String languageCode) => _guard(
-    () => _db.collection('users').doc(_currentUser().uid).update(<String, Object?>{
+    () => _db.collection(Collections.users).doc(_currentUser().uid).update(<String, Object?>{
       'language': languageCode,
     }),
   );

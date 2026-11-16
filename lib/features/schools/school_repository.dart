@@ -7,6 +7,7 @@ import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
 import 'package:school_carpool/firebase/callable_error.dart';
+import 'package:school_carpool/firebase/collections.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -105,7 +106,7 @@ class FirebaseSchoolRepository implements SchoolRepository {
 
   @override
   Stream<List<SchoolOption>> pending(String uid) => _db
-      .collection('schools')
+      .collection(Collections.schools)
       .where('addedBy', isEqualTo: uid)
       .where('status', isEqualTo: 'awaiting_review')
       .limit(20)

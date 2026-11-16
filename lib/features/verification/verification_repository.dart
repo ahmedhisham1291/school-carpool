@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/verification/verification_failure.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
+import 'package:school_carpool/firebase/collections.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
 /// Uploads, submission and the parent's own children and car. Every method
@@ -100,7 +101,7 @@ class FirebaseVerificationRepository implements VerificationRepository {
 
   @override
   Stream<List<ChildRecord>> children(String uid) => _db
-      .collection('children')
+      .collection(Collections.children)
       .where('ownerUid', isEqualTo: uid)
       .snapshots()
       .map(
@@ -111,7 +112,7 @@ class FirebaseVerificationRepository implements VerificationRepository {
       );
 
   @override
-  Stream<VehicleRecord?> vehicle(String uid) => _db.collection('vehicles').doc(uid).snapshots().map((
+  Stream<VehicleRecord?> vehicle(String uid) => _db.collection(Collections.vehicles).doc(uid).snapshots().map((
     DocumentSnapshot<Map<String, dynamic>> snap,
   ) {
     final Map<String, dynamic>? data = snap.data();
