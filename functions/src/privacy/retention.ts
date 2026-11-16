@@ -227,10 +227,6 @@ export function chatPurgeAt(endedAtMs: number): number {
   return endedAtMs + CHAT_AFTER_END_DAYS * DAY_MS;
 }
 
-/** When a handled report loses its copy of the messages. */
-export function reportContextPurgeAt(handledAtMs: number): number {
-  return handledAtMs + REPORT_CONTEXT_DAYS * DAY_MS;
-}
 
 /** True when the time has come (a null date never comes). */
 export function isDue(purgeAtMs: number | null, nowMs: number): boolean {

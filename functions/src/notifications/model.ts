@@ -1,6 +1,6 @@
 import { cairoOffsetMinutes } from "../schedule/cairo";
 import type { Language } from "../whatsapp/sender";
-import { isNotificationType, isWhatsAppGroup, routeFor, TYPES, WHATSAPP_DEFAULTS, WHATSAPP_GROUPS, type NotificationType, type WhatsAppGroup } from "./catalog";
+import { isNotificationType, isWhatsAppGroup, OPEN_TO_UNVERIFIED, routeFor, TYPES, WHATSAPP_DEFAULTS, WHATSAPP_GROUPS, type NotificationType, type WhatsAppGroup } from "./catalog";
 import { pushText, whenText, type PushText } from "./texts";
 
 /**
@@ -226,7 +226,7 @@ export interface Recipient {
 export function canReceive(r: Recipient | null, type: NotificationType): r is Recipient {
   if (!r || r.banned || r.status === "suspended") return false;
   if (r.status === "verified") return true;
-  return type === "verification-approved" || type === "verification-rejected";
+  return OPEN_TO_UNVERIFIED.includes(type);
 }
 
 /**
