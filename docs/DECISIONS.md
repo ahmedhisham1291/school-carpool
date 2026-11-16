@@ -621,3 +621,6 @@ Where an item replaces an earlier decision, it says so.
   runs), the approved driver photo and the run selfies stay while the
   account is open and go with it. Cases decided earlier are found by
   their decision time. The lawyer is told (answers.md 8.1).
+- **R13 - annual penetration test** (Decree 1699/2020 Art. 2): before the
+  pilot, then every 12 months and after big changes; owner action 16,
+  SECURITY.md, COSTS.md.

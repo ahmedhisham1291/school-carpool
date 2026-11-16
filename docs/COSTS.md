@@ -473,6 +473,17 @@ No new paid service. FCM (push, through APNs on the iPhone) is free.
   weeks planned, at most 20 runs confirmed). Nothing else.
 - **Trigger to upgrade:** none.
 
+## Annual penetration test (R13, owner 16 Nov 2026)
+
+- **What:** an outside tester checks the iPhone app, the admin panel, the
+  Cloud Functions and the Firestore and Storage rules, once before the
+  pilot and then every year (PM Decree 1699/2020 Art. 2; answers.md 4.1).
+- **Cost:** not a cloud bill: a quote from an Egyptian or regional
+  security firm (a small mobile + API scope is commonly a few days of
+  work). The owner asks for two quotes and records the chosen one here.
+- **Trigger:** the first test before real parents are let in (R5); then
+  every 12 months, and after any big change.
+
 ## Open cost questions
 
 1. (Decided) The checks moved from Codemagic Linux (billed) to GitHub

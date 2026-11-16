@@ -59,6 +59,7 @@ Open questions (none block; recorded for the owner and the lawyer):
 ## Progress
 
 - R1: done.
+- R13: done (owner: book the tester; docs only).
 - R12: done (CLAUDE.md PRIVACY line to change: see the final report; the composite index in `firestore.indexes.json` must be deployed before the daily job finds cases decided before R12).
 - R11: done (owner: re-apply `tool/storage_lifecycle.json` with `tool/setup_retention.sh` in staging and prod; the lawyer is told the route archive is now 90 days).
 - R10: done (docs; owner: the checklist per processor, Sentry/Algolia EU regions).

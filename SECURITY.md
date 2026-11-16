@@ -19,6 +19,11 @@ only the owner can do in
 Before the pilot, the spec asks for a penetration test of the app, the
 rules and the admin panel by an outside tester, using this checklist as the
 starting point. That test is **open** (owner: choose and pay a tester).
+**R13 (owner decision 16 Nov 2026): then once a year** (PM Decree
+1699/2020 Art. 2: IT service providers run annual penetration tests;
+answers.md 4.1), and after any big change (new money feature, new
+processor of children's data, new admin power). Keep each report and the
+fixes with the company records; plan in docs/legal/owner-actions.md.
 
 ## 1. MASVS checklist
 

@@ -193,7 +193,8 @@ given), **owner** (console or account work, see owner-actions.md),
 ## 5. What this review did not cover
 
 - Every one of the ~150 callables line by line (sampled the highest-risk
-  ones above); the external penetration test in SECURITY.md stays open.
+  ones above); the external penetration test in SECURITY.md stays open,
+  and from then on it repeats **every year** (R13, Decree 1699/2020 Art. 2).
 - The Firestore chat on branch chat-review-safe (reviewed there).
 - Running the rules tests and Flutter tests (no emulator or Flutter SDK in
   this workspace; CI runs them).

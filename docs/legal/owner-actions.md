@@ -91,6 +91,15 @@ docs/legal/egypt-legal-review.md. **This is not legal advice: take steps 1 to
     Recommended (safe side): ask every existing account to accept again
     (open item B2) before the pilot.
 
+## Every year
+
+16. **Penetration test (R13).** Book an outside tester for the app, the
+    admin panel, the functions and the rules: once before the pilot, then
+    every 12 months and after any big change (PM Decree 1699/2020 Art. 2
+    asks IT service providers for an annual test). Give them SECURITY.md
+    and docs/security/threat-model.md; keep the report and the fixes with
+    the company records. Costs: docs/COSTS.md.
+
 ## Running the app
 
 12. **Privacy requests:** someone checks the admin queue every working day;
