@@ -13,10 +13,10 @@ import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/consent_signature.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
+import 'package:school_carpool/features/wallet/device_auth.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
-import 'package:school_carpool/features/wallet/device_auth.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 
 import '../helpers/test_app.dart';

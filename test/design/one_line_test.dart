@@ -811,8 +811,10 @@ void main() {
                 schoolIdPhoto: fakePhoto,
               ),
             ],
-            consent: true,
+            consentId: true,
+            consentFace: true,
             guardianConsent: true,
+            signedName: 'Mona Hassan',
           ),
         );
         // Rebuild so the Continue button has the complete draft.

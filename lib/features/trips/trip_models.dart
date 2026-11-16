@@ -380,7 +380,7 @@ class EmergencyContact {
   /// R6: the contact's own answer on the link page.
   final ContactStatus status;
 
-  /// R6: the link token (/ec/<token>) the parent sends to the contact.
+  /// R6: the link token (`/ec/<token>`) the parent sends to the contact.
   final String token;
 }
 
