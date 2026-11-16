@@ -150,6 +150,8 @@ export class FirestoreVerificationStore implements VerificationStore {
         grade: child.grade,
         schoolId: child.schoolId,
         schoolName: child.schoolName,
+        // R4: the guardian declared the 15+ child was told and agrees (teenAgreement consent).
+        teenAgreed: child.teen === true,
         status: "pending",
         schoolIdChecked: false,
         reasonCode: null,

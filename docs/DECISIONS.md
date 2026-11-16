@@ -555,3 +555,9 @@ Where an item replaces an earlier decision, it says so.
   and goes with the account. The parent opens and downloads a copy under
   Privacy (`getConsentCopy`). The ID and face consents are now two boxes.
   Versions: transferAbroad, id, face, childData `2026-11-17`.
+- **R4 - children 15 to 18.** When a child is 15 or older (by an optional
+  date of birth, the age or grade 10-12; the higher wins) the guardian
+  also ticks and signs "my child was told what is shared and agrees"
+  (consent `teenAgreement`, version `2026-11-17`; child record
+  `teenAgreed`). The date of birth is used for the check only, never
+  stored. The app derives it from the age and grade it already asks.

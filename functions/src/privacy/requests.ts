@@ -115,7 +115,7 @@ export function adminQueue<T extends Pick<PrivacyRequest, "status" | "createdAtM
  *   childData, removing the children). The answer says so; nothing is
  *   withdrawn half way.
  */
-export const CONSENT_KINDS = ["terms", "privacy", "conduct", "transferAbroad", "whatsapp", "id", "face", "childData", "walletTerms", "analytics", "showOnMap"] as const;
+export const CONSENT_KINDS = ["terms", "privacy", "conduct", "transferAbroad", "whatsapp", "id", "face", "childData", "teenAgreement", "walletTerms", "analytics", "showOnMap"] as const;
 export type ConsentKind = (typeof CONSENT_KINDS)[number];
 
 export type WithdrawEffect = "whatsappOff" | "analyticsOff" | "hiddenFromMap" | "walletClosed" | "needsDeletion" | "needsChildRemoval";
@@ -131,6 +131,7 @@ export function withdrawEffect(kind: ConsentKind): WithdrawEffect {
     case "walletTerms":
       return "walletClosed";
     case "childData":
+    case "teenAgreement":
       return "needsChildRemoval";
     default:
       return "needsDeletion";

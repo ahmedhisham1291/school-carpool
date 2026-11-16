@@ -339,6 +339,15 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
           value: draft.guardianConsent,
           onChanged: _busy ? null : (bool v) => _draft.update((VerificationDraft d) => d.copyWith(guardianConsent: v)),
         ),
+        // R4: a child of 15 or older: the child's own agreement, declared by the guardian.
+        if (draft.hasTeen)
+          AppCheckRow(
+            key: const Key('verify.consentTeen'),
+            label: l10n.verifyTeenLabel,
+            helperText: l10n.verifyTeenHelper,
+            value: draft.teenAgreement,
+            onChanged: _busy ? null : (bool v) => _draft.update((VerificationDraft d) => d.copyWith(teenAgreement: v)),
+          ),
         const SizedBox(height: AppSpacing.s16),
         Semantics(header: true, child: OneLineText(l10n.signTitle, style: context.text.titleSmall)),
         const SizedBox(height: AppSpacing.s8),

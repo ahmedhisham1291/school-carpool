@@ -83,6 +83,7 @@ String consentTitle(AppLocalizations l10n, ConsentKind k) => switch (k) {
   ConsentKind.id => l10n.consentId,
   ConsentKind.face => l10n.consentFace,
   ConsentKind.childData => l10n.consentChildData,
+  ConsentKind.teenAgreement => l10n.consentTeenAgreement,
   ConsentKind.walletTerms => l10n.consentWalletTerms,
   ConsentKind.analytics => l10n.consentAnalytics,
   ConsentKind.showOnMap => l10n.consentShowOnMap,

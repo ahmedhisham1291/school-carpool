@@ -44,4 +44,19 @@ abstract final class LegalDocuments {
     'face': verificationConsent,
     'childData': verificationConsent,
   };
+
+  /// R3/R4: only the boxes the parent ticked, each with its version (the
+  /// server requires every consent it needs by name). teenAgreement: the
+  /// guardian declares a child of 15 or older was told and agrees.
+  static Map<String, String> verificationConsents({
+    required bool id,
+    required bool face,
+    required bool childData,
+    bool teenAgreement = false,
+  }) => <String, String>{
+    if (id) 'id': verificationConsent,
+    if (face) 'face': verificationConsent,
+    if (childData) 'childData': verificationConsent,
+    if (teenAgreement) 'teenAgreement': verificationConsent,
+  };
 }

@@ -7,10 +7,13 @@ import 'package:school_carpool/l10n/l10n.dart';
 /// What the parent signed in the sheet.
 @immutable
 class GuardianSignature {
-  const GuardianSignature({required this.fullName});
+  const GuardianSignature({required this.fullName, this.teenAgreement = false});
 
   /// The typed full name (it matches the ID name).
   final String fullName;
+
+  /// R4: the child is 15 or older and the guardian declared the child agrees.
+  final bool teenAgreement;
 }
 
 /// R3: a verified parent adding or editing a child signs the guardian's
@@ -20,19 +23,22 @@ class GuardianSignature {
 ///
 /// No data is loaded here, so there is no loading, empty or offline state;
 /// the caller shows the send progress and errors.
-Future<GuardianSignature?> showGuardianSignSheet(BuildContext context, {required String firstName, required String lastName}) =>
+/// [teen]: the child is 15 or older (R4): a second unticked box, "my
+/// child was told and agrees".
+Future<GuardianSignature?> showGuardianSignSheet(BuildContext context, {required String firstName, required String lastName, bool teen = false}) =>
     showModalBottomSheet<GuardianSignature>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (BuildContext sheetContext) => _GuardianSignSheet(firstName: firstName, lastName: lastName),
+      builder: (BuildContext sheetContext) => _GuardianSignSheet(firstName: firstName, lastName: lastName, teen: teen),
     );
 
 class _GuardianSignSheet extends StatefulWidget {
-  const _GuardianSignSheet({required this.firstName, required this.lastName});
+  const _GuardianSignSheet({required this.firstName, required this.lastName, required this.teen});
 
   final String firstName;
   final String lastName;
+  final bool teen;
 
   @override
   State<_GuardianSignSheet> createState() => _GuardianSignSheetState();
@@ -40,10 +46,11 @@ class _GuardianSignSheet extends StatefulWidget {
 
 class _GuardianSignSheetState extends State<_GuardianSignSheet> {
   bool _guardian = false;
+  bool _teenAgrees = false;
   String _name = '';
 
   bool get _nameOk => nameLooksFull(_name) && nameMatches(_name, widget.firstName, widget.lastName);
-  bool get _ready => _guardian && _nameOk;
+  bool get _ready => _guardian && (!widget.teen || _teenAgrees) && _nameOk;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +74,14 @@ class _GuardianSignSheetState extends State<_GuardianSignSheet> {
             value: _guardian,
             onChanged: (bool v) => setState(() => _guardian = v),
           ),
+          if (widget.teen)
+            AppCheckRow(
+              key: const Key('guardianSign.teen'),
+              label: l10n.verifyTeenLabel,
+              helperText: l10n.verifyTeenHelper,
+              value: _teenAgrees,
+              onChanged: (bool v) => setState(() => _teenAgrees = v),
+            ),
           const SizedBox(height: AppSpacing.s16),
           AppTextField(
             key: const Key('guardianSign.name'),
@@ -86,7 +101,7 @@ class _GuardianSignSheetState extends State<_GuardianSignSheet> {
         key: const Key('guardianSign.send'),
         label: l10n.guardianSignAction,
         expand: true,
-        onPressed: _ready ? () => Navigator.of(context).pop(GuardianSignature(fullName: _name)) : null,
+        onPressed: _ready ? () => Navigator.of(context).pop(GuardianSignature(fullName: _name, teenAgreement: widget.teen && _teenAgrees)) : null,
       ),
     );
   }

@@ -69,6 +69,7 @@ class _ChildrenScreenState extends ConsumerState<ChildrenScreen> {
       context,
       firstName: account?.firstName ?? '',
       lastName: account?.lastName ?? '',
+      teen: child.isTeen,
     );
     if (signed == null || !mounted) {
       return;
@@ -86,7 +87,7 @@ class _ChildrenScreenState extends ConsumerState<ChildrenScreen> {
     await _send(<String, Uint8List>{schoolIdFileName(_slot): photo}, <String, Object?>{
       'children': <Map<String, Object?>>[child.toPayload()],
       'driver': null,
-      'consents': LegalDocuments.verification,
+      'consents': LegalDocuments.verificationConsents(id: false, face: false, childData: true, teenAgreement: signed.teenAgreement),
       'signature': outcome.signature.toPayload(),
     });
   }

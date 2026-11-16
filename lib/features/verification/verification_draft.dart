@@ -42,6 +42,11 @@ class ChildDraft {
   final String schoolName;
   final Uint8List? schoolIdPhoto;
 
+  /// R4: 15 or older by age, or in grade 10 to 12 (the server also
+  /// accepts a date of birth; the higher wins): the guardian declares the
+  /// child was told and agrees.
+  bool get isTeen => (age ?? 0) >= 15 || grade == Grade.g10 || grade == Grade.g11 || grade == Grade.g12;
+
   bool get isComplete =>
       isValidPersonName(firstName) &&
       age != null &&
@@ -148,6 +153,7 @@ class VerificationDraft {
     this.consentId = false,
     this.consentFace = false,
     this.guardianConsent = false,
+    this.teenAgreement = false,
     this.signedName = '',
     this.uploaded = const <String>{},
   });
@@ -179,6 +185,13 @@ class VerificationDraft {
   /// Explicit written consent to process the face images (biometric data;
   /// R3: its own unticked box).
   final bool consentFace;
+
+  /// R4: a child is 15 or older: the guardian declares the child was told
+  /// what is shared and agrees (its own unticked box).
+  final bool teenAgreement;
+
+  /// Some child is 15 or older.
+  bool get hasTeen => children.any((ChildDraft c) => c.isTeen);
 
   /// R3: the typed full name that signs the consents; it must match the
   /// ID name typed in the details step. Never saved on the phone.
@@ -214,6 +227,7 @@ class VerificationDraft {
       consentId &&
       consentFace &&
       guardianConsent &&
+      (!hasTeen || teenAgreement) &&
       signatureMatches;
 
   /// Every image to upload, by upload name.
@@ -240,7 +254,13 @@ class VerificationDraft {
     },
     'children': <Map<String, Object?>>[for (final ChildDraft c in children) c.toPayload()],
     'driver': drives ? driver.toPayload() : null,
-    'consents': LegalDocuments.verification,
+    // Only the boxes ticked (R3, R4: the server requires each one by name).
+    'consents': LegalDocuments.verificationConsents(
+      id: consentId,
+      face: consentFace,
+      childData: guardianConsent,
+      teenAgreement: hasTeen && teenAgreement,
+    ),
     'signature': ?signature?.toPayload(),
   };
 
@@ -260,6 +280,7 @@ class VerificationDraft {
     bool? consentId,
     bool? consentFace,
     bool? guardianConsent,
+    bool? teenAgreement,
     String? signedName,
     Set<String>? uploaded,
   }) => VerificationDraft(
@@ -278,6 +299,7 @@ class VerificationDraft {
     consentId: consentId ?? this.consentId,
     consentFace: consentFace ?? this.consentFace,
     guardianConsent: guardianConsent ?? this.guardianConsent,
+    teenAgreement: teenAgreement ?? this.teenAgreement,
     signedName: signedName ?? this.signedName,
     uploaded: uploaded ?? this.uploaded,
   );

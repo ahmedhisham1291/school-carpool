@@ -115,6 +115,9 @@ enum ConsentKind {
   id,
   face,
   childData,
+
+  /// R4: the 15+ child's agreement, declared by the guardian.
+  teenAgreement,
   walletTerms,
   analytics,
   showOnMap;

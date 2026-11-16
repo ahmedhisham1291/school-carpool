@@ -82,6 +82,8 @@ class LegalPagesTest(unittest.TestCase):
             # R3: written consent (typed name + Face ID / passcode) and a copy on the Privacy screen.
             self.assertIn("your full name typed (it must match your ID)", privacy)
             self.assertIn("open and download a copy on the Privacy screen", privacy)
+            # R4: children 15 to 18.
+            self.assertIn("the child was told what is shared and agrees", privacy)
             # R2 (owner, 16 Nov 2026): the legal sign-in log survives deletion, 180 days from each sign-in.
             self.assertIn("also after you delete your account", privacy)
             self.assertIn("disclosed only on an order of a competent judicial authority", privacy)

@@ -2436,5 +2436,8 @@
   "consentCopyEmptyBody": "This consent was given before signed copies began. Give it again to get a copy.",
   "signNameMismatchShort": "The typed name must match the name on your ID.",
   "guardianSignTitle": "Sign the declaration",
-  "guardianSignAction": "Sign and send"
+  "guardianSignAction": "Sign and send",
+  "verifyTeenLabel": "My child (15+) agrees",
+  "verifyTeenHelper": "I declare that my child aged 15 or older has been told what is shared (first name, age, grade, school, and where they are during runs) and agrees to it.",
+  "consentTeenAgreement": "Child's agreement (15+)"
 }

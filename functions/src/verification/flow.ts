@@ -7,6 +7,7 @@ import { runKyc } from "./kyc";
 import { nationalIdHash } from "./national_id";
 import {
   cairoDate,
+  isTeen,
   DRIVER_PHOTO_FILE,
   driverPhotoPath,
   faceRefPath,
@@ -54,10 +55,16 @@ export interface ChildSnapshot {
   status: "pending" | "approved" | "rejected";
 }
 
-export interface CaseChild extends Omit<ChildSubmission, "childId"> {
+export interface CaseChild extends Omit<ChildSubmission, "childId" | "birthDate"> {
   childId: string;
   isNew: boolean;
   file: string;
+  /**
+   * R4: 15 or older (birth date, age or grade): the guardian declared the
+   * child was told and agrees. The birth date itself is not kept (only
+   * needed for this check).
+   */
+  teen?: boolean;
 }
 
 export interface CaseRecord {
@@ -345,6 +352,7 @@ export async function submitVerification(deps: VerificationDeps, uid: string, da
     firstName: child.firstName,
     age: child.age,
     grade: child.grade,
+    teen: isTeen(child, cairoDate(deps.now())),
     schoolId: schools.get(child.ref)?.id ?? child.schoolId,
     schoolName: childSchoolName(schools.get(child.ref) as SchoolChoice, child.schoolName),
     file: `${prefix}school_id_${child.ref}.jpg`,

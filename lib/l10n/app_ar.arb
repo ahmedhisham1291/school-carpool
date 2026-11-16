@@ -10836,5 +10836,17 @@
   "guardianSignAction": "وقّع وأرسل",
   "@guardianSignAction": {
     "description": "Sheet primary action (R3). One line."
+  },
+  "verifyTeenLabel": "ابني (15 سنة فأكثر) موافق",
+  "@verifyTeenLabel": {
+    "description": "Separate unticked box shown when a child is 15 or older (R4). One line."
+  },
+  "verifyTeenHelper": "أقرّ بأن ابني أو ابنتي (15 سنة فأكثر) أُبلغ بما يُشارك (الاسم الأول والسن والصف والمدرسة ومكانه أثناء المشاوير) ووافق عليه.",
+  "@verifyTeenHelper": {
+    "description": "R4: the teenager's own agreement, collected through the parent (legal text, part of the signed record)."
+  },
+  "consentTeenAgreement": "موافقة الابن (15+)",
+  "@consentTeenAgreement": {
+    "description": "Privacy screen: consent title (R4). One line."
   }
 }

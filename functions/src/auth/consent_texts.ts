@@ -12,6 +12,7 @@ export const CONSENT_TEXT_KEYS = {
   id: ["verifyConsentIdLabel", "verifyConsentIdHelper"],
   face: ["verifyConsentFaceLabel", "verifyConsentFaceHelper"],
   childData: ["verifyGuardianLabel", "verifyGuardianHelper"],
+  teenAgreement: ["verifyTeenLabel", "verifyTeenHelper"],
 } as const;
 
 export type SignedConsentType = keyof typeof CONSENT_TEXT_KEYS;
@@ -40,6 +41,12 @@ export const CONSENT_TEXTS: Readonly<Record<string, Readonly<Record<string, { ar
     "2026-11-17": {
       ar: "أنا الوالد أو الولي\n\nأقرّ بأنني الوالد أو الولي القانوني للأطفال الذين أضيفهم، وأوافق صراحةً وكتابةً على معالجة بياناتهم (الاسم الأول والسن والصف والمدرسة وصورة كارنيه المدرسة) ومكانهم أثناء المشاوير، فقط لتنظيم مشاويرهم المدرسية وحمايتها. يمكنني سحب ذلك بحذف الأطفال.",
       en: "I am the parent or guardian\n\nI declare that I am the parent or legal guardian of the children I add, and I give my explicit written consent to process their details (first name, age, grade, school, school ID photo) and where they are during runs, only to organise and protect their school runs. I can withdraw this by removing the children.",
+    },
+  },
+  teenAgreement: {
+    "2026-11-17": {
+      ar: "ابني (15 سنة فأكثر) موافق\n\nأقرّ بأن ابني أو ابنتي (15 سنة فأكثر) أُبلغ بما يُشارك (الاسم الأول والسن والصف والمدرسة ومكانه أثناء المشاوير) ووافق عليه.",
+      en: "My child (15+) agrees\n\nI declare that my child aged 15 or older has been told what is shared (first name, age, grade, school, and where they are during runs) and agrees to it.",
     },
   },
 };

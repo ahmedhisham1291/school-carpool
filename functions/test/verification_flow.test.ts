@@ -24,6 +24,8 @@ import {
   parseSubmission,
   VERIFICATION_CONSENT_VERSIONS,
   VerificationError,
+  ageOn,
+  isTeen,
 } from "../src/verification/submission";
 import { MemoryClaims, MemoryFiles, MemoryVerificationStore } from "./helpers/memory_verification";
 import { SignatureError } from "../src/auth/signature";
@@ -384,6 +386,44 @@ describe("written consent (R3)", () => {
     );
     await submitVerification(deps, "alice", submission({ signature: recent }), (NOW - 60_000) / 1000);
     assert.equal((store.consents.find((c) => c.uid === "alice")?.signature as Record<string, unknown>).method, "recentSignIn");
+  });
+});
+
+describe("children 15 to 18 (R4)", () => {
+  const teen = { ref: "c1", firstName: "Omar", age: 15, grade: "g9", schoolId: "nile", schoolName: "Nile School" };
+  const { teenAgreement: _t, ...withoutTeen } = VERIFICATION_CONSENT_VERSIONS;
+
+  it("a child of 15 or older needs the guardian's 'my child was told and agrees' declaration", async () => {
+    uploadAll("alice");
+    await assert.rejects(submitVerification(deps, "alice", submission({ children: [teen], consents: withoutTeen })), expectReason("outdated-consent"));
+    await submitVerification(deps, "alice", submission({ children: [teen] }));
+    const mine = store.consents.filter((c) => c.uid === "alice").map((c) => c.type);
+    assert.deepEqual(mine, ["id", "face", "childData", "teenAgreement"], "its own signed record");
+    assert.ok(store.consents.every((c) => c.signature), "signed like the others");
+  });
+
+  it("15+ from the date of birth, the age or the grade (the higher wins); younger children need no declaration", () => {
+    const today = "2026-11-16";
+    assert.equal(isTeen({ age: 14, grade: "g9", birthDate: "2011-11-16" }, today), true, "15 today by birth date");
+    assert.equal(isTeen({ age: 14, grade: "g9", birthDate: "2011-11-17" }, today), false, "15 tomorrow");
+    assert.equal(isTeen({ age: 15, grade: "g8", birthDate: null }, today), true);
+    assert.equal(isTeen({ age: 14, grade: "g10", birthDate: null }, today), true, "grade 10 to 12");
+    assert.equal(isTeen({ age: 8, grade: "g3", birthDate: null }, today), false);
+    assert.equal(ageOn("2011-02-28", "2026-02-27"), 14);
+    const parsed = parseSubmission(submission({ consents: withoutTeen }), { today, verified: false });
+    assert.deepEqual(parsed.consents, ["id", "face", "childData"]);
+    // A birth date that disagrees with the age by more than a year is refused.
+    assert.throws(() => parseSubmission(submission({ children: [{ ...teen, birthDate: "2020-01-01" }] }), { today, verified: false }), expectReason("invalid-child"));
+    assert.throws(() => parseSubmission(submission({ children: [{ ...teen, birthDate: "2011-13-01" }] }), { today, verified: false }), expectReason("invalid-child"));
+    assert.equal(parseSubmission(submission({ children: [{ ...teen, birthDate: "2011-06-01" }] }), { today, verified: false }).children[0].birthDate, "2011-06-01");
+  });
+
+  it("the birth date is not kept; the child record says the 15+ child agreed", async () => {
+    uploadAll("alice");
+    const { caseId } = await submitVerification(deps, "alice", submission({ children: [{ ...teen, birthDate: "2011-06-01" }] }));
+    const child = store.cases.get(caseId)!.children[0];
+    assert.equal(child.teen, true);
+    assert.ok(!("birthDate" in child), "only used for the check");
   });
 });
 
