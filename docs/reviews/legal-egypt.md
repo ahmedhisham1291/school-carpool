@@ -87,6 +87,24 @@ in the last section).
 - N6: Flutter widget/golden tests and `flutter analyze` are not run here
   (no SDK); they run in the full CI run below. Functions tests run in CI.
 
+## Merge with main (architecture, 93b6b61)
+
+Merged origin/main. `privacy/breach_callables.ts` now uses
+`common/callable.ts` `runCallable` with `reasonErrorMapper` for
+`BreachError` and `AdminError` (no own try/catch); the carpool callables'
+`feature-off` mapping (contributions switch) moved into the shared wrapper.
+Consents and privacy-request callables were already converted on main.
+The breach register uses the `BREACH_REGISTER` constant; no new
+collection-name literals (Functions or Dart). Architecture tests green.
+
+Fixes found by the full CI run (before the merge the branch's Flutter
+job had never passed): `flutter analyze` (directive order in two admin
+files, the `Override` import in the incidents test, const literals) and
+three admin Settings tests plus the feature-off one-line test that still
+expected Settle up on by default.
+
 ## CI
 
-See the final report of the validator run (run id and head hash).
+Full run (`full=true`) on head c7e3638: **green**, run 43888380839
+(Cloud Functions + rules tests, Flutter analyze/tests/screenshots, web,
+admin panel and Android compile).
