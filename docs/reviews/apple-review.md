@@ -12,7 +12,7 @@ What was run: Functions unit tests (870 pass, with this workspace's stub
 typings; `tsc` reports the same 165 typing errors before and after, none
 new), `python3 -m unittest discover -s tool` (48 pass), `bash -n`, YAML
 parse. Written, not run here: the new rules tests in
-`tests/rules/users.test.ts` (emulator; run by CI). CI run: see the end.
+`tests/rules/users.test.ts` (emulator; run by CI). CI: see the end.
 
 ## Blockers (fixed)
 
@@ -160,3 +160,20 @@ warning with the manual steps stays.
 - **N6. Demo sign-in guessing** is bounded as in point 1; keep the demo
   numbers private (they are not in the repository) and prefer a window
   shorter than 30 days.
+
+## CI
+
+The branch had never passed CI: the full run on db3d520 was cancelled, and
+the first full run with the fixes failed on the branch's own new files:
+- `flutter analyze`: angle brackets in a doc comment
+  (`lib/features/about/legal_links.dart`). Fixed.
+- `test/about/about_legal_test.dart` (3 failures): the test did not load
+  the real fonts (every letter a square, so "Privacy policy" measured 224
+  px) and tapped a sheet button that was scrolled out of view. Test
+  fixed; the screen itself is right (the sheet scrolls).
+
+Full run (`full=true`) **43838724735 on 9e51420: green** (Flutter analyze,
+tests and screenshots; Functions unit and emulator tests; Firestore and
+Storage rules tests, including the new ones; tool and schools Python
+tests; web, admin panel and Android compile). The commit after 9e51420
+changes only this document.
