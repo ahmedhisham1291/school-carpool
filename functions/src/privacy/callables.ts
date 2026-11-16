@@ -67,8 +67,8 @@ import { featureOn } from "../features/gate";
  * photos or message text). minInstances 0 (COST MODE).
  */
 
-/** Analytics consent version (the Settings switch text, Prompt 12). */
-export const ANALYTICS_CONSENT_VERSION = "2026-11-14";
+/** Analytics consent version (the Home card and Settings switch text; opt-in since 16 Nov 2026). */
+export const ANALYTICS_CONSENT_VERSION = "2026-11-16";
 
 export type PrivacyErrorReason = "invalid-request" | "unauthenticated" | "not-found" | "wallet-not-empty" | "wallet-pending" | "wallet-unavailable" | "driving-now" | "no-account" | "rate-limited" | "export-failed";
 

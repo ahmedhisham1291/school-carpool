@@ -107,8 +107,9 @@ export function consentViews(rows: readonly ConsentRow[], extra: { showOnMap: bo
     if (kind === "showOnMap") return { kind, version: null, acceptedAtMs: null, withdrawnAtMs: null, active: extra.showOnMap };
     const latest = rows.filter((r) => r.type === kind).sort((a, b) => b.acceptedAtMs - a.acceptedAtMs)[0];
     if (kind === "analytics" && !latest) {
-      // Default on (owner decision); off once the parent switches it off.
-      return { kind, version: null, acceptedAtMs: null, withdrawnAtMs: null, active: extra.analytics ?? true };
+      // Off until the parent says yes (owner decision 16 Nov 2026, App
+      // Review guideline 5.1.1(ii)).
+      return { kind, version: null, acceptedAtMs: null, withdrawnAtMs: null, active: extra.analytics ?? false };
     }
     if (!latest) return { kind, version: null, acceptedAtMs: null, withdrawnAtMs: null, active: false };
     return { kind, version: latest.version, acceptedAtMs: latest.acceptedAtMs, withdrawnAtMs: latest.withdrawnAtMs, active: latest.withdrawnAtMs === null };

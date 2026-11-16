@@ -3,7 +3,9 @@
 Owner decision (DECISIONS.md "Data retention and collection", 14 Nov 2026):
 screens and features used are collected with Google Analytics for Firebase,
 with **no names, phone numbers, IDs, message text or coordinates**. On by
-default; the parent switches it off in Settings or on the privacy screen
+default **off** (owner decision 16 Nov 2026, App Review guideline 5.1.1(ii)):
+a card on Home asks once ("Help improve the app?" Share / No thanks) and
+nothing is collected before a yes; the parent switches it in Settings or on the privacy screen
 (stored on the phone, recorded on the server as an "analytics" consent).
 Crashes go to Sentry (scrubbed), not to Analytics.
 

@@ -124,7 +124,7 @@
   "termsRequiredHint": "Accept all three documents to continue.",
   "termsDraftNotice": "Draft text. Our lawyer will approve the final text before launch.",
   "termsTermsText": "The app is free and non-profit and helps verified parents organise school runs by turns. Each parent is responsible for their own driving and for following traffic rules. The app takes no fee or commission. We may suspend an account that breaks these terms or the code of conduct. You can delete your account at any time.",
-  "termsPrivacyText": "We collect what we need to verify parents, organise runs and keep them safe: your mobile number and email, then your ID photo, a selfie, your children's details and driving licences. Photos are stored encrypted in a private store while your account is open and deleted when you delete your account. We keep a summary of each run and a compressed route for up to 1 year for safety investigations; only admins see it, with a logged reason. When you delete your account, your photos, messages, address and routes are deleted; only records the law or safety requires stay, without your name. We collect usage statistics without names, numbers or places, and you can switch them off. Other parents see only your first name, school, area and the Verified badge. We never sell your data. On the privacy screen you can see, correct, download and delete your data and withdraw any consent.",
+  "termsPrivacyText": "We collect what we need to verify parents, organise runs and keep them safe: your mobile number and email, then your ID photo, a selfie, your children's details and driving licences. Photos are stored encrypted in a private store while your account is open and deleted when you delete your account. We keep a summary of each run and a compressed route for up to 1 year for safety investigations; only admins see it, with a logged reason. When you delete your account, your photos, messages, address and routes are deleted; only records the law or safety requires stay, without your name. Only if you say yes, we collect usage statistics without names, numbers or places; you can switch them off at any time. Error reports with personal details removed are always sent so we can fix faults. Other parents see only your first name, school, area and the Verified badge. We never sell your data. On the privacy screen you can see, correct, download and delete your data and withdraw any consent.",
   "termsConductText": "Respect other parents and the children. Keep to your times and tell the group early if you cannot drive. Do not share children's details or photos outside the group. Drive safely, with a seat belt for every child. Report any unsafe behaviour. There is no tolerance for objectionable content or abusive users: no insults, harassment, threats, sexual or violent content. You can report or block anyone in a chat; we review reports within 24 hours, remove the content and suspend the user.",
   "verifyTitle": "Verify your account",
   "verifyBody": "To keep children safe, nobody sees groups, chats or other parents until their account is verified.",
@@ -1779,7 +1779,7 @@
   "notifNewDeviceTitle": "New phone",
   "notifNewDeviceBody": "Someone signed in on a new phone. If it wasn't you, contact us.",
   "analyticsSetting": "Usage statistics",
-  "analyticsSettingHelper": "Screens and features only; no names, numbers or places.",
+  "analyticsSettingHelper": "Optional. Screens and features only; no names, numbers or places.",
   "analyticsOn": "Statistics on",
   "analyticsOff": "Statistics off",
   "appLockSetting": "App lock",
@@ -1844,7 +1844,7 @@
   "dataReports": "Reports",
   "dataReportsBody": "Your reports and the admins' decisions.",
   "dataAnalytics": "Usage statistics",
-  "dataAnalyticsBody": "Screens and features used, with no names, numbers, text or places. You can switch it off.",
+  "dataAnalyticsBody": "Screens and features used, with no names, numbers, text or places. Only if you said yes; you can switch it off.",
   "dataCrashReports": "Error reports",
   "dataCrashReportsBody": "Error reports with numbers, places and text removed.",
   "keepUntilDeletion": "Until you delete your account",
@@ -2310,5 +2310,9 @@
   "gateNotifWarnBody": "You may miss alerts for this run, such as “Run still on”. You can start now, or turn notifications on in Settings.",
   "gateNotifWarnContinue": "Start anyway",
   "deleteHoldTitle": "If a report about you is open",
-  "deleteHoldBody": "Your ID photos and routes wait up to 30 days for the safety review, then are deleted. Everything else is deleted now."
+  "deleteHoldBody": "Your ID photos and routes wait up to 30 days for the safety review, then are deleted. Everything else is deleted now.",
+  "analyticsAskTitle": "Help improve the app?",
+  "analyticsAskBody": "Optional: share anonymous usage statistics (screens and features only; no names, numbers or places). You can change this any time in Settings.",
+  "analyticsAskYes": "Share",
+  "analyticsAskNo": "No thanks"
 }

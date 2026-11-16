@@ -80,7 +80,9 @@ Widget buildTestApp(
   return ProviderScope(
     overrides: [
       flavorConfigProvider.overrideWithValue(config),
-      settingsStoreProvider.overrideWithValue(store ?? InMemorySettingsStore()),
+      // Usage statistics already answered (no), so the Home card that asks
+      // once shows only in the tests that pass their own store.
+      settingsStoreProvider.overrideWithValue(store ?? InMemorySettingsStore(<String, String>{'analytics.enabled': 'false'})),
       ...extraOverrides,
     ],
     child: MaterialApp(

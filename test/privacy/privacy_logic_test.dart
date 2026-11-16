@@ -115,8 +115,20 @@ void main() {
       final RecordingAnalyticsSink sink = RecordingAnalyticsSink();
       final InMemorySettingsStore store = InMemorySettingsStore();
       final Analytics analytics = Analytics(sink, enabled: AnalyticsConsent.read(store));
-      expect(analytics.enabled, isTrue, reason: 'on by default (owner decision)');
+      expect(analytics.enabled, isFalse, reason: 'off until the parent says yes (16 Nov 2026, guideline 5.1.1(ii))');
+      expect(AnalyticsConsent.answered(store), isFalse);
+      analytics
+        ..track(AnalyticsEvent.chatOpened, <String, Object?>{'kind': 'private'})
+        ..screen('/home');
+      await pumpEventQueue();
+      expect(sink.events, isEmpty, reason: 'nothing before consent');
+      expect(sink.screens, isEmpty);
+      await saveAnalyticsChoice(store, analytics, enabled: true);
+      expect(AnalyticsConsent.read(store), isTrue);
+      expect(AnalyticsConsent.answered(store), isTrue);
+      expect(sink.enabled, isTrue);
       await saveAnalyticsChoice(store, analytics, enabled: false);
+      expect(AnalyticsConsent.answered(store), isTrue, reason: 'a no is an answer too');
       expect(sink.enabled, isFalse);
       expect(AnalyticsConsent.read(store), isFalse);
       analytics

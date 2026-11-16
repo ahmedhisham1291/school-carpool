@@ -32,6 +32,7 @@ import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/app.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/features/about/about_screen.dart';
+import 'package:school_carpool/features/analytics/analytics.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
@@ -109,6 +110,9 @@ Future<void> _pumpScreen(
   FakeTrustRepository? trust,
   FeatureSwitches? features,
   FakeSettleUpRepository? settle,
+  // Usage statistics already answered, so the Home card that asks once is
+  // only in its own screenshot.
+  bool analyticsAnswered = true,
 }) async {
   tester.view
     ..devicePixelRatio = pixelRatio
@@ -129,6 +133,7 @@ Future<void> _pumpScreen(
             LocaleController.storageKey: locale,
             ThemeModeController.storageKey: themeMode,
             DesignDirectionController.storageKey: direction,
+            if (analyticsAnswered) AnalyticsConsent.storageKey: 'false',
           }),
         ),
         routerProvider.overrideWithValue(router),
@@ -957,6 +962,22 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 600));
         await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$gate.png'));
+      });
+      // 16 Nov 2026: the card that asks once for usage statistics.
+      final String ask = 'home_analytics_ask_${locale}_$mode';
+      testWidgets(ask, skip: skip, (WidgetTester tester) async {
+        await _pumpScreen(
+          tester,
+          location: '/home',
+          locale: locale,
+          themeMode: mode,
+          direction: 'a',
+          logicalSize: const Size(390, 844),
+          pixelRatio: 3,
+          analyticsAnswered: false,
+        );
+        await tester.pump(const Duration(milliseconds: 400));
+        await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$ask.png'));
       });
       for (final bool steps in <bool>[false, true]) {
         final String banner = steps ? 'home_location_steps_${locale}_$mode' : 'home_location_banner_${locale}_$mode';

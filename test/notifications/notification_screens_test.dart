@@ -49,7 +49,7 @@ List<Override> _overrides(
   FeatureSwitches? features,
 }) => <Override>[
   flavorConfigProvider.overrideWithValue(testDevConfig),
-  settingsStoreProvider.overrideWithValue(store ?? InMemorySettingsStore()),
+  settingsStoreProvider.overrideWithValue(store ?? InMemorySettingsStore(<String, String>{'analytics.enabled': 'false'})),
   ...authOverrides(session: session, notifications: repo, push: push, alarms: alarms, features: features),
 ];
 

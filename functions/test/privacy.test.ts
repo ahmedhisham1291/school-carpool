@@ -788,7 +788,7 @@ describe("consents", () => {
     assert.equal(needsAdmin("email"), false);
   });
 
-  it("views: the latest record per kind; analytics on by default until switched off", () => {
+  it("views: the latest record per kind; analytics off until the parent says yes (guideline 5.1.1(ii))", () => {
     const views = consentViews(
       [
         { type: "whatsapp", version: "v1", acceptedAtMs: 1, withdrawnAtMs: null },
@@ -801,8 +801,9 @@ describe("consents", () => {
     assert.equal(by.whatsapp, false);
     assert.equal(by.terms, true);
     assert.equal(by.face, false);
-    assert.equal(by.analytics, true);
+    assert.equal(by.analytics, false, "no record: off");
     assert.equal(by.showOnMap, true);
+    assert.equal(consentViews([{ type: "analytics", version: "v1", acceptedAtMs: 2, withdrawnAtMs: null }], { showOnMap: false, analytics: true }).find((v) => v.kind === "analytics")?.active, true, "an explicit yes");
     assert.equal(consentViews([{ type: "analytics", version: "v1", acceptedAtMs: 2, withdrawnAtMs: 3 }], { showOnMap: false, analytics: false }).find((v) => v.kind === "analytics")?.active, false);
   });
 });

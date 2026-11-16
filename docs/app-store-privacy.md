@@ -51,6 +51,22 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
 - **Is any data used to track the user?** **No**, for every type. No
   advertising, no IDFA, no data brokers; Analytics has no user ID and the
   advertising and IDFV keys are off in Info.plist.
+- **Consent for usage statistics (guideline 5.1.1(ii)):** Google
+  Analytics collection is **off** in the app bundle
+  (`FIREBASE_ANALYTICS_COLLECTION_ENABLED = false`) and is switched on
+  only after the parent taps **Share** on the Home card that asks once
+  (or the switch in Profile > Settings / Privacy); "No thanks" keeps it
+  off. It is still declared below because some parents will say yes.
+- **App Tracking Transparency: not required.** Guideline 5.1.2(i) asks
+  for the ATT prompt only to "track" (link the app's data with other
+  companies' data for advertising, or share it with data brokers). The
+  app has no advertising, reads no IDFA, and shares nothing with brokers,
+  so there is no `NSUserTrackingUsageDescription` and no prompt.
+- **Error reports (Sentry) are always on** and are declared (Crash Data,
+  Other Diagnostic Data): errors only, no tracing, no replay, no
+  screenshots, `sendDefaultPii = false`, and phone numbers, IDs,
+  coordinates and message text are removed before sending. The privacy
+  policy names Sentry.
 - **Privacy policy URL:** `https://<prod project>-links.web.app/privacy`
   (built by `tool/links_site.py`, docs/apple-review/submission-kit.md
   step 6). The same text is reachable in the app: About > Legal and
@@ -70,7 +86,7 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
 | Health & Fitness | — | Not collected | | | | |
 | Financial Info | Other Financial Info | **Settle up (the pilot's payment feature):** the parent's InstaPay address (name@instapay) and the records of payment requests between two parents (amount, reason, short note, dates, state). The app does not process payments: the money moves in the InstaPay app, and no bank account or card number is ever asked for or stored. **Wallet (switched off for the pilot):** wallet history: amounts, the two parents, dates (the money and any card details are held by the licensed partner, never by us) | Us only for Settle up (the InstaPay address is shown to the parent who has an open request from its owner); the wallet partner once the wallet is on | Yes | No | App Functionality |
 | Location | Precise Location | The driver's car during a run (While Using + background mode, live points deleted within 24 h; one compressed route kept 1 year, admins only); the home pin from "use my location" | Us; Google Routes (car and stops, for arrival times) | Yes | No | App Functionality |
-| Location | Coarse Location | City-level area that Google Analytics derives from the IP address (off when the parent switches Analytics off) | Google Analytics | No | No | Analytics |
+| Location | Coarse Location | City-level area that Google Analytics derives from the IP address (only after the parent said yes to usage statistics; off by default) | Google Analytics | No | No | Analytics |
 | Sensitive Info | Sensitive Info | Face images used for face matching (biometric): identity selfie as the face reference, live selfie checks, new-phone selfies | Us; Valify (when contracted) | Yes | No | App Functionality (identity, fraud prevention, child safety) |
 | Contacts | — | Not collected (the address book is never read) | | | | |
 | User Content | Emails or Text Messages | — not used (in-app chat is declared below) | | | | |
@@ -82,7 +98,7 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
 | Identifiers | User ID | Parent ID and account ID | Us; Stream (the account ID is the Stream user ID, plus the parent ID); Sentry (opaque account ID) | Yes | No | App Functionality |
 | Identifiers | Device ID | Random install ID (keyed hash on the server, phones list); push token; Analytics app instance ID (not linked) | Us; Firebase Messaging/APNs; Google Analytics | Yes (install ID, push token) | No | App Functionality; Analytics (instance ID) |
 | Purchases | — | Not collected (no in-app purchases) | | | | |
-| Usage Data | Product Interaction | Screens (route patterns) and features used, fixed words only; switch in Settings | Google Analytics | No | No | Analytics |
+| Usage Data | Product Interaction | Screens (route patterns) and features used, fixed words only; **off until the parent says yes** (Home card, asked once), switch in Settings | Google Analytics | No | No | Analytics |
 | Usage Data | Advertising Data | Not collected | | | | |
 | Diagnostics | Crash Data | Crash reports with personal data removed | Sentry | Yes (opaque account ID) | No | App Functionality |
 | Diagnostics | Performance Data | Not collected (Sentry tracing is off) | | | | |

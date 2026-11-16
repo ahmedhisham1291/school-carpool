@@ -38,7 +38,8 @@ class _World {
 /// The same overrides in every pump (one ProviderScope shape per test).
 List<Override> _overrides(_World w, FeatureSwitches? features) => <Override>[
   flavorConfigProvider.overrideWithValue(testDevConfig),
-  settingsStoreProvider.overrideWithValue(InMemorySettingsStore()),
+  // The parent said yes to usage statistics (off until then).
+  settingsStoreProvider.overrideWithValue(InMemorySettingsStore(<String, String>{AnalyticsConsent.storageKey: 'true'})),
   ...authOverrides(features: features),
   privacyRepositoryProvider.overrideWithValue(w.repo),
   analyticsSinkProvider.overrideWithValue(w.analytics),

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/analytics/analytics_ask_card.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/places/address_screen.dart';
@@ -38,6 +39,8 @@ class HomeScreen extends ConsumerWidget {
         children: <Widget>[
           // Prompt 13: location off, refused or approximate (never blocks).
           const LocationOffBanner(),
+          // Asked once; statistics stay off until the parent says yes.
+          const AnalyticsAskCard(),
           AppSectionHeader(l10n.homeAroundYouSection),
           AppListRow(
             key: const Key('home.nearby'),
