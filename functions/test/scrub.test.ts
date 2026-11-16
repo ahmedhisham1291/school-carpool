@@ -140,3 +140,16 @@ describe("Prompt 12: nothing personal reaches Sentry", () => {
     assert.equal(areaOf("createCarpool"), "other");
   });
 });
+
+describe("scrubString: long input (security review, ReDoS)", () => {
+  it("cuts text longer than MAX_SCRUB_LENGTH before the patterns run, and stays fast", () => {
+    const { MAX_SCRUB_LENGTH, TRUNCATED, scrubString: scrub } = require("../src/scrub") as typeof import("../src/scrub");
+    for (const evil of ["1." + "1".repeat(200_000), "-1.1 ".repeat(50_000), "+20 ".repeat(60_000)]) {
+      const started = Date.now();
+      const out = scrub(evil);
+      assert.ok(Date.now() - started < 1000, "scrubbing must not stall the instance");
+      assert.ok(out.length <= MAX_SCRUB_LENGTH + TRUNCATED.length);
+    }
+    assert.equal(scrub("short 01012345678"), "short [redacted]");
+  });
+});
