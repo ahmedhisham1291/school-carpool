@@ -147,4 +147,14 @@ describe("architecture: collection names", () => {
     const unknown = [...new Set(topLevel)].filter((name) => !notInFunctions.has(name) && !code.includes(`"${name}"`));
     assert.deepEqual(unknown, [], "rules for collections the code never names (a typo or dead rule?)");
   });
+
+  it("every name in the app's lib/firebase/collections.dart has a rule in firestore.rules", () => {
+    const rules = readFileSync(join(ROOT, "..", "firestore.rules"), "utf8");
+    const dart = readFileSync(join(ROOT, "..", "lib", "firebase", "collections.dart"), "utf8");
+    const collections = dart.slice(dart.indexOf("class Collections"), dart.indexOf("class Docs"));
+    const names = [...collections.matchAll(/static const String \w+ = '([A-Za-z_]+)';/g)].map((m) => m[1]);
+    assert.ok(names.length > 20, "collections.dart was not read");
+    const missing = names.filter((name) => !new RegExp(`match /${name}/`).test(rules));
+    assert.deepEqual(missing, [], "the app names a collection that firestore.rules does not open (or a typo)");
+  });
 });
