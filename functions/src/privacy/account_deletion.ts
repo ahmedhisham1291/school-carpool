@@ -29,7 +29,8 @@ import { consentPurgeAt, evidencePurgeAt, purgeAfterClosure } from "./retention"
  * other parent (an initial; 1 year), transfer records
  * (TRANSFER_RECORD_YEARS), reports about the parent, the admin audit log,
  * the keyed national-ID hash on the ban list (banned parents only) and the
- * reserved parent ID.
+ * reserved parent ID, and the Anti-Cybercrime sign-in log (R2: each line
+ * 180 days from its sign-in, server-only, judicial orders only).
  *
  * The wallet must be empty and settled first. Every step runs on its own;
  * a failed step is recorded in closedAccounts/{uid} and retried by
@@ -191,6 +192,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   otpLimits: "keyed hashes only, TTL",
   closedAccounts: "the deletion report and purge date (no name, phone or ID)",
   privacyRequests: "proof that each request was answered, 3 years",
+  signInLog: "Anti-Cybercrime sign-in log (Law 175/2018 Art. 2; R2, owner 16 Nov 2026): one line per sign-in, kept 180 days FROM THAT SIGN-IN even after deletion (TTL expiresAt), phone and IP encrypted, server-only, disclosed only on a judicial order (privacy/signin_log.ts)",
   breachRegister: "personal data breach register (Law 151 Art. 7, Decree 816/2025 Art. 5); incidents, counts and admin notes, never a parent's data; kept as the law requires (docs/legal/breach-runbook.md)",
   securityAlerts: "admin alerts, 1 year after handled",
   routeArchives: "purged 1 year after the run; the routes of a deleted driver go with the account (evidence step)",

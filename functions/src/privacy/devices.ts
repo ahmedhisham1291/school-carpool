@@ -8,7 +8,9 @@ import { DAY_MS, LOGIN_HISTORY_DAYS } from "./retention";
  *
  * - Each sign-in records the phone (a keyed hash of the app's random
  *   install ID, never a hardware ID) in users/{uid}/devices/{key} and a
- *   line in users/{uid}/logins (90 days). The parent reads both (rules).
+ *   line in users/{uid}/logins (180 days, LOGIN_HISTORY_DAYS). The parent
+ *   reads both (rules). The legal sign-in log (signin_log.ts, R2) is a
+ *   separate, server-only record.
  * - A sign-in from a phone this account never used before, when the
  *   account was used elsewhere already, is RISKY (numbers get recycled
  *   and SIM cards swapped): every other phone is signed out, the parent is

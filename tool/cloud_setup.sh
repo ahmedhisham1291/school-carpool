@@ -452,6 +452,8 @@ ensure_secret() { # name random|unused provider-key fake-default
 }
 ensure_secret OTP_HMAC_KEY random
 ensure_secret NATIONAL_ID_HMAC_KEY random
+# R2: encrypts the number and IP in the Anti-Cybercrime sign-in log; never rotate.
+ensure_secret SIGNIN_LOG_KEY random
 ensure_secret WHATSAPP_ACCESS_TOKEN unused WHATSAPP_PROVIDER
 
 # --- Algolia (school search over the whole list; docs/algolia-setup.md) ---

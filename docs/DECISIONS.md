@@ -78,7 +78,8 @@ what is kept. **The lawyer is to confirm** the list of kept records
   reference; the verification case records; children, car, home address and
   exact pin; every chat message the parent wrote (private and group chats);
   devices, sign-in history and push tokens; the archived routes of the runs
-  the parent drove.
+  the parent drove. (**R2, 16 Nov 2026:** the legal sign-in log is kept
+  180 days from each sign-in, see "Legal changes R1-R15".)
 - **Safety hold:** only when an open report or rating flag about the parent
   exists at deletion, the photos, case records and routes wait 30 days
   (`SAFETY_HOLD_DAYS`) so the admins can finish the case; then they are
@@ -529,3 +530,15 @@ Where an item replaces an earlier decision, it says so.
   run summaries and Settle up records keep their 1 year. Reason: the
   limitation periods (misdemeanours 3 years, tort claims 3 years from
   knowledge; answers.md 1.6).
+- **R2 - sign-in log kept 180 days from each sign-in, also after account
+  deletion.** **Supersedes, for this log only, "devices, sign-in history
+  ... deleted with the account" (16 Nov 2026)**: the list the parent sees
+  (`users/{uid}/logins`) still goes with the account. The legal log
+  (`signInLog`, `functions/src/privacy/signin_log.ts`) holds per sign-in:
+  uid, a keyed hash of the number, the number and IP encrypted (secret
+  `SIGNIN_LOG_KEY`), time, device hash, platform, app version; no message
+  text, names, photos or location. Server-only (rules deny every client,
+  admins too); TTL 180 days from each line; read only through the
+  super-admin callable `adminDiscloseSignInLog` (judicial-order reference,
+  authority and date required, sign-in < 30 minutes, audit entry first).
+  Reason: Law 175/2018 Art. 2 and Decree 1699/2020 (answers.md 4.2).

@@ -59,3 +59,4 @@ Open questions (none block; recorded for the owner and the lawyer):
 ## Progress
 
 - R1: done.
+- R2: done (owner action: `SIGNIN_LOG_KEY` secret and the `signInLog` TTL policy in staging and prod; `tool/cloud_setup.sh` and `tool/setup_retention.sh` do both).

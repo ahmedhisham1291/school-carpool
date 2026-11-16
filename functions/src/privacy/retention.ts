@@ -63,8 +63,10 @@ export const AUDIT_LOG_DAYS = 2 * YEAR_DAYS;
  * traffic data, device) for 180 continuous days. Whether the app is a
  * service provider in that sense is a question for the lawyer
  * (docs/legal/egypt-legal-review.md section 4); keeping 180 days is the
- * safe side. NOTE: these records still go at once when the parent deletes
- * the account (lawyer question 4.2).
+ * safe side. The list the parent sees (users/{uid}/logins) goes with the
+ * account; the legal log (signInLog, R2, owner decision 16 Nov 2026) keeps
+ * each line 180 days from its sign-in even after the account is deleted
+ * (privacy/signin_log.ts).
  */
 export const LOGIN_HISTORY_DAYS = 180;
 /** A device signed out (or not seen) this long is dropped from the list. */
@@ -173,7 +175,13 @@ export const RETENTION: readonly RetentionRule[] = [
   { id: "handover", where: "handoverAdults/{childId}", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "emergencyContact", where: "emergencyContacts/{uid}", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
   { id: "notifications", where: "users/{uid}/notifications (60 days), notificationEvents (30 days), pushTokens, notificationSettings", days: 60, from: "created", enforcedBy: ["firestoreTtl", "accountDeletion"] },
-  { id: "devices", where: "users/{uid}/devices, users/{uid}/logins (90 days)", days: LOGIN_HISTORY_DAYS, from: "created", enforcedBy: ["firestoreTtl", "accountDeletion"] },
+  {
+    id: "devices",
+    where: "users/{uid}/devices, users/{uid}/logins (180 days; deleted with the account); signInLog (Law 175/2018 log: 180 days from each sign-in, kept after deletion, server-only)",
+    days: LOGIN_HISTORY_DAYS,
+    from: "created",
+    enforcedBy: ["firestoreTtl", "accountDeletion"],
+  },
   // Transfer records: 5 years (DECISIONS.md, owner answers 14 Nov 13:29).
   // Nothing deletes them yet (MONEY: append-only); a deletion job at the
   // end of the period needs the owner's go.
@@ -205,6 +213,7 @@ export const KEPT_AFTER_DELETION = [
   { what: "closedAccounts/{uid}", why: "the purge date and the deletion report (no name, phone or ID)" },
   { what: "settleUps", why: "payment records between two parents stay for the other parent while either account is active + 1 year; the deleted parent shows as an initial" },
   { what: "trips", why: "run summaries shared with other families: the deleted parent is an initial at once; their part is anonymised 1 year after closure" },
+  { what: "signInLog", why: "the Anti-Cybercrime sign-in log (Law 175/2018 Art. 2): time, IP, phone kind, app version and the number (encrypted) of each sign-in, 180 days from that sign-in; disclosed only on a judicial order" },
   { what: "users/{uid}/consents", why: "proof of consent (document version, time and method, no name), 3 years after closure" },
   { what: "evidence under a safety hold", why: "only when an open report about the parent exists at deletion: photos, face reference, case records and routes wait at most 30 days, then are deleted" },
 ] as const;
@@ -218,7 +227,7 @@ export const DELETED_WITH_ACCOUNT = [
   "ID photos, selfies, school ID, licence and driver photos, the face reference, verification case records",
   "home address and exact pin, children, car, emergency contact",
   "every chat message the parent wrote (private and group chats)",
-  "devices, sign-in history, push tokens, notifications",
+  "devices, the sign-in list shown in the app, push tokens, notifications (the legal sign-in log stays 180 days from each sign-in)",
   "archived routes of the runs the parent drove",
 ] as const;
 

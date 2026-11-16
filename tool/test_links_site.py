@@ -79,6 +79,11 @@ class LegalPagesTest(unittest.TestCase):
             deletion = (out / "delete-account.html").read_text(encoding="utf-8")
             self.assertIn("as proof of consent: 3 years after deletion", deletion)
             self.assertNotIn("as proof of consent: 1 year", deletion)
+            # R2 (owner, 16 Nov 2026): the legal sign-in log survives deletion, 180 days from each sign-in.
+            self.assertIn("also after you delete your account", privacy)
+            self.assertIn("disclosed only on an order of a competent judicial authority", privacy)
+            self.assertNotIn("deleted with the account if you delete it sooner", privacy)
+            self.assertIn("180 days from each sign-in", deletion)
             terms = (out / "terms.html").read_text(encoding="utf-8")
             for must in ("Arabic text prevails", "النص العربي", "Law No. 87 of 2018", "gross negligence", "compulsory insurance"):
                 self.assertIn(must, terms)

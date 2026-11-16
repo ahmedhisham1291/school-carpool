@@ -8235,9 +8235,9 @@
   "@dataDevices": {
     "description": "Data type"
   },
-  "dataDevicesBody": "نوع كل هاتف دخلت منه ووقت الدخول، بلا معرّف للجهاز.",
+  "dataDevicesBody": "نوع كل هاتف دخلت منه ووقت الدخول، بلا معرّف للجهاز. وبشكل منفصل يفرض القانون رقم 175 لسنة 2018 سجلًا للدخول: الوقت وعنوان IP ونوع الهاتف ونسخة التطبيق ورقمك (مشفّرًا)، يُحفظ 180 يومًا من كل دخول حتى بعد حذف حسابك، ولا يُفتح إلا بأمر قضائي.",
   "@dataDevicesBody": {
-    "description": "Data type details"
+    "description": "Privacy screen: what the devices data type holds (R2: the legal sign-in log)."
   },
   "dataWallet": "المحفظة",
   "@dataWallet": {
@@ -8355,9 +8355,9 @@
   "@deleteKeptTitle": {
     "description": "Card title"
   },
-  "deleteKeptBody": "سجلات التحويلات كما يطلب القانون، والبلاغات عنك، وسجل المشرفين، ورمز البطاقة المشفّر في قائمة الحظر إن كنت محظورًا.",
+  "deleteKeptBody": "البلاغات عنك، وسجل المشرفين، ورمز البطاقة المشفّر في قائمة الحظر إن كنت محظورًا، وسجل الدخول الذي يفرضه القانون (الوقت وعنوان IP ونوع الهاتف ونسخة التطبيق ورقمك مشفّرًا): 180 يومًا من كل دخول، ولا يُفتح إلا بأمر قضائي.",
   "@deleteKeptBody": {
-    "description": "Card body"
+    "description": "Delete account step 1: what stays after deletion (R2: the Anti-Cybercrime sign-in log survives deletion for 180 days from each sign-in)."
   },
   "deleteExportHint": "نزّل بياناتك أولًا إن أردت نسخة.",
   "@deleteExportHint": {

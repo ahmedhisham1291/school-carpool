@@ -181,6 +181,13 @@ service cloud.firestore {
     match /breachRegister/{incidentId} {
       allow read, write: if false;
     }
+    // Anti-Cybercrime sign-in log (Law 175 of 2018, Art. 2; R2): kept 180
+    // days from each sign-in, also after account deletion. Closed to every
+    // client, admins included; read only through the audited super-admin
+    // callable adminDiscloseSignInLog (judicial order + fresh sign-in).
+    match /signInLog/{lineId} {
+      allow read, write: if false;
+    }
 
     // Audit log (Prompt 3, Prompt 4): written only by Cloud Functions.
     // Admins signed in with two steps may read it; nobody edits or deletes

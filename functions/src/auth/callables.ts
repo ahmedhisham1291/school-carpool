@@ -36,6 +36,8 @@ import {
 import { FirestoreOtpStore } from "./otp_store";
 import { emailConfirmationIsNew } from "./sign_in_policy";
 import { afterSignIn } from "../privacy/callables";
+import { logSignIn, SIGNIN_LOG_SECRETS } from "../privacy/signin_log_callables";
+import { toEgyptE164 } from "./phone";
 import { classesMapper, requireUid, runCallable } from "../common/callable";
 
 /**
@@ -193,7 +195,7 @@ export const requestCode = onCall({ ...signInOptions, consumeAppCheckToken: true
  * and, for a verified parent, asks for a fresh selfie before chats, the
  * wallet and child data open (privacy/devices.ts).
  */
-export const verifyCode = onCall(signInOptions, (request) =>
+export const verifyCode = onCall({ ...signInOptions, secrets: [...signInOptions.secrets, ...SIGNIN_LOG_SECRETS] }, (request) =>
   run("verifyCode", async () => {
     const result = await verifyCodeFlow(otpDeps(), {
       phone: field(request, "phone"),
@@ -202,6 +204,19 @@ export const verifyCode = onCall(signInOptions, (request) =>
       language: asLanguage(field(request, "language")),
     });
     const device = await afterSignIn(result.uid, field(request, "deviceId"), field(request, "platform"));
+    // R2 (Law 175/2018 Art. 2): one line per sign-in, kept 180 days even after deletion.
+    const phone = toEgyptE164(field(request, "phone"));
+    if (phone) {
+      const platform = field(request, "platform");
+      await logSignIn({
+        uid: result.uid,
+        phoneE164: phone,
+        ip: clientIp(request.rawRequest.headers, request.rawRequest.ip, CLIENT_IP_HOP.value()),
+        deviceKey: device.deviceKey,
+        platform: platform === "android" || platform === "web" ? platform : "ios",
+        appVersion: field(request, "appVersion"),
+      });
+    }
     return { token: result.token, newDevice: device.newDevice, freshSelfieRequired: device.freshSelfieRequired };
   }),
 );

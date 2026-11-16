@@ -320,8 +320,11 @@ app's privacy manifest (a test checks that). Short form:
 > car and the routes of runs they drove are deleted with the account.
 > Only minimal records without the name, phone, photo or address are
 > kept where the law or child safety requires (run summaries other
-> families share, consent records, payment records between parents);
-> the screen lists them before the parent confirms.
+> families share, consent records, and the sign-in log Egypt's
+> Anti-Cybercrime Law No. 175 of 2018 requires for 180 days from each
+> sign-in: time, IP address, kind of phone, app version and the number,
+> encrypted, opened only on a court order); the screen lists them before
+> the parent confirms.
 >
 > USAGE STATISTICS. Off until the parent says yes (one card on Home,
 > asked once, never blocking; a switch in Settings). No advertising, no

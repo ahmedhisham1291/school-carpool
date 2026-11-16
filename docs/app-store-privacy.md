@@ -29,7 +29,7 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
   email; ID, selfie, school ID, licence and driver photos, the face
   reference and the verification case records; children, car, home
   address and exact pin; every chat message the parent wrote; devices,
-  sign-in history and push tokens; the archived routes of runs the parent
+  the sign-in list shown in the app and push tokens; the archived routes of runs the parent
   drove. A step that fails is retried by the daily job (within 24 hours)
   and reported to the admins.
 - **Safety hold, 30 days at most:** only when an open report or rating
@@ -37,8 +37,16 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
   routes wait 30 days, then are deleted whatever the state of the case.
 - **Kept, minimised and detached from the profile** (no name, phone,
   address, photo or ID number): summaries of runs shared with other
-  families (an initial; 1 year), the consent record (1 year), reports, the admin audit log (2 years), the keyed ID hash on
+  families (an initial; 1 year), the consent record (3 years, R1), reports, the admin audit log (2 years), the keyed ID hash on
   the ban list (banned accounts only).
+- **Kept because a law requires it (R2, owner decision 16 Nov 2026):** the
+  Anti-Cybercrime sign-in log (Law 175/2018 Art. 2): for each sign-in the
+  time, IP address, kind of phone, app version, the keyed device hash and
+  the mobile number (number and IP encrypted), 180 days from that
+  sign-in, also after deletion; server-only, disclosed only on a judicial
+  order. Declared under Phone Number and Device ID (purpose App
+  Functionality: security and the legal record of sign-ins); no new data
+  type and no tracking. The policy and the delete screen say so.
 - The Delete account screen, `/delete-account` and the privacy policy say
   the same. **The lawyer confirms that the kept records are the ones the
   law requires (open item B13).**
