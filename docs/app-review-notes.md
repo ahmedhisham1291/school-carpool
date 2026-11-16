@@ -1,5 +1,11 @@
 # App Review notes (Prompt 13)
 
+> **Updated 16 Nov 2026 (App Review audit).** The text to paste, the demo
+> account steps and the owner checklist are now in
+> **docs/apple-review/submission-kit.md**; findings in
+> docs/apple-review/audit.md. This file keeps the background and the video
+> steps (section 4). Where the two differ, the kit wins.
+
 Paste section 1 into **App Store Connect > the app > App Review
 Information > Notes** (English; Apple reviews in English). Fill the demo
 account in **Sign-In Information** (section 2). Attach the run video
@@ -78,16 +84,16 @@ account in **Sign-In Information** (section 2). Attach the run video
   external testing; prod for the App Store): verified, in a test carpool
   with one test child, with a run today (create the run the evening
   before review, or use the seed script on staging).
-- **New-phone check:** Apple's device is a new phone for this account, so
-  signing in there signs your own phones out of it, and for an account
-  with a face reference it opens a new-phone selfie check (chats, wallet
-  and children closed; Valify's face match is a stub until the contract,
-  so it waits for an admin). Either seed the demo account **without** a
-  face reference (verified by an admin, no identity selfie), or watch the
-  admin panel during the review and close the check: Users > the demo
-  parent > **Compare and decide** > "Confirmed another way" (reason
-  Review). Do not use the demo account on your own phone during the
-  review.
+- **New-phone check (solved 16 Nov 2026):** Apple's device is a new phone
+  for this account. The demo parents made by `review-demo -- seed` skip
+  the new-phone selfie and the driver's face reference until the review
+  window ends (`reviewDemoUntilMs`, server only), so nobody has to watch
+  the admin panel. Signing in on Apple's phone still signs your own
+  phones out of that account: do not use the demo driver account on your
+  own phone during the review.
+- **Second demo account and demo data:** `REVIEW_PHONE_2` /
+  `REVIEW_CODE_2` and `npm --prefix functions run review-demo -- seed`
+  (docs/apple-review/submission-kit.md section B).
 
 ## 3. Review sign-in code (server setting, off by default)
 

@@ -73,6 +73,10 @@ What is already in the repository (`codemagic.yaml`, workflow
    - `MAPS_API_KEY_IOS`: Google Cloud (staging project) > APIs & Services >
      Credentials > the iOS key restricted to `org.schoolcarpool.app.stg`
      (SETUP.md 15.2). Leave it out to build without a Google map.
+   - `LEGAL_SITE_URL` (optional on staging): `https://<staging project>-links.web.app`
+     once its privacy pages are deployed, and `SUPPORT_EMAIL`: the support
+     address shown in About. Without them About shows the documents in the
+     app only and no contact row.
    - `INVITE_LINK_DOMAIN` (optional): the staging links site host
      (SETUP.md 16.2); only after Associated Domains is ticked in step 1.
    If an old `BG_GEO_LICENSE` variable is there, delete it.
@@ -111,5 +115,10 @@ What is already in the repository (`codemagic.yaml`, workflow
 | "Missing Purpose String in Info.plist" (email from Apple) | `tool/patch_native.py` sets all of them; tell the developer which key Apple names. |
 | Build uploaded but not in TestFlight | Apple is still processing, or you are not in the internal group (Apple step 5). |
 | App opens on an error screen | The staging Firebase options are missing (Codemagic step 3). |
+
+The build runs `tool/check_ios_app.py` and prints what the App Store build
+would be stopped for (staging only reports). The App Store build is the
+separate workflow **iOS prod to App Store Connect (manual)**:
+docs/apple-review/submission-kit.md.
 
 Next: run docs/test-iphone.md with two test accounts.

@@ -22,9 +22,13 @@ shared with data brokers.
 - **Is any data used to track the user?** **No**, for every type. No
   advertising, no IDFA, no data brokers; Analytics has no user ID and the
   advertising and IDFV keys are off in Info.plist.
-- **Privacy policy URL:** required by App Store Connect. The policy text is
-  in the app (Profile > Privacy); it must also be on a public web page
-  (open item in docs/open-items.md).
+- **Privacy policy URL:** `https://<prod project>-links.web.app/privacy`
+  (built by `tool/links_site.py`, docs/apple-review/submission-kit.md
+  step 6). The same text is reachable in the app: About > Legal and
+  support.
+- **Privacy manifest:** `tool/ios/PrivacyInfo.xcprivacy` declares the same
+  data types as the table below (a test compares them): change both
+  together.
 
 ## 2. Data types (select these in App Store Connect)
 

@@ -21,9 +21,10 @@ to 13, docs/DECISIONS.md.
 | A10 | **Sentry** projects and DSNs; alert rules | Error reports | SETUP.md 6, 23.6 |
 | A11 | **Email service** for the new-phone alert email (Trigger Email extension + SMTP provider, for example Resend free tier); no email is sent until it is set up | New-phone emails | SETUP.md 23.4 |
 | A12 | **KMS key** for the photos bucket, Storage lifecycle, retention TTLs | Staging and prod | SETUP.md 23.2, `tool/setup_retention.sh` |
-| A13 | **Public privacy policy and terms page** (App Store requires a URL) | App Store | Owner + lawyer |
+| A13 | **Public privacy policy, terms, support and delete-account pages**: built by `tool/links_site.py` (16 Nov 2026); the owner deploys them with a real support address and legal name, the lawyer approves the wording | App Store | docs/apple-review/submission-kit.md steps 5 to 7 |
 | A14 | **Admin accounts** with two-step sign-in on staging (to approve verifications during the test) | TestFlight test | SETUP.md 13.1, 13.2 |
-| A15 | Demo account and review code for Apple | App Store review | docs/app-review-notes.md |
+| A15 | Two demo accounts, review codes and demo data for Apple (`review-access`, `review-demo`) | App Store review | docs/apple-review/submission-kit.md section B |
+| A17 | **App Store submission**: everything only the owner can do, in order (account type, prod project, pages, icon, screenshots, answers) | App Store | **docs/apple-review/submission-kit.md**; findings in docs/apple-review/audit.md |
 | A16 | **Make the repository private again** (it is public for free CI): secret scan of the whole history, decide about `docs/reviews` and this file, set an Actions budget, switch, re-check Codemagic and the Cloud Shell clone | Before the public launch | **docs/launch-private-repo.md** |
 
 ## B. Owner decisions still open
@@ -41,6 +42,9 @@ to 13, docs/DECISIONS.md.
 | B9 | **InstaPay link:** InstaPay publishes no link or URL scheme an app may build with a payee and an amount (the `ipn.eg/S/...` links are made inside the InstaPay app, one per user). The payer copies the address. Option for later: let a payee paste their own InstaPay share link | Copy only |
 | B10 | **Feature switches after the pilot:** when to turn on ratings and vouching, and the yearly check (first checked school year is 2027-28) | Both off |
 
+| B11 | **Notifications required to start a run** (the driver gate): App Review guideline 4.5.4 says push must not be required. Make it a warning instead of a block? | Required (owner decision 14 Nov, 13:05); audit recommends a warning |
+| B12 | **App icon**: keep the default drawing (`tool/ios/AppIcon/icon_1024.png`) or supply a designer's icon | Default drawing |
+
 ## C. Accepted limitations (decided, not bugs)
 
 | # | Item | Decision |
@@ -51,6 +55,8 @@ to 13, docs/DECISIONS.md.
 | C4 | Trips of a closed carpool | Kept per parent: active + 1 year; built in Prompt 13 (`trip_retention.ts`) |
 
 ## D. Known bugs and gaps (not done)
+
+App Review audit (16 Nov 2026): D35 to D38 below; full list in docs/apple-review/audit.md.
 
 | # | Item | Impact | Plan |
 | --- | --- | --- | --- |
@@ -91,3 +97,8 @@ to 13, docs/DECISIONS.md.
 | D31 | University switch (`data/schools/categories.json`) is off; if it is ever switched on, the app and admin panel need a type filter and a label for kind `university` (server and search index already accept it) | None while off | Owner decision first |
 | D25 | Sample schools hidden on staging stay in Firestore (`searchHidden`) and still appear in the admin panel's school list as active | Admins only | Delete them later if no test data points at them |
 | D18 | Lawyer's answers: all confirmed (DECISIONS.md "Legal" and "Owner updates 12:30"); the retention periods need the privacy policy text updated by the lawyer for the published page (A13) | — | Owner |
+| D35 | **UIScene migration before the iOS 27 SDK is mandatory** (reported for April 2027): builds are pinned to Xcode 26.4 because our classic app-delegate Runner fails to launch when built with the iOS 27 SDK | A launch crash is a rejection; later, uploads with Xcode 26 will be refused | Move the Runner to UIScene with a headless engine for location launches (DECISIONS.md, "Classic iOS launch"); test run recovery again on a real iPhone |
+| D36 | **App Review branch: Flutter tests written, not run here** (`test/about/about_legal_test.dart`, About and terms changes); native changes (privacy manifest in the Xcode project, single-size icon, iPhone-only, podspec resource bundle) first compiled by the next Codemagic staging build; `tool/check_ios_app.py` only reports on staging and stops the prod build | CI or the staging build may show small fixes | One CI run and one staging build (coordinator) |
+| D37 | When the Firestore chat replaces Stream: add a word filter to it (guideline 1.2) and take Stream out of `hosting/links/privacy.html`, docs/app-store-privacy.md and the review notes | Rejection or a wrong privacy label if forgotten | With the chat merge |
+| D38 | The conduct document is version 2026-11-16 (no-tolerance sentence): functions and app must be deployed together; a parent on an older build is asked to update at the terms step | Staging testers reinstall | With the next staging build |
+

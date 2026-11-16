@@ -972,9 +972,17 @@ never shows anything about the carpool.
    `org.schoolcarpool.app.dev`, `.stg` or the prod id):
    ```
    python3 tool/links_site.py --team-id <TEAM ID> --bundle-id org.schoolcarpool.app.dev \
-     [--app-store-url https://apps.apple.com/app/id<numeric id>]
+     [--app-store-url https://apps.apple.com/app/id<numeric id>] \
+     [--support-email <address you read> --operator-name "<legal name>" --require-legal]
    firebase deploy --only hosting:links --project dev
    ```
+   With `--support-email` and `--operator-name` the site also gets the
+   public pages App Store Connect needs: `/privacy`, `/terms`, `/support`,
+   `/delete-account` and a short home page (Arabic and English; sources in
+   `hosting/links/`). Use `--require-legal` for staging and prod so a build
+   without them fails. The app links to them when it is built with
+   `--dart-define=LEGAL_SITE_URL=https://<site id>.web.app` and
+   `--dart-define=SUPPORT_EMAIL=<address>` (docs/apple-review/submission-kit.md).
    `firebase.json` serves `/.well-known/apple-app-site-association` as JSON
    and every `/c/...` path as the fallback page.
 4. Check: open `https://<site id>.web.app/.well-known/apple-app-site-association`
