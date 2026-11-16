@@ -17,7 +17,10 @@ import { syncAction } from "./catalog";
 import { addOtherSchool as addOtherFlow, OTHER_SCHOOL_ERROR_CODES, OtherSchoolError } from "./other";
 import { consumeKeyQuotaFirestore, issueSearchKey, SEARCH_KEY_ERROR_CODES, SearchKeyError } from "./search_key";
 import { FirestoreOtherSchoolsStore } from "./store";
-import { sessionCall } from "../privacy/device_gate";
+import { FirestorePlaceLocator, placeOfPoint } from "../places/store";
+import { realParentSessionCall, sessionCall } from "../privacy/device_gate";
+import { gramsToWrite } from "../admin_panel/school_search";
+import { ADMIN_SEARCH_GRAMS } from "../admin_panel/school_search_store";
 
 /**
  * Schools list functions (F4): the parent's "Other" school, the search key
@@ -52,9 +55,13 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
  * Parent: a school missing from the list ("Other").
  * { name, governorate, location?: { lat, lng } } -> { id, nameAr, nameEn, governorate, status }
  */
-export const addOtherSchool = sessionCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const addOtherSchool = realParentSessionCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("addOtherSchool", () =>
-    addOtherFlow({ store: new FirestoreOtherSchoolsStore(adminDb()), now: () => Date.now() }, requireUid(request), request.data),
+    addOtherFlow(
+      { store: new FirestoreOtherSchoolsStore(adminDb()), now: () => Date.now(), placeOf: (p) => placeOfPoint(new FirestorePlaceLocator(adminDb()), p) },
+      requireUid(request),
+      request.data,
+    ),
   ),
 );
 
@@ -108,6 +115,28 @@ export const syncSchoolToSearch = onDocumentWritten(
     } catch (error) {
       // The reindex script (SETUP.md) repairs anything missed.
       logger.error("school search sync failed", { schoolId: id, message: error instanceof Error ? error.message : "unknown" });
+      await reportError(error);
+    }
+  },
+);
+
+/**
+ * Keeps schools/{id}.adminSearchGrams (admin panel search) in step with the
+ * names. Every writer sets the field, so this writes only for a writer that
+ * did not (a hand edit in the console, an old script): one write, and the
+ * second run of this trigger finds nothing to do. Existing schools are
+ * filled once by the schools:admin-grams script (SETUP.md).
+ */
+export const syncSchoolAdminGrams = onDocumentWritten(
+  { document: "schools/{schoolId}", region: REGION, retry: false },
+  async (event) => {
+    const after = event.data?.after;
+    const grams = gramsToWrite(after?.exists ? after.data() : undefined);
+    if (!grams || !after) return;
+    try {
+      await after.ref.update({ [ADMIN_SEARCH_GRAMS]: grams });
+    } catch (error) {
+      logger.error("school admin grams failed", { schoolId: event.params.schoolId, message: error instanceof Error ? error.message : "unknown" });
       await reportError(error);
     }
   },

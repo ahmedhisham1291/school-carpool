@@ -67,9 +67,14 @@ Each step checks first and skips what is already done.
   rules (TTL, storage lifecycle) and our own encryption key for the photos.
 - Deploys the Firestore and Storage rules, indexes and all Cloud Functions
   (tries once more after 60 seconds if the first deploy fails).
-- Loads the **sample** schools (a hand-written test list, not real data) so
-  the school search works; staging uses the built-in fake search, no
-  Algolia.
+- Asks once for the **Algolia** Application ID and two keys (typed hidden;
+  how to get them: docs/algolia-setup.md). Press Enter to skip.
+- **Schools:** downloads every school and kindergarten in Egypt from
+  OpenStreetMap (a few minutes; reused for 7 days), adds any CSV lists in
+  `data/schools/`, loads them into Firestore (the hand-written sample
+  schools leave search) and sends them to Algolia. It prints the count per
+  governorate and what was dropped and why. If the download servers are
+  busy it says so and carries on; run it again later.
 - Builds and deploys the invite-links site and the admin panel; turns on
   two-step sign-in (TOTP) and makes you the first super admin.
 - Creates a USD 20 budget with emails at 5, 25 and 100 percent.
@@ -83,6 +88,8 @@ At the end it prints a checklist: **DONE** and **STILL TO DO**.
 | ONE-TIME SET-PASSWORD LINK | Open it **at once** yourself (valid 1 hour), set your admin password. Never paste it anywhere. Then open the admin panel link, sign in, and add the authenticator app when asked. |
 | `paste into Codemagic MAPS_API_KEY_IOS` | Codemagic > the app > Environment variables > `staging_defines` > add `MAPS_API_KEY_IOS`, tick **Secret**. Do **not** paste it in chat. |
 | `BEGIN ... firebase_options_staging.dart ... END` | Not secret: copy everything between the two markers into the chat for the developer, who commits it. |
+| NON-SECRET SEARCH SETTINGS | Three lines (`SCHOOL_SEARCH_PROVIDER`, `ALGOLIA_APP_ID`, `ALGOLIA_INDEX`): not secret, copy them to the developer to commit. The Algolia keys are never printed. |
+| Schools import summary | Not secret: copy it to the developer (counts per governorate, what was dropped). |
 | "These repository files also changed" | Only appears if something differs from the repository; copy that too. |
 | Logs Explorer link | Where the 6-digit sign-in codes appear while staging uses the fake WhatsApp sender (filter `"fake WhatsApp"`). |
 
@@ -117,4 +124,6 @@ developer (they contain no keys).
 
 Optional settings, typed before `bash`: `APPLE_TEAM_ID=XXXXXXXXXX` (skip
 the question), `SKIP_ADMIN_WEB=1` (no admin panel build),
+`SKIP_SCHOOLS_FETCH=1` (no new OpenStreetMap download), and after the
+command `--replace-algolia` (type new Algolia keys),
 `ADMIN_NAME="Your Name"`.

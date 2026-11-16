@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:school_carpool/admin/data/admin_models.dart' show GeoPin;
+import 'package:school_carpool/features/places/place_repository.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
 import 'package:school_carpool/features/schools/school_repository.dart';
 import 'package:school_carpool/features/schools/school_search.dart';
+
+import 'place_fakes.dart';
 
 /// A few schools for widget tests (names of real schools, fake IDs).
 const List<SchoolOption> testSchools = <SchoolOption>[
@@ -46,14 +49,18 @@ class FakeSchoolSearch implements SchoolSearch {
   SchoolSearchFailure? failure;
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) async {
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) async {
     queries.add((query, governorate));
+    areaQueries.add(areaId);
     final SchoolSearchFailure? f = failure;
     if (f != null) {
       throw f;
     }
-    return _inner.search(query, governorate: governorate);
+    return _inner.search(query, governorate: governorate, areaId: areaId);
   }
+
+  /// The area filter of each search (null: no area).
+  final List<String?> areaQueries = <String?>[];
 
   final List<GeoPin> nearestCalls = <GeoPin>[];
 
@@ -103,7 +110,9 @@ class FakeSchoolRepository implements SchoolRepository {
 }
 
 /// Overrides that keep Firebase and Algolia out of widget tests.
-List<Override> schoolOverrides({SchoolSearch? search, SchoolRepository? repository}) => <Override>[
+List<Override> schoolOverrides({SchoolSearch? search, SchoolRepository? repository, PlaceRepository? places}) => <Override>[
   schoolSearchProvider.overrideWithValue(search ?? FakeSchoolSearch()),
   schoolRepositoryProvider.overrideWithValue(repository ?? FakeSchoolRepository()),
+  // F4 browse (City -> Area): fake places.
+  placeRepositoryProvider.overrideWithValue(places ?? FakePlaceRepository()),
 ];

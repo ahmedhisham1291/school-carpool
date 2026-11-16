@@ -12,6 +12,7 @@ import {
   type LatLng,
 } from "./geo";
 import { LIMIT_WINDOWS, type MapLimitKind } from "./limits";
+import type { HomeAddress } from "../places/address";
 
 /**
  * Home, map settings, driving schools and the nearby parents map
@@ -94,6 +95,8 @@ export interface HomeRecord {
   radiusKm: number;
   /** F24: schools the parent can drive to (names kept for the app). */
   drivingSchools: SchoolRef[];
+  /** F46: the structured address (City -> Area -> District, street, building). */
+  address?: HomeAddress | null;
   updatedAtMs: number;
 }
 
@@ -115,6 +118,10 @@ export interface PublicLocation {
   /** Set once the "new parent nearby" event exists. */
   announced: boolean;
   updatedAtMs: number;
+  /** F46: the address's city, area and district (no street, no building). */
+  governorate?: string;
+  placeAreaId?: string;
+  placeDistrictId?: string | null;
 }
 
 export interface NewParentEvent {
@@ -246,6 +253,13 @@ export function buildPublicLocation(
     drivingSchoolIds,
     announced: previous?.announced ?? false,
     updatedAtMs: nowMs,
+    ...(home.address
+      ? {
+          governorate: home.address.governorate,
+          ...(home.address.placeAreaId ? { placeAreaId: home.address.placeAreaId } : {}),
+          placeDistrictId: home.address.placeDistrictId,
+        }
+      : {}),
   };
 }
 
@@ -311,7 +325,7 @@ export function parseSetHome(data: unknown): SetHomeInput {
  * the same place again (or only the address text) is not counted.
  * Returns the rounded point others will see.
  */
-export async function setHome(deps: MapDeps, uid: string, data: unknown): Promise<{ approximate: LatLng }> {
+export async function setHome(deps: MapDeps, uid: string, data: unknown, address?: HomeAddress): Promise<{ approximate: LatLng }> {
   const input = parseSetHome(data);
   await requireAccount(deps.store, uid);
   const existing = await deps.store.home(uid);
@@ -321,6 +335,8 @@ export async function setHome(deps: MapDeps, uid: string, data: unknown): Promis
     ...(existing ?? defaultHome(deps.now())),
     location: input.location,
     label: input.label,
+    // F46: saved with the pin it belongs to; a pin set from the map alone keeps the address.
+    ...(address ? { address } : {}),
     updatedAtMs: deps.now(),
   };
   await deps.store.saveHome(uid, home);

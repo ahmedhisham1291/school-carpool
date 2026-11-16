@@ -809,6 +809,10 @@ class _VerificationSamplesState extends State<_VerificationSamples> {
   int? _seats;
   String? _school;
 
+  /// F4/F46: City -> Area dropdowns (sample names; Area waits for City).
+  String? _city;
+  String? _area;
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = context.l10n;
@@ -853,6 +857,43 @@ class _VerificationSamplesState extends State<_VerificationSamples> {
           value: _seats,
           options: <(int, String)>[for (int n = 1; n <= 8; n++) (n, l10n.driverSeatsCount(n))],
           onChanged: (int v) => setState(() => _seats = v),
+        ),
+        gap,
+        // F4/F46: filterable dropdowns; the Area list waits for the City and
+        // a new City clears the Area (the key changes with the City).
+        AppDropdownMenu<String>(
+          key: const Key('gallery.city'),
+          label: l10n.placeCityLabel,
+          hintText: l10n.placeCityHint,
+          leadingIcon: Icons.location_city_outlined,
+          value: _city,
+          items: const <AppDropdownItem<String>>[
+            AppDropdownItem<String>('cairo', 'القاهرة'),
+            AppDropdownItem<String>('giza', 'الجيزة'),
+            AppDropdownItem<String>('alexandria', 'الإسكندرية'),
+          ],
+          onSelected: (String v) => setState(() {
+            _city = v;
+            _area = null;
+          }),
+        ),
+        gap,
+        AppDropdownMenu<String>(
+          key: Key('gallery.area.${_city ?? ''}'),
+          label: l10n.placeAreaLabel,
+          hintText: l10n.placeAreaHint,
+          helperText: _city == null ? l10n.placeChooseCityFirst : null,
+          leadingIcon: Icons.map_outlined,
+          value: _area,
+          items: <AppDropdownItem<String>>[
+            if (_city == 'cairo') ...const <AppDropdownItem<String>>[
+              AppDropdownItem<String>('maadi', 'المعادي'),
+              AppDropdownItem<String>('nasr', 'مدينة نصر'),
+            ],
+            if (_city == 'giza') const AppDropdownItem<String>('zayed', 'الشيخ زايد'),
+            if (_city == 'alexandria') const AppDropdownItem<String>('smouha', 'سموحة'),
+          ],
+          onSelected: _city == null ? null : (String v) => setState(() => _area = v),
         ),
         gap,
         // Prompt 4B: the child's school, chosen in the school picker.

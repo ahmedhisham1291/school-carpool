@@ -9,6 +9,8 @@ import { createAdmin as createAdminFlow, listAdmins as listAdminsFlow, setAdminD
 import { ADMIN_ERROR_CODES, AdminError } from "./errors";
 import type { AdminCaller } from "./guard";
 import { listAuditLog as listAuditFlow, listReports as listReportsFlow } from "./lists";
+import { searchSchools as searchSchoolsFlow, type SchoolSearchDeps } from "./school_search";
+import { FirestoreSchoolSearchStore } from "./school_search_store";
 import {
   getReport as getReportFlow,
   liftDrivingPause as liftPauseFlow,
@@ -27,6 +29,20 @@ import {
   saveSchool as saveSchoolFlow,
   type SchoolsDeps,
 } from "./schools";
+import {
+  listAreas as listAreasFlow,
+  listDistricts as listDistrictsFlow,
+  listPlaceRequests as listPlaceRequestsFlow,
+  mergePlaces as mergePlacesFlow,
+  moveSchoolArea as moveSchoolAreaFlow,
+  resolvePlaceRequest as resolvePlaceRequestFlow,
+  saveArea as savePlaceAreaFlow,
+  saveDistrict as saveDistrictFlow,
+  setPlaceActive as setPlaceActiveFlow,
+  type PlacesAdminDeps,
+} from "../places/admin";
+import { FirestorePlacesAdminStore } from "../places/admin_store";
+import { FirestorePlaceLocator } from "../places/store";
 import {
   FirebaseAdminAccounts,
   FirestoreAdminsStore,
@@ -98,7 +114,22 @@ function usersDeps(): UsersDeps {
 }
 
 function schoolsDeps(): SchoolsDeps {
-  return { store: new FirestoreSchoolsStore(adminDb()), now: () => Date.now() };
+  return { store: new FirestoreSchoolsStore(adminDb()), now: () => Date.now(), places: new FirestorePlaceLocator(adminDb()) };
+}
+
+function schoolSearchDeps(): SchoolSearchDeps {
+  return {
+    store: new FirestoreSchoolSearchStore(adminDb()),
+    now: () => Date.now(),
+    report: async (problem) => {
+      logger.error(problem);
+      await reportError(new Error(problem));
+    },
+  };
+}
+
+function placesDeps(): PlacesAdminDeps {
+  return { store: new FirestorePlacesAdminStore(adminDb()) };
 }
 
 function adminsDeps() {
@@ -128,8 +159,21 @@ export const adminModerateUser = adminCall("adminModerateUser", (caller, request
 
 // Schools and areas -----------------------------------------------------
 
-/** { status?: active | awaiting_review, governorate?, afterId? } -> { schools, nextAfterId } */
+/** { status?: active | awaiting_review, governorate?, placeAreaId?, afterId? } -> { schools, nextAfterId } */
 export const adminListSchools = adminCall("adminListSchools", (_caller, request) => listSchoolsFlow(schoolsDeps(), request.data));
+
+/**
+ * Every school (hidden, sample, awaiting review and merged too), searched
+ * by name (Arabic and English, spelling variants, small typos) and
+ * filtered by City -> Area -> District, status, visibility and source.
+ * Firestore only (school_search.ts explains why). Rate limited; the first
+ * page of each search is in the audit log (kinds of filters, never the text).
+ * { query?, includeAll?, status?, visibility?, governorate?, placeAreaId?, placeDistrictId?, source?, sort?, afterId? }
+ * -> { schools, nextAfterId, total, totalExact, degraded }
+ */
+export const adminSearchSchools = adminCall("adminSearchSchools", (caller, request) =>
+  searchSchoolsFlow(schoolSearchDeps(), caller, request.data, ipOf(request)),
+);
 
 /** { id } -> { school, areas } */
 export const adminGetSchool = adminCall("adminGetSchool", (_caller, request) => getSchoolFlow(schoolsDeps(), request.data));
@@ -152,6 +196,49 @@ export const adminApproveSchool = adminCall("adminApproveSchool", (caller, reque
 /** "Other" queue: { schoolId, intoId } -> { id, childrenMoved } */
 export const adminMergeSchool = adminCall("adminMergeSchool", (caller, request) =>
   mergeSchoolFlow(schoolsDeps(), caller, request.data, ipOf(request)),
+);
+
+// Places: City -> Area -> District (F4 grouping, F46 addresses) -----------
+
+/** { governorate } -> { areas: [{ id, nameAr, nameEn, schoolCount, addressCount, active, hasShape, source }] } */
+export const adminListPlaceAreas = adminCall("adminListPlaceAreas", (_caller, request) => listAreasFlow(placesDeps(), request.data));
+
+/** { areaId } -> { districts } */
+export const adminListPlaceDistricts = adminCall("adminListPlaceDistricts", (_caller, request) =>
+  listDistrictsFlow(placesDeps(), request.data),
+);
+
+/** { id?, governorate, nameAr, nameEn } -> { id } (add or rename an area) */
+export const adminSavePlaceArea = adminCall("adminSavePlaceArea", (caller, request) =>
+  savePlaceAreaFlow(placesDeps(), caller, request.data, ipOf(request)),
+);
+
+/** { id?, areaId, nameAr, nameEn } -> { id } (add or rename a district) */
+export const adminSavePlaceDistrict = adminCall("adminSavePlaceDistrict", (caller, request) =>
+  saveDistrictFlow(placesDeps(), caller, request.data, ipOf(request)),
+);
+
+/** { kind: area | district, id, active } -> { id, active } */
+export const adminSetPlaceActive = adminCall("adminSetPlaceActive", (caller, request) =>
+  setPlaceActiveFlow(placesDeps(), caller, request.data, ipOf(request)),
+);
+
+/** { kind, fromId, intoId } -> { id, schoolsMoved } (duplicates) */
+export const adminMergePlaces = adminCall("adminMergePlaces", (caller, request) =>
+  mergePlacesFlow(placesDeps(), caller, request.data, ipOf(request)),
+);
+
+/** { schoolId, areaId, districtId? } -> { id } */
+export const adminMoveSchoolArea = adminCall("adminMoveSchoolArea", (caller, request) =>
+  moveSchoolAreaFlow(placesDeps(), caller, request.data, ipOf(request)),
+);
+
+/** {} -> { requests } ("my district isn't listed", F46) */
+export const adminListPlaceRequests = adminCall("adminListPlaceRequests", () => listPlaceRequestsFlow(placesDeps()));
+
+/** { id, action: create | map | dismiss, districtId?, nameAr?, nameEn? } -> { id, districtId } */
+export const adminResolvePlaceRequest = adminCall("adminResolvePlaceRequest", (caller, request) =>
+  resolvePlaceRequestFlow(placesDeps(), caller, request.data, ipOf(request)),
 );
 
 // Reports and audit log -------------------------------------------------

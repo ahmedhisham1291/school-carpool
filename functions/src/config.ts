@@ -17,7 +17,25 @@ export const MIN_INSTANCES = defineInt("MIN_INSTANCES", { default: 0 });
 export const MAX_INSTANCES = 10;
 
 /** App Check on callable functions. On in staging and prod. */
-export const ENFORCE_APP_CHECK = defineBoolean("ENFORCE_APP_CHECK", { default: true });
+export const ENFORCE_APP_CHECK_PARAM = defineBoolean("ENFORCE_APP_CHECK", { default: true });
+
+/**
+ * The enforceAppCheck option every callable passes. firebase-functions'
+ * onCall resolves an Expression with `.value()` as soon as the function is
+ * defined (src/v2/providers/https.ts in firebase/firebase-functions, read
+ * 16 Nov 2026), and `.value()` logs three "invoked during function
+ * deployment" warnings per callable while `firebase deploy` loads the code
+ * (FUNCTIONS_CONTROL_API=true): hundreds of lines in the deploy log.
+ * enforceAppCheck is not part of the deploy manifest (it only configures
+ * the request handler), so during deploy a plain `true` is passed and
+ * nothing is resolved; at runtime the parameter itself, resolved by the
+ * library exactly as before.
+ */
+export function appCheckOption<P>(param: P, env: NodeJS.ProcessEnv = process.env): P | boolean {
+  return env.FUNCTIONS_CONTROL_API === "true" ? true : param;
+}
+
+export const ENFORCE_APP_CHECK = appCheckOption(ENFORCE_APP_CHECK_PARAM);
 
 /** Allows the debugTestError callable (dev and staging only). */
 export const ENABLE_TEST_ERROR = defineBoolean("ENABLE_TEST_ERROR", { default: false });

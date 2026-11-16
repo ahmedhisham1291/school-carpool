@@ -19,8 +19,9 @@ export interface SearchIndexWriter {
 
 /** Index settings: Arabic and English, typo tolerant, filter by governorate. */
 export const SCHOOL_INDEX_SETTINGS = {
-  searchableAttributes: ["nameAr,nameEn", "searchKeys", "city,cityAr"],
-  attributesForFaceting: ["filterOnly(governorate)", "filterOnly(kind)"],
+  searchableAttributes: ["nameAr,nameEn", "searchKeys", "city,cityAr", "placeAreaNameAr,placeAreaNameEn"],
+  // City (governorate) and Area: search can be narrowed to either.
+  attributesForFaceting: ["filterOnly(governorate)", "filterOnly(kind)", "filterOnly(placeAreaId)"],
   queryLanguages: ["ar", "en"],
   indexLanguages: ["ar", "en"],
   ignorePlurals: ["ar", "en"],
@@ -29,7 +30,7 @@ export const SCHOOL_INDEX_SETTINGS = {
   minWordSizefor1Typo: 3,
   minWordSizefor2Typos: 7,
   // Only what the picker shows; nothing else ever reaches the phone.
-  attributesToRetrieve: ["nameAr", "nameEn", "governorate", "city", "cityAr", "kind"],
+  attributesToRetrieve: ["nameAr", "nameEn", "governorate", "city", "cityAr", "kind", "placeAreaId", "placeAreaNameAr", "placeAreaNameEn"],
   attributesToHighlight: [],
   hitsPerPage: 20,
   paginationLimitedTo: 100,
@@ -149,9 +150,14 @@ export class AlgoliaRestClient implements SearchIndexWriter {
     return this.call("DELETE", `/${encodeURIComponent(objectID)}`);
   }
 
-  /** Up to 1000 records per call (admin reindex script). */
+  /** Up to 1000 records per call (admin reindex and sync scripts). */
   saveMany(records: SchoolSearchRecord[]): Promise<void> {
     return this.call("POST", "/batch", { requests: records.map((body) => ({ action: "updateObject", body })) });
+  }
+
+  /** Removes up to 1000 records per call; IDs not in the index are ignored by Algolia. */
+  removeMany(objectIDs: string[]): Promise<void> {
+    return this.call("POST", "/batch", { requests: objectIDs.map((objectID) => ({ action: "deleteObject", body: { objectID } })) });
   }
 
   setSettings(): Promise<void> {

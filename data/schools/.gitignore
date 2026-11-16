@@ -1,8 +1,14 @@
 # The real exports are large and carry their own licence (OpenStreetMap
 # data is under the ODbL): keep them out of the repository. Only the
-# hand-written sample and the READMEs are committed.
+# hand-written sample and the READMEs are committed. This also covers the
+# downloads in osm/ and boundaries/ (tools/import_schools/fetch_osm_schools.py).
 *
 !.gitignore
 !README.md
+!categories.json
+!review/
+!review/decisions.csv
+!review/README.md
+!check_names.example.txt
 !sample/
 !sample/**

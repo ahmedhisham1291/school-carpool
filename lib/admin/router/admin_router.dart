@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
+import 'package:school_carpool/admin/data/school_filters.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
 import 'package:school_carpool/admin/screens/admin_gallery_screen.dart';
 import 'package:school_carpool/admin/screens/admins_screen.dart';
 import 'package:school_carpool/admin/screens/audit_screen.dart';
 import 'package:school_carpool/admin/screens/case_screen.dart';
 import 'package:school_carpool/admin/screens/other_schools_screen.dart';
+import 'package:school_carpool/admin/screens/places_screen.dart';
 import 'package:school_carpool/admin/screens/queue_screen.dart';
 import 'package:school_carpool/admin/screens/report_screen.dart';
 import 'package:school_carpool/admin/screens/reports_screen.dart';
@@ -74,7 +76,9 @@ GoRouter buildAdminRouter({
           ),
           GoRoute(
             path: AdminRoutes.schools,
-            builder: (BuildContext context, GoRouterState state) => const SchoolsScreen(),
+            // The search and filters live in the URL (bookmarkable).
+            builder: (BuildContext context, GoRouterState state) =>
+                SchoolsScreen(filters: SchoolFilters.fromQuery(state.uri.queryParameters)),
             routes: <RouteBase>[
               GoRoute(
                 path: 'new',
@@ -117,6 +121,10 @@ GoRouter buildAdminRouter({
                 builder: (BuildContext context, GoRouterState state) => AdminWalletScreen(uid: state.pathParameters['uid'] ?? ''),
               ),
             ],
+          ),
+          GoRoute(
+            path: AdminRoutes.places,
+            builder: (BuildContext context, GoRouterState state) => const PlacesScreen(),
           ),
           GoRoute(
             path: AdminRoutes.trust,

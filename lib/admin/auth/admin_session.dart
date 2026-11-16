@@ -84,6 +84,23 @@ AdminSessionState adminSessionFor({
   return AdminSignedIn(user);
 }
 
+/// The second factor this token was signed in with. On the web the plugin
+/// leaves `IdTokenResult.signInSecondFactor` empty, so the token's own
+/// `firebase.sign_in_second_factor` claim is read too. Pure, unit-tested.
+String? secondFactorOf(String? fromResult, Map<String, dynamic>? claims) {
+  if (fromResult != null && fromResult.isNotEmpty) {
+    return fromResult;
+  }
+  final Object? firebase = claims?['firebase'];
+  if (firebase is Map) {
+    final Object? factor = firebase['sign_in_second_factor'];
+    if (factor is String && factor.isNotEmpty) {
+      return factor;
+    }
+  }
+  return null;
+}
+
 /// The result of the password step.
 sealed class AdminSignInStep {
   const AdminSignInStep();
@@ -178,6 +195,12 @@ class FirebaseAdminAuthRepository implements AdminAuthRepository {
     if (user == null) {
       throw const AdminFailure(AdminFailureKind.sessionExpired);
     }
+    // Already set up (an earlier attempt went through even though the page
+    // showed an error): sign out, so the next sign-in asks for the code.
+    if (await _hasSecondFactor(user)) {
+      await _signOutQuietly();
+      throw const AdminFailure(AdminFailureKind.sessionExpired);
+    }
     final MultiFactorSession session = await user.multiFactor.getSession();
     final TotpSecret secret = await TotpMultiFactorGenerator.generateSecret(session);
     _secret = secret;
@@ -193,10 +216,37 @@ class FirebaseAdminAuthRepository implements AdminAuthRepository {
       throw const AdminFailure(AdminFailureKind.sessionExpired);
     }
     final MultiFactorAssertion assertion = await TotpMultiFactorGenerator.getAssertionForEnrollment(secret, code);
-    await user.multiFactor.enroll(assertion, displayName: 'Authenticator');
+    try {
+      await user.multiFactor.enroll(assertion, displayName: 'Authenticator');
+    } on Object {
+      // On the web the call can report an error after the server has already
+      // linked the authenticator. Ask the server before calling it a failure.
+      if (!await _hasSecondFactor(user)) {
+        rethrow;
+      }
+    }
     _secret = null;
-    await _auth.signOut();
+    await _signOutQuietly();
   });
+
+  /// Whether the server lists a second factor for [user]. Any error: no.
+  Future<bool> _hasSecondFactor(User user) async {
+    try {
+      await user.reload();
+      final User current = _auth.currentUser ?? user;
+      return (await current.multiFactor.getEnrolledFactors()).isNotEmpty;
+    } on Object {
+      return false;
+    }
+  }
+
+  Future<void> _signOutQuietly() async {
+    try {
+      await _auth.signOut();
+    } on Object {
+      // The session listener sends the admin to sign-in anyway.
+    }
+  }
 
   @override
   Future<void> signOut() => _guard(() async {
@@ -243,7 +293,7 @@ Stream<AdminSessionState> adminSessionStates(
       email: user.email,
       displayName: user.displayName,
       claims: token.claims,
-      secondFactor: token.signInSecondFactor,
+      secondFactor: secondFactorOf(token.signInSecondFactor, token.claims),
       authTime: token.authTime,
       now: DateTime.now(),
       mfaRequired: mfaRequired,

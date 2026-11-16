@@ -24,7 +24,6 @@ import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/gallery/gallery_screen.dart';
 import 'package:school_carpool/features/home/home_screen.dart';
 import 'package:school_carpool/features/maps/driving_schools_screen.dart';
-import 'package:school_carpool/features/maps/home_location_screen.dart';
 import 'package:school_carpool/features/maps/nearby_parents_screen.dart';
 import 'package:school_carpool/features/notifications/notification_settings_screen.dart';
 import 'package:school_carpool/features/notifications/notifications_screen.dart';
@@ -35,6 +34,7 @@ import 'package:school_carpool/features/onboarding/starting_screen.dart';
 import 'package:school_carpool/features/onboarding/terms_screen.dart';
 import 'package:school_carpool/features/onboarding/verify_account_screen.dart';
 import 'package:school_carpool/features/onboarding/welcome_screen.dart';
+import 'package:school_carpool/features/places/address_screen.dart';
 import 'package:school_carpool/features/privacy/delete_account_screen.dart';
 import 'package:school_carpool/features/privacy/devices_screen.dart';
 import 'package:school_carpool/features/privacy/new_device_screen.dart';
@@ -454,7 +454,7 @@ GoRouter buildAppRouter({
                       ),
                       GoRoute(
                         path: ProfileRoutes.homeLocationSegment,
-                        builder: (BuildContext context, GoRouterState state) => const HomeLocationScreen(),
+                        builder: (BuildContext context, GoRouterState state) => const AddressScreen(),
                       ),
                       GoRoute(
                         path: ProfileRoutes.drivingSchoolsSegment,

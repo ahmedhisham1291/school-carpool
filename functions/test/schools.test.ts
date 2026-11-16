@@ -16,6 +16,8 @@ import { issueSearchKey, SearchKeyError, type SearchKeyDeps } from "../src/schoo
 import {
   parseImportedSchool,
   planImport,
+  planIndexSync,
+  planSampleHiding,
   searchKeysFor,
   searchRecordFrom,
   syncAction,
@@ -153,6 +155,41 @@ describe("schools import plan (idempotent)", () => {
   });
 });
 
+describe("sample schools after a real load", () => {
+  const sample = imported({ id: "osm-n100001", sourceId: "n100001", sourceKeys: ["osm:n100001"] });
+  const sampleList = imported({ id: "list_sample-S-0003", source: "list_sample", sourceId: "S-0003", sourceKeys: ["list_sample:S-0003"] });
+  const sampleMerged = imported({ id: "osm-n100002", sourceId: "n100002", sourceKeys: ["list_sample:S-0001", "osm:n100002"] });
+  const sampleKeys = ["osm:n100001", "list_sample:S-0003", "osm:n100002", "list_sample:S-0001"];
+  const real = imported({ id: "osm-n555", sourceId: "n555", sourceKeys: ["osm:n555"] });
+
+  it("hides active sample-only schools that the real list does not contain", () => {
+    const existing = [
+      stored(sample),
+      stored(sampleList),
+      stored(sampleMerged),
+      stored(real),
+      stored(imported({ id: "admin-1", source: "admin", sourceId: "admin-1", sourceKeys: [] })),
+    ];
+    assert.deepEqual(planSampleHiding(existing, sampleKeys, [real]), ["list_sample-S-0003", "osm-n100001", "osm-n100002"]);
+  });
+
+  it("never hides admin-edited, merged, pending, already hidden, real or mixed schools", () => {
+    const mixed = imported({ id: "osm-n7", sourceId: "n7", sourceKeys: ["osm:n100001", "osm:n7"] });
+    const existing = [
+      stored(sample, { adminEdited: true }),
+      stored(sampleList, { status: "merged" }),
+      stored(sampleMerged, { status: "awaiting_review" }),
+      stored(imported({ id: "osm-n100003", sourceKeys: ["osm:n100003"] }), { searchHidden: true }),
+      stored(mixed),
+    ];
+    assert.deepEqual(planSampleHiding(existing, [...sampleKeys, "osm:n100003"], [real]), []);
+    // A sample key that is also in the real list (same OSM object): kept.
+    assert.deepEqual(planSampleHiding([stored(sample)], sampleKeys, [imported({ id: "osm-n100001", sourceKeys: ["osm:n100001"] })]), []);
+    // No sample file given: nothing hidden.
+    assert.deepEqual(planSampleHiding([stored(sample)], [], [real]), []);
+  });
+});
+
 describe("search index records and sync", () => {
   const data = (over: Record<string, unknown> = {}) => ({
     nameAr: "مدرسة النيل",
@@ -179,6 +216,21 @@ describe("search index records and sync", () => {
     assert.equal(searchRecordFrom("s1", data({ status: "merged" })), null);
     assert.equal(searchRecordFrom("s1", undefined), null);
     assert.equal(searchRecordFrom("s1", data({ location: null }))?._geoloc, undefined);
+    // A hidden sample school is not searchable.
+    assert.equal(searchRecordFrom("s1", data({ searchHidden: true })), null);
+    assert.equal(syncAction("s1", data(), data({ searchHidden: true })).kind, "delete");
+  });
+
+  it("a full sync sends active schools and removes every other ID", () => {
+    const plan = planIndexSync([
+      { id: "a", data: data() },
+      { id: "b", data: data({ status: "merged" }) },
+      { id: "c", data: data({ status: "awaiting_review" }) },
+      { id: "d", data: data({ searchHidden: true }) },
+      { id: "e", data: data({ nameEn: "Other", nameAr: "اخرى" }) },
+    ]);
+    assert.deepEqual(plan.records.map((r) => r.objectID), ["a", "e"]);
+    assert.deepEqual(plan.remove, ["b", "c", "d"]);
   });
 
   it("indexes active schools, removes the rest, skips writes that change nothing indexed", () => {
@@ -285,6 +337,16 @@ describe("Algolia", () => {
     await client.setSettings();
     assert.deepEqual(JSON.parse(calls.at(-1)!.body!), SCHOOL_INDEX_SETTINGS);
     assert.ok(SCHOOL_INDEX_SETTINGS.attributesForFaceting.includes("filterOnly(governorate)"));
+    await client.saveMany([record]);
+    assert.equal(calls.at(-1)!.url, "https://APPID.algolia.net/1/indexes/schools/batch");
+    assert.deepEqual(JSON.parse(calls.at(-1)!.body!), { requests: [{ action: "updateObject", body: record }] });
+    await client.removeMany(["a", "b"]);
+    assert.deepEqual(JSON.parse(calls.at(-1)!.body!), {
+      requests: [
+        { action: "deleteObject", body: { objectID: "a" } },
+        { action: "deleteObject", body: { objectID: "b" } },
+      ],
+    });
   });
 });
 

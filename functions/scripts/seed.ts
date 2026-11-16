@@ -23,6 +23,7 @@ import { carpoolToDoc, memberToDoc, membershipToDoc } from "../src/carpools/stor
 import type { MembershipRecord } from "../src/carpools/model";
 import { roundToGrid } from "../src/maps/geo";
 import { buildPublicLocation, defaultHome, type HomeRecord, type PublicLocation } from "../src/maps/parent_map";
+import { schoolSearchGrams } from "../src/admin_panel/school_search";
 import { searchKeysFor } from "../src/schools/catalog";
 import { nameSearchFields } from "../src/text/normalize";
 
@@ -180,6 +181,7 @@ async function main(): Promise<void> {
       nameEn: s.nameEn,
       // Same shape as the schools import (Prompt 4B; src/schools/catalog.ts).
       searchKeys: searchKeysFor(s.nameAr, s.nameEn),
+      adminSearchGrams: schoolSearchGrams(s.nameAr, s.nameEn),
       kind: s.id.endsWith("-kg") ? "kindergarten" : "school",
       governorate: s.governorate,
       city: s.city,
@@ -390,6 +392,7 @@ async function main(): Promise<void> {
       nameAr: t.nameAr,
       nameEn: t.nameEn,
       searchKeys: searchKeysFor(t.nameAr, t.nameEn),
+      adminSearchGrams: schoolSearchGrams(t.nameAr, t.nameEn),
       kind: "school",
       governorate: "cairo",
       city: t.city,

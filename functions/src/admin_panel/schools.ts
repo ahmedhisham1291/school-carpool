@@ -1,6 +1,7 @@
 import { AdminError, docId, record, text } from "./errors";
 import type { AdminCaller } from "./guard";
 import type { AreaRecord, GeoPointValue, SchoolRecord, SchoolsStore, SchoolStatus } from "./types";
+import { placeOfPoint, type PlaceLocator } from "../places/store";
 
 /**
  * Schools and areas (F4 data, managed in the admin panel, F14), and the
@@ -46,6 +47,13 @@ export const EGYPT_BOUNDS = { minLat: 21.5, maxLat: 31.8, minLng: 24.5, maxLng: 
 export interface SchoolsDeps {
   store: SchoolsStore;
   now: () => number;
+  /** City -> Area -> District from the pin (optional: absent in older tests). */
+  places?: PlaceLocator;
+}
+
+/** The area and district of [location], with the area's names, or {} when unknown. */
+export async function placeFor(deps: SchoolsDeps, location: GeoPointValue | null): Promise<Partial<SchoolRecord>> {
+  return deps.places && location ? placeOfPoint(deps.places, location) : {};
 }
 
 export function parsePoint(value: unknown): GeoPointValue {
@@ -123,6 +131,8 @@ export async function saveSchool(
     addedBy: null,
     mergedInto: null,
     createdAtMs: existing?.createdAtMs ?? deps.now(),
+    // A moved pin (or a new school) gets the area of its new place.
+    ...(!existing || !samePoint(existing.location, input.location) ? await placeFor(deps, input.location) : {}),
   };
   await deps.store.saveSchool(school, !existing, {
     actorUid: caller.uid,
@@ -131,6 +141,10 @@ export async function saveSchool(
     ip,
   });
   return { id };
+}
+
+function samePoint(a: GeoPointValue | null, b: GeoPointValue | null): boolean {
+  return !!a && !!b && Math.abs(a.lat - b.lat) < 1e-6 && Math.abs(a.lng - b.lng) < 1e-6;
 }
 
 const LIST_STATUSES: readonly SchoolStatus[] = ["active", "awaiting_review"];
@@ -147,8 +161,9 @@ export async function listSchools(
     throw new AdminError("invalid-request");
   }
   const afterId = raw.afterId === undefined || raw.afterId === null ? null : docId(raw.afterId);
+  const placeAreaId = raw.placeAreaId === undefined || raw.placeAreaId === null ? null : docId(raw.placeAreaId);
   const limit = 50;
-  const schools = await deps.store.listSchools({ status, governorate: governorate as string | null, afterId, limit });
+  const schools = await deps.store.listSchools({ status, governorate: governorate as string | null, afterId, limit, placeAreaId });
   return { schools, nextAfterId: schools.length === limit ? schools[schools.length - 1].id : null };
 }
 
@@ -209,7 +224,7 @@ export async function approveSchool(
   // indexed for search: the parent who typed it is no longer recorded on
   // the school (the audit entry keeps the decision).
   await deps.store.saveSchool(
-    { ...existing, ...input, id: existing.id, status: "active", addedBy: null, mergedInto: null },
+    { ...existing, ...input, ...(await placeFor(deps, input.location)), id: existing.id, status: "active", addedBy: null, mergedInto: null },
     false,
     { actorUid: caller.uid, action: "school.approve", target: `schools/${existing.id}`, ip },
   );

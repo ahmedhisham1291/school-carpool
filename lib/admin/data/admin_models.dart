@@ -483,6 +483,13 @@ class School {
     required this.pin,
     required this.status,
     required this.source,
+    this.placeAreaId = '',
+    this.placeAreaNameAr = '',
+    this.placeAreaNameEn = '',
+    this.placeDistrictId = '',
+    this.placeDistrictNameAr = '',
+    this.placeDistrictNameEn = '',
+    this.searchHidden = false,
   });
 
   factory School.fromJson(Json j) => School(
@@ -494,6 +501,13 @@ class School {
     pin: GeoPin.fromJson(j.child('location')),
     status: SchoolStatus.fromCode(j.str('status')),
     source: j.str('source'),
+    placeAreaId: j.str('placeAreaId'),
+    placeAreaNameAr: j.str('placeAreaNameAr'),
+    placeAreaNameEn: j.str('placeAreaNameEn'),
+    placeDistrictId: j.str('placeDistrictId'),
+    placeDistrictNameAr: j.str('placeDistrictNameAr'),
+    placeDistrictNameEn: j.str('placeDistrictNameEn'),
+    searchHidden: j.flag('searchHidden'),
   );
 
   final String id;
@@ -506,6 +520,19 @@ class School {
   final GeoPin? pin;
   final SchoolStatus status;
   final String source;
+
+  /// City -> Area (placeAreas), or empty.
+  final String placeAreaId;
+  final String placeAreaNameAr;
+  final String placeAreaNameEn;
+
+  /// City -> Area -> District (placeDistricts), or empty. Names only from adminSearchSchools.
+  final String placeDistrictId;
+  final String placeDistrictNameAr;
+  final String placeDistrictNameEn;
+
+  /// Taken out of the parents' search (sample schools); still a document.
+  final bool searchHidden;
 }
 
 @immutable

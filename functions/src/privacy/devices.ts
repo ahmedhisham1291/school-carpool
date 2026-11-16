@@ -96,6 +96,8 @@ export interface DeviceAccount {
   language: "ar" | "en";
   /** A face reference exists (the account was verified with a selfie). */
   hasFaceRef: boolean;
+  /** An App Review demo parent inside its window (auth/review_access.ts): no new-phone selfie. */
+  reviewDemo?: boolean;
 }
 
 export interface DeviceStore {
@@ -194,7 +196,9 @@ export async function recordSignIn(deps: DeviceDeps, uid: string, rawInstallId: 
   const [account, devices] = [await deps.store.account(uid), await deps.store.devices(uid)];
   if (!account) throw new DeviceError("no-account");
   const plan = planSignIn(devices, key, platform, nowMs, deps.newId());
-  const needsSelfie = plan.newPhone && account.status === "verified" && account.hasFaceRef;
+  // App Review: Apple's phone is always a new phone for the demo parent
+  // (fake data only), and nobody there can take that parent's selfie.
+  const needsSelfie = plan.newPhone && account.status === "verified" && account.hasFaceRef && account.reviewDemo !== true;
   const notice = plan.newPhone ? newEvent(`new-device_${uid}_${nowMs}`, "new-device", [uid], nowMs) : null;
   await deps.store.saveSignIn(uid, plan, needsSelfie ? { required: true, sinceMs: nowMs } : null, notice);
   if (plan.newPhone) {

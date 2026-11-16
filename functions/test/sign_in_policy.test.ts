@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import {
   creationAllowed,
+  adminLinkAllowed,
   emailAllowed,
   emailConfirmationIsNew,
   isAdminAccount,
@@ -72,5 +73,25 @@ describe("creationAllowed (beforeUserCreated)", () => {
   it("allows accounts made on the server with the Admin SDK (no client credential)", () => {
     assert.equal(creationAllowed(undefined), true);
     assert.equal(creationAllowed("custom"), true);
+  });
+});
+
+describe("adminLinkAllowed", () => {
+  const now = 1_000_000;
+  const note = { email: "Owner@Example.com", expiresAtMs: now + 60_000 };
+  it("lets one admin set-password link through while the note is fresh", () => {
+    assert.equal(adminLinkAllowed("PASSWORD_RESET", note, "owner@example.com", now), true);
+    assert.equal(adminLinkAllowed("PASSWORD_RESET", note, undefined, now), true);
+  });
+  it("refuses without a note, after it expires, or with a far-future expiry", () => {
+    assert.equal(adminLinkAllowed("PASSWORD_RESET", null, "owner@example.com", now), false);
+    assert.equal(adminLinkAllowed("PASSWORD_RESET", { ...note, expiresAtMs: now }, "owner@example.com", now), false);
+    assert.equal(adminLinkAllowed("PASSWORD_RESET", { ...note, expiresAtMs: now + 10 * 60_000 }, "owner@example.com", now), false);
+    assert.equal(adminLinkAllowed("PASSWORD_RESET", { email: 5, expiresAtMs: now + 1 }, undefined, now), false);
+  });
+  it("refuses another address and every other email type", () => {
+    assert.equal(adminLinkAllowed("PASSWORD_RESET", note, "parent@example.com", now), false);
+    assert.equal(adminLinkAllowed("EMAIL_SIGN_IN", note, "owner@example.com", now), false);
+    assert.equal(adminLinkAllowed(undefined, note, "owner@example.com", now), false);
   });
 });

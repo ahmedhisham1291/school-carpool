@@ -56,7 +56,7 @@ import { FirestoreTrustStore } from "./store";
 import { noteAbuse } from "../privacy/abuse_hook";
 import { featureGatedCall, featureOffError, features, requireFeature } from "../features/gate";
 import { FeatureOffError } from "../features/model";
-import { gatedCall } from "../privacy/device_gate";
+import { gatedCall, realParentCall } from "../privacy/device_gate";
 
 /**
  * Trust functions (Prompt 11, F17). The app reads and writes nothing of
@@ -148,13 +148,13 @@ export const confirmSchoolYear = featureGatedCall("yearlyChecks", opts, (r) => r
 export const getFamily = gatedCall(opts, (r) => run("getFamily", () => familyFlow(trustDeps(), caller(r))));
 
 /** { parentId, relation } -> { requestId, firstName } */
-export const requestGuardianLink = gatedCall(opts, (r) => run("requestGuardianLink", () => requestLinkFlow(trustDeps(), caller(r), r.data)));
+export const requestGuardianLink = realParentCall(opts, (r) => run("requestGuardianLink", () => requestLinkFlow(trustDeps(), caller(r), r.data)));
 
 /** { requestId } -> { status } */
 export const cancelGuardianRequest = gatedCall(opts, (r) => run("cancelGuardianRequest", () => cancelFlow(trustDeps(), caller(r), r.data)));
 
 /** { requestId, accept, childIds? } -> { status, links } */
-export const answerGuardianRequest = gatedCall(opts, (r) => run("answerGuardianRequest", () => answerFlow(trustDeps(), caller(r), r.data)));
+export const answerGuardianRequest = realParentCall(opts, (r) => run("answerGuardianRequest", () => answerFlow(trustDeps(), caller(r), r.data)));
 
 /** { linkId } -> { status } */
 export const removeGuardianLink = gatedCall(opts, (r) => run("removeGuardianLink", () => removeLinkFlow(trustDeps(), caller(r), r.data)));
@@ -212,7 +212,8 @@ function phoneDeps(): PhoneChangeDeps {
 const phoneOpts = { enforceAppCheck: ENFORCE_APP_CHECK, minInstances: MIN_INSTANCES, secrets: [OTP_HMAC_KEY, WHATSAPP_ACCESS_TOKEN] };
 
 /** { phone, deviceId, language } -> { expiresInSeconds, resendAfterSeconds } (code to the NEW number) */
-export const requestPhoneChange = gatedCall(phoneOpts, (r) =>
+// Not for App Review demo parents: a demo account never moves to another number.
+export const requestPhoneChange = realParentCall(phoneOpts, (r) =>
   run("requestPhoneChange", () => {
     const data: unknown = r.data;
     const language = asLanguage(typeof data === "object" && data !== null ? (data as Record<string, unknown>).language : undefined);
@@ -221,7 +222,7 @@ export const requestPhoneChange = gatedCall(phoneOpts, (r) =>
 );
 
 /** { phone, code, deviceId } after uploading phoneChecks/{uid}/selfie.jpg -> { changed } */
-export const confirmPhoneChange = gatedCall(phoneOpts, (r) => run("confirmPhoneChange", () => confirmPhoneFlow(phoneDeps(), caller(r), r.data)));
+export const confirmPhoneChange = realParentCall(phoneOpts, (r) => run("confirmPhoneChange", () => confirmPhoneFlow(phoneDeps(), caller(r), r.data)));
 
 // Admin panel (F14) -------------------------------------------------------
 

@@ -11,6 +11,9 @@ abstract final class AdminRoutes {
   static const String schools = '/schools';
   static const String newSchool = '/schools/new';
   static const String otherSchools = '/other-schools';
+
+  /// City -> Area -> District and the "district not listed" queue (F4, F46).
+  static const String places = '/places';
   static const String reports = '/reports';
   static const String audit = '/audit';
   static const String admins = '/admins';

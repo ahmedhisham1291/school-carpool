@@ -540,13 +540,138 @@ script tag in `web/index.html` (added by tool/bootstrap.sh). Owner decision
 
 ## 14. Schools list (Prompt 4B)
 
-The schools parents pick from come from an import you run on your Mac (or
-in this repository's CI with the sample). Python 3.11 or newer, nothing to
-install. Search runs on Algolia in staging and prod; dev uses a fake search
-on the emulators, so no Algolia account is needed to work on the app.
+The schools parents pick from come from an import (Python 3.11 or newer,
+nothing to install). Search runs on Algolia in staging and prod; dev uses a
+fake search on the emulators, so no Algolia account is needed to work on
+the app.
+
+**Staging does all of 14.1 to 14.4 by itself** (owner decision 15 Nov
+2026: every school and kindergarten we can get from open data): step 12 of
+`tool/cloud_setup.sh` downloads the OpenStreetMap list, imports it with any
+CSV lists you put in `data/schools/`, loads it and sends it to Algolia;
+step 6 asks once for the Algolia keys (docs/algolia-setup.md). The rest of
+this section is what it does, for a Mac or for prod.
 
 ### 14.1 Download the data
 
+0. **OpenStreetMap through the Overpass API (what staging uses).**
+   ```sh
+   python3 tools/import_schools/fetch_osm_schools.py
+   ```
+   Asks a public Overpass server (overpass-api.de, then
+   overpass.private.coffee, then maps.mail.ru; a busy server moves on to
+   the next at once, a pause only after every server failed, two rounds)
+   with a **broad** query: every `amenity=school|kindergarten`,
+   `education=school|kindergarten`, a named `building=school|kindergarten`,
+   a named feature with `school=*` or `isced:level=*`, and any feature
+   (not a street) whose `name`, `name:ar` or `name:en` reads like a school
+   (starts with مدرس / مدارس / روض / حضان, optionally after "ال" or "مجمع",
+   or contains school / kindergarten / KG). The download is wider than
+   what is kept: the importer (`classify_tags`) alone decides, and the
+   report lists every drop reason (university, college, courses/centres/
+   academies, childcare, named like a school but a street/shop/place/
+   historic madrasa/pitch, building part, no name, ...). Unnamed schools
+   take `official_name`, `alt_name`, `short_name` or a school-like
+   `operator` (never the ministry). If the broad query fails everywhere,
+   the old narrow query (`amenity` only) is used. Also downloads the
+   27 governorate borders (`admin_level=4`, `ISO3166-2=EG-*`). Writes
+   `data/schools/osm/egypt_schools_osm.geojson` (same columns as the HDX
+   export below, so the IDs are the same), `data/schools/osm/fetch_report.md`
+   (date, server, counts, licence) and
+   `data/schools/boundaries/egypt_governorates_osm.geojson`. A border with
+   a gap in OpenStreetMap is left out (the nearest town is used there).
+   `--max-age-days 7` keeps a download newer than a week; a download that
+   fails or comes back nearly empty keeps the earlier file. All of it is
+   git-ignored. The data is (c) OpenStreetMap contributors under the ODbL
+   1.0 (<https://www.openstreetmap.org/copyright>); the attribution belongs
+   in the app's licences screen before the public launch (open item).
+   With this download you do not need the HDX files of step 1 (if both are
+   there, the HDX copies are listed as "same source ID twice").
+   **Per governorate (since 16 Nov 2026):** the broad query for all of Egypt
+   timed out on every public server, so it runs once per governorate (27
+   parts, `[timeout:180]` each, search area = the governorate's boundary
+   relation, failover between the servers, a second pass for the parts that
+   failed). Each part is kept in `data/schools/osm/governorates/EG-xx.geojson`
+   with its own date; a part newer than `--max-age-days` is not asked again,
+   and a part that still fails keeps its older file (the report lists the
+   status and date per governorate; "NO data" means it has never been
+   downloaded). The narrow amenity-only query for all of Egypt runs as a
+   safety net, and everything is merged with each OSM object once.
+   `--max-minutes` (default 75) caps the time spent on new requests. The
+   places download (14.6) is split the same way.
+   **What counts:** `data/schools/categories.json` (owner decision 16 Nov
+   2026: schools, kindergartens and nurseries; universities off; Al-Azhar
+   institutes are schools).
+   **Wikidata (second source):**
+   `python3 tools/import_schools/fetch_wikidata_schools.py` asks the
+   Wikidata Query Service (query.wikidata.org) for items of class school
+   (Q3914) or kindergarten (Q126807) or any subclass, country Egypt (Q79),
+   with coordinates (P625), not dissolved, with Arabic and English labels.
+   Writes `data/schools/wikidata/egypt_schools_wikidata.geojson` and a
+   fetch report (git-ignored). Classes that are not schools for us
+   (universities, colleges, music/driving schools, historic
+   madrasas; an Egyptian "language school" stays a school) become tags the importer drops. An OSM school tagged
+   `wikidata=Q..` absorbs that item (its labels fill missing Arabic or
+   English names); other overlaps are merged by the usual name + 300 m
+   rule. Wikidata is CC0 (no attribution required; we credit "Wikidata"
+   in the licences screen with OpenStreetMap). The User-Agent
+   carries a contact, as Wikimedia's User-Agent policy asks:
+   `tool/cloud_setup.sh` uses the `<admin-email>` argument unless
+   `WIKIDATA_CONTACT` (an email or web page) is set; run by hand, set
+   `WIKIDATA_CONTACT` yourself. A 403 answer means the service refused
+   the request.
+   **Overture Maps Places (third source):**
+   `python3 -m pip install --user duckdb` once, then
+   `python3 tools/import_schools/fetch_overture_schools.py --max-age-days 30`.
+   Reads Overture's latest release (named by
+   <https://stac.overturemaps.org/catalog.json>) straight from its public
+   S3 bucket with DuckDB, only Egypt's box, places whose taxonomy category
+   is a school, kindergarten, preschool or nursery (or has one as an
+   alternate), confidence at least 0.2. Writes the raw rows to
+   `data/schools/overture/raw/` and, for the import, those with confidence
+   at least `--min-confidence` (default 0.5), not permanently closed and
+   not in another country, to `data/schools/overture/egypt_schools_overture.geojson`
+   (all git-ignored). `--from-raw --min-confidence 0.7` converts again with
+   another threshold without downloading. The report counts rows per
+   category, confidence band and upstream dataset. The importer applies the
+   OSM keep/drop rules plus a name check (a "school" category whose name
+   says courses, centre or university is dropped) and merges an Overture
+   place into the OSM or Wikidata school with the same name within 300 m.
+   Licence: CDLA Permissive 2.0 (most providers), Apache 2.0 (Foursquare),
+   CC0 (AllThePlaces); the attribution is open item D24.
+   **Areas (ADM2):** `python3 tools/import_schools/fetch_adm2.py --max-age-days 30`
+   downloads Egypt's 2nd-level units (qism / markaz / new city) from the
+   OCHA COD-AB dataset on HDX (`cod-ab-egy`, Arabic and English names), or
+   geoBoundaries EGY ADM2 (English names only) when HDX gives none; or
+   `--file <zip or geojson>` for a file you downloaded. They become the Areas
+   (City -> Area -> District); the report lists which unit holds each big
+   new city. Areas loaded earlier from OpenStreetMap that this replaces are
+   set inactive (kept as documents).
+   **Duplicates, names, review:** the import merges duplicates itself
+   (build/schools/merged.csv, one row per merged entry), drops names that
+   are in neither Arabic nor Latin letters, writes one CSV per drop reason
+   (build/schools/dropped_<reason>.csv), applies
+   `data/schools/review/decisions.csv` (format: its README) and writes
+   build/schools/review_input.csv for the name review.
+   **AI name review (step 12, after the import, before the load):**
+   `python3 tools/import_schools/ai_review.py --project <project>` sends the
+   kept schools' names, kind, category and governorate (never positions) to
+   Vertex AI in your project, 150 at a time, with each school's 5 nearest
+   neighbours' names for duplicates; verdicts at confidence 0.8 or more go to
+   build/schools/ai_decisions.csv, and the import runs again with
+   `--ai-decisions build/schools/ai_decisions.csv` (manual decisions win).
+   All verdicts: build/schools/ai_review.csv. Settings: SCHOOLS_AI=off (skip),
+   SCHOOLS_AI_PROVIDER (gemini-vertex | claude-vertex), SCHOOLS_AI_MODEL,
+   SCHOOLS_AI_LOCATION, SCHOOLS_AI_MIN_CONFIDENCE, SCHOOLS_AI_MAX_CALLS,
+   SCHOOLS_AI_BATCH. Step 1 turns on aiplatform.googleapis.com. For Claude,
+   enable the model once in Vertex AI Model Garden.
+   **Why is a school missing?**
+   `python3 tools/import_schools/why_missing.py "<name>" ...` (or
+   `--file names.txt`) runs the import on the downloads and says, for each
+   name, which source has it and whether it was kept, merged into another
+   entry, or dropped (and why), or that no source has it. Step 12 runs it on
+   `data/schools/check_names.txt` when that file exists (one name per line;
+   see `data/schools/check_names.example.txt`).
 1. **OpenStreetMap schools (HDX).** Open
    <https://data.humdata.org/dataset/hotosm_egy_education_facilities>
    ("Egypt Education Facilities (OpenStreetMap Export)", by the
@@ -604,10 +729,38 @@ Try it first with the hand-written sample (not real data):
 
 Loading twice never creates duplicates: schools are matched by ID and by
 every source key, unchanged schools are not written, schools an admin
-edited or merged are left alone, and nothing is deleted. Never load the
-sample into prod.
+edited or merged are left alone, and nothing is deleted. Writes go in
+batches of 400 with progress lines and retries; if it stops half way, run
+it again (what was written is matched and not written twice). Never load
+the sample into prod.
+
+`--hide-sample build/schools-sample/schools.json` (used by cloud_setup
+once a real list is loaded): the hand-written sample schools already in
+the project get `searchHidden: true`. They stay as documents (a test child
+or carpool may point at one) but leave search. Admin-edited ones are left
+alone.
+
+Cost of the first real load: about one write per school (20,000 to 30,000;
+Firestore's free tier is 20,000 writes a day, so a few US cents at most)
+and one read per school per run. With Algolia on, each new school also
+triggers `syncSchoolToSearch` once (free function quota).
 
 ### 14.4 Algolia (before staging tests; not needed for dev)
+
+**Staging:** follow docs/algolia-setup.md (sign up, then give the three
+values to `tool/cloud_setup.sh` when it asks; `--replace-algolia` to change
+them). It stores the keys, sets `SCHOOL_SEARCH_PROVIDER=algolia`,
+`ALGOLIA_APP_ID` and `ALGOLIA_INDEX=schools_staging`, deploys, and runs
+`schools:algolia -- sync` (settings, then every active school in batches of
+1,000, and removal of merged, pending and hidden ones; the index is never
+emptied, so search keeps working). By hand:
+
+```sh
+ALGOLIA_APP_ID=... ALGOLIA_WRITE_KEY=... ALGOLIA_INDEX=schools_staging \
+SCHOOLS_PROJECT=<staging-project-id> npm --prefix functions run schools:algolia -- sync
+```
+
+**Prod, or index-limited keys** (the manual way):
 
 1. Create an Algolia account and one application. Create one index per
    project: `schools_dev` (optional), `schools_staging`, `schools`.
@@ -636,8 +789,10 @@ sample into prod.
 The prod project refuses `SCHOOL_SEARCH_PROVIDER=fake` (the function
 answers "not configured" and reports to Sentry): set up Algolia before
 prod. From then on `syncSchoolToSearch` keeps the index in step: active schools
-are indexed with their names and places only; schools awaiting review and
-merged schools are not. The app never holds an Algolia secret: it asks
+are indexed with their names and places only; schools awaiting review,
+merged schools and hidden sample schools are not. Without Algolia, a cloud
+build's school search reads at most 200 schools; when that is not the
+whole list it shows "search unavailable" instead of part of the list. The app never holds an Algolia secret: it asks
 `getSchoolSearchKey` for a key that can only search that index and expires
 after an hour. If the index ever drifts, run the `reindex` command again.
 
@@ -648,6 +803,74 @@ paste a pin) under "Other". It waits in the admin panel's **New schools**
 queue, visible only to that parent. Approve it (fix the names, add the
 city and pin) or merge it into an existing school; once approved it is
 indexed and every parent finds it.
+
+### 14.6 City -> Area -> District (F4 grouping, F46 addresses)
+
+Owner decision 16 Nov 2026 (docs/DECISIONS.md): schools and home addresses
+use City (governorate) -> Area (qism, markaz or new city) -> District
+(neighbourhood). Not the per-school `areas` of carpools, which stay.
+
+1. **Download** (step 12 does it, after the schools, starting with the
+   Overpass server that just answered):
+   `python3 tools/import_schools/fetch_osm_places.py` writes every
+   administrative boundary of `admin_level` 5 to 10 inside Egypt and every
+   named `place=suburb|quarter|neighbourhood` to `data/schools/places/`
+   (git-ignored), shapes simplified to about 30 m.
+2. **Which level is which is measured, not assumed:** the import counts,
+   for each level, the share of schools inside its polygons (report.md,
+   "Places"). Area = the finest of levels 5 to 7 covering at least half
+   the schools (else the best covered); where it has no polygon, a coarser
+   level is used, then a finer one. District = the finest of 8 to 10
+   covering 30 % (same fallback); where no district boundary holds a
+   point, the nearest named place of that area within 1.5 km. A list entry
+   without a pin gets its area from its district column ("قسم"/"مركز"
+   ignored). Each school gets `placeAreaId`, the area's names and
+   `placeDistrictId`; `build/schools/places.json` lists the areas and
+   districts.
+3. **Load:** `schools:load:cloud` also loads `places.json` (next to
+   `schools.json`, or `--places <file>`) into `placeAreas`,
+   `placeDistricts` and `placeIndex/areas` (the server's lookup table):
+   new and changed places only, admin edits kept, school counts
+   recomputed. Rules: signed-in users read areas and districts; nobody
+   writes them from a client.
+4. **Admin panel > Places:** City -> Area -> District with school and
+   address counts; add, rename, deactivate, merge duplicates; the "new
+   districts" queue (parents' "My district isn't listed"). Schools list:
+   City and Area filters and an Area column; a school's page: "Move to
+   area". Every change is in the audit log.
+5. **App:** the school picker has "By area" (City -> Area -> the area's
+   schools); search can be narrowed to an area (Algolia `placeAreaId`
+   filter, set by `schools:algolia -- settings`/`sync`). The home address
+   (F46) uses the same dropdowns: no setup beyond the deploy
+   (`setHomeAddress`, `geocodeAddress`, `placeForPoint`); the address
+   search uses the existing Places key and limits.
+
+Dev and tests use the hand-written sample in `data/schools/sample/places`
+(rough boxes, not real borders).
+
+### 14.7 Admin schools search (each cloud project, once)
+
+The panel's Schools list searches Firestore (every school, hidden and
+unapproved too; docs/COSTS.md explains why not Algolia). After the deploy
+that adds `adminSearchSchools` and `syncSchoolAdminGrams`:
+
+1. Deploy the indexes: `firebase deploy --only firestore:indexes
+   --project <alias>` (13 new composite indexes on `schools`; they build
+   in a few minutes; the search works meanwhile in a slower mode and says
+   so).
+2. Fill the search grams of the schools already loaded (one read per
+   school, a write only where needed; safe to run again):
+
+```bash
+SCHOOLS_PROJECT=<project-id> npm --prefix functions run schools:admin-grams -- --dry-run
+SCHOOLS_PROJECT=<project-id> npm --prefix functions run schools:admin-grams -- --yes
+```
+
+New and changed schools get their grams on every write (panel, import,
+"Other" schools, seed) and the `syncSchoolAdminGrams` trigger repairs any
+other writer. On the emulators: `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
+GCLOUD_PROJECT=demo-school-carpool npm --prefix functions run
+schools:admin-grams` (the seed already writes them).
 
 ## 15. Maps, home and nearby parents (Prompt 5)
 
@@ -749,9 +972,17 @@ never shows anything about the carpool.
    `org.schoolcarpool.app.dev`, `.stg` or the prod id):
    ```
    python3 tool/links_site.py --team-id <TEAM ID> --bundle-id org.schoolcarpool.app.dev \
-     [--app-store-url https://apps.apple.com/app/id<numeric id>]
+     [--app-store-url https://apps.apple.com/app/id<numeric id>] \
+     [--support-email <address you read> --operator-name "<legal name>" --require-legal]
    firebase deploy --only hosting:links --project dev
    ```
+   With `--support-email` and `--operator-name` the site also gets the
+   public pages App Store Connect needs: `/privacy`, `/terms`, `/support`,
+   `/delete-account` and a short home page (Arabic and English; sources in
+   `hosting/links/`). Use `--require-legal` for staging and prod so a build
+   without them fails. The app links to them when it is built with
+   `--dart-define=LEGAL_SITE_URL=https://<site id>.web.app` and
+   `--dart-define=SUPPORT_EMAIL=<address>` (docs/apple-review/submission-kit.md).
    `firebase.json` serves `/.well-known/apple-app-site-association` as JSON
    and every `/c/...` path as the fallback page.
 4. Check: open `https://<site id>.web.app/.well-known/apple-app-site-association`

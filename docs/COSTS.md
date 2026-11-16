@@ -20,7 +20,12 @@ Limits below are the public free allowances as understood in November 2026.
 | Codemagic | Free personal, iOS builds only | 500 macOS M2 minutes a month (Linux has no free minutes, so no Linux jobs run there) | Codemagic > Billing | macOS minutes run out before the 25th of a month |
 | GitHub Actions | Free (the repository is public now; it goes private before the public launch: **docs/launch-private-repo.md**) | Public repositories: free. Private: 2,000 free Linux minutes a month on the free plan, then USD 0.006 a minute (read 14 Nov 2026). One full run of our checks is about 16 minutes, a branch run about 6 | GitHub > Settings > Billing and licensing > Usage; a budget with "stop usage" (launch-private-repo.md section 2) | A private repository uses 80 percent of the allowance |
 | Chat (our own, on Firestore and Storage) | Part of Firebase: no separate plan | Counts toward the Firestore and Storage quotas in the first row: about 500 reads and 160 writes per active parent per day, phone and server together (see "Chat") | Firestore "Usage" tab; the budget alerts | Chat alone passes 60 percent of a daily Firestore quota (about 60 to 70 parents chatting every day), or a school group gets busy; see "Chat" |
-| Algolia | Build (free) | 10,000 searches a month | Algolia dashboard > Usage | 8,000 searches in a month; the dev build uses the fake search and costs nothing |
+| Algolia | Free (formerly "Build"); paid Grow accepted by the owner if needed (15 Nov 2026) | 10,000 search requests a month, 50,000 records (read 15 Nov 2026) | Algolia dashboard > Usage | 8,000 searches in a month or 40,000 records; Grow: USD 0.50 per extra 1,000 searches, USD 0.40 per extra 1,000 records a month (docs/algolia-setup.md). The dev build uses the fake search and costs nothing |
+| Wikidata Query Service | Free public service | 60 s per query; one query per download, at most once a week | `data/schools/wikidata/fetch_report.md` | Never |
+| OpenStreetMap (Overpass API) | Free public servers | The main server asks for under 10,000 queries and 1 GB a day; a download is about 56 small queries (27 governorates for schools, 27 for places, the borders and the amenity-only safety net), at most once a week, and a governorate newer than a week is not asked again | `data/schools/osm/fetch_report.md`, `data/schools/places/fetch_report.md` | Never: if every public server is busy, wait and rerun |
+| Egypt ADM2 areas (OCHA COD-AB on HDX; geoBoundaries) | Free open data | One download every 30 days (a few MB) | `data/schools/places/adm2_report.md` | Never |
+| Vertex AI (AI name review of the schools list) | Pay as you go in the owner's project (no free tier for Gemini on Vertex) | Gemini 3.8 Flash, non-global endpoint: USD 0.825 in / 4.125 out per 1M tokens to 31 Dec 2026, then 1.65 / 8.25 (read 16 Nov 2026). A full review of about 7,000 schools is about 48 calls of 150 schools: about 21,000 tokens in and 9,000 out each, so about USD 2.5 to 3 (about USD 5 at the 2027 prices); later runs send only new or changed schools (cache in Firestore schoolReview), usually a few cents. Cap: 200 calls a run (SCHOOLS_AI_MAX_CALLS) | The step-12 line "AI name review: ... about USD x"; Cloud Billing reports (Vertex AI) | The budget alert; raise the cap only if a run stops at it |
+| Overture Maps Places | Free open data on AWS (Registry of Open Data; read anonymously, no AWS account) | No limit; DuckDB reads only the row groups of Egypt's box (a few hundred MB), at most once every 30 days | `data/schools/overture/fetch_report.md` | Never |
 | Google Maps Platform | Free monthly allowance per product (since March 2025) | Free calls per product per month (Maps SDK, Places, Routes); see "Maps (Prompt 5)" | Google Cloud > Quotas, with per-day caps set in SETUP.md section 15.4 | Any product reaches 80 percent of its free calls |
 | WhatsApp Business | Pay per delivered template message (no free tier for templates). Egypt, rate card of 1 Oct 2026: about USD 0.0036 per sign-in code or alert (**not confirmed on Meta's own rate card**; docs/meta-whatsapp-setup.md section 11) | Codes and critical alerts only by default (wallet messages too only if the parent switches them on); other notifications are push unless the parent switches WhatsApp on. New accounts: 250 different people per 24 hours until the business is verified | Meta WhatsApp Manager > Insights | Budget set by the owner |
 | Valify, wallet partner | Fake providers | Nothing is called until the pilot (the wallet is switched off; the pilot uses Settle up by InstaPay, which calls no service and costs nothing) | n/a | Contract signed |
@@ -87,22 +92,56 @@ Limits below are the public free allowances as understood in November 2026.
 - **App Check on the web:** reCAPTCHA Enterprise has a free monthly
   allowance (check the current number on Google's pricing page); admins
   make few calls.
-- **Upgrade when:** never needed for the panel alone at pilot size.
+- **Schools list search (`adminSearchSchools`):** Firestore, not
+  Algolia. The parents' Algolia index holds only active, visible schools,
+  and admins must also find hidden sample, awaiting-review and merged
+  schools; a second "admin" Algolia index would double the records and
+  sync calls and spend the free 10,000 searches a month on staff, and dev
+  would still need a Firestore path. Without text: one query of 50 plus a
+  `count()` (one read per 1,000 matches). With text: Firestore returns
+  schools holding any of the typed words' 3-letter grams (the start and three picks of the first four letters, so one typo there is still found)
+  (`adminSearchGrams`), ordered by name; the function checks each in
+  memory (typos, spelling variants) and reads at most 600 schools per page
+  (`SCAN_CAP`) to fill the page and count matches. Capped at 120 searches
+  per admin per 10 minutes, typing waits 0.4 s. A few admins doing 100
+  text searches a day: at most about 60,000 reads (usually far fewer: a
+  rare word matches a few dozen schools), about USD 0.02 a day above the
+  free 50,000 in the worst case. Extra writes: one rate-limit counter and
+  one audit entry per new search; the grams ride along with every school
+  write (no extra write) and `schools:admin-grams` fills existing schools
+  once (one read per school, one write per school that needs it).
+  13 new composite indexes on `schools` (field + name; Firestore merges them
+  for any mix of filters): index storage only, a few MB.
+- **Upgrade when:** never needed for the panel alone at pilot size. If
+  admins search far more (the audit log counts `school.search`), move the
+  text search to an Algolia admin index.
 
 ## Schools list (Prompt 4B)
 
-- **Algolia Build (free) plan:** 10,000 search requests and 10,000
-  recommend requests a month, up to 1 million records, one application.
-  Egypt's OpenStreetMap export has a few tens of thousands of schools, far
-  below the record limit. The plan's terms say it is for evaluation and
-  not for production use (see open question 3).
+- **Algolia Free plan** (read on algolia.com/pricing, 15 Nov 2026; it
+  was called "Build"): 10,000 search requests a month, 50,000 records, 20
+  indexes per application. Staging holds the whole OpenStreetMap list
+  (owner decision 15 Nov 2026), expected 20,000 to 30,000 records after
+  cleaning: it fits. Staging plus prod in one application can pass 50,000
+  only if the list grows a lot; then Grow: 100,000 records and 10,000
+  searches included, USD 0.40 per extra 1,000 records and USD 0.50 per
+  extra 1,000 searches a month (owner accepted paying). The plan's terms
+  for production use: see open question 3.
+- **OpenStreetMap download:** the Overpass API is free (public servers,
+  fair use: two queries per download, at most once a week from
+  cloud_setup.sh). Data under the ODbL: attribution in the app before the
+  public launch.
 - **Searches:** the picker waits 300 ms after the last key press and needs
   2 letters, so one school search is usually 2 to 4 requests. At about 3
   searches per parent (registration and children), 10,000 requests cover
   roughly 1,000 parents a month. Dev and CI use the fake search: zero.
 - **Index writes:** `syncSchoolToSearch` writes only when a school's
   indexed fields change, so loading the same file again costs nothing.
-  The first import sends every school once.
+  The first import sends every school once (one function call per school,
+  20,000 to 30,000, inside the free 2 million a month), and the
+  `schools:algolia -- sync` of step 12 sends them again in batches of
+  1,000 (Algolia does not bill these indexing calls on the Free plan; it
+  counts records and searches).
 - **Search key:** one `getSchoolSearchKey` call per app session per hour.
 - **Per-parent limits:** the secured keys carry a hashed user token, so
   Algolia's limit of 100 searches an hour counts per parent (not per IP
@@ -113,11 +152,39 @@ Limits below are the public free allowances as understood in November 2026.
   refused in prod.
 - **Firestore:** the loader reads every school once per run (about 30,000
   reads, inside the free 50,000 a day; run it at most once a day) and
-  writes only new or changed schools. The dev fake reads at most 200
-  schools once per app start, on the emulators only.
+  writes only new or changed schools: the first real load is 20,000 to
+  30,000 writes, a little over the free 20,000 a day (a few US cents);
+  later runs write only what changed in OpenStreetMap. The index sync
+  reads every school once more. The fake search reads at most 200
+  schools once per app start (emulators; in a cloud build only until
+  Algolia is set up, and it refuses a list of 200 or more).
 - **Usage tracking:** Algolia dashboard > Usage (search requests).
 - **Upgrade when:** 8,000 search requests in a month, or before the
   public launch if Algolia's terms rule out the Build plan for us.
+
+## Places and addresses (F4 grouping, F46)
+
+- **Download:** two more Overpass queries per weekly step-12 run (the
+  boundaries below the governorate and the named neighbourhoods); free.
+- **Load:** the loader reads every place area and district once per run
+  (a few hundred to a few thousand reads, inside the free 50,000 a day)
+  and writes only new or changed ones. The first run after this change
+  also updates every school once (its area fields): about one write per
+  school.
+- **Lookups (`placeForPoint`, `setHomeAddress`, an "Other" school, an
+  admin-saved school):** one read of `placeIndex/areas` per function
+  instance every 10 minutes, then 1 to 3 areas and the districts of one
+  area, each with its server-only outline document (placeInternal), so
+  about twice the documents (usually under 100 reads). `placeForPoint` counts against the
+  parent's address-search limit (60 an hour).
+- **Address pin (`geocodeAddress`):** one Places Autocomplete request and
+  one Place Details (Essentials, cached 30 days) per address, inside the
+  existing per-parent limits and the free monthly calls; no new SKU.
+- **App reads:** the City -> Area -> District menus read the areas of one
+  city (at most 500) and the districts of one area; browsing reads at
+  most 200 schools of one area. These documents hold names, centre and
+  school count only (a few hundred bytes each); the outlines stay in
+  placeInternal, which the app never reads.
 
 ## Maps (Prompt 5)
 

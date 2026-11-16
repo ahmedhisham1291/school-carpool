@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
-import 'package:school_carpool/features/maps/home_location_screen.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
+import 'package:school_carpool/features/places/address_screen.dart';
 import 'package:school_carpool/features/trips/location_gate.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
@@ -53,7 +53,7 @@ class HomeScreen extends ConsumerWidget {
             leadingIcon: Icons.home_work_outlined,
             onTap: () => unawaited(
               Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(builder: (BuildContext context) => const HomeLocationScreen()),
+                MaterialPageRoute<void>(builder: (BuildContext context) => const AddressScreen()),
               ),
             ),
           ),

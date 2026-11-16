@@ -23,8 +23,9 @@ import 'package:school_carpool/firebase/firebase_setup.dart';
 ///   "fake"): [FirestoreSchoolSearch] reads the emulator's schools and
 ///   matches on the phone. No Algolia account is needed.
 abstract interface class SchoolSearch {
-  /// Throws [SchoolSearchFailure].
-  Future<List<SchoolOption>> search(String query, {String? governorate});
+  /// Throws [SchoolSearchFailure]. [areaId] narrows to one area of a city
+  /// (placeAreas, F4 browse).
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId});
 
   /// Schools nearest to [around] (the parent's home), nearest first
   /// (Prompt 5). Throws [SchoolSearchFailure].
@@ -51,8 +52,8 @@ class InMemorySchoolSearch implements SchoolSearch {
   final SchoolMatcher _matcher;
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) async =>
-      _matcher.search(query, governorate: governorate);
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) async =>
+      _matcher.search(query, governorate: governorate, areaId: areaId);
 
   @override
   Future<List<SchoolOption>> nearest(GeoPin around) async => _matcher.nearest(around);
@@ -61,11 +62,19 @@ class InMemorySchoolSearch implements SchoolSearch {
 /// The fake search for development: loads the active schools from
 /// Firestore once (the emulator's seed and the sample import, at most
 /// [limit], as firestore.rules allow) and matches on the phone.
+///
+/// With [requireComplete] (a cloud project whose server still says "fake")
+/// a list of [limit] schools or more is refused with
+/// [SchoolSearchFailureKind.unavailable]: the phone would see only the
+/// first [limit] of a real list, and a parent would wrongly think their
+/// school is missing. Staging with the real list needs Algolia
+/// (docs/algolia-setup.md).
 class FirestoreSchoolSearch implements SchoolSearch {
-  FirestoreSchoolSearch(this._db, {this._now = DateTime.now});
+  FirestoreSchoolSearch(this._db, {this._now = DateTime.now, this.requireComplete = false});
 
   final FirebaseFirestore _db;
   final DateTime Function() _now;
+  final bool requireComplete;
 
   /// The most a list query may read (firestore.rules).
   static const int limit = 200;
@@ -83,9 +92,9 @@ class FirestoreSchoolSearch implements SchoolSearch {
           .where('status', isEqualTo: 'active')
           .limit(limit)
           .get();
-      return SchoolMatcher(<SchoolOption>[
-        for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in snap.docs) SchoolOption.fromMap(doc.id, doc.data()),
-      ]);
+      return matcherFromLoaded(<(String, Map<String, Object?>)>[
+        for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in snap.docs) (doc.id, doc.data()),
+      ], requireComplete: requireComplete);
     } on FirebaseException catch (error) {
       throw SchoolSearchFailure(
         error.code == 'unavailable' ? SchoolSearchFailureKind.offline : SchoolSearchFailureKind.unavailable,
@@ -93,9 +102,24 @@ class FirestoreSchoolSearch implements SchoolSearch {
     }
   }
 
+  /// The matcher over the loaded documents. Hidden sample schools
+  /// (`searchHidden`, set once a real list is loaded) are skipped; with
+  /// [requireComplete], [limit] documents or more is an incomplete list and
+  /// throws [SchoolSearchFailure] (unavailable) instead of partial results.
+  @visibleForTesting
+  static SchoolMatcher matcherFromLoaded(List<(String, Map<String, Object?>)> docs, {required bool requireComplete}) {
+    if (requireComplete && docs.length >= limit) {
+      throw const SchoolSearchFailure(SchoolSearchFailureKind.unavailable);
+    }
+    return SchoolMatcher(<SchoolOption>[
+      for (final (String id, Map<String, Object?> data) in docs)
+        if (data['searchHidden'] != true) SchoolOption.fromMap(id, data),
+    ]);
+  }
+
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) async =>
-      (await _current()).search(query, governorate: governorate);
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) async =>
+      (await _current()).search(query, governorate: governorate, areaId: areaId);
 
   @override
   Future<List<SchoolOption>> nearest(GeoPin around) async => (await _current()).nearest(around);
@@ -197,12 +221,17 @@ class AlgoliaSchoolSearch implements SchoolSearch {
   }
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) {
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) {
     final String normalized = normalizeText(query);
-    return _cached('$normalized|${governorate ?? ''}', <String, String>{
+    final String filters = <String>[
+      if (governorate != null) 'governorate:$governorate',
+      // Area IDs are letters, digits, "-" and "_": quoted for Algolia's filter syntax.
+      if (areaId != null) 'placeAreaId:"$areaId"',
+    ].join(' AND ');
+    return _cached('$normalized|${governorate ?? ''}|${areaId ?? ''}', <String, String>{
       'query': normalized,
       'hitsPerPage': '$kMaxSchoolResults',
-      if (governorate != null) 'filters': 'governorate:$governorate',
+      if (filters.isNotEmpty) 'filters': filters,
     });
   }
 
@@ -259,7 +288,7 @@ class UnavailableSchoolSearch implements SchoolSearch {
   const UnavailableSchoolSearch();
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) =>
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) =>
       Future<List<SchoolOption>>.error(const SchoolSearchFailure(SchoolSearchFailureKind.unavailable));
 
   @override
@@ -279,8 +308,8 @@ class ServerSelectedSchoolSearch implements SchoolSearch {
   SchoolSearch? _chosen;
 
   @override
-  Future<List<SchoolOption>> search(String query, {String? governorate}) async =>
-      (await _choose()).search(query, governorate: governorate);
+  Future<List<SchoolOption>> search(String query, {String? governorate, String? areaId}) async =>
+      (await _choose()).search(query, governorate: governorate, areaId: areaId);
 
   @override
   Future<List<SchoolOption>> nearest(GeoPin around) async => (await _choose()).nearest(around);
@@ -289,6 +318,11 @@ class ServerSelectedSchoolSearch implements SchoolSearch {
     SchoolSearch? chosen = _chosen;
     if (chosen == null) {
       final SearchKey first = await fetchKey();
+      if (first.provider == 'algolia' && !first.isAlgolia) {
+        // The server chose Algolia but sent no usable key: an error, never
+        // a silent switch to the (partial) fake search.
+        throw const SchoolSearchFailure(SchoolSearchFailureKind.unavailable);
+      }
       bool used = false;
       chosen = _chosen = first.isAlgolia
           ? AlgoliaSchoolSearch(
@@ -339,13 +373,17 @@ Future<SearchKey> fetchSearchKey(FirebaseFunctions functions) async {
 }
 
 final Provider<SchoolSearch> schoolSearchProvider = Provider<SchoolSearch>((Ref ref) {
-  final FirestoreSchoolSearch fake = FirestoreSchoolSearch(ref.watch(firestoreProvider));
   if (ref.watch(flavorConfigProvider).useEmulators) {
-    return fake;
+    return FirestoreSchoolSearch(ref.watch(firestoreProvider));
   }
   final FirebaseFunctions functions = functionsClient();
   return ServerSelectedSchoolSearch(
     fetchKey: () => fetchSearchKey(functions),
-    fallback: ref.watch(flavorConfigProvider).isProd ? const UnavailableSchoolSearch() : fake,
+    // Staging before Algolia is set up: the Firestore list, but only while
+    // it is complete (the hand-written sample); a real list says
+    // "unavailable" instead of showing the first 200 schools.
+    fallback: ref.watch(flavorConfigProvider).isProd
+        ? const UnavailableSchoolSearch()
+        : FirestoreSchoolSearch(ref.watch(firestoreProvider), requireComplete: true),
   );
 });

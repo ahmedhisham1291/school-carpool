@@ -34,6 +34,7 @@ before(async () => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     await ctx.firestore().doc("users/alice").set({ firstName: "Alice", status: "verified" });
     await ctx.firestore().doc("schools/s1").set({ nameEn: "Test school" });
+    await ctx.firestore().doc("schoolReview/osm-n1").set({ hash: "h", result: "{}", model: "m" });
     await ctx.storage().ref("verification/alice/id-front.jpg").putString("fake-image").then(() => undefined);
   });
 });
@@ -53,6 +54,8 @@ const paths = [
   // (carpools.test.ts); their writes and the carpool subcollections are
   // tested there and below.
   "searchKeyLimits/alice",
+  // The AI name review's cache: never readable or writable by the app.
+  "schoolReview/osm-n1",
   // children/{id} is readable by its owner since Prompt 3
   // (verification.test.ts); c1 does not exist, so every read is denied.
   "children/c1",
@@ -167,6 +170,9 @@ describe("firestore.rules deny everything", () => {
     }
     it(`${who}: cannot list a collection`, async () => {
       await assertFails(make().firestore().collection("users").get());
+    });
+    it(`${who}: cannot list the AI name review cache`, async () => {
+      await assertFails(make().firestore().collection("schoolReview").get());
     });
   }
 });

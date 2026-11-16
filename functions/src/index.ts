@@ -49,17 +49,27 @@ export {
   adminListAdmins,
   adminListAuditLog,
   adminListReports,
+  adminListPlaceAreas,
+  adminListPlaceDistricts,
+  adminListPlaceRequests,
   adminListSchools,
+  adminMergePlaces,
   adminMergeSchool,
+  adminMoveSchoolArea,
   adminModerateUser,
   adminPing,
   adminRemoveChatMember,
   adminRemoveChatMessage,
+  adminResolvePlaceRequest,
   adminResolveReport,
   adminSaveArea,
+  adminSavePlaceArea,
+  adminSavePlaceDistrict,
   adminSaveSchool,
+  adminSearchSchools,
   adminSearchUsers,
   adminSetAdminDisabled,
+  adminSetPlaceActive,
 } from "./admin_panel/callables";
 
 // Parents: WhatsApp-code sign-in (custom token) only. Admins: email and
@@ -67,7 +77,7 @@ export {
 export { blockClientSignUps, blockNonCodeSignIn, blockSignInEmails } from "./auth/blocking";
 
 // Schools list (Prompt 4B: F4): "Other" schools, the search key and the index sync.
-export { addOtherSchool, getSchoolSearchKey, syncSchoolToSearch } from "./schools/callables";
+export { addOtherSchool, getSchoolSearchKey, syncSchoolAdminGrams, syncSchoolToSearch } from "./schools/callables";
 
 // Home, schools and maps (Prompt 5: F21 to F24, F40): home pin, address
 // search, map settings, driving schools, nearby parents and the public
@@ -82,6 +92,10 @@ export {
   syncMapOnUserWrite,
   updateMapSettings,
 } from "./maps/callables";
+
+// Addresses (F46): City -> Area -> District, street and building, the pin
+// confirmed on the map; and where a point is (prefill after a search).
+export { geocodeAddress, placeForPoint, setHomeAddress } from "./places/callables";
 
 // Carpools (Prompt 6: F5, F6, F25, F26, F31, F32, F36, F39): create, search,
 // join requests, driver consent, pickup point sharing, invite links and

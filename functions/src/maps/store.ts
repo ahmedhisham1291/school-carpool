@@ -9,6 +9,7 @@ import { DEFAULT_RADIUS_KM, type LatLng } from "./geo";
 import { takeFromWindow, type MapLimitKind, type WindowCounter } from "./limits";
 import type { AccountInfo, HomeRecord, MapStore, NewParentEvent, PublicLocation, SchoolInfo, SchoolRef } from "./parent_map";
 import type { PlaceCache, PlaceDetails } from "./places";
+import { addressFromDoc } from "../places/address";
 
 export const HOMES = "homes";
 export const PARENT_LOCATIONS = "parentLocations";
@@ -51,6 +52,7 @@ export function homeFromDoc(d: DocumentData): HomeRecord {
     notifyNewParents: d.notifyNewParents !== false,
     radiusKm: typeof d.radiusKm === "number" ? d.radiusKm : DEFAULT_RADIUS_KM,
     drivingSchools: schoolRefs(d.drivingSchools),
+    address: addressFromDoc(d.address),
     updatedAtMs: millis(d.updatedAt),
   };
 }
@@ -71,6 +73,13 @@ export function publicFromDoc(d: DocumentData): PublicLocation | null {
     drivingSchoolIds: strings(d.drivingSchoolIds),
     announced: d.announced === true,
     updatedAtMs: millis(d.updatedAt),
+    ...(typeof d.placeAreaId === "string" && d.placeAreaId
+      ? {
+          governorate: text(d.governorate),
+          placeAreaId: d.placeAreaId,
+          placeDistrictId: typeof d.placeDistrictId === "string" && d.placeDistrictId ? d.placeDistrictId : null,
+        }
+      : {}),
   };
 }
 
@@ -121,6 +130,8 @@ export class FirestoreMapStore implements MapStore {
       notifyNewParents: home.notifyNewParents,
       radiusKm: home.radiusKm,
       drivingSchools: home.drivingSchools.map((s) => ({ id: s.id, nameAr: s.nameAr, nameEn: s.nameEn })),
+      // F46: the structured address (owner only, like the exact point).
+      address: home.address ?? null,
       updatedAt: Timestamp.fromMillis(home.updatedAtMs),
     });
   }
@@ -149,6 +160,10 @@ export class FirestoreMapStore implements MapStore {
       drivingSchoolIds: doc.drivingSchoolIds,
       announced: doc.announced,
       updatedAt: Timestamp.fromMillis(doc.updatedAtMs),
+      // F46: city, area and district only (never the street or building).
+      governorate: doc.governorate ?? null,
+      placeAreaId: doc.placeAreaId ?? null,
+      placeDistrictId: doc.placeDistrictId ?? null,
     });
   }
 

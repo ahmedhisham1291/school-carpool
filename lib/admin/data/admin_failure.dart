@@ -29,7 +29,7 @@ enum AdminFailureKind {
 /// An admin panel problem with a message that says what to do. Built from
 /// `details.reason` of our functions or from Firebase Auth errors.
 class AdminFailure implements Exception {
-  const AdminFailure(this.kind, {this.field});
+  const AdminFailure(this.kind, {this.field, this.code});
 
   factory AdminFailure.from(Object error) {
     if (error is AdminFailure) {
@@ -71,7 +71,7 @@ class AdminFailure implements Exception {
       return AdminFailure(kind, field: field);
     }
     if (error is FirebaseAuthException) {
-      return AdminFailure(switch (error.code) {
+      final AdminFailureKind kind = switch (error.code) {
         'wrong-password' || 'user-not-found' || 'invalid-credential' || 'invalid-email' || 'user-disabled' =>
           AdminFailureKind.wrongPassword,
         // The blocking function refuses accounts that are not admins.
@@ -82,15 +82,25 @@ class AdminFailure implements Exception {
         'network-request-failed' => AdminFailureKind.offline,
         'requires-recent-login' || 'user-token-expired' => AdminFailureKind.sessionExpired,
         _ => AdminFailureKind.unknown,
-      });
+      };
+      // An unrecognised sign-in error keeps Firebase's short code (never the
+      // message, which can hold an address) so the admin can report it.
+      return AdminFailure(kind, code: kind == AdminFailureKind.unknown ? error.code : null);
     }
-    return const AdminFailure(AdminFailureKind.unknown);
+    // Anything else: keep a short, address-free description so the admin can
+    // report what the browser said instead of a bare "something went wrong".
+    final String raw = error is FirebaseException ? '${error.plugin}/${error.code}' : error.toString();
+    final String safe = raw.replaceAll(RegExp(r'\S+@\S+'), '...').replaceAll(RegExp(r'\s+'), ' ').trim();
+    return AdminFailure(AdminFailureKind.unknown, code: safe.length > 140 ? safe.substring(0, 140) : safe);
   }
 
   final AdminFailureKind kind;
 
   /// The form field the server refused, when it said.
   final String? field;
+
+  /// Firebase Auth's short error code for a failure we do not recognise.
+  final String? code;
 
   bool get isOffline => kind == AdminFailureKind.offline;
 
@@ -113,7 +123,7 @@ class AdminFailure implements Exception {
     AdminFailureKind.nameCheckMissing => l10n.adminErrNameCheck,
     AdminFailureKind.featureOff => l10n.adminErrFeatureOff,
     AdminFailureKind.offline => l10n.adminErrOffline,
-    AdminFailureKind.unknown => l10n.errorGeneric,
+    AdminFailureKind.unknown => code == null ? l10n.errorGeneric : '${l10n.errorGeneric} [$code]',
   };
 
   @override

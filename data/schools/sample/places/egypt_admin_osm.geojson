@@ -1,0 +1,567 @@
+{
+ "type": "FeatureCollection",
+ "name": "SAMPLE places (hand-written squares, not OpenStreetMap data)",
+ "fetched_at": "2026-11-16T00:00:00Z",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 7,
+    "name": "المعادي",
+    "name:ar": "المعادي",
+    "name:en": "Maadi",
+    "osm_id": 900001,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        31.232,
+        29.935
+       ],
+       [
+        31.282,
+        29.935
+       ],
+       [
+        31.282,
+        29.985
+       ],
+       [
+        31.232,
+        29.985
+       ],
+       [
+        31.232,
+        29.935
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 7,
+    "name": "مدينة نصر",
+    "name:ar": "مدينة نصر",
+    "name:en": "Nasr City",
+    "osm_id": 900002,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        31.3,
+        30.026
+       ],
+       [
+        31.36,
+        30.026
+       ],
+       [
+        31.36,
+        30.086
+       ],
+       [
+        31.3,
+        30.086
+       ],
+       [
+        31.3,
+        30.026
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 7,
+    "name": "مصر الجديدة",
+    "name:ar": "مصر الجديدة",
+    "name:en": "Heliopolis",
+    "osm_id": 900003,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        31.302,
+        30.075
+       ],
+       [
+        31.342,
+        30.075
+       ],
+       [
+        31.342,
+        30.115
+       ],
+       [
+        31.302,
+        30.115
+       ],
+       [
+        31.302,
+        30.075
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 7,
+    "name": "الزمالك",
+    "name:ar": "الزمالك",
+    "name:en": "Zamalek",
+    "osm_id": 900004,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        31.212,
+        30.054
+       ],
+       [
+        31.228,
+        30.054
+       ],
+       [
+        31.228,
+        30.07
+       ],
+       [
+        31.212,
+        30.07
+       ],
+       [
+        31.212,
+        30.054
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 7,
+    "name": "القاهرة الجديدة",
+    "name:ar": "القاهرة الجديدة",
+    "name:en": "New Cairo",
+    "osm_id": 900005,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        31.41,
+        29.965
+       ],
+       [
+        31.53,
+        29.965
+       ],
+       [
+        31.53,
+        30.085
+       ],
+       [
+        31.41,
+        30.085
+       ],
+       [
+        31.41,
+        29.965
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 7,
+    "name": "الدقي",
+    "name:ar": "الدقي",
+    "name:en": "Dokki",
+    "osm_id": 900006,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        31.198,
+        30.026
+       ],
+       [
+        31.222,
+        30.026
+       ],
+       [
+        31.222,
+        30.05
+       ],
+       [
+        31.198,
+        30.05
+       ],
+       [
+        31.198,
+        30.026
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 7,
+    "name": "الشيخ زايد",
+    "name:ar": "الشيخ زايد",
+    "name:en": "Sheikh Zayed",
+    "osm_id": 900007,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        30.936,
+        30.004
+       ],
+       [
+        31.016,
+        30.004
+       ],
+       [
+        31.016,
+        30.084
+       ],
+       [
+        30.936,
+        30.084
+       ],
+       [
+        30.936,
+        30.004
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 7,
+    "name": "السادس من أكتوبر",
+    "name:ar": "السادس من أكتوبر",
+    "name:en": "6th of October",
+    "osm_id": 900008,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        30.88,
+        29.91
+       ],
+       [
+        30.98,
+        29.91
+       ],
+       [
+        30.98,
+        30.01
+       ],
+       [
+        30.88,
+        30.01
+       ],
+       [
+        30.88,
+        29.91
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 7,
+    "name": "سموحة",
+    "name:ar": "سموحة",
+    "name:en": "Smouha",
+    "osm_id": 900009,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        29.935,
+        31.199
+       ],
+       [
+        29.965,
+        31.199
+       ],
+       [
+        29.965,
+        31.229
+       ],
+       [
+        29.935,
+        31.229
+       ],
+       [
+        29.935,
+        31.199
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 7,
+    "name": "وسط القاهرة",
+    "name:ar": "وسط القاهرة",
+    "name:en": "Downtown Cairo",
+    "osm_id": 900010,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        31.228,
+        30.034
+       ],
+       [
+        31.252,
+        30.034
+       ],
+       [
+        31.252,
+        30.058
+       ],
+       [
+        31.228,
+        30.058
+       ],
+       [
+        31.228,
+        30.034
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 9,
+    "name": "التجمع الخامس",
+    "name:ar": "التجمع الخامس",
+    "name:en": "Fifth Settlement",
+    "osm_id": 910001,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        31.46,
+        29.99
+       ],
+       [
+        31.5,
+        29.99
+       ],
+       [
+        31.5,
+        30.03
+       ],
+       [
+        31.46,
+        30.03
+       ],
+       [
+        31.46,
+        29.99
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 9,
+    "name": "التجمع الأول",
+    "name:ar": "التجمع الأول",
+    "name:en": "First Settlement",
+    "osm_id": 910002,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        31.428,
+        30.048
+       ],
+       [
+        31.452,
+        30.048
+       ],
+       [
+        31.452,
+        30.072
+       ],
+       [
+        31.428,
+        30.072
+       ],
+       [
+        31.428,
+        30.048
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 9,
+    "name": "الحي 14",
+    "name:ar": "الحي 14",
+    "name:en": "District 14",
+    "osm_id": 910003,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        30.977,
+        30.032
+       ],
+       [
+        30.993,
+        30.032
+       ],
+       [
+        30.993,
+        30.048
+       ],
+       [
+        30.977,
+        30.048
+       ],
+       [
+        30.977,
+        30.032
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "admin_level": 9,
+    "name": "الحي السادس",
+    "name:ar": "الحي السادس",
+    "name:en": "6th District",
+    "osm_id": 910004,
+    "osm_type": "relation"
+   },
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        30.925,
+        29.955
+       ],
+       [
+        30.945,
+        29.955
+       ],
+       [
+        30.945,
+        29.975
+       ],
+       [
+        30.925,
+        29.975
+       ],
+       [
+        30.925,
+        29.955
+       ]
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

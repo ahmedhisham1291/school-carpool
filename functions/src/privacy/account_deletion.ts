@@ -46,6 +46,8 @@ export const IMMEDIATE_TARGETS: ReadonlyArray<{ collection: string; target: Targ
   { collection: "mapLimits", target: { kind: "doc", path: "mapLimits/{uid}" } },
   { collection: "newParentEvents", target: { kind: "where", collection: "newParentEvents", field: "uid" } },
   { collection: "searchKeyLimits", target: { kind: "doc", path: "searchKeyLimits/{uid}" } },
+  // Places (F46): "my district isn't listed" requests carry the parent's uid.
+  { collection: "placeRequests", target: { kind: "where", collection: "placeRequests", field: "uid" } },
   // Carpools (Prompt 6): memberships and members go through removeFromCarpool first.
   { collection: "memberships", target: { kind: "where", collection: "memberships", field: "uid" } },
   { collection: "carpoolWanted", target: { kind: "doc", path: "carpoolWanted/{uid}" } },
@@ -141,6 +143,11 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   config: "settings",
   schools: "not personal",
   areas: "not personal",
+  placeAreas: "not personal (public place names and outlines)",
+  placeDistricts: "not personal (public place names; a district an admin added from a request carries no uid)",
+  placeIndex: "not personal (the areas' boxes)",
+  placeInternal: "not personal (outlines and address counts; the places step takes the parent's address out of the counts)",
+  schoolReview: "not personal (the AI name review's cache: school names and verdicts)",
   placeCache: "not personal (place details)",
   carpools: "the group stays for the other members (the parent's names become initials); a closed carpool is deleted 1 year after it closed",
   carpoolInvites: "carpool links (no personal data)",
@@ -196,7 +203,11 @@ export const SUBCOLLECTIONS: Readonly<Record<string, string>> = {
  * "carpools" (future runs released) and before "records" (memberships,
  * used to find the carpools, are deleted there).
  */
-export const FLOW_STEPS = ["trips", "carpools", "anonymise", "chat", "trust", "identity", "wallet", "records", "auth"] as const;
+/**
+ * places (F46): the parent's address leaves its area's and district's
+ * address counts (placeInternal), before "records" deletes homes/{uid}.
+ */
+export const FLOW_STEPS = ["trips", "carpools", "anonymise", "chat", "trust", "identity", "wallet", "places", "records", "auth"] as const;
 export type FlowStep = (typeof FLOW_STEPS)[number];
 /** routes: the parent's archived routes (files and records); chatMessages: the parent's chat messages and photos. */
 /**

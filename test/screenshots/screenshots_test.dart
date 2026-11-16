@@ -46,9 +46,11 @@ import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
 import 'package:school_carpool/features/notifications/notification_repository.dart';
+import 'package:school_carpool/features/places/address_screen.dart';
 import 'package:school_carpool/features/privacy/privacy_repository.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/schedule/schedule_repository.dart';
+import 'package:school_carpool/features/schools/browse_schools_screen.dart';
 import 'package:school_carpool/features/schools/other_school_screen.dart';
 import 'package:school_carpool/features/schools/school_picker_screen.dart';
 import 'package:school_carpool/features/settle_up/settle_up_models.dart';
@@ -72,6 +74,7 @@ import '../helpers/chat_fakes.dart';
 import '../helpers/fonts.dart';
 import '../helpers/map_fakes.dart';
 import '../helpers/notification_fakes.dart';
+import '../helpers/place_fakes.dart';
 import '../helpers/privacy_fakes.dart';
 import '../helpers/schedule_fakes.dart';
 import '../helpers/school_fakes.dart';
@@ -470,6 +473,8 @@ void main() {
     'school_edit': ('/schools/s1', const AdminSignedIn(testReviewer), const Size(1280, 1100)),
     'other_schools': (AdminRoutes.otherSchools, const AdminSignedIn(testReviewer), const Size(1280, 800)),
     'other_school_review': ('/other-schools/p1', const AdminSignedIn(testReviewer), const Size(1280, 1100)),
+    // F4/F46: City -> Area -> District (pick a city in the test below) and the queue.
+    'places': (AdminRoutes.places, const AdminSignedIn(testReviewer), const Size(1280, 900)),
     'reports': (AdminRoutes.reports, const AdminSignedIn(testReviewer), const Size(1280, 800)),
     'report': ('/reports/r1', const AdminSignedIn(testReviewer), const Size(1280, 1100)),
     'audit': (AdminRoutes.audit, const AdminSignedIn(testSuperAdmin), const Size(1280, 800)),
@@ -537,6 +542,86 @@ void main() {
           await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
         });
       }
+    }
+  }
+
+  // F4 browse by area and F46 address steps (City -> Area -> District with
+  // dropdowns, street and building, the pin), Arabic and English, light and
+  // dark; the place step also at 320 dp with 200 percent text.
+  Future<void> pickIn(WidgetTester tester, Key key, String label) async {
+    // As the widget tests do (test/helpers/dropdown.dart): the menu opens
+    // over a few frames, so settle before and after each tap; long menus
+    // (27 cities) scroll to the item first.
+    await tester.tap(find.byKey(key));
+    await tester.pumpAndSettle();
+    final Finder item = find.text(label).last;
+    await tester.ensureVisible(item);
+    await tester.pumpAndSettle();
+    await tester.tap(item);
+    await tester.pumpAndSettle();
+  }
+
+  for (final String locale in locales) {
+    final bool ar = locale == 'ar';
+    for (final String mode in modes) {
+      for (final String step in <String>['browse', 'address_place', 'address_street', 'address_pin']) {
+        final String name = '${step}_${locale}_$mode';
+        testWidgets(name, skip: skip, (WidgetTester tester) async {
+          tester.view
+            ..devicePixelRatio = 3
+            ..physicalSize = const Size(390, 844) * 3;
+          addTearDown(tester.view.reset);
+          await tester.pumpWidget(
+            buildTestApp(
+              step == 'browse' ? const BrowseSchoolsScreen() : const AddressScreen(),
+              locale: ar ? AppLocales.arabic : AppLocales.english,
+              brightness: mode == 'dark' ? Brightness.dark : Brightness.light,
+              extraOverrides: <Override>[...addressOverrides()],
+            ),
+          );
+          await tester.pump(const Duration(milliseconds: 300));
+          final String prefix = step == 'browse' ? 'browse' : 'address';
+          await pickIn(tester, Key('$prefix.city'), ar ? 'القاهرة' : 'Cairo');
+          await pickIn(tester, Key('$prefix.area.cairo'), ar ? 'المعادي' : 'Maadi');
+          if (step != 'browse') {
+            await pickIn(tester, const Key('address.district.osm-r1'), ar ? 'دجلة' : 'Degla');
+          }
+          if (step == 'address_street' || step == 'address_pin') {
+            await tester.tap(find.byKey(const Key('address.next1')));
+            await tester.pumpAndSettle();
+            await tester.enterText(find.byKey(const Key('address.street')), ar ? 'شارع 9' : 'Road 9');
+            await tester.enterText(find.byKey(const Key('address.building')), '12');
+            await tester.pump();
+          }
+          if (step == 'address_pin') {
+            await tester.tap(find.byKey(const Key('address.next2')));
+            await tester.pumpAndSettle();
+          }
+          await tester.pump(const Duration(milliseconds: 300));
+          await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+        });
+      }
+    }
+    for (final double scale in <double>[1, 2]) {
+      final String name = 'address_place_${locale}_light_320_text${scale.round()}x';
+      testWidgets(name, skip: skip, (WidgetTester tester) async {
+        tester.view
+          ..devicePixelRatio = 3
+          ..physicalSize = const Size(320, 700) * 3;
+        addTearDown(tester.view.reset);
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await tester.pumpWidget(
+          buildTestApp(
+            const AddressScreen(),
+            locale: ar ? AppLocales.arabic : AppLocales.english,
+            extraOverrides: <Override>[...addressOverrides()],
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        await pickIn(tester, const Key('address.city'), ar ? 'القاهرة' : 'Cairo');
+        await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+      });
     }
   }
 

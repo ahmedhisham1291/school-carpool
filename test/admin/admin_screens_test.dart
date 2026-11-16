@@ -82,6 +82,10 @@ void main() {
       await settle(tester);
       expect(auth.calls, contains('startTotpSetup'));
       expect(find.textContaining('JBSW Y3DP EHPK 3PXP'), findsOneWidget);
+      // "New key" asks for another key without leaving the screen.
+      await tester.tap(find.byKey(const Key('admin.setup.newKey')));
+      await settle(tester);
+      expect(auth.calls.where((String c) => c == 'startTotpSetup').length, 2);
       await tester.enterText(find.byKey(const Key('admin.setup.code')), '654321');
       await settle(tester);
       expect(auth.calls.last, 'finishTotpSetup:654321');

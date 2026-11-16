@@ -1,4 +1,5 @@
 import { anonymiseSettleUp, planRetention } from "../settle_up/model";
+import { readReviewDemoState } from "../auth/review_access";
 import { SETTLE_ADDRESSES, SETTLE_UPS, settleFromDoc, settleToDoc } from "../settle_up/store";
 import type { Bucket } from "../verification/store";
 import { FieldPath, FieldValue, Timestamp, type DocumentData, type Firestore, type Query, type QueryDocumentSnapshot, type QuerySnapshot } from "firebase-admin/firestore";
@@ -13,6 +14,7 @@ import { keepForClosedParent, participantsOf, planTripRetention, type AccountSta
 import { CLOSING_REASON, pathFor, type ClosedAccount, type DeletionFacts, type DeletionRunner, type FlowStep, type PurgeStep, type Target, type WalletLock } from "./account_deletion";
 import type { DeviceAccount, DeviceRecord, DeviceStore, Platform, SignInPlan, SignOutReason } from "./devices";
 import type { ExportSource } from "./export";
+import { PLACE_INTERNAL, internalId } from "../places/catalog";
 import type { RetentionReport, RetentionStore } from "./jobs";
 import type { ConsentRow, PrivacyRequest } from "./requests";
 import { ABUSE_COUNTER_DAYS, DAY_MS, LOGIN_HISTORY_DAYS, type DataTypeId } from "./retention";
@@ -141,6 +143,8 @@ export class FirestoreDeviceStore implements DeviceStore {
       email: snap.get("emailVerified") === true && text(snap.get("email")) ? text(snap.get("email")) : null,
       language: snap.get("language") === "en" ? "en" : "ar",
       hasFaceRef,
+      // Only a demo parent listed in the open review access (reviewDemoState).
+      reviewDemo: (await readReviewDemoState(this.db, uid, snap.data(), Date.now())) === "open",
     };
   }
 
@@ -442,6 +446,29 @@ export class FirestoreDeletionRunner implements DeletionRunner {
       case "wallet": {
         const ref = this.db.collection("wallets").doc(uid);
         if ((await ref.get()).exists) await ref.update({ status: "closed", closedAt: ts(nowMs), updatedAt: ts(nowMs) });
+        return;
+      }
+      case "places": {
+        // F46: the address leaves its area's and district's address counts
+        // (placeInternal). The address is taken off the home in the same
+        // transaction, so a retried step never counts it twice; the home
+        // itself goes with the records step.
+        const home = this.db.collection("homes").doc(uid);
+        await this.db.runTransaction(async (tx) => {
+          const snap = await tx.get(home);
+          const address = snap.exists ? (snap.get("address") as DocumentData | null | undefined) : null;
+          if (!address || typeof address.placeAreaId !== "string" || !address.placeAreaId) return;
+          const counts: Array<[string, string]> = [["area", address.placeAreaId]];
+          if (typeof address.placeDistrictId === "string" && address.placeDistrictId) counts.push(["district", address.placeDistrictId]);
+          for (const [kind, id] of counts) {
+            tx.set(
+              this.db.collection(PLACE_INTERNAL).doc(internalId(kind as "area" | "district", id)),
+              { kind, placeId: id, addressCount: FieldValue.increment(-1) },
+              { merge: true },
+            );
+          }
+          tx.update(home, { address: null });
+        });
         return;
       }
       case "records":
@@ -922,7 +949,12 @@ export class FirestoreExportSource implements ExportSource {
       case "vehicle":
         return this.doc(`vehicles/${uid}`);
       case "home":
-        return { exact: await this.doc(`homes/${uid}`), shownToOthers: await this.doc(`parentLocations/${uid}`) };
+        return {
+          exact: await this.doc(`homes/${uid}`),
+          shownToOthers: await this.doc(`parentLocations/${uid}`),
+          // F46: a typed "my district isn't listed" waiting for the admins.
+          districtRequest: await this.doc(`placeRequests/${uid}`),
+        };
       case "carpools": {
         const ids = await this.carpoolIds(uid);
         const perCarpool: unknown[] = [];

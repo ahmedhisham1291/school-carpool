@@ -226,3 +226,110 @@ revised list ("implement all your suggestions"):
   may still reject `cp_emergency_contact`; see docs/meta-whatsapp-setup.md.)
 - **Settle up records:** kept while either parent's account is active, plus
   1 year (confirmed; same rule as trips).
+
+## Owner update (15 Nov 2026, 14:53)
+
+- **Admin panel language:** starts in English (the parents' app stays Arabic
+  by default). A language button is on the sign-in and two-step setup
+  screens as well as inside the panel.
+
+## Owner decision (16 Nov 2026): automatic AI name review in Cloud Shell
+
+- Every kept school name is reviewed by a model on Vertex AI in the owner's
+  Google Cloud project during step 12 (tools/import_schools/ai_review.py):
+  real school / drop / fix spelling and casing / same school as another /
+  wrong kind. Applied automatically at confidence 0.8 or more (configurable),
+  kept as is below; manual decisions (data/schools/review/decisions.csv)
+  win. Default model gemini-3.8-flash in the "eu" multi-region (europe-west1
+  does not serve it; "global" if eu answers 404); Claude Haiku on Vertex as
+  an option. Only public school names, kinds, categories and governorates are
+  sent, never positions or user data. Results are cached in the server-only
+  Firestore collection schoolReview. Admin-edited and parents' schools are
+  never dropped, renamed or merged away by it (the loader protects them);
+  nothing is deleted, only hidden.
+
+## Owner decisions (16 Nov 2026, after the first full staging run): a clean list
+
+- **No manual duplicate review:** duplicates are merged automatically
+  (tools/import_schools/dedupe.py: same name within 500 m; 85 % alike
+  within 300 m; Arabic and English names alike within 300 m; one name
+  inside the other within 100 m, or 300 m when the extra words are not a
+  place; a school's KG section within 300 m; same name within 2 km).
+  Branches of a chain with a place word in the name, different stages or
+  boys/girls never merge. A common name (the same core name in 3 or more
+  places of Egypt, e.g. "النور", "Al Nour", "الشهيد أحمد") merges only at
+  the same site: within 150 m (100 m for one name inside the other or a
+  KG and a school), never by the 2 km rule (validator B1). A merge is
+  never final: a review row `separate` keeps two entries apart, and a
+  school an earlier import merged comes back into the list when a later
+  run keeps it apart (validator B2). The survivor: owner list > OSM > Wikidata >
+  Overture (higher confidence first), best Arabic and English names, OSM or
+  Wikidata position; merged ids in `mergedFrom`, one row each in
+  build/schools/merged.csv. Already loaded duplicates get status "merged"
+  + mergedInto (never deleted); an admin-edited school is always the
+  survivor; parents' schools are never merged, only listed.
+- **Names only in Arabic or Latin letters:** mojibake is repaired, Arabic
+  presentation forms, fancy and fullwidth letters normalised, controls and
+  emoji removed; a school with no Arabic or Latin name is dropped ("Name
+  not in Arabic or English"); a few odd letters in a mostly Arabic/Latin
+  name are removed. Loaded schools that now fail are taken out of the list
+  (searchHidden + hiddenReason), never deleted.
+- **Tutoring centres and Quran memorisation are not schools** (سنتر, دروس,
+  IELTS, دار تحفيظ, كتاب); Overture preschools named for small children
+  ("Kids Academy", "Baby Club") are kept.
+- **A reviewer's decisions win:** data/schools/review/decisions.csv
+  (drop, keep, rename_ar, rename_en, set_kind, merge_into, separate) is
+  applied on every import and wins over the automatic rules.
+- **Areas are Egypt's ADM2 units** (qism / markaz / new city; OCHA COD-AB
+  on HDX, geoBoundaries as a fallback): OpenStreetMap has almost no
+  boundaries below the governorate in Egypt. Districts stay OpenStreetMap
+  (named neighbourhoods inside the area, boundaries where they exist).
+- **Empty child menus say why** ("Choose a city first", "No areas for this
+  city yet", "No districts for this area yet"); in the address form a city
+  with no areas lets the parent go on (area optional, district typed and
+  optional).
+
+## Owner decisions (16 Nov 2026): what counts as a school, more sources
+
+- **Schools, kindergartens and nurseries only.** Universities, colleges and
+  higher institutes are not in the list. The import keeps a switch for
+  them (`data/schools/categories.json`, `"university": false`); switched
+  on, they would be kept with kind `university` (the server and the search
+  index accept it; the app and admin type filter is not built). Nurseries
+  (حضانة, OSM `amenity=childcare`, Overture day-care places named like a
+  nursery) are kept with the kindergartens.
+- **Al-Azhar institutes are schools:** معهد أزهري ابتدائي / إعدادي / ثانوي
+  (and "Al-Azhar Institute ...") are kept as schools however they are
+  tagged; Al-Azhar University and its faculties are not.
+- **Overture Maps Places is the third source** (after OpenStreetMap and
+  Wikidata): CDLA Permissive 2.0 / Apache 2.0 / CC0 by provider, attribution
+  in open item D24; same keep/drop rules, merged into an OSM or Wikidata
+  school with the same name within 300 m, never the main entry when another
+  source has the school (coordinator, 16 Nov 2026).
+- **The OpenStreetMap download runs per governorate** (27 queries of at most
+  180 s) because the one-country query timed out on every public server;
+  a governorate that fails keeps its older file (its date is reported).
+
+## Owner decisions (16 Nov 2026): places and addresses
+
+- **City -> Area -> District, option 1 (keep both):** the per-school `areas`
+  of Prompt 6 (an area belongs to one school; carpools, search and chat use
+  them) stay unchanged. The new hierarchy is separate: City = governorate,
+  `placeAreas` (qism / markaz / new city) and `placeDistricts`
+  (neighbourhoods), from OpenStreetMap, managed by admins. Which OSM
+  admin_level is an Area or a District is measured at import time, not
+  assumed (SETUP.md 14).
+- **F46 home address:** City, Area and District as dropdown menus
+  (filterable; Area waits for City, District for Area; a change clears the
+  ones below; "My district isn't listed" -> typed and reviewed), street and
+  building, optional floor/apartment/landmark, then the pin confirmed on a
+  map; "Search instead" stays as a shortcut. Schools are grouped City ->
+  Area for browsing, with Algolia filters.
+
+## Owner decision (15 Nov 2026, 16:44)
+
+- **Schools list on staging:** load every Egyptian school and kindergarten
+  we can get from open data into staging; staging uses Algolia for school
+  search (paid plan accepted if needed). Source: OpenStreetMap through the
+  Overpass API (ODbL), fetched by `tool/cloud_setup.sh` step 12; owner CSV
+  lists are added when present (SETUP.md 14, docs/algolia-setup.md).

@@ -22,9 +22,13 @@ shared with data brokers.
 - **Is any data used to track the user?** **No**, for every type. No
   advertising, no IDFA, no data brokers; Analytics has no user ID and the
   advertising and IDFV keys are off in Info.plist.
-- **Privacy policy URL:** required by App Store Connect. The policy text is
-  in the app (Profile > Privacy); it must also be on a public web page
-  (open item in docs/open-items.md).
+- **Privacy policy URL:** `https://<prod project>-links.web.app/privacy`
+  (built by `tool/links_site.py`, docs/apple-review/submission-kit.md
+  step 6). The same text is reachable in the app: About > Legal and
+  support.
+- **Privacy manifest:** `tool/ios/PrivacyInfo.xcprivacy` declares the same
+  data types as the table below (a test compares them): change both
+  together.
 
 ## 2. Data types (select these in App Store Connect)
 
@@ -72,6 +76,8 @@ and is not in the app.
 | Google Maps Platform | App (map tiles) and server (Places, Routes) | Map views, typed address searches, car and stop points during a run | Who the parent is |
 | Valify | Server only (fake until the pilot) | ID images, selfie | n/a |
 | Wallet partner | Server only (fake until the pilot) | Wallet holder reference, amounts, the two parties | Children's data, chats |
+| Vertex AI (Google Cloud) | Owner's import tool only (`tools/import_schools/ai_review.py`), never the app or the functions | Public school names from the school list, to check spelling and duplicates | Anything about parents or children; names a parent types under "Other" (admins review those) |
+| Email delivery (Firebase "Trigger Email" extension with the owner's SMTP provider) | Server only | The parent's confirmed email address and the new-phone alert text | Anything else |
 | Apple Push (via FCM) | Server | Push token, short alert texts | Phone, coordinates, message text |
 
 ## 4. App Store Connect, step by step

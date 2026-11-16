@@ -10,6 +10,10 @@
  *   REVIEW_PHONE=<test number> REVIEW_CODE=<6 digits> \
  *   npm --prefix functions run review-access -- on <days 1-30> <superAdminUid>
  *
+ * A second demo phone (the other parent of the demo carpool) is optional:
+ * add REVIEW_PHONE_2=<another test number> REVIEW_CODE_2=<another 6 digits>.
+ * Then seed the demo data: scripts/review_demo.ts.
+ *
  *   GCLOUD_PROJECT=<project> npm --prefix functions run review-access -- off <superAdminUid>
  *
  * The number and the code come from the environment (not the command
@@ -56,9 +60,22 @@ async function main(): Promise<void> {
   const code = process.env.REVIEW_CODE ?? "";
   if (!CODE_PATTERN.test(code) || weakCode(code)) refuse("REVIEW_CODE must be 6 digits and not easy to guess");
   const expiresAtMs = Date.now() + days * 24 * 3600 * 1000;
-  await lists.audit({ actorUid, action: "auth.reviewAccess.on", target: REVIEW_ACCESS_DOC, reasonCode: "appReview", ip: null, details: { days } });
-  await ref.set({ ...reviewAccessFor(key, phone, code, expiresAtMs), updatedAt: new Date() });
-  console.log(`review access is on for ${days} days (number and code not shown)`);
+  // Optional second demo phone, with its own code.
+  const extra: Array<{ phoneKey: string; codeHash: string }> = [];
+  const rawPhone2 = process.env.REVIEW_PHONE_2 ?? "";
+  if (rawPhone2) {
+    const phone2 = toEgyptE164(rawPhone2);
+    if (!phone2 || phone2 === phone) refuse("REVIEW_PHONE_2 must be another Egyptian mobile number");
+    const code2 = process.env.REVIEW_CODE_2 ?? "";
+    if (!CODE_PATTERN.test(code2) || weakCode(code2) || code2 === code) refuse("REVIEW_CODE_2 must be 6 digits, not easy to guess and different from REVIEW_CODE");
+    const second = reviewAccessFor(key, phone2, code2, expiresAtMs);
+    extra.push({ phoneKey: second.phoneKey, codeHash: second.codeHash });
+  }
+  await lists.audit({ actorUid, action: "auth.reviewAccess.on", target: REVIEW_ACCESS_DOC, reasonCode: "appReview", ip: null, details: { days, phones: 1 + extra.length } });
+  await ref.set({ ...reviewAccessFor(key, phone, code, expiresAtMs), extra, updatedAt: new Date() });
+  console.log(`review access is on for ${days} days for ${1 + extra.length} demo phone(s) (numbers and codes not shown)`);
+  // Turning the access on again starts with no listed demo account: the seed lists them.
+  console.log("Now run `review-demo -- seed` (again): it lists the demo accounts for this window and renews their exemption.");
 }
 
 main().catch((error: unknown) => {

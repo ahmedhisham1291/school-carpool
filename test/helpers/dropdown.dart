@@ -1,0 +1,28 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
+
+/// Opens the AppDropdownMenu with [key] and taps the item [label].
+Future<void> pickFromDropdown(WidgetTester tester, Key key, String label) async {
+  await tester.tap(find.byKey(key));
+  await tester.pumpAndSettle();
+  // The item inside the open menu (MenuItemButton), not the same text
+  // elsewhere on the page (for example a "Cairo" cell of a results table).
+  // Long menus (27 cities) scroll: bring the item into view before tapping.
+  final Finder item = find.descendant(of: find.byType(MenuItemButton), matching: find.text(label)).last;
+  await tester.ensureVisible(item);
+  await tester.pumpAndSettle();
+  await tester.tap(item);
+  await tester.pumpAndSettle();
+}
+
+/// The text shown in the AppDropdownMenu with [key] (its field).
+String dropdownText(WidgetTester tester, Key key) {
+  final TextField field = tester.widget<TextField>(find.descendant(of: find.byKey(key), matching: find.byType(TextField)));
+  return field.controller?.text ?? '';
+}
+
+/// Whether the AppDropdownMenu with [key] can be opened.
+bool dropdownEnabled(WidgetTester tester, Key key) {
+  final TextField field = tester.widget<TextField>(find.descendant(of: find.byKey(key), matching: find.byType(TextField)));
+  return field.enabled ?? true;
+}
