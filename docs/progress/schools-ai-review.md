@@ -39,3 +39,10 @@ name review runs automatically inside the Cloud Shell run.
 No Google Cloud access: Vertex calls and the Firestore REST cache are
 tested with fakes only. Rules tests written, not run (emulators). Python
 (136) and Functions (842) tests run and pass.
+
+## Validator review (16 Nov 2026)
+
+docs/reviews/schools-ai-review.md: PASS after fixes B1-B5 (Gemini default
+temperature; AI merges re-checked against the dedupe guards and manual
+"separate"; stricter rename check; injection guard with suspicious batches;
+a failed run keeps earlier AI decisions so nothing hidden comes back).

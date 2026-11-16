@@ -1753,6 +1753,36 @@ def apply_entry_decisions(decisions: list[Decision], entries: list[RawEntry], re
         review.count(d.action, d.origin)
 
 
+AI_MERGE_MAX_M = 2000.0
+AI_MERGE_BLOCKING_KEEPS = ("stage", "one_sided", "people", "branches", "common_name")
+
+
+def ai_merge_blocked(a: School, b: School, separate: set[frozenset[str]], common: frozenset = frozenset()) -> str:
+    """Why an AI merge_into of school [a] into school [b] must not be applied
+    ("" when it may). The AI never overrides the duplicate rules' guards
+    (dedupe.judge: other stage, boys/girls, a person's name, a chain branch,
+    a common name far apart), a kind difference, a manual "separate", or
+    distance (both pinned, within 2 km). A human reviewer's merge_into is
+    not checked."""
+    import dedupe
+
+    if any(frozenset((x, y)) in separate for x in a.source_keys for y in b.source_keys):
+        return "separate"
+    if a.kind != b.kind:
+        return "kind"
+    if (a.stages - {"kg"}) != (b.stages - {"kg"}):
+        return "stage"
+    if a.genders != b.genders:
+        return "boys/girls"
+    if a.lat is None or a.lng is None or b.lat is None or b.lng is None:
+        return "no position"
+    d = distance_m(a.lat, a.lng, b.lat, b.lng)
+    if d > AI_MERGE_MAX_M:
+        return "too far"
+    verdict = dedupe.judge(a, b, d, dedupe.is_common(a, common) or dedupe.is_common(b, common))
+    return verdict.keep if verdict.keep in AI_MERGE_BLOCKING_KEEPS else ""
+
+
 def apply_merge_decisions(
     decisions: list[Decision], schools: list[School], groups: list[list[School]], links: list[MergeLink], review: ReviewOutcome
 ) -> tuple[list[School], list[list[School]]]:
@@ -1761,8 +1791,14 @@ def apply_merge_decisions(
     merges = [d for d in decisions if d.action == "merge_into"]
     if not merges:
         return schools, groups
+    separate = {frozenset((d.key, d.value)) for d in decisions if d.action == "separate" and d.origin == "review"}
     holder: dict[str, School] = {k: s for s in schools for k in s.source_keys}
     out = {s.id: s for s in schools}
+    common: frozenset = frozenset()
+    if any(d.origin != "review" for d in merges):
+        import dedupe
+
+        common = dedupe.common_cores(schools)
     for d in merges:
         a, b = holder.get(d.key), holder.get(d.value)
         if a is None or b is None:
@@ -1772,6 +1808,11 @@ def apply_merge_decisions(
         if a.id == b.id:
             review.count(d.action, d.origin)
             continue
+        if d.origin != "review":
+            why = ai_merge_blocked(a, b, separate, common)
+            if why:
+                review.count(f"merge_into blocked ({why})", d.origin)
+                continue
         combined = _merge([b, a])
         combined = School(**{**combined.__dict__, "id": b.id, "source": b.source, "source_id": b.source_id,
                              "lat": b.lat if b.lat is not None else a.lat, "lng": b.lng if b.lng is not None else a.lng,

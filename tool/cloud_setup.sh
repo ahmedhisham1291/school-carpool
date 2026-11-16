@@ -883,14 +883,24 @@ if [ "${#REAL_INPUTS[@]}" -gt 0 ]; then
       python3 tools/import_schools/ai_review.py --project "${PROJECT}" | tee "${SCHOOLS_OUT}/ai_review.txt"
     }
     run_step ai_review
-    if [ "${STEP_RC}" -eq 0 ] && [ -f build/schools/ai_decisions.csv ]; then
+    AI_RC="${STEP_RC}"
+    import_with_ai() {
+      python3 tools/import_schools/import_schools.py --ai-decisions build/schools/ai_decisions.csv >"${SCHOOLS_OUT}/import.txt"
+    }
+    if [ "${AI_RC}" -eq 0 ] && [ -f build/schools/ai_decisions.csv ]; then
       ok "$(sed -n 's/^AI review: \(ok .*\)/AI name review: \1/p' "${SCHOOLS_OUT}/ai_review.txt" | tail -1) (all verdicts: build/schools/ai_review.csv)"
       if grep -q 'call limit' "${SCHOOLS_OUT}/ai_review.txt"; then
         todo "AI name review stopped at its call limit (SCHOOLS_AI_MAX_CALLS); run this script again to review the rest."
       fi
-      import_with_ai() {
-        python3 tools/import_schools/import_schools.py --ai-decisions build/schools/ai_decisions.csv >"${SCHOOLS_OUT}/import.txt"
-      }
+      if grep -q '^AI review: incomplete' "${SCHOOLS_OUT}/ai_review.txt"; then
+        todo "AI name review stopped part-way (Vertex AI not reachable, model not enabled, or no access; see above). Earlier verdicts are applied; run this script again for the rest."
+      fi
+      if grep -q 'suspicious batches' "${SCHOOLS_OUT}/ai_review.txt"; then
+        todo "AI name review: some batches dropped too many schools and were NOT applied (look for 'suspicious' in build/schools/ai_review.csv); run this script again, or decide those names in data/schools/review/decisions.csv."
+      fi
+      run_step import_with_ai
+    elif [ -f build/schools/ai_decisions.csv ]; then
+      todo "AI name review did not run (no token or the schoolReview cache could not be read; see above). The previous run's AI decisions are applied again; run this script again later."
       run_step import_with_ai
     else
       todo "AI name review did not run (Vertex AI not reachable, model not available, or no access; see above). The list loads without it; run this script again later."
