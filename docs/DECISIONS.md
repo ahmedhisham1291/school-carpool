@@ -600,3 +600,8 @@ Where an item replaces an earlier decision, it says so.
   87/2018 opinion covers F39): one activity at one venue (a search names
   the activity), joining by approval plus every parent's driver consent
   (F26), no public offers (never on the nearby map's parent list).
+- **R10 - processor contracts:** `docs/legal/processor-checklist.md`
+  (clauses C1-C13: instructions only, no reuse or model training, 24-hour
+  breach notice with the Regs Art. 5 contents, region, sub-processors,
+  deletion, audit); big vendors' standard DPAs accepted as they are;
+  Sentry and Algolia move to EU regions where the plan allows (owner).

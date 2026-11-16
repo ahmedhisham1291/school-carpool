@@ -81,7 +81,11 @@ docs/legal/egypt-legal-review.md. **This is not legal advice: take steps 1 to
 10. **Processor contracts.** Accept or sign the data processing terms of
     Google Cloud/Firebase, Meta (WhatsApp Business), Algolia, Sentry, the
     email provider and Valify; note each one's data region in
-    `docs/legal/records-of-processing.md`.
+    `docs/legal/records-of-processing.md`. Go through
+    `docs/legal/processor-checklist.md` (R10) for each one: 24-hour breach
+    notice in the contracts we can negotiate (Valify, email provider), and
+    **move Sentry and Algolia to their EU regions** before the pilot if
+    the plans allow it (steps in that file).
 11. **Existing testers.** The terms, privacy policy and ID consents changed
     (version 2026-11-16) and a new "Storage abroad" consent was added.
     Recommended (safe side): ask every existing account to accept again

@@ -37,5 +37,5 @@ the same project. **Last reviewed:** 16 Nov 2026.
 health data, data of children as users (children do not use the app).
 
 **To complete (DPO):** the processor agreement and the region of each
-processor (Meta, Algolia, Sentry, email provider, Valify); the PDPC licence
+processor (checklist and status table: `docs/legal/processor-checklist.md`, R10) (Meta, Algolia, Sentry, email provider, Valify); the PDPC licence
 numbers; the transfer-impact note per destination country.
