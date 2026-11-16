@@ -624,3 +624,6 @@ Where an item replaces an earlier decision, it says so.
 - **R13 - annual penetration test** (Decree 1699/2020 Art. 2): before the
   pilot, then every 12 months and after big changes; owner action 16,
   SECURITY.md, COSTS.md.
+- **R14 - trademark search and filing after incorporation**, and the
+  pilot school's **written no-objection** before the pilot there (owner
+  actions 6 and 7a; never suggest school or Ministry endorsement).

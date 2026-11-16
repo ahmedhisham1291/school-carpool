@@ -49,9 +49,22 @@ docs/legal/egypt-legal-review.md. **This is not legal advice: take steps 1 to
    comprehensive cover and a passenger personal-accident policy. The app
    never sells insurance and never takes a referral fee. Ask the lawyer
    question 2.3.
-6. **The pilot school.** Tell the school about the pilot and ask whether it
-   has rules on parents carrying other pupils (question 3.1); keep its
-   answer.
+6. **The pilot school: a written no-objection (answers.md 3.1).** Send the
+   school a short letter (Arabic): the app is a free tool for its pupils'
+   parents to share school runs by turns in their own cars; the school
+   does not run, check or endorse it; ask whether it has rules on parents
+   carrying other pupils or on the gate, and ask for its **written
+   no-objection**. Keep the signed reply with the company records. Do not
+   start the pilot at that school without it. Never use the school's logo
+   or wording that suggests the school or the Ministry endorses the app.
+7a. **Trademark (R14, answers.md 7.2), after incorporation.** Ask an IP
+   lawyer for a search at the Egyptian Intellectual Property Authority
+   (trademarks, Law 82/2002, Authority under Law 163/2023) for the app's
+   Arabic and English names, then file the mark in the company's name in
+   the classes for software (9) and the online service (39/42, the lawyer
+   chooses). The company name also needs the Commercial Registry's
+   non-confusion certificate (step 1). Until then avoid logos or wording
+   that suggest a school, the Ministry or another brand.
 
 ## Settings and deploys
 
