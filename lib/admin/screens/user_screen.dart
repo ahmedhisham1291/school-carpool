@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/data/admin_api.dart';
+import 'package:school_carpool/admin/data/admin_features.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
@@ -207,16 +208,19 @@ class _UserScreenState extends ConsumerState<UserScreen> {
                   ),
                 ),
               ],
-              // Prompt 11B: the parent's wallet (read only, freeze).
-              AppListRow(
-                key: const Key('user.wallet'),
-                inset: false,
-                title: l10n.adminWalletOneTitle,
-                leadingIcon: Icons.account_balance_wallet_outlined,
-                onTap: () => context.go(AdminRoutes.wallet(widget.uid)),
-              ),
-              // F45: the parent's settle-up records (read only, logged reason).
-              UserSettleUpSection(uid: widget.uid),
+              // Prompt 11B: the parent's wallet (read only, freeze); shown
+              // only while the wallet is on (no money in the app, 16 Nov 2026).
+              if (adminSwitchesNow(ref).wallet)
+                AppListRow(
+                  key: const Key('user.wallet'),
+                  inset: false,
+                  title: l10n.adminWalletOneTitle,
+                  leadingIcon: Icons.account_balance_wallet_outlined,
+                  onTap: () => context.go(AdminRoutes.wallet(widget.uid)),
+                ),
+              // F45: the parent's settle-up records (read only, logged reason),
+              // only while Settle up is on.
+              if (adminSwitchesNow(ref).settleUp) UserSettleUpSection(uid: widget.uid),
               const SizedBox(height: AppSpacing.s24),
               AppSectionHeader(l10n.adminVerificationHistory),
               if (d.cases.isEmpty)

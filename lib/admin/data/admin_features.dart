@@ -92,6 +92,7 @@ class FirebaseAdminFeaturesApi implements AdminFeaturesApi {
       ratingsAndVouching: f.flag('ratingsAndVouching'),
       yearlyChecks: f.flag('yearlyChecks'),
       settleUp: f.flag('settleUp'),
+      contributions: f.flag('contributions'),
     );
   }
 
@@ -112,3 +113,15 @@ class FirebaseAdminFeaturesApi implements AdminFeaturesApi {
 final Provider<AdminFeaturesApi> adminFeaturesApiProvider = Provider<AdminFeaturesApi>(
   (Ref ref) => FirebaseAdminFeaturesApi(functionsClient()),
 );
+
+/// The switches as the panel uses them to hide what is off (the wallet
+/// section, a parent's wallet and settle-up records). Read once; the
+/// Settings page refreshes it after a change.
+final FutureProvider<FeatureSwitches> adminSwitchesProvider = FutureProvider<FeatureSwitches>(
+  (Ref ref) => ref.watch(adminFeaturesApiProvider).features(),
+);
+
+/// The switches now: the stored values, or the pilot defaults (all money
+/// features off) while loading and on any error, so a money section is
+/// never shown before the server said it is on.
+FeatureSwitches adminSwitchesNow(WidgetRef ref) => ref.watch(adminSwitchesProvider).value ?? FeatureSwitches.pilot;

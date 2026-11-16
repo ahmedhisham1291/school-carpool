@@ -118,9 +118,10 @@ async function readyCarpool(deps: CarpoolDeps): Promise<string> {
     seats: 4,
     childIds: ["a1"],
     rules: [],
+    acceptVolunteer: true,
   });
   for (const [uid, kids] of [["bob", ["b1", "b2"]], ["cara", ["c1"]]] as const) {
-    await requestToJoin(deps, as(uid), { carpoolId, childIds: kids, acceptRules: true });
+    await requestToJoin(deps, as(uid), { carpoolId, childIds: kids, acceptRules: true, acceptVolunteer: true });
     await decideJoinRequest(deps, as("alice"), { carpoolId, uid, approve: true });
   }
   for (const [parent, driver] of [["bob", "alice"], ["cara", "alice"], ["alice", "bob"], ["cara", "bob"]]) {
@@ -396,14 +397,14 @@ describe("guardian links (spouse linked to the same children)", () => {
     await answerGuardianRequest(t.deps, as("bob"), { requestId, accept: true, childIds: ["b1"] });
     // The carpool store sees linked children as Dina's too (FirestoreCarpoolStore.approvedChildren).
     t.carpoolStore.children.set("dina", [{ id: "b1", firstName: "Bassel", grade: "g2", schoolId: "nile" }]);
-    await rejects(requestToJoin(t.carpools, as("dina"), { carpoolId: k, childIds: ["b1"], acceptRules: true }), "child-in-carpool");
+    await rejects(requestToJoin(t.carpools, as("dina"), { carpoolId: k, childIds: ["b1"], acceptRules: true, acceptVolunteer: true }), "child-in-carpool");
     // Bob takes Bassel out (link ends for his side in another carpool): Dina may bring him.
     await removeChildFromCarpools(t.carpools, "bob", "b1");
     const bob = t.carpoolStore.members.get(k)?.get("bob");
     assert.deepEqual(bob?.children.map((c) => c.id), ["b2"]);
     assert.ok(runsOf(t.carpoolStore, k).every((r) => !r.riders.some((x) => x.id === "b1")));
     assert.equal(t.carpoolStore.carpools.get(k)?.childrenCount, 3);
-    await requestToJoin(t.carpools, as("dina"), { carpoolId: k, childIds: ["b1"], acceptRules: true });
+    await requestToJoin(t.carpools, as("dina"), { carpoolId: k, childIds: ["b1"], acceptRules: true, acceptVolunteer: true });
     await decideJoinRequest(t.carpools, as("alice"), { carpoolId: k, uid: "dina", approve: true });
     // Bob ends the link: Bassel leaves Dina's carpools, and Dina, with no
     // child left in it, leaves the carpool (and its chat).

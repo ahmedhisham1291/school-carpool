@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/auth/idle_timeout.dart';
 import 'package:school_carpool/admin/data/admin_api.dart';
+import 'package:school_carpool/admin/data/admin_features.dart';
 import 'package:school_carpool/admin/data/admin_failure.dart';
 import 'package:school_carpool/admin/data/admin_models.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
@@ -25,7 +26,9 @@ class AdminSection {
   final String Function(AppLocalizations l10n) label;
 }
 
-List<AdminSection> adminSections({required bool superAdmin}) => <AdminSection>[
+/// [wallet]: the Wallet section shows only while the wallet switch is on
+/// (no money in the app: owner decision 16 Nov 2026).
+List<AdminSection> adminSections({required bool superAdmin, bool wallet = false}) => <AdminSection>[
   AdminSection(AdminRoutes.queue, Icons.fact_check_outlined, Icons.fact_check, (AppLocalizations l) => l.adminNavQueue),
   AdminSection(AdminRoutes.users, Icons.people_outline, Icons.people, (AppLocalizations l) => l.adminNavUsers),
   AdminSection(AdminRoutes.schools, Icons.school_outlined, Icons.school, (AppLocalizations l) => l.adminNavSchools),
@@ -37,12 +40,13 @@ List<AdminSection> adminSections({required bool superAdmin}) => <AdminSection>[
   ),
   AdminSection(AdminRoutes.places, Icons.map_outlined, Icons.map, (AppLocalizations l) => l.adminNavPlaces),
   AdminSection(AdminRoutes.reports, Icons.flag_outlined, Icons.flag, (AppLocalizations l) => l.adminNavReports),
-  AdminSection(
-    AdminRoutes.wallets,
-    Icons.account_balance_wallet_outlined,
-    Icons.account_balance_wallet,
-    (AppLocalizations l) => l.adminNavWallet,
-  ),
+  if (wallet)
+    AdminSection(
+      AdminRoutes.wallets,
+      Icons.account_balance_wallet_outlined,
+      Icons.account_balance_wallet,
+      (AppLocalizations l) => l.adminNavWallet,
+    ),
   AdminSection(AdminRoutes.trust, Icons.shield_outlined, Icons.shield, (AppLocalizations l) => l.adminNavTrust),
   AdminSection(AdminRoutes.audit, Icons.history_outlined, Icons.history, (AppLocalizations l) => l.adminNavAudit),
   // Pilot feature switches: every admin sees them, a super admin changes them.
@@ -104,7 +108,7 @@ class _AdminShellState extends ConsumerState<AdminShell> {
     final String location = widget.location;
     final AppLocalizations l10n = context.l10n;
     final AdminUser? user = adminUserOf(ref.watch(adminSessionProvider));
-    final List<AdminSection> sections = adminSections(superAdmin: user?.isSuperAdmin ?? false);
+    final List<AdminSection> sections = adminSections(superAdmin: user?.isSuperAdmin ?? false, wallet: adminSwitchesNow(ref).wallet);
     final int index = sections.indexWhere((AdminSection s) => location.startsWith(s.path));
 
     return IdleTimeout(

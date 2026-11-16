@@ -38,6 +38,8 @@ import {
   type CarpoolDeps,
 } from "./flow";
 import { CARPOOL_ERROR_CODES, CarpoolError } from "./model";
+import { featureOffError, featureOn } from "../features/gate";
+import { FeatureOffError } from "../features/model";
 import { FirestoreCarpoolStore } from "./store";
 import { noteAbuse } from "../privacy/abuse_hook";
 import { gatedCall, isReviewDemoCaller, demoAccountError, realParentCall } from "../privacy/device_gate";
@@ -82,6 +84,7 @@ export function deps(): CarpoolDeps {
     newCode: newInviteCode,
     linkBase: INVITE_LINK_BASE.value(),
     deadlines: deadlineSettings(SCHEDULE_CONFIRM_BY.value(), SCHEDULE_LATE_LEAD_MIN.value()),
+    contributionsOn: () => featureOn("contributions"),
   };
 }
 
@@ -96,6 +99,7 @@ export async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
     return await body();
   } catch (error) {
     if (error instanceof HttpsError) throw error;
+    if (error instanceof FeatureOffError) throw featureOffError(error.feature);
     if (error instanceof CarpoolError) {
       throw new HttpsError(CARPOOL_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, {
         reason: error.reason,

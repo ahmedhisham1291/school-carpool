@@ -17,20 +17,33 @@
  * Pure; unit-tested (test/features.test.ts).
  */
 
-export const FEATURE_KEYS = ["wallet", "ratingsAndVouching", "yearlyChecks", "settleUp"] as const;
+export const FEATURE_KEYS = ["wallet", "ratingsAndVouching", "yearlyChecks", "settleUp", "contributions"] as const;
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
 export type FeatureSwitches = Readonly<Record<FeatureKey, boolean>>;
 
-/** A missing document, or a missing or odd field, reads as these. */
+/**
+ * A missing document, or a missing or odd field, reads as these.
+ *
+ * NO MONEY IN THE APP (owner decision 16 Nov 2026, docs/DECISIONS.md,
+ * supersedes "Settle up for the pilot"): rides are free volunteer turns
+ * between parents. The wallet, Settle up and the per-child contribution
+ * (F25) are OFF in every environment; their code stays. Turning one on is
+ * an owner decision that needs the lawyer first (docs/legal/
+ * egypt-legal-review.md, Law 87/2018 and insurance).
+ */
 export const PILOT_DEFAULTS: FeatureSwitches = {
   wallet: false,
   ratingsAndVouching: false,
   yearlyChecks: false,
-  settleUp: true,
+  settleUp: false,
+  contributions: false,
 };
 
+/** The switches that carry money or a cost between parents (all off by default). */
+export const MONEY_FEATURES: readonly FeatureKey[] = ["wallet", "settleUp", "contributions"];
+
 /** Every switch on (unit tests of the features themselves). */
-export const ALL_ON: FeatureSwitches = { wallet: true, ratingsAndVouching: true, yearlyChecks: true, settleUp: true };
+export const ALL_ON: FeatureSwitches = { wallet: true, ratingsAndVouching: true, yearlyChecks: true, settleUp: true, contributions: true };
 
 export const FEATURES_DOC = "config/features";
 
@@ -41,10 +54,8 @@ export const FEATURE_CACHE_MS = 30_000;
  * FAIL CLOSED: after this many reads in a row have failed, an instance
  * stops trusting its last known copy and uses the pilot defaults until a
  * read works again. So a stale "on" cannot outlive a switch-off for long
- * when Firestore cannot be read: the wallet, ratings and vouching and the
- * yearly check go off (their defaults). Settle up's default is on: it
- * moves no money and each of its calls needs Firestore anyway, so staying
- * on changes nothing while Firestore is unreachable.
+ * when Firestore cannot be read: every switch goes back to its default,
+ * and every default is off (the money features included).
  */
 export const FEATURE_MAX_FAILED_READS = 3;
 
@@ -166,6 +177,13 @@ export const GATED_FUNCTIONS: Readonly<Record<FeatureKey, { callables: readonly 
   },
   yearlyChecks: {
     callables: ["confirmSchoolYear"],
+    jobs: [],
+  },
+  // F25: the per-child contribution has no callable of its own:
+  // createCarpool refuses a contribution and requestToJoinCarpool ignores
+  // one while it is off, and searches leave it out (carpools/flow.ts).
+  contributions: {
+    callables: [],
     jobs: [],
   },
   settleUp: {

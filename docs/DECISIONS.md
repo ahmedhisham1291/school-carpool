@@ -333,3 +333,36 @@ revised list ("implement all your suggestions"):
   search (paid plan accepted if needed). Source: OpenStreetMap through the
   Overpass API (ODbL), fetched by `tool/cloud_setup.sh` step 12; owner CSV
   lists are added when present (SETUP.md 14, docs/algolia-setup.md).
+
+## Owner decision (16 Nov 2026): no money in the app; rides are free volunteer turns
+
+Confirmed by the owner through the coordinator. **Supersedes** "Improvements,
+revised" item 8 ("Settle up by InstaPay replaces the wallet for the pilot")
+and the F25 "optional contribution per child".
+
+- **Core fact:** the service is completely free and non-commercial. Each
+  parent volunteers to drive the children on some days, by turns. No parent
+  pays another parent for rides, there are no fares and the app takes no fee.
+- **Every money feature is OFF in every environment (dev, staging, prod):**
+  the wallet (F43), Settle up (F45) and the contribution per child (F25,
+  new switch `contributions`). The defaults in `functions/src/features/model.ts`
+  (`PILOT_DEFAULTS`) and `lib/features/feature_switches/feature_switches.dart`
+  (`FeatureSwitches.pilot`) are all off, so a project with no
+  `config/features` document has no money feature. **If a staging or prod
+  project already has `config/features` with `settleUp: true`, a super admin
+  switches it off in Admin panel > Settings** (docs/legal/owner-actions.md).
+- **Code is kept, not deleted.** While off: the app shows no money UI (no
+  wallet or Settle up rows, buttons, cards, InstaPay fields, contribution
+  amounts or steps; deep links show "Not available yet"); the admin panel
+  hides the Wallet section and a parent's wallet and settle-up records; the
+  server refuses every wallet and Settle up callable with `feature-off`,
+  refuses a new contribution and never asks a joining parent to accept one.
+- **Volunteer acknowledgement:** creating or joining a carpool needs the box
+  "Free turns, no payment" (version `VOLUNTEER_TERMS_VERSION`, stored on the
+  membership).
+- **Switching any money feature on again** is a new owner decision that
+  needs the lawyer first (docs/legal/egypt-legal-review.md: Law 87/2018,
+  insurance recourse, CBE). Ride-linked costs (fuel, per child, per run or
+  per km) should stay out of the app even then.
+- Store texts, review notes, the privacy manifest and App Privacy answers
+  no longer declare financial data.

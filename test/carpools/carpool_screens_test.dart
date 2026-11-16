@@ -312,6 +312,11 @@ void main() {
       await _tapVisible(tester, 'create.contribution');
       await tester.enterText(find.byKey(const Key('create.amount')), '50');
       await tester.pumpAndSettle();
+      // The volunteer box (free turns, no payment) must be ticked first.
+      await _tapVisible(tester, 'create.next');
+      expect(carpools.created, isNull);
+      expect(find.text('Tick “Free turns, no payment” to continue.'), findsOneWidget);
+      await _tapVisible(tester, 'create.volunteer');
       await _tapVisible(tester, 'create.next');
 
       final CarpoolDraft? draft = carpools.created;
@@ -351,6 +356,7 @@ void main() {
       await _tapVisible(tester, 'create.next');
       await _tapVisible(tester, 'create.child.c1');
       await _tapVisible(tester, 'create.next');
+      await _tapVisible(tester, 'create.volunteer');
       await _tapVisible(tester, 'create.next');
       expect(find.byKey(const Key('create.saveError')), findsOneWidget);
       expect(find.text('More seats than your car has.'), findsOneWidget);
@@ -375,7 +381,10 @@ void main() {
       await tester.tap(find.byKey(const Key('join.rules')));
       await tester.pumpAndSettle();
       final AppButton send = tester.widget<AppButton>(find.byKey(const Key('join.send')));
-      expect(send.onPressed, isNull, reason: 'the contribution must be accepted too');
+      expect(send.onPressed, isNull, reason: 'the volunteer terms and the contribution must be accepted too');
+      await tester.tap(find.byKey(const Key('join.volunteer')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<AppButton>(find.byKey(const Key('join.send'))).onPressed, isNull, reason: 'the contribution too');
       await tester.tap(find.byKey(const Key('join.contribution')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('join.send')));
@@ -465,11 +474,12 @@ void main() {
       expect(uri.queryParameters, <String, String>{'carpool': 'k1', 'amount': '5000'});
     });
 
-    testWidgets('pilot switches: no Pay contribution while the wallet is off; the contribution is paid in cash or by Settle up', (WidgetTester tester) async {
-      final GoRouter router = await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: memberRepo(), features: FeatureSwitches.pilot));
+    testWidgets('Settle up on, wallet off: no Pay contribution; the contribution is paid in cash or by Settle up', (WidgetTester tester) async {
+      final FeatureSwitches settle = FeatureSwitches.pilot.copyWith(settleUp: true, contributions: true);
+      final GoRouter router = await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: memberRepo(), features: settle));
       expect(find.byKey(const Key('detail.payContribution')), findsNothing);
       final AppLocalizations en = lookupAppLocalizations(AppLocales.english);
-      expect(contributionHelperText(en, FeatureSwitches.pilot), contains('paid in cash or by Settle up'));
+      expect(contributionHelperText(en, settle), contains('paid in cash or by Settle up'));
       expect(contributionHelperText(en, FeatureSwitches.allOn), contains('from the wallet'));
       // Settle up (F45) opens with this carpool.
       await _tapVisible(tester, 'detail.settleUp');
@@ -478,15 +488,50 @@ void main() {
       expect(uri.queryParameters, <String, String>{'carpool': 'k1'});
     });
 
-    testWidgets('pilot switches: with Settle up off too, the contribution is paid in cash and there is no Settle up row', (WidgetTester tester) async {
-      final FeatureSwitches off = FeatureSwitches.pilot.copyWith(settleUp: false);
-      await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: memberRepo(), features: off), height: 3000);
+    testWidgets('pilot switches (no money in the app): no amount, no Settle up, no Pay contribution; the carpool says free turns', (WidgetTester tester) async {
+      final FakeCarpoolRepository carpools = memberRepo();
+      await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: carpools, features: FeatureSwitches.pilot), height: 3000);
       expect(find.byKey(const Key('detail.settleUp')), findsNothing);
       expect(find.byKey(const Key('detail.payContribution')), findsNothing);
-      expect(contributionHelperText(lookupAppLocalizations(AppLocales.english), off), contains('paid in cash. The app takes nothing.'));
+      expect(find.byKey(const Key('detail.contribution')), findsNothing);
+      expect(find.text('EGP 50/child/week'), findsNothing, reason: 'an old contribution is not shown while contributions are off');
+      expect(find.byKey(const Key('detail.free')), findsOneWidget);
+      expect(find.text('Free: parents take turns'), findsOneWidget);
+      expect(find.byIcon(Icons.payments_outlined), findsNothing);
       // The core rows are untouched.
       expect(find.byKey(const Key('detail.schedule')), findsOneWidget);
       expect(find.byKey(const Key('detail.chat')), findsOneWidget);
+    });
+
+    testWidgets('pilot switches: joining never asks for a contribution, only rules and the volunteer terms', (WidgetTester tester) async {
+      final FakeCarpoolRepository carpools = FakeCarpoolRepository();
+      await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: carpools, children: const <ChildRecord>[_adam, _jana], features: FeatureSwitches.pilot));
+      await _tapVisible(tester, 'detail.join');
+      await tester.tap(find.byKey(const Key('join.child.c1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('join.rules')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('join.contribution')), findsNothing);
+      expect(tester.widget<AppButton>(find.byKey(const Key('join.send'))).onPressed, isNull, reason: 'the volunteer terms first');
+      await tester.tap(find.byKey(const Key('join.volunteer')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('join.send')));
+      await tester.pumpAndSettle();
+      expect(carpools.calls, contains('join:k1:c1:false'));
+    });
+
+    testWidgets('pilot switches: creating has no contribution step, only the volunteer box', (WidgetTester tester) async {
+      final FakeCarpoolRepository carpools = FakeCarpoolRepository();
+      await _pump(tester, '${CarpoolRoutes.create}?school=nile', overrides: _overrides(carpools: carpools, vehicle: _car, features: FeatureSwitches.pilot));
+      await _tapVisible(tester, 'create.next');
+      await _tapVisible(tester, 'create.next');
+      await _tapVisible(tester, 'create.child.c1');
+      await _tapVisible(tester, 'create.next');
+      expect(find.byKey(const Key('create.contribution')), findsNothing);
+      await _tapVisible(tester, 'create.volunteer');
+      await _tapVisible(tester, 'create.next');
+      expect(carpools.created?.contribution, isNull);
+      expect(carpools.created?.toJson()['acceptVolunteer'], isTrue);
     });
 
     testWidgets('Pay contribution is not offered to the organizer', (WidgetTester tester) async {

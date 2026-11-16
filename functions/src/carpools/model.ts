@@ -41,6 +41,17 @@ export const CARPOOL_RULES = [
 export type CarpoolRule = (typeof CARPOOL_RULES)[number];
 
 export const CONTRIBUTION_PERIODS = ["trip", "week", "month"] as const;
+
+/**
+ * Volunteer acknowledgement (owner, 16 Nov 2026; docs/legal/
+ * egypt-legal-review.md, Law 87/2018): whoever creates or joins a carpool
+ * confirms that rides are free volunteer turns between parents, that each
+ * parent drives their own car at their own responsibility, that nobody is
+ * paid for a ride and that the app provides no transport. The version is
+ * stored on the membership (ARB joinAcceptVolunteer*). A new wording
+ * raises it.
+ */
+export const VOLUNTEER_TERMS_VERSION = "2026-11-16";
 export type ContributionPeriod = (typeof CONTRIBUTION_PERIODS)[number];
 
 export type CarpoolKind = "school" | "activity";
@@ -228,6 +239,8 @@ export interface MembershipRecord {
   drivingDays: Day[];
   acceptedRules: boolean;
   acceptedContribution: boolean;
+  /** VOLUNTEER_TERMS_VERSION accepted at create or join (absent on memberships made before it). */
+  volunteerTerms?: string | null;
   requestedAtMs: number;
   decidedAtMs: number | null;
   decidedBy: string | null;

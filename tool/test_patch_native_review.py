@@ -189,9 +189,11 @@ class PrivacyManifestTest(unittest.TestCase):
             self.assertTrue(d["NSPrivacyCollectedDataTypePurposes"])
             types[d["NSPrivacyCollectedDataType"].replace("NSPrivacyCollectedDataType", "")] = d["NSPrivacyCollectedDataTypeLinked"]
         # Same rows as docs/app-store-privacy.md section 2 (linked or not).
+        self.assertNotIn("OtherFinancialInfo", types)
         self.assertEqual(types, {
             "Name": True, "EmailAddress": True, "PhoneNumber": True, "PhysicalAddress": True,
-            "OtherFinancialInfo": True, "PreciseLocation": True, "CoarseLocation": False, "SensitiveInfo": True,
+            # No money in the app (owner, 16 Nov 2026): no OtherFinancialInfo.
+            "PreciseLocation": True, "CoarseLocation": False, "SensitiveInfo": True,
             "PhotosorVideos": True, "OtherUserContent": True, "CustomerSupport": True, "SearchHistory": False,
             "UserID": True, "DeviceID": True, "ProductInteraction": False, "CrashData": True,
             "OtherDiagnosticData": True, "OtherDataTypes": True,

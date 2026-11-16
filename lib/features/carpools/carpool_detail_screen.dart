@@ -137,7 +137,8 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
     final bool admin = member && (m?.isAdmin ?? false);
     final Contribution? contribution = c.contribution;
     // Pilot feature switches: how a contribution is paid follows what is on.
-    final String contributionHelper = contributionHelperText(l10n, ref.watch(featureSwitchesProvider));
+    final FeatureSwitches switches = ref.watch(featureSwitchesProvider);
+    final String contributionHelper = contributionHelperText(l10n, switches);
     final String area = c.kind == CarpoolKind.activity ? c.activityLabel : c.areaName(language);
     final TextStyle? quiet = context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant);
 
@@ -189,13 +190,24 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
           leadingIcon: Icons.event_seat_outlined,
           showChevron: false,
         ),
-        AppListRow(
-          key: const Key('detail.contribution'),
-          title: contribution == null ? l10n.contributionNone : contributionText(l10n, contribution),
-          subtitle: contribution == null || contribution.note.isEmpty ? contributionHelper : contribution.note,
-          leadingIcon: Icons.payments_outlined,
-          showChevron: false,
-        ),
+        // No money in the app (owner, 16 Nov 2026): while contributions are
+        // off the carpool says it is free volunteer turns, never an amount.
+        if (switches.contributions)
+          AppListRow(
+            key: const Key('detail.contribution'),
+            title: contribution == null ? l10n.contributionNone : contributionText(l10n, contribution),
+            subtitle: contribution == null || contribution.note.isEmpty ? contributionHelper : contribution.note,
+            leadingIcon: Icons.payments_outlined,
+            showChevron: false,
+          )
+        else
+          AppListRow(
+            key: const Key('detail.free'),
+            title: l10n.carpoolFreeTitle,
+            subtitle: l10n.carpoolFreeHelper,
+            leadingIcon: Icons.volunteer_activism_outlined,
+            showChevron: false,
+          ),
         AppSectionHeader(l10n.carpoolRulesSection),
         Padding(
           padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.screenGutter),
@@ -275,7 +287,12 @@ class _CarpoolDetailScreenState extends ConsumerState<CarpoolDetailScreen> {
     final _JoinChoice? choice = await showAppSheet<_JoinChoice>(
       context: context,
       title: context.l10n.carpoolAskToJoin,
-      body: _JoinSheet(carpool: c, children: eligible, contributionHelper: contributionHelperText(context.l10n, ref.read(featureSwitchesProvider))),
+      body: _JoinSheet(
+        carpool: c,
+        children: eligible,
+        contributionHelper: contributionHelperText(context.l10n, ref.read(featureSwitchesProvider)),
+        contributionsOn: ref.read(featureSwitchesProvider).contributions,
+      ),
     );
     if (choice == null || !mounted) {
       return;
@@ -659,16 +676,21 @@ class _JoinChoice {
   final bool acceptContribution;
 }
 
-/// Ask to join (F6): which children ride, and accepting the rules (F36)
-/// and the contribution (F25). Checks the free seats as the parent picks.
+/// Ask to join (F6): which children ride, and accepting the rules (F36),
+/// the volunteer terms (free turns, no payment for rides; Law 87/2018 in
+/// docs/legal/egypt-legal-review.md) and, only while its switch is on, the
+/// contribution (F25). Checks the free seats as the parent picks.
 class _JoinSheet extends StatefulWidget {
-  const _JoinSheet({required this.carpool, required this.children, required this.contributionHelper});
+  const _JoinSheet({required this.carpool, required this.children, required this.contributionHelper, required this.contributionsOn});
 
   final Carpool carpool;
   final List<ChildRecord> children;
 
   /// How the contribution is paid (cash, Settle up or the wallet, by what is on).
   final String contributionHelper;
+
+  /// The "contributions" switch: off, no contribution is shown or accepted.
+  final bool contributionsOn;
 
   @override
   State<_JoinSheet> createState() => _JoinSheetState();
@@ -677,19 +699,20 @@ class _JoinSheet extends StatefulWidget {
 class _JoinSheetState extends State<_JoinSheet> {
   final Set<String> _picked = <String>{};
   bool _rules = false;
+  bool _volunteer = false;
   bool _contribution = false;
 
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = context.l10n;
     final Carpool c = widget.carpool;
-    final Contribution? contribution = c.contribution;
+    final Contribution? contribution = widget.contributionsOn ? c.contribution : null;
     if (widget.children.isEmpty) {
       return AppInlineMessage(key: const Key('join.noChildren'), message: l10n.joinNoChildren, tone: AppStateTone.warning);
     }
     final bool fits = fitsSeats(_picked.length, c.seatsLeft);
     final String? seatError = _picked.length > c.seatsLeft ? l10n.joinTooManyChildren(c.seatsLeft) : null;
-    final bool ready = fits && _rules && (contribution == null || _contribution);
+    final bool ready = fits && _rules && _volunteer && (contribution == null || _contribution);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -710,6 +733,13 @@ class _JoinSheetState extends State<_JoinSheet> {
           label: c.rules.isEmpty ? l10n.joinAcceptNoRules : l10n.joinAcceptRules,
           value: _rules,
           onChanged: (bool on) => setState(() => _rules = on),
+        ),
+        AppCheckRow(
+          key: const Key('join.volunteer'),
+          label: l10n.volunteerAccept,
+          helperText: l10n.volunteerAcceptHelper,
+          value: _volunteer,
+          onChanged: (bool on) => setState(() => _volunteer = on),
         ),
         if (contribution != null)
           AppCheckRow(

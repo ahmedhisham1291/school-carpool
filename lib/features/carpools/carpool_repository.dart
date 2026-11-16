@@ -143,6 +143,8 @@ class FirebaseCarpoolRepository implements CarpoolRepository {
         'carpoolId': carpoolId,
         'childIds': childIds,
         'acceptRules': true,
+        // The join sheet sends only after the volunteer box is ticked.
+        'acceptVolunteer': true,
         'acceptContribution': acceptContribution,
       });
 

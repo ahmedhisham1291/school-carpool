@@ -69,8 +69,14 @@ class LegalPagesTest(unittest.TestCase):
                          "Sentry", "Google Maps", "never sell", "Personal Data Protection Centre"):
                 self.assertIn(must, privacy)
             terms = (out / "terms.html").read_text(encoding="utf-8")
-            for must in ("no tolerance for objectionable content", "within 24 hours", "122", "123", "does not replace", "InstaPay", "no commission"):
+            for must in ("no tolerance for objectionable content", "within 24 hours", "122", "123", "does not replace", "no commission",
+                         "free volunteer turns", "No parent pays another parent for a ride"):
                 self.assertIn(must, terms)
+            # No money in the app (owner, 16 Nov 2026): no payment wording on the public pages.
+            for name in ("privacy", "terms", "delete-account", "support"):
+                page = (out / f"{name}.html").read_text(encoding="utf-8")
+                for word in ("InstaPay", "إنستاباي", "Settle up", "تسوية الحساب", "wallet", "المحفظة"):
+                    self.assertNotIn(word, page, f"{name}: {word}")
             # The invite page is still there for /c/<code>.
             self.assertIn("carpool invite", (out / "invite.html").read_text(encoding="utf-8"))
             self.assertIn("https://apps.apple.com/app/id1234567890", (out / "index.html").read_text(encoding="utf-8"))

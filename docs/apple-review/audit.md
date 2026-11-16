@@ -186,7 +186,7 @@ staging build is the real test of the native changes.
 | ID check provider in prod | NEEDS OWNER | The fake KYC is refused in prod; real parents' verification needs `KYC_PROVIDER=valify` (contract) before the public launch. The demo accounts are verified by the script. |
 | Maps key | NEEDS OWNER | `MAPS_API_KEY_IOS` in `prod_defines`; the prod build refuses to start without it. |
 | School search (Algolia), chat (Stream), Sentry on prod | NEEDS OWNER | Keys and `chat:setup` on the prod apps. |
-| Feature switch defaults | PASS | Missing document reads as pilot defaults (wallet off, Settle up on). |
+| Feature switch defaults | PASS | Missing document reads as pilot defaults: everything off, including every money feature (wallet, Settle up, contributions; owner decision 16 Nov 2026). |
 | Verification wall | FIXED | The demo accounts are verified by the seed; see section 1. |
 | A run to start on review day | FIXED + NEEDS OWNER | The demo driver drives every school day (Sunday to Thursday); the seed plans this week and the next. Run `seed` again the evening before and each Saturday while in review. Friday and Saturday have no school run: the notes say so. |
 

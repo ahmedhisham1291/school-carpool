@@ -40,7 +40,7 @@
   "@placeholderNotificationsBody": {
     "description": "Placeholder text on the Notifications tab"
   },
-  "placeholderProfileBody": "هنا ستجد بياناتك ورقم ولي الأمر والأطفال والسيارة والمحفظة.",
+  "placeholderProfileBody": "هنا ستجد بياناتك ورقم ولي الأمر والأطفال والسيارة.",
   "@placeholderProfileBody": {
     "description": "Placeholder text on the Profile tab"
   },
@@ -3431,7 +3431,7 @@
   "@carpoolDaysLabel": {
     "description": "Label"
   },
-  "carpoolSeatsSection": "المقاعد والمساهمة",
+  "carpoolSeatsSection": "المقاعد",
   "@carpoolSeatsSection": {
     "description": "Section header"
   },
@@ -3945,7 +3945,7 @@
   "@carpoolErrorNotMember": {
     "description": "Error"
   },
-  "carpoolErrorMustAccept": "وافق على القواعد والمساهمة أولًا.",
+  "carpoolErrorMustAccept": "وافق على القواعد وشروط التناوب المجاني أولًا.",
   "@carpoolErrorMustAccept": {
     "description": "Error"
   },
@@ -8472,11 +8472,11 @@
   "@newDeviceTitle": {
     "description": "Screen and banner title"
   },
-  "newDeviceBody": "دخلت من هاتف جديد. التقط سيلفي لنتأكد أنك أنت قبل فتح المحادثات والمحفظة وبيانات الأطفال.",
+  "newDeviceBody": "دخلت من هاتف جديد. التقط سيلفي لنتأكد أنك أنت قبل فتح المحادثات وبيانات الأطفال.",
   "@newDeviceBody": {
     "description": "Screen body"
   },
-  "newDeviceBanner": "التقط سيلفي لفتح المحادثات والمحفظة وبيانات الأطفال.",
+  "newDeviceBanner": "التقط سيلفي لفتح المحادثات وبيانات الأطفال.",
   "@newDeviceBanner": {
     "description": "Profile banner body"
   },
@@ -8508,7 +8508,7 @@
   "@privacyExport": {
     "description": "Primary button"
   },
-  "privacyExportHelper": "ملف واحد فيه كل بياناتك ومحادثاتك وسجل المحفظة. الرابط صالح ساعة.",
+  "privacyExportHelper": "ملف واحد فيه كل بياناتك ومحادثاتك. الرابط صالح ساعة.",
   "@privacyExportHelper": {
     "description": "Helper"
   },
@@ -10342,5 +10342,37 @@
   "aboutOpenWebPage": "فتح صفحة الويب",
   "@aboutOpenWebPage": {
     "description": "Button under a document: opens its public web page"
+  },
+  "carpoolFreeBadge": "مجاني بالتناوب",
+  "@carpoolFreeBadge": {
+    "description": "Badge on a carpool card: rides are free volunteer turns. One line."
+  },
+  "carpoolFreeTitle": "مجاني: الأهل يتناوبون",
+  "@carpoolFreeTitle": {
+    "description": "Carpool detail row title: no payment for rides. One line."
+  },
+  "carpoolFreeHelper": "تناوب تطوعي بين الأهل. لا أجرة ولا مقابل للتوصيل.",
+  "@carpoolFreeHelper": {
+    "description": "Carpool detail row subtitle (Law 87/2018 safe side)"
+  },
+  "volunteerAccept": "تناوب مجاني بلا مقابل",
+  "@volunteerAccept": {
+    "description": "Checkbox label when creating or joining a carpool. One line."
+  },
+  "volunteerAcceptHelper": "أقود سيارتي على مسؤوليتي، بالتناوب ومجانًا. لا يتقاضى أحد مقابلًا عن أي توصيلة. التطبيق لا يقدّم خدمة نقل.",
+  "@volunteerAcceptHelper": {
+    "description": "Checkbox helper: the volunteer acknowledgement (VOLUNTEER_TERMS_VERSION)"
+  },
+  "volunteerError": "اختر «تناوب مجاني بلا مقابل» للمتابعة.",
+  "@volunteerError": {
+    "description": "Step error when the volunteer box is not ticked"
+  },
+  "adminFeatureContributions": "تكلفة لكل طفل",
+  "@adminFeatureContributions": {
+    "description": "Feature switch title (F25 contribution). One line."
+  },
+  "adminFeatureContributionsHelper": "مبلغ متفق عليه لكل طفل. عند الإيقاف تبقى الرحلات مجانية. اسأل المحامي قبل التشغيل.",
+  "@adminFeatureContributionsHelper": {
+    "description": "Feature switch helper"
   }
 }
