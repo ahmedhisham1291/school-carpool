@@ -2439,5 +2439,20 @@
   "guardianSignAction": "Sign and send",
   "verifyTeenLabel": "My child (15+) agrees",
   "verifyTeenHelper": "I declare that my child aged 15 or older has been told what is shared (first name, age, grade, school, and where they are during runs) and agrees to it.",
-  "consentTeenAgreement": "Child's agreement (15+)"
+  "consentTeenAgreement": "Child's agreement (15+)",
+  "launchSoonTitle": "Opening soon",
+  "launchSoonBody": "School Carpool is not open to new families yet. We are waiting for the data protection licences.",
+  "launchSoonNote": "No account was created and nothing was saved. Try again after we open.",
+  "launchSoonOk": "OK",
+  "adminLaunchTitle": "Launch",
+  "adminLaunchLicensed": "PDPC licences granted",
+  "adminLaunchHelpClosed": "Closed: new parents cannot sign up in prod. Staff, testers and App Review still can.",
+  "adminLaunchHelpOpen": "Open: new parents can sign up in prod.",
+  "adminLaunchHelpTest": "Dev and staging are always open.",
+  "adminLaunchRefsLabel": "Licence numbers",
+  "adminLaunchOpenTitle": "Open to new parents?",
+  "adminLaunchOpenBody": "Only when the PDPC granted the controller, sensitive-data and transfer licences. Type their numbers.",
+  "adminLaunchCloseTitle": "Close to new parents?",
+  "adminLaunchCloseBody": "New numbers will see \"Opening soon\". Existing accounts keep working.",
+  "adminLaunchSaved": "Launch setting saved"
 }

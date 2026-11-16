@@ -31,20 +31,52 @@ void main() {
   const AdminSessionState superAdmin = AdminSignedIn(testSuperAdmin);
   const AdminSessionState reviewer = AdminSignedIn(testReviewer);
 
+  group('Settings: launch gate (R5)', () {
+    AppSwitchRow launchRow(WidgetTester tester) => tester.widget<AppSwitchRow>(find.byKey(const Key('adminSettings.launch')));
+
+    testWidgets('prod starts closed; a super admin opens it only with the licence numbers', (WidgetTester tester) async {
+      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
+      await pumpAdminPanel(tester, session: superAdmin, location: AdminRoutes.settings, features: api, locale: 'en');
+      await _settle(tester);
+      await tester.ensureVisible(find.byKey(const Key('adminSettings.launch')));
+      expect(launchRow(tester).value, isFalse);
+      expect(find.textContaining('new parents cannot sign up in prod'), findsOneWidget);
+      launchRow(tester).onChanged!(true);
+      await _settle(tester);
+      expect(find.text('Open to new parents?'), findsOneWidget);
+      final FilledButton confirm = tester.widget<FilledButton>(find.byKey(const Key('adminSettings.launchConfirm')));
+      expect(confirm.onPressed, isNull, reason: 'no licence numbers yet');
+      await tester.enterText(find.descendant(of: find.byKey(const Key('adminSettings.launchRefs')), matching: find.byType(TextFormField)), 'C-1, S-2, T-3');
+      await _settle(tester);
+      await tester.tap(find.byKey(const Key('adminSettings.launchConfirm')));
+      await _settle(tester);
+      expect(api.calls, contains('setLaunch:true:C-1, S-2, T-3'));
+      expect(launchRow(tester).value, isTrue);
+    });
+
+    testWidgets('other admins see it but cannot change it', (WidgetTester tester) async {
+      await pumpAdminPanel(tester, session: reviewer, location: AdminRoutes.settings, features: FakeAdminFeaturesApi(), locale: 'en');
+      await _settle(tester);
+      await tester.ensureVisible(find.byKey(const Key('adminSettings.launch')));
+      expect(launchRow(tester).onChanged, isNull);
+    });
+  });
+
   group('Settings: feature switches', () {
     testWidgets('one switch per feature, showing the pilot defaults', (WidgetTester tester) async {
       final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
       await pumpAdminPanel(tester, session: superAdmin, location: AdminRoutes.settings, features: api, locale: 'en');
       await _settle(tester);
       // The shell reads the switches too (Wallet section only while on).
-      expect(api.calls.toSet(), <String>{'features'});
+      expect(api.calls.toSet(), <String>{'features', 'launch'});
       expect(_row(tester, AppFeature.wallet).value, isFalse);
       expect(_row(tester, AppFeature.ratingsAndVouching).value, isFalse);
       expect(_row(tester, AppFeature.yearlyChecks).value, isFalse);
       // No money in the app (16 Nov 2026): every money switch starts off.
       expect(_row(tester, AppFeature.settleUp).value, isFalse);
       expect(_row(tester, AppFeature.contributions).value, isFalse);
-      expect(find.byType(AppSwitchRow), findsNWidgets(AppFeature.values.length));
+      // One per feature, plus the launch gate (R5).
+      expect(find.byType(AppSwitchRow), findsNWidgets(AppFeature.values.length + 1));
       // Core features are named as always on, with no switch.
       expect(find.textContaining('are always on'), findsOneWidget);
     });
@@ -96,7 +128,7 @@ void main() {
         expect(_row(tester, f).onChanged, isNull, reason: f.name);
       }
       expect(find.text('Only a super admin can change these switches.'), findsOneWidget);
-      expect(api.calls.toSet(), <String>{'features'});
+      expect(api.calls.toSet(), <String>{'features', 'launch'});
     });
 
     testWidgets('a refused change shows the reason and leaves the switch as it was', (WidgetTester tester) async {

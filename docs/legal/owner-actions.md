@@ -34,8 +34,14 @@ docs/legal/egypt-legal-review.md. **This is not legal advice: take steps 1 to
      encryption, private bucket, admin access log, App Check), the
      retention table, the DPO.
    - The PDPC decides within 90 working days of a complete file; no answer
-     means refused. **Ask the lawyer (question 1.2) whether the pilot may
-     start after filing.** Keep the application numbers.
+     means refused. Keep the application numbers.
+   - **Prod stays closed to new real parents until all three licences are
+     granted (R5, owner decision 16 Nov 2026).** The app enforces it:
+     `config/launch.pdpcLicensed` is off by default; a new number in prod
+     sees "Opening soon". When the three licence decisions arrive, a super
+     admin opens Admin panel > Settings > Launch, switches "PDPC licences
+     granted" on and types the three licence numbers (audited). Staging
+     and TestFlight with testers and fake children work meanwhile.
 5. **Insurance.** Every driving parent must have a valid driving licence,
    a private car licence and the car's compulsory insurance (it covers
    death and injury up to EGP 100,000 under Law 155/2024). Advise parents

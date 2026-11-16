@@ -561,3 +561,12 @@ Where an item replaces an earlier decision, it says so.
   (consent `teenAgreement`, version `2026-11-17`; child record
   `teenAgreed`). The date of birth is used for the check only, never
   stored. The app derives it from the age and grade it already asks.
+- **R5 - prod closed to new real parents until the three PDPC licences
+  are granted** (controller, sensitive data, transfer abroad). Server
+  setting `config/launch.pdpcLicensed` (missing = false), read only by
+  the server: in prod a NEW number gets "Opening soon" after its code is
+  checked and no account is created; existing accounts (staff, testers)
+  and the App Review demo phones still sign in; dev and staging are
+  always open. A super admin switches it in Admin panel > Settings >
+  Launch (sign-in < 30 minutes, the licence numbers are required to open,
+  audit entry). Pilot with real families only after it is on.

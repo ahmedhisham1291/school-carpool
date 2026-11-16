@@ -10848,5 +10848,65 @@
   "consentTeenAgreement": "موافقة الابن (15+)",
   "@consentTeenAgreement": {
     "description": "Privacy screen: consent title (R4). One line."
+  },
+  "launchSoonTitle": "قريبًا",
+  "@launchSoonTitle": {
+    "description": "R5: sign-up in prod while the PDPC licences are pending. One line."
+  },
+  "launchSoonBody": "«مشوار المدرسة» غير متاح للأسر الجديدة بعد. ننتظر تراخيص حماية البيانات.",
+  "@launchSoonBody": {
+    "description": "R5: why a new number cannot sign up in prod yet."
+  },
+  "launchSoonNote": "لم يُنشأ حساب ولم يُحفظ شيء. حاول مرة أخرى بعد الافتتاح.",
+  "@launchSoonNote": {
+    "description": "R5: what happened to the data."
+  },
+  "launchSoonOk": "حسنًا",
+  "@launchSoonOk": {
+    "description": "R5: back to the phone step. One line."
+  },
+  "adminLaunchTitle": "الإطلاق",
+  "@adminLaunchTitle": {
+    "description": "Admin Settings: section title (R5). One line."
+  },
+  "adminLaunchLicensed": "صدرت تراخيص المركز",
+  "@adminLaunchLicensed": {
+    "description": "Admin Settings switch: prod open to new parents (R5). One line."
+  },
+  "adminLaunchHelpClosed": "مغلق: لا يمكن لأولياء أمور جدد التسجيل في الإنتاج. يمكن للفريق والمختبرين ومراجعة Apple.",
+  "@adminLaunchHelpClosed": {
+    "description": "Admin Settings helper (R5)."
+  },
+  "adminLaunchHelpOpen": "مفتوح: يمكن لأولياء الأمور الجدد التسجيل في الإنتاج.",
+  "@adminLaunchHelpOpen": {
+    "description": "Admin Settings helper (R5)."
+  },
+  "adminLaunchHelpTest": "بيئتا التطوير والاختبار مفتوحتان دائمًا.",
+  "@adminLaunchHelpTest": {
+    "description": "Admin Settings helper outside prod (R5)."
+  },
+  "adminLaunchRefsLabel": "أرقام التراخيص",
+  "@adminLaunchRefsLabel": {
+    "description": "Admin dialog field: the three PDPC licence numbers (R5). One line."
+  },
+  "adminLaunchOpenTitle": "فتح التسجيل للأهالي الجدد؟",
+  "@adminLaunchOpenTitle": {
+    "description": "Admin confirm title (R5). One line."
+  },
+  "adminLaunchOpenBody": "فقط بعد أن يصدر المركز تراخيص المتحكم والبيانات الحساسة والنقل للخارج. اكتب أرقامها.",
+  "@adminLaunchOpenBody": {
+    "description": "Admin confirm body (R5)."
+  },
+  "adminLaunchCloseTitle": "إغلاق التسجيل للأهالي الجدد؟",
+  "@adminLaunchCloseTitle": {
+    "description": "Admin confirm title (R5). One line."
+  },
+  "adminLaunchCloseBody": "سترى الأرقام الجديدة «قريبًا». تظل الحسابات الحالية تعمل.",
+  "@adminLaunchCloseBody": {
+    "description": "Admin confirm body (R5)."
+  },
+  "adminLaunchSaved": "حُفظ إعداد الإطلاق",
+  "@adminLaunchSaved": {
+    "description": "Admin snack bar (R5). One line."
   }
 }

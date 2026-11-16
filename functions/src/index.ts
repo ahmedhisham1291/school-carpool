@@ -279,6 +279,8 @@ export {
 // Personal data breach register (Law 151 of 2020 Art. 7, Decree 816/2025
 // Art. 5; docs/legal/breach-runbook.md): admin panel > Incidents.
 export { adminListIncidents, adminReportIncident, adminUpdateIncident } from "./privacy/breach_callables";
+// R5: prod closed to new real parents until the PDPC licences are granted (super admins switch it).
+export { adminGetLaunch, adminSetLaunch } from "./launch/callables";
 // R2: the Anti-Cybercrime sign-in log, disclosed only on a judicial order (super admins).
 export { adminDiscloseSignInLog } from "./privacy/signin_log_callables";
 

@@ -17,6 +17,9 @@ enum AuthFailureKind {
   emailInUse,
   outdatedTerms,
 
+  /// R5: prod is not open to new parents yet (PDPC licences pending).
+  launchClosed,
+
   /// R3: the typed name is not a full name.
   signatureName,
 
@@ -103,6 +106,7 @@ class AuthFailure implements AppFailure {
       'outdated-terms' => AuthFailureKind.outdatedTerms,
       'signature-name' || 'signature-required' => AuthFailureKind.signatureName,
       'reauth-required' => AuthFailureKind.reauthRequired,
+      'launch-closed' => AuthFailureKind.launchClosed,
       _ => switch (error.code) {
         'unavailable' || 'deadline-exceeded' => AuthFailureKind.offline,
         'unauthenticated' => AuthFailureKind.signInAgain,
@@ -135,6 +139,7 @@ class AuthFailure implements AppFailure {
       AuthFailureKind.outdatedTerms => l10n.errorOutdatedTerms,
       AuthFailureKind.signatureName => l10n.signNameError,
       AuthFailureKind.reauthRequired => l10n.signReauth,
+      AuthFailureKind.launchClosed => l10n.launchSoonBody,
       AuthFailureKind.signInAgain => l10n.errorSignInAgain,
       AuthFailureKind.offline => l10n.errorOffline,
       AuthFailureKind.unknown => l10n.errorGeneric,

@@ -124,6 +124,20 @@ void main() {
       expect(find.text('This code has expired. Ask for a new one.'), findsOneWidget);
     });
 
+    testWidgets('R5: prod closed to new parents shows "Opening soon" and goes back to the phone step', (WidgetTester tester) async {
+      final FakeAuthRepository repository = FakeAuthRepository()..failure = const AuthFailure(AuthFailureKind.launchClosed);
+      final GoRouter router = await _pump(tester, location: AuthRoutes.code, repository: repository, codeSent: true);
+      await tester.enterText(find.byKey(const Key('code.field')), '123456');
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Opening soon'), findsOneWidget);
+      expect(find.byKey(const Key('code.launchClosed')), findsOneWidget);
+      expect(find.textContaining('No account was created'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('code.launchOk')));
+      await tester.pumpAndSettle();
+      expect(router.routerDelegate.currentConfiguration.uri.path, AuthRoutes.phone);
+    });
+
     testWidgets('resend waits for the countdown', (WidgetTester tester) async {
       await _pump(tester, location: AuthRoutes.code, repository: FakeAuthRepository(), codeSent: true);
       expect(find.byKey(const Key('code.resend')), findsNothing);

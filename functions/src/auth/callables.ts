@@ -21,7 +21,8 @@ import {
 } from "../config";
 import { reportError } from "../sentry";
 import { asLanguage, createWhatsAppSender, type WhatsAppSender } from "../whatsapp/sender";
-import { FirebaseAccountService, USERS, verifiedEmail } from "./accounts";
+import { errorCode, FirebaseAccountService, USERS, verifiedEmail } from "./accounts";
+import { signUpOpenNow } from "../launch/callables";
 import { clientIp } from "./client_ip";
 import { CONSENT_VERSIONS, ConsentError, parseConsentRequest, recordConsents } from "./consents";
 import {
@@ -63,6 +64,7 @@ const OTP_ERROR_CODES: Record<OtpErrorReason, FunctionsErrorCode> = {
   "too-soon": "resource-exhausted",
   "send-failed": "unavailable",
   suspended: "permission-denied",
+  "launch-closed": "failed-precondition",
 };
 
 export function toHttpsError(error: unknown): HttpsError {
@@ -138,6 +140,19 @@ export function otpDeps(): OtpDeps {
         ip: null,
         time: FieldValue.serverTimestamp(),
       });
+    },
+    // R5: prod is closed to new real parents until the PDPC licences are granted.
+    launch: {
+      open: signUpOpenNow,
+      hasAccount: async (phone) => {
+        try {
+          const user = await adminAuth().getUserByPhoneNumber(phone);
+          return (await db.collection(USERS).doc(user.uid).get()).exists;
+        } catch (error) {
+          if (errorCode(error) === "auth/user-not-found") return false;
+          throw error;
+        }
+      },
     },
     store: new FirestoreOtpStore(db),
     sender: lazyWhatsAppSender(),
