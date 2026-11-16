@@ -196,7 +196,7 @@ export class FirestorePlaceLocator implements PlaceLocator {
   }
 
   async locate(p: LatLng): Promise<Located> {
-    const ids = candidates(await this.loadIndex(), p).slice(0, 10);
+    const ids = candidates(await this.loadIndex(), p).slice(0, 16);
     if (ids.length === 0) return { governorate: null, areaId: null, districtId: null };
     const areas: PlaceArea[] = (await readPlaces(this.db, "area", ids)).map((r) => areaFromDoc(r.id, r.data, r.internal));
     const hit = locate(p, areas, []);

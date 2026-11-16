@@ -65,11 +65,16 @@ OUT_FILE = "egypt_adm2.geojson"
 REPORT_FILE = "adm2_report.md"
 EXPECTED_MIN = 200  # COD-AB has 365 ADM2 units; fewer than this is not the ADM2 layer
 
-# Field names seen in COD-AB and geoBoundaries files (first one present wins).
+# Field names seen in COD-AB and geoBoundaries files (first one present
+# wins; compared without case). OCHA's COD-AB files processed since 2024
+# use lower-case adm2_name / adm2_name1 / adm2_name2 with the language of
+# each in lang / lang1 / lang2 ("en", "ar"): read by _lang_names first.
 NAME_EN_FIELDS = ("ADM2_EN", "admin2Name_en", "ADM2_NAME", "NAME_2", "shapeName")
 NAME_AR_FIELDS = ("ADM2_AR", "admin2Name_ar", "NAME_AR_2", "shapeName_ar")
 PCODE_FIELDS = ("ADM2_PCODE", "admin2Pcode", "PCODE", "shapeID")
-ADM1_FIELDS = ("ADM1_EN", "admin1Name_en", "ADM1_AR", "NAME_1", "ADM1_PCODE")
+ADM1_FIELDS = ("ADM1_EN", "admin1Name_en", "adm1_name", "ADM1_AR", "NAME_1", "ADM1_PCODE")
+# "adm2", "admin2", "ADM2_" in a file or resource name (not adm20).
+_ADM2_IN_NAME = re.compile(r"adm(?:in)?[_ ]?2(?!\d)", re.I)
 
 # New cities the owner expects to see as areas (approximate centres, for the
 # report only: which ADM2 unit holds each).
@@ -183,11 +188,11 @@ def features_from_bytes(name: str, data: bytes) -> list[dict]:
         archive = zipfile.ZipFile(io.BytesIO(data))
         names = archive.namelist()
         geojsons = [n for n in names if n.lower().endswith((".geojson", ".json"))]
-        pick = [n for n in geojsons if "adm2" in n.lower()] or ([] if any("adm" in n.lower() for n in geojsons) else geojsons)
+        pick = [n for n in geojsons if _ADM2_IN_NAME.search(n)] or ([] if any("adm" in n.lower() for n in geojsons) else geojsons)
         if pick:
             return features_from_bytes(pick[0], archive.read(pick[0]))
         shps = [n for n in names if n.lower().endswith(".shp")]
-        shp = next((n for n in shps if "adm2" in n.lower()), shps[0] if len(shps) == 1 else None)
+        shp = next((n for n in shps if _ADM2_IN_NAME.search(n)), shps[0] if len(shps) == 1 else None)
         if shp is None:
             raise Adm2Error(f"no ADM2 layer in {name} ({len(shps)} shapefiles)")
         stem = shp[:-4]
@@ -197,11 +202,27 @@ def features_from_bytes(name: str, data: bytes) -> list[dict]:
 
 
 def _first(props: dict, keys: tuple[str, ...]) -> tuple[str, str]:
+    lower = {str(k).lower(): k for k in props}
     for k in keys:
-        v = props.get(k)
+        real = k if k in props else lower.get(k.lower())
+        v = props.get(real) if real is not None else None
         if v is not None and str(v).strip():
-            return str(v).strip(), k
+            return str(v).strip(), str(real)
     return "", ""
+
+
+def _lang_names(props: dict) -> dict[str, tuple[str, str]]:
+    """{"en": (name, field), "ar": ...} from adm2_name[N] + lang[N] (COD-AB since 2024)."""
+    lower = {str(k).lower(): k for k in props}
+    out: dict[str, tuple[str, str]] = {}
+    for suffix in ("", "1", "2", "3"):
+        name_key, lang_key = lower.get(f"adm2_name{suffix}"), lower.get(f"lang{suffix}")
+        if name_key is None or lang_key is None:
+            continue
+        name, lang = str(props.get(name_key) or "").strip(), str(props.get(lang_key) or "").strip().lower()[:2]
+        if name and lang and lang not in out:
+            out[lang] = (name, str(name_key))
+    return out
 
 
 _SAFE = re.compile(r"[^A-Za-z0-9_-]+")
@@ -216,8 +237,9 @@ def to_collection(features: list[dict], source: str, licence: str, fetched_at: s
     for f in features:
         props = f.get("properties") or {}
         geom = f.get("geometry") or {}
-        en, k_en = _first(props, NAME_EN_FIELDS)
-        ar, k_ar = _first(props, NAME_AR_FIELDS)
+        by_lang = _lang_names(props)
+        en, k_en = by_lang.get("en") or _first(props, NAME_EN_FIELDS)
+        ar, k_ar = by_lang.get("ar") or _first(props, NAME_AR_FIELDS)
         pcode, k_pc = _first(props, PCODE_FIELDS)
         adm1, _ = _first(props, ADM1_FIELDS)
         used.update({k: v for k, v in (("name:en", k_en), ("name:ar", k_ar), ("id", k_pc)) if v})
@@ -230,7 +252,7 @@ def to_collection(features: list[dict], source: str, licence: str, fetched_at: s
             continue
         gov = governorate_code(adm1) or ""
         if not gov:
-            iso = str(props.get("ADM1_PCODE") or "")
+            iso = _first(props, ("ADM1_PCODE",))[0]
             gov = ISO_3166_2.get(iso, "")
         if not gov:
             no_gov += 1
@@ -276,7 +298,7 @@ def from_hdx(get: Get) -> tuple[list[dict], str, str]:
         text = f"{r.get('name', '')} {r.get('url', '')}".lower()
         fmt = str(r.get("format", "")).lower()
         s = 0
-        if "adm2" in text:
+        if _ADM2_IN_NAME.search(text):
             s += 4
         if "geojson" in fmt or text.endswith(".geojson"):
             s += 3

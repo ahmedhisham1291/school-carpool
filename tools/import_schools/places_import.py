@@ -289,7 +289,10 @@ def assign(places: Places, schools: list[School]) -> None:
             # by name to an area of its governorate ("قسم"/"مركز" ignored).
             area = area_by_name(areas_by_gov.get(s.governorate, []), s.city_ar, s.city)
         else:
-            area = next((a for a in areas_by_gov.get(s.governorate, []) if a.contains(s.lat, s.lng)), None)
+            # The smallest holding area: outlines keep outer rings only, so a
+            # city's qism inside its markaz is in both (validator B4).
+            holding = [a for a in areas_by_gov.get(s.governorate, []) if a.contains(s.lat, s.lng)]
+            area = min(holding, key=lambda a: (_box_size(a), a.id)) if holding else None
         if area is None:
             places.no_area += 1
             continue
@@ -313,6 +316,11 @@ def assign(places: Places, schools: list[School]) -> None:
             continue
         s.place_district_id = district_id
         places.district_counts[district_id] = places.district_counts.get(district_id, 0) + 1
+
+
+def _box_size(shape: Shape) -> float:
+    b = shape.bbox()
+    return (b["maxLat"] - b["minLat"]) * (b["maxLng"] - b["minLng"])
 
 
 _AREA_WORDS = {"قسم", "مركز", "حي", "مدينه", "district", "markaz", "qism", "kism", "city", "new"}

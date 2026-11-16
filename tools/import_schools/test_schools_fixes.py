@@ -248,6 +248,35 @@ class Adm2Test(unittest.TestCase):
         self.assertIn("Areas: ADM2 units (2, holding 67% of the schools; OCHA COD-AB (fixture); licence CC BY-IGO)",
                       " ".join(places_import.summary_lines(places, schools)))
 
+    def test_cod_ab_2024_fields_and_member_names(self) -> None:
+        # OCHA's newer COD-AB files: lower-case fields, the language of each
+        # name in lang / lang1, members named egy_admin2.* (validator B3).
+        feats = [{"type": "Feature", "properties": {"adm2_pcode": "EG0119", "adm2_name": "Maadi", "adm2_name1": "المعادي",
+                                                    "lang": "en", "lang1": "ar", "adm1_name": "Cairo"},
+                  "geometry": {"type": "Polygon", "coordinates": [square(31.24, 29.94, 31.32, 30.0)]}}]
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as z:
+            z.writestr("egy_admin1.geojson", json.dumps({"type": "FeatureCollection", "features": []}))
+            z.writestr("egy_admin2.geojson", json.dumps({"type": "FeatureCollection", "features": feats}))
+            z.writestr("egy_admin20_notes.geojson", "{}")
+        got = adm2.features_from_bytes("egy_admin_boundaries.geojson.zip", buffer.getvalue())
+        collection, facts = adm2.to_collection(got, "x", "y", "T")
+        p0 = collection["features"][0]["properties"]
+        self.assertEqual((p0["id"], p0["name:ar"], p0["name:en"], p0["adm1"]), ("cod-EG0119", "المعادي", "Maadi", "cairo"))
+        self.assertTrue(facts["arabic"])
+
+    def test_nested_areas_smallest_wins(self) -> None:
+        # A city's qism inside its markaz (outer rings only): the qism wins (validator B4).
+        markaz = places_import.Shape("cod-M", 7, "مركز دمنهور", "Markaz Damanhour", [square(30.3, 30.9, 30.6, 31.2)])
+        qism = places_import.Shape("cod-Q", 7, "قسم دمنهور", "Qism Damanhour", [square(30.45, 31.02, 30.5, 31.06)])
+        places = places_import.Places([markaz, qism], [], [], [], [], {}, {})
+        for a in places.areas:
+            a.governorate = "beheira"
+        s = si.School("osm-n1", "osm", "n1", ["osm:n1"], "مدرسة", "School", "school", "beheira", "given", "", "", 31.04, 30.47)
+        t = si.School("osm-n2", "osm", "n2", ["osm:n2"], "مدرسة", "School", "school", "beheira", "given", "", "", 30.95, 30.35)
+        places_import.assign(places, [s, t])
+        self.assertEqual((s.place_area_id, t.place_area_id), ("cod-Q", "cod-M"))
+
     def test_geojson_and_main_with_a_file(self) -> None:
         feats = [{"type": "Feature", "properties": {"ADM2_PCODE": f"EG{i:04d}", "ADM2_EN": f"Unit {i}", "ADM2_AR": f"وحدة {i}"},
                   "geometry": {"type": "Polygon", "coordinates": [square(30 + i * 0.01, 30, 30.005 + i * 0.01, 30.005)]}} for i in range(adm2.EXPECTED_MIN)]
@@ -342,6 +371,39 @@ class DedupeRulesTest(unittest.TestCase):
         self.assertEqual(si.schools_json(result, "T")["schools"][0]["mergedFrom"], ["osm-n2"])
         self.assertIn("Auto-merged duplicates: 1 (same name within 500 m 1)", si.dedupe_lines(result)[0])
 
+    def test_common_names_need_the_same_site(self) -> None:
+        # "النور" in three places of Egypt: a generic name. Two different
+        # schools 400 m or 1.5 km apart stay apart; two pins of one school
+        # 100 m apart still merge. (Validator B1.)
+        far = [school(f"f{k}", "مدرسة النور", "", 27.0 + k, 31.0) for k in range(2)]
+        a = school("n1", "مدرسة النور", "", 30.0, 31.2)
+        b = school("n2", "مدرسة النور", "", 30.0036, 31.2)  # 400 m
+        c = school("n3", "مدرسة النور", "", 30.0135, 31.2)  # 1.5 km
+        d = school("x4", "", "Al Nour School", 30.0009, 31.2, source="overture", conf=0.8)  # 100 m from a
+        kg = school("x5", "حضانة النور", "", 30.0018, 31.2, kind="kindergarten", source="overture", conf=0.8)  # 200 m
+        merged, links, likely = run_dedupe(*far, a, b, c, d, kg)
+        self.assertEqual([(l.kept_id, l.merged_id) for l in links], [("osm-n1", "overture-x4")])
+        self.assertEqual(len(merged), 6)
+        self.assertTrue(any(p.keep == "common_name" for p in likely))
+        # The same five without the far ones: a rare name, the usual rules.
+        merged, links, _ = run_dedupe(a, b, c, d, kg)
+        self.assertEqual(len(merged), 1)
+
+    def test_common_name_counts_places_not_entries(self) -> None:
+        # One school listed three times at one site is not a "common" name.
+        same_site = [school(f"x{k}", "", "Futures School", 30.0 + k * 0.0001, 31.2, source="overture", conf=0.5) for k in range(3)]
+        other = school("n9", "", "Futures School", 30.012, 31.2)  # 1.3 km
+        merged, links, _ = run_dedupe(*same_site, other)
+        self.assertEqual(len(merged), 1)
+
+    def test_separate_decision(self) -> None:
+        a = school("n1", "", "Futures School", 30.0, 31.2)
+        b = school("n2", "", "Futures School", 30.001, 31.2)
+        links: list[si.MergeLink] = []
+        merged, _, likely = si.find_duplicates([a, b], links, [("osm:n2", "osm:n1")])
+        self.assertEqual(len(merged), 2)
+        self.assertEqual(links, [])
+
     def test_transliteration(self) -> None:
         self.assertEqual(dedupe.skeleton("رواد"), dedupe.skeleton("rowad"))
         self.assertEqual(dedupe.skeleton("نيل"), dedupe.skeleton("nile"))
@@ -399,6 +461,24 @@ class ReviewDecisionsTest(unittest.TestCase):
         self.assertEqual((row["n2"]["drop_reason"], row["n2"]["group_id"]), ("review_drop", ""))
         self.assertEqual((row["n5"]["group_id"], row["n1"]["lat"], row["n1"]["lon"]), ("osm-n4", "30.050", "31.240"))
         self.assertEqual(list(rows[0]), list(si.REVIEW_INPUT_COLUMNS))
+
+    def test_separate_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "osm").mkdir()
+            osm.write_json_atomic(folder / "osm" / osm.SCHOOLS_FILE, osm.schools_geojson({"elements": [
+                node(1, 30.0, 31.2, amenity="school", name="Futures School"),
+                node(2, 30.001, 31.2, amenity="school", name="Futures School"),
+            ]}, "t", "x"))
+            path = folder / "decisions.csv"
+            path.write_text("source,source_id,action,value,reason\nosm,node/2,separate,osm:node/1,two schools\nosm,n1,separate,,no value\n", encoding="utf-8")
+            decisions, problems = si.load_decisions(path)
+            self.assertEqual(len(problems), 1)
+            self.assertEqual((decisions[0].key, decisions[0].value), ("osm:n2", "osm:n1"))
+            self.assertEqual(len(si.run(folder).schools), 1)
+            result = si.run(folder, decisions)
+        self.assertEqual(sorted(s.id for s in result.schools), ["osm-n1", "osm-n2"])
+        self.assertEqual(result.review.applied, {"separate": 1})
 
     def test_repo_file_has_the_header(self) -> None:
         path = Path(__file__).resolve().parents[2] / "data" / "schools" / "review" / "decisions.csv"

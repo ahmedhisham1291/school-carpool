@@ -150,13 +150,21 @@ export interface Located {
   districtId: string | null;
 }
 
+/** Area of a bbox in square degrees (Infinity without one): smaller first. */
+export function boxSize(b: BBox | null): number {
+  return b ? (b.maxLat - b.minLat) * (b.maxLng - b.minLng) : Infinity;
+}
+
 /**
- * The area holding [p] (active areas only; the first of [areas] wins, so
- * pass them finest level first) and the district: the boundary holding
+ * The area holding [p] (active areas only; finest level first, then the
+ * smallest box: a city's qism inside its markaz wins, as the outlines keep
+ * outer rings only, validator B4) and the district: the boundary holding
  * it, else the nearest named place of that area within POINT_DISTRICT_KM.
  */
 export function locate(p: LatLng, areas: PlaceArea[], districts: PlaceDistrict[]): Located {
-  const sorted = [...areas].filter((a) => a.active).sort((a, b) => b.level - a.level || a.id.localeCompare(b.id));
+  const sorted = [...areas]
+    .filter((a) => a.active)
+    .sort((a, b) => b.level - a.level || boxSize(a.bbox) - boxSize(b.bbox) || a.id.localeCompare(b.id));
   const area = sorted.find((a) => shapeContains(a, p));
   if (!area) return { governorate: null, areaId: null, districtId: null };
   const mine = districts.filter((d) => d.active && d.areaId === area.id);
@@ -171,9 +179,12 @@ export function locate(p: LatLng, areas: PlaceArea[], districts: PlaceDistrict[]
   return { governorate: area.governorate, areaId: area.id, districtId: best?.id ?? null };
 }
 
-/** Candidate area IDs for [p] from the index (bbox only). */
+/** Candidate area IDs for [p] from the index (bbox only), smallest box first. */
 export function candidates(index: IndexEntry[], p: LatLng): string[] {
-  return index.filter((e) => inBox(p, e.bbox)).map((e) => e.id);
+  return index
+    .filter((e) => inBox(p, e.bbox))
+    .sort((a, b) => boxSize(a.bbox) - boxSize(b.bbox) || a.id.localeCompare(b.id))
+    .map((e) => e.id);
 }
 
 // --------------------------------------------------------------------------
