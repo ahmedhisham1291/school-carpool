@@ -37,11 +37,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from schools_import import (  # noqa: E402
     CATEGORIES_FILE,
+    DECISIONS_FILE,
     DROP_REASONS,
+    REVIEW_FOLDER,
     RawEntry,
     Result,
     doc_id,
     load_categories,
+    load_decisions,
     match_tokens,
     normalize_text,
     run,
@@ -211,7 +214,10 @@ def main(argv: list[str] | None = None) -> int:
         args.input / CATEGORIES_FILE if (args.input / CATEGORIES_FILE).exists() else repo / "data" / "schools" / CATEGORIES_FILE
     )
     load_categories(categories_path)
-    result = run(args.input)
+    decisions_path = args.input / REVIEW_FOLDER / DECISIONS_FILE
+    if not decisions_path.exists():
+        decisions_path = repo / "data" / "schools" / REVIEW_FOLDER / DECISIONS_FILE
+    result = run(args.input, load_decisions(decisions_path)[0])
     lines, verdicts = check(result, queries, osm_gaps(args.input))
     if args.summary_only:
         blocks: list[list[str]] = []

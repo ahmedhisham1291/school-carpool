@@ -166,17 +166,18 @@ class DuplicatesTest(unittest.TestCase):
         entries = [
             entry(source_id="n1", name="مدرسة النيل الدولية", name_en="Nile International School", lat=30.0, lng=31.2),
             entry(source_id="w2", name="مدرسه النيل الدوليه", lat=30.0015, lng=31.2),  # about 170 m
-            entry(source_id="n3", name="مدرسة النيل الدولية", lat=30.0055, lng=31.2),  # about 610 m (445 m from w2): report only
+            entry(source_id="n3", name="مدرسة النيل الدولية", lat=30.0055, lng=31.2),  # about 610 m: same name within 2 km (owner, 16 Nov 2026)
             entry(source_id="n4", name="مدرسة الأهرام", lat=30.0005, lng=31.2),  # near, other name
         ]
         schools, _ = clean(entries, Boundaries())
         merged, groups, likely = find_duplicates(schools)
-        self.assertEqual(sorted(s.id for s in merged), ["osm-n1", "osm-n3", "osm-n4"])
+        self.assertEqual(sorted(s.id for s in merged), ["osm-n1", "osm-n4"])
         self.assertEqual(groups[0][0].id, "osm-n1")
         kept = next(s for s in merged if s.id == "osm-n1")
-        self.assertEqual(kept.source_keys, ["osm:n1", "osm:w2"])
+        self.assertEqual(kept.source_keys, ["osm:n1", "osm:n3", "osm:w2"])
+        self.assertEqual(kept.merged_from, ["osm-n3", "osm-w2"])
         self.assertEqual(kept.name_en, "Nile International School")
-        self.assertTrue(any({p.a.id, p.b.id} == {"osm-n1", "osm-n3"} for p in likely))
+        self.assertEqual(likely, [])
 
     def test_list_entry_without_pin_merges_by_name_and_governorate(self):
         entries = [
@@ -319,8 +320,11 @@ class SampleRunTest(unittest.TestCase):
         self.assertEqual(govs, {"cairo", "giza", "alexandria"})
         reasons = {d.reason for d in result.dropped}
         self.assertTrue({"no_name", "generic_name", "not_school_university", "outside_egypt"} <= reasons)
-        self.assertEqual(len(result.merged_groups), 4)
-        self.assertEqual(len(result.likely), 3)
+        # Automatic de-duplication (owner, 16 Nov 2026): 6 groups, nothing left
+        # to check ("Port Said School Zamalek" / "مدرسه بورسعيد التجريبيه" share
+        # one word in two: different schools for the rules).
+        self.assertEqual(len(result.merged_groups), 6)
+        self.assertEqual(len(result.likely), 0)
         report = report_markdown(result, "T")
         for heading in ("## Schools per governorate", "## Dropped, and why", "## Likely duplicates to check"):
             self.assertIn(heading, report)
@@ -340,6 +344,7 @@ class SampleRunTest(unittest.TestCase):
                     "governorateMethod", "city", "cityAr", "location"]
             place = ["placeAreaId", "placeAreaNameAr", "placeAreaNameEn", "placeDistrictId"]
             for school in data["schools"]:
+                school.pop("mergedFrom", None)  # only on a school that absorbed others
                 # The sample has places (data/schools/sample/places): a school
                 # inside an area gets the four place fields, the others none.
                 expected = base + place if "placeAreaId" in school else base

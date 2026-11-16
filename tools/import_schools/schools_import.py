@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Iterable, Iterator
 
 from egypt_places import EGYPT_BOUNDS, GOVERNORATE_ALIASES, GOVERNORATES, ISO_3166_2, TOWNS
+from name_clean import fix_text, repair_mojibake, script_check
 
 # What counts, in one place. Owner decision 16 Nov 2026 (docs/DECISIONS.md):
 # schools, kindergartens and nurseries only. "university" (universities,
@@ -485,6 +486,23 @@ _NOT_SCHOOL_NAME = (
         ),
         "not_school_courses",
     ),
+    # Tutoring centres (Egypt's "سنتر" / "مركز دروس"), exam courses: never
+    # schools, even when a Facebook page files them as one (16 Nov 2026).
+    (
+        re.compile(
+            r"\b(tutoring|tuition|lessons|ielts|toefl|icdl|sat prep)\b"
+            r"|دروس|كورس|تقويه|سنتر|مجموعات تقويه"
+        ),
+        "not_school_tutoring",
+    ),
+    # Quran memorisation (دار تحفيظ, كتاب): religious study circles, not
+    # schools (Al-Azhar institutes are kept before this rule).
+    (re.compile(r"تحفيظ|\bقران\b|\bالقران\b|\bquran\b|\bkoran\b|\bhifz\b|(^|\s)(ال)?كتاب(\s|$)"), "not_school_quran"),
+)
+# Words that make a preschool category clearly a preschool (Overture).
+_KID_WORDS = re.compile(
+    r"\b(kids|kid|child|children|baby|babies|toddlers?|nursery|montessori|preschool|kindergarten|kg|daycare|day care)\b"
+    r"|اطفال|طفل|حضانه|روضه|براعم|الصغار|كيدز|بيبي|مونتيسوري|نيرسري"
 )
 # Weaker words: they drop a name only when it does not itself read like a
 # school's. "مركز" is also the word for a district (markaz) in Egyptian
@@ -492,7 +510,7 @@ _NOT_SCHOOL_NAME = (
 # "... Academy School" or "... Center School".
 # "تمريض" / nursing is weak too: in Egypt "مدرسة التمريض الثانوية" is a
 # secondary (technical) school; a nursing institute or faculty is not.
-_NOT_SCHOOL_NAME_WEAK = re.compile(r"\b(academy|center|centre|nursing|institute)\b|اكاديميه|مركز|سنتر|تمريض|معهد")
+_NOT_SCHOOL_NAME_WEAK = re.compile(r"\b(academy|center|centre|nursing|institute|club)\b|اكاديميه|مركز|تمريض|معهد|نادي")
 # Al-Azhar institutes (معهد أزهري ابتدائي / إعدادي / ثانوي) are the
 # Azhar system's primary, preparatory and secondary schools: schools for
 # this app (owner, 16 Nov 2026), however they are tagged (amenity=school,
@@ -673,11 +691,16 @@ def classify_overture(category: str, names: tuple[str, ...]) -> tuple[str | None
         return ("university", "overture") if CATEGORIES["university"] else (None, "not_school_university")
     if category not in OVERTURE_CATEGORIES:
         return None, "not_school_other"
+    kid = any(_KID_WORDS.search(normalize_text(n)) for n in names if n)
     not_school = name_says_not_school(*names)
+    if not_school == "not_school_courses" and kid and category in OVERTURE_KG_CATEGORIES | OVERTURE_NURSERY_CATEGORIES:
+        # "Kids Academy", "Baby Club", "حضانة ... سنتر"-free kids centres:
+        # filed as a preschool and named for small children -> a preschool.
+        not_school = None
     if not_school:
         return None, not_school
     if category in OVERTURE_NURSERY_CATEGORIES:
-        if CATEGORIES["nursery"] and by_name == "kindergarten":
+        if CATEGORIES["nursery"] and (by_name == "kindergarten" or kid):
             return "kindergarten", "overture"
         return None, "not_school_childcare"
     if category == "religious_school" and not by_name:
@@ -722,6 +745,11 @@ class RawEntry:
     drop_reason: str = ""  # why kind is None (DROP_REASONS key)
     name_from: str = ""  # tag the name was recovered from (official_name, ...)
     wikidata: str = ""  # OSM "wikidata" tag (Q-number), or the item's own QID
+    category: str = ""  # OSM amenity/education/building value, or the Overture category
+    confidence: float | None = None  # Overture's confidence
+    name_fix: str = ""  # "mojibake" / "normalised" when fix_text changed a name
+    review_keep: bool = False  # decisions.csv "keep": the name rules do not drop it
+    raw_names: str = ""  # name | name:ar | name:en as read (review_input.csv)
 
 
 @dataclass
@@ -748,6 +776,8 @@ class School:
     place_area_name_ar: str = ""
     place_area_name_en: str = ""
     place_district_id: str = ""
+    confidence: float | None = None  # Overture's; ranks Overture entries in a merge
+    merged_from: list[str] = field(default_factory=list)  # ids merged into this one (dedupe.py)
 
     def to_json(self) -> dict:
         place = (
@@ -774,6 +804,7 @@ class School:
             "city": self.city,
             "cityAr": self.city_ar,
             "location": None if self.lat is None or self.lng is None else {"lat": self.lat, "lng": self.lng},
+            **({"mergedFrom": self.merged_from} if self.merged_from else {}),
         }
 
 
@@ -832,13 +863,20 @@ _QID = re.compile(r"^Q[1-9][0-9]*$")
 
 
 def _osm_entry(props: dict, lat: float | None, lng: float | None, file: str, index: int) -> RawEntry:
-    name = _first(props, "name", "NAME")
-    name_ar = _first(props, "name:ar", "name_ar")
-    name_en = _first(props, "name:en", "name_en")
+    raw_names = (_first(props, "name", "NAME"), _first(props, "name:ar", "name_ar"), _first(props, "name:en", "name_en"))
+    # Mojibake repaired, presentation forms and fancy letters normalised,
+    # controls and emoji removed, before any rule (name_clean.py).
+    name, name_ar, name_en = (fix_text(n) for n in raw_names)
+    name_fix = ""
+    if any(repair_mojibake(n) != n for n in raw_names if n):
+        name_fix = "mojibake"
+    elif (name, name_ar, name_en) != raw_names:
+        name_fix = "normalised"
     name_from = ""
     source_tag = str(props.get("@source") or "")
     if not (name or name_ar or name_en):
         name, name_from = recover_name(props)
+        name = fix_text(name)
     if source_tag == "overture":
         # Overture Maps Places (fetch_overture_schools.py): its own category.
         category = _first(props, "overture:category").lower()
@@ -866,6 +904,14 @@ def _osm_entry(props: dict, lat: float | None, lng: float | None, file: str, ind
         drop_reason="" if kind else why,
         name_from=name_from,
         wikidata=qid if _QID.match(qid) and not is_overture else "",
+        category=(
+            _first(props, "overture:category")
+            if is_overture
+            else _first(props, "amenity", "education", "building", "school", "AMENITY").lower()
+        ),
+        confidence=_float(str(props.get("overture:confidence"))) if is_overture else None,
+        name_fix=name_fix,
+        raw_names=" | ".join(raw_names),
         name=name,
         name_ar=name_ar,
         name_en=name_en,
@@ -1088,12 +1134,16 @@ DROP_REASONS = {
     "not_school_university": "University",
     "not_school_college": "College",
     "not_school_courses": "Courses, centres and academies (language, music, driving, training, ...)",
+    "not_school_tutoring": "Tutoring centres and exam courses (سنتر, دروس, IELTS, ...)",
+    "not_school_quran": "Quran memorisation (دار تحفيظ, كتاب)",
     "not_school_childcare": "Childcare, not a kindergarten",
     "not_school_other": "Not a school or kindergarten",
     "not_school_feature": "Named like a school but mapped as something else (street, shop, place, historic madrasa, pitch, ...)",
     "building_part": "Name of a building part (\"مبنى ب\", \"Block A\")",
     "wikidata_linked": "Wikidata item already in OpenStreetMap (same item; its names were added there)",
     "name_too_long": "Name longer than 120 characters",
+    "name_script": "Name not in Arabic or English",
+    "review_drop": "Dropped by the review (data/schools/review/decisions.csv)",
     "repeated_source_id": "Same source ID twice in the input",
 }
 
@@ -1122,6 +1172,7 @@ class Dropped:
     source_key: str
     name: str
     file: str
+    entry: RawEntry | None = None
 
 
 def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School], list[Dropped]]:
@@ -1138,7 +1189,7 @@ def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School]
         display = e.name or e.name_ar or e.name_en
 
         def drop(reason: str) -> None:
-            dropped.append(Dropped(reason, key, display, e.file))
+            dropped.append(Dropped(reason, key, display, e.file, e))
 
         if e.kind is None:
             drop(e.drop_reason or DROP_AMENITIES.get(e.amenity, "not_school_other"))
@@ -1147,9 +1198,13 @@ def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School]
             drop("wikidata_linked")
             continue
         item = wikidata_items.get(e.wikidata) if e.source != "wikidata" else None
-        name_ar = clean_name(e.name_ar)
-        name_en = clean_name(e.name_en)
-        name = clean_name(e.name)
+        raw = (clean_name(e.name_ar), clean_name(e.name_en), clean_name(e.name))
+        name_ar, name_en, name = (script_check(n) if n else "" for n in raw)
+        if e.review_keep:
+            name_ar, name_en, name = raw  # a reviewer kept it: no script check
+        if any(raw) and not (name_ar or name_en or name):
+            drop("name_script")
+            continue
         if name:
             if has_arabic(name):
                 name_ar = name_ar or name
@@ -1161,7 +1216,7 @@ def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School]
         if not name_ar and not name_en:
             drop("no_name")
             continue
-        if not match_tokens(name_ar) and not match_tokens(name_en):
+        if not match_tokens(name_ar) and not match_tokens(name_en) and not e.review_keep:
             drop("generic_name")
             continue
         if len(name_ar) > 120 or len(name_en) > 120:
@@ -1217,6 +1272,7 @@ def clean(entries: list[RawEntry], boundaries: Boundaries) -> tuple[list[School]
                 match_en=match_tokens(name_en) if name_en else (),
                 stages=name_tags(name_ar, name_en)[0],
                 genders=name_tags(name_ar, name_en)[1],
+                confidence=e.confidence,
             )
         )
     return schools, dropped
@@ -1271,6 +1327,17 @@ class LikelyDuplicate:
     distance_m: float | None
     similarity: float
     why: str
+    keep: str = ""  # dedupe.KEEP_TEXT key: why it is deliberately not merged
+
+
+@dataclass
+class MergeLink:
+    """One entry merged into a group's main entry, and by which rule."""
+
+    kept_id: str
+    merged_id: str
+    rule: str
+    distance_m: float | None
 
 
 # Main entry of a merged group: owner lists, then OpenStreetMap, Wikidata,
@@ -1288,8 +1355,9 @@ def _source_rank(s: School) -> tuple:
         # school, even one without a pin (its pin is still used, _merge).
         1 if s.source == "overture" else 0,
         0 if s.lat is not None else 1,
-        0 if s.source == "osm" and s.source_id.startswith("n") else 1,
         _SOURCE_ORDER.get(s.source, 0),
+        0 if s.source == "osm" and s.source_id.startswith("n") else 1,
+        -(s.confidence or 0.0),
         s.source,
         s.source_id,
     )
@@ -1300,42 +1368,67 @@ def _cells(lat: float, lng: float) -> tuple[int, int]:
     return int(math.floor(lat / 0.005)), int(math.floor(lng / 0.005))
 
 
-def find_duplicates(schools: list[School]) -> tuple[list[School], list[list[School]], list[LikelyDuplicate]]:
-    """Merges entries with the same name (see compare) within 300 m, and a
-    list entry without a pin into the one same-name school of its
-    governorate. No chains: an entry joins a group only if it also matches
-    the group's main entry (and is within 300 m of it), and two groups are
-    never joined. Everything borderline goes to the report. Returns the
-    merged schools, the merged groups, and pairs to check by hand."""
+def find_duplicates(
+    schools: list[School], links: list[MergeLink] | None = None
+) -> tuple[list[School], list[list[School]], list[LikelyDuplicate]]:
+    """Merges the same school found more than once (rules in dedupe.py:
+    same name within 500 m, 85 % alike within 300 m, Arabic/English alike
+    within 300 m, one name inside the other within 100 m, a school's KG
+    section within 300 m, same name within 2 km), and a list entry without
+    a pin into the one same-name school of its governorate. No chains: an
+    entry joins a group only if it is also the same school as the group's
+    main entry by a rule, and two groups are never joined. What looks alike
+    but is deliberately kept apart goes to the report with the reason.
+    Returns the merged schools, the merged groups and those pairs; [links]
+    (if given) receives one MergeLink per merged entry."""
+    import dedupe
+
     likely: list[LikelyDuplicate] = []
-    merge_pairs: list[tuple[float, int, int]] = []
+    merge_pairs: list[tuple[float, int, int, str]] = []
 
     grid: dict[tuple[int, int], list[int]] = {}
     for i, s in enumerate(schools):
         if s.lat is not None and s.lng is not None:
-            grid.setdefault(_cells(s.lat, s.lng), []).append(i)
+            grid.setdefault(dedupe.cells(s.lat, s.lng), []).append(i)
 
-    reach = int(math.ceil(NEARBY_REPORT_DISTANCE_M / 480.0))
+    verdict_of: dict[tuple[int, int], tuple[dedupe.Verdict, float]] = {}
+    # Cheap first check: two names that share no core word and no consonant
+    # skeleton cannot match any rule (thousands of schools within 2 km in Cairo).
+    keys = [dedupe.quick_keys(s) for s in schools]
+
+    def judged(i: int, j: int) -> tuple[dedupe.Verdict, float] | None:
+        key = (min(i, j), max(i, j))
+        if key not in verdict_of:
+            a, b = schools[key[0]], schools[key[1]]
+            if a.lat is None or b.lat is None:
+                return None
+            d = distance_m(a.lat, a.lng, b.lat, b.lng)  # type: ignore[arg-type]
+            verdict_of[key] = (dedupe.judge(a, b, d), d)
+        return verdict_of[key]
+
     for i, s in enumerate(schools):
         if s.lat is None or s.lng is None:
             continue
-        ci, cj = _cells(s.lat, s.lng)
-        for di in range(-reach, reach + 1):
-            for dj in range(-reach, reach + 1):
+        ci, cj = dedupe.cells(s.lat, s.lng)
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
                 for j in grid.get((ci + di, cj + dj), []):
                     if j <= i:
                         continue
                     t = schools[j]
                     d = distance_m(s.lat, s.lng, t.lat, t.lng)  # type: ignore[arg-type]
-                    if d > NEARBY_REPORT_DISTANCE_M:
+                    if keys[i] and keys[j] and not (keys[i] & keys[j]):
                         continue
-                    verdict, sim, why = compare(s, t)
-                    if d <= MERGE_DISTANCE_M and verdict == "merge":
-                        merge_pairs.append((d, i, j))
-                    elif d <= MERGE_DISTANCE_M and verdict == "report":
-                        likely.append(LikelyDuplicate(s, t, d, sim, f"{why}, within 300 m"))
-                    elif verdict == "merge":
-                        likely.append(LikelyDuplicate(s, t, d, sim, "same name 300 m to 1.5 km apart"))
+                    if d > dedupe.FAR_SAME_NAME_M:
+                        continue
+                    v = dedupe.judge(s, t, d)
+                    verdict_of[(i, j)] = (v, d)
+                    if v.rule:
+                        merge_pairs.append((d, i, j, v.rule))
+                    elif v.keep and v.keep != "stage" and d <= dedupe.REPORT_M:
+                        # Different stages or boys/girls are known to be
+                        # different schools: not reported.
+                        likely.append(LikelyDuplicate(s, t, d, v.similarity, dedupe.KEEP_TEXT[v.keep], v.keep))
 
     # Entries without a pin (lists): the one same-name school of the same
     # governorate (and city when both have one).
@@ -1354,39 +1447,42 @@ def find_duplicates(schools: list[School]) -> tuple[list[School], list[list[Scho
         verdicts = {j: compare(s, schools[j]) for j in candidates}
         mergeable = sorted(j for j, v in verdicts.items() if v[0] == "merge")
         if len(mergeable) == 1:
-            merge_pairs.append((math.inf, i, mergeable[0]))
+            merge_pairs.append((math.inf, i, mergeable[0], "list_no_pin"))
         for j in sorted(candidates):
             verdict, sim, why = verdicts[j]
             if len(mergeable) > 1 and verdict == "merge":
-                likely.append(LikelyDuplicate(s, schools[j], None, sim, "list entry without a pin matches several schools"))
+                likely.append(LikelyDuplicate(s, schools[j], None, sim, "list entry without a pin matches several schools", "list"))
             elif verdict == "report":
-                likely.append(LikelyDuplicate(s, schools[j], None, sim, f"{why}, list entry without a pin"))
+                likely.append(LikelyDuplicate(s, schools[j], None, sim, f"{why}, list entry without a pin", "one_sided"))
 
-    # Closest pairs first. A group grows only by single entries that also
-    # match its main entry.
+    # Closest pairs first (stronger rules first at the same distance). A
+    # group grows only by single entries that are the same school as its
+    # main entry.
     group_of = list(range(len(schools)))
     members: dict[int, list[int]] = {i: [i] for i in range(len(schools))}
+    rule_of: dict[int, tuple[str, float | None]] = {}
 
     def main_entry(g: int) -> int:
         return min(members[g], key=lambda k: _source_rank(schools[k]))
 
-    for d, i, j in sorted(merge_pairs, key=lambda p: (p[0], schools[p[1]].id, schools[p[2]].id)):
+    order = {r: n for n, r in enumerate(dedupe.RULES + ("list_no_pin",))}
+    for d, i, j, rule in sorted(merge_pairs, key=lambda p: (p[0], order[p[3]], schools[p[1]].id, schools[p[2]].id)):
         gi, gj = group_of[i], group_of[j]
         if gi == gj:
             continue
         if len(members[gi]) > 1 and len(members[gj]) > 1:
-            likely.append(LikelyDuplicate(schools[i], schools[j], None if d == math.inf else d, 1.0, "both already merged with other entries"))
+            likely.append(LikelyDuplicate(schools[i], schools[j], None if d == math.inf else d, 1.0, dedupe.KEEP_TEXT["chain_conflict"], "chain_conflict"))
             continue
         group, single = (gi, j) if len(members[gi]) > 1 or (len(members[gj]) == 1 and gi < gj) else (gj, i)
-        main = schools[main_entry(group)]
-        newcomer = schools[single]
-        near = (
-            main.lat is None or newcomer.lat is None
-            or distance_m(main.lat, main.lng, newcomer.lat, newcomer.lng) <= MERGE_DISTANCE_M  # type: ignore[arg-type]
-        )
-        if main is not newcomer and (compare(newcomer, main)[0] != "merge" or not near):
-            likely.append(LikelyDuplicate(newcomer, main, None if d == math.inf else d, 1.0, "matches a merged entry but not its main entry"))
-            continue
+        main_i = main_entry(group)
+        if main_i != single and rule != "list_no_pin":
+            check = judged(single, main_i)
+            if check is None or not check[0].rule:
+                likely.append(LikelyDuplicate(schools[single], schools[main_i], None if d == math.inf else d, 1.0, dedupe.KEEP_TEXT["chain_conflict"], "chain_conflict"))
+                continue
+        dist = None if d == math.inf else d
+        for k in (i, j):
+            rule_of.setdefault(k, (rule, dist))
         for k in members.pop(group_of[single]):
             group_of[k] = group
             members[group].append(k)
@@ -1395,13 +1491,30 @@ def find_duplicates(schools: list[School]) -> tuple[list[School], list[list[Scho
     merged_groups: list[list[School]] = []
     for g in sorted(members):
         group_members = [schools[k] for k in members[g]]
-        merged.append(_merge(group_members))
+        survivor = _merge(group_members)
+        merged.append(survivor)
         if len(group_members) > 1:
             merged_groups.append(sorted(group_members, key=_source_rank))
+            if links is not None:
+                for k in members[g]:
+                    if schools[k].id != survivor.id:
+                        rule, dist = rule_of.get(k, ("same_name_500m", None))
+                        links.append(MergeLink(survivor.id, schools[k].id, rule, dist))
     merged.sort(key=lambda s: s.id)
     merged_groups.sort(key=lambda g: g[0].id)
-    likely.sort(key=lambda p: (p.a.governorate, p.a.id, p.b.id))
-    return merged, merged_groups, likely
+    # A pair whose two entries ended in one group is not "to check".
+    final = {schools[k].id: g for g in members for k in members[g]}
+    likely = [p for p in likely if final.get(p.a.id) != final.get(p.b.id)]
+    seen: set[tuple[str, str]] = set()
+    unique: list[LikelyDuplicate] = []
+    for p in sorted(likely, key=lambda p: (p.a.governorate, p.a.id, p.b.id)):
+        key = tuple(sorted((p.a.id, p.b.id)))
+        if key not in seen:
+            seen.add(key)  # type: ignore[arg-type]
+            unique.append(p)
+    if links is not None:
+        links.sort(key=lambda l: (l.kept_id, l.merged_id))
+    return merged, merged_groups, unique
 
 
 def _merge(members: list[School]) -> School:
@@ -1418,6 +1531,7 @@ def _merge(members: list[School]) -> School:
                 return value
         return values[0] if values else ""
 
+    # Most precise position: OSM, then Wikidata, then the most confident Overture (members are ranked so).
     located = next((m for m in members if m.lat is not None), primary)
     governorate_from = next((m for m in members if m.governorate_method in ("given", "boundary")), located)
     return School(
@@ -1438,6 +1552,8 @@ def _merge(members: list[School]) -> School:
         match_en=primary.match_en,
         stages=primary.stages,
         genders=primary.genders,
+        confidence=primary.confidence,
+        merged_from=sorted({m.id for m in members if m.id != primary.id} | {x for m in members for x in m.merged_from}),
     )
 
 
@@ -1461,20 +1577,246 @@ class Result:
     names_recovered: dict[str, int] = field(default_factory=dict)
     boundaries: Boundaries | None = None
     entries: list[RawEntry] = field(default_factory=list)
+    merge_links: list[MergeLink] = field(default_factory=list)
+    name_fixes: dict[str, int] = field(default_factory=dict)  # "mojibake" / "normalised" -> entries
+    review: "ReviewOutcome | None" = None
 
 
-def run(folder: Path) -> Result:
+def run(folder: Path, decisions: list["Decision"] | None = None) -> Result:
     entries, boundaries, files, problems = read_inputs(folder)
+    review = ReviewOutcome()
+    apply_entry_decisions(decisions or [], entries, review)
     cleaned, dropped = clean(entries, boundaries)
-    merged, groups, likely = find_duplicates(cleaned)
+    links: list[MergeLink] = []
+    merged, groups, likely = find_duplicates(cleaned, links)
+    merged, groups = apply_merge_decisions(decisions or [], merged, groups, links, review)
+    # A reviewer's kind is final, also after merges.
+    kinds = {d.key: d.value for d in (decisions or []) if d.action == "set_kind"}
+    for sch in merged:
+        for k in sch.source_keys:
+            if k in kinds:
+                sch.kind = kinds[k]
     read_by_source: dict[str, int] = {}
     recovered: dict[str, int] = {}
+    fixes: dict[str, int] = {}
     for e in entries:
         fam = source_family(e.source)
         read_by_source[fam] = read_by_source.get(fam, 0) + 1
         if e.name_from:
             recovered[e.name_from] = recovered.get(e.name_from, 0) + 1
-    return Result(merged, dropped, groups, likely, files, problems, len(entries), read_by_source, recovered, boundaries, entries)
+        if e.name_fix:
+            fixes[e.name_fix] = fixes.get(e.name_fix, 0) + 1
+    result = Result(merged, dropped, groups, likely, files, problems, len(entries), read_by_source, recovered, boundaries, entries, links)
+    result.name_fixes = fixes
+    result.review = review
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Review decisions (data/schools/review/decisions.csv), applied after the rules
+# ---------------------------------------------------------------------------
+
+REVIEW_FOLDER = "review"
+DECISIONS_FILE = "decisions.csv"
+DECISION_COLUMNS = ("source", "source_id", "action", "value", "reason")
+DECISION_ACTIONS = ("drop", "rename_ar", "rename_en", "merge_into", "keep", "set_kind")
+_OSM_LONG_ID = re.compile(r"^(node|way|relation)/(\d+)$")
+
+
+@dataclass
+class Decision:
+    source: str
+    source_id: str
+    action: str
+    value: str
+    reason: str
+    line: int
+
+    @property
+    def key(self) -> str:
+        return f"{self.source}:{self.source_id}"
+
+
+@dataclass
+class ReviewOutcome:
+    applied: dict[str, int] = field(default_factory=dict)  # action -> count
+    unmatched: list[Decision] = field(default_factory=list)  # key (or merge target) not in this run
+    problems: list[str] = field(default_factory=list)  # rows that could not be read
+
+    def count(self, action: str) -> None:
+        self.applied[action] = self.applied.get(action, 0) + 1
+
+
+def normalize_key(source: str, source_id: str) -> tuple[str, str]:
+    """The importer's source key: osm n123 / w123 / r123 ("node/123" is
+    accepted), wikidata Q123, overture <id>, list_<file> <row id>."""
+    source = source.strip().lower()
+    source_id = source_id.strip()
+    m = _OSM_LONG_ID.match(source_id)
+    if source == "osm" and m:
+        source_id = f"{m.group(1)[0]}{m.group(2)}"
+    return source, source_id
+
+
+def load_decisions(path: Path) -> tuple[list[Decision], list[str]]:
+    """The review's decisions (UTF-8 CSV, header source,source_id,action,value,reason).
+    Rows that cannot be used are reported, never fatal."""
+    if not path.exists():
+        return [], []
+    problems: list[str] = []
+    out: list[Decision] = []
+    reader = csv.DictReader(io.StringIO(path.read_text(encoding="utf-8-sig")))
+    missing = [c for c in DECISION_COLUMNS[:3] if c not in (reader.fieldnames or [])]
+    if missing:
+        return [], [f"{path.name}: missing columns {', '.join(missing)}"]
+    for n, row in enumerate(reader, start=2):
+        source, source_id = normalize_key(row.get("source") or "", row.get("source_id") or "")
+        action = (row.get("action") or "").strip().lower()
+        value = (row.get("value") or "").strip()
+        if not source or not source_id or action not in DECISION_ACTIONS:
+            problems.append(f"{path.name} line {n}: unusable row (source, source_id and an action of {', '.join(DECISION_ACTIONS)})")
+            continue
+        if action in ("rename_ar", "rename_en") and not value:
+            problems.append(f"{path.name} line {n}: {action} needs a value")
+            continue
+        if action == "set_kind" and value not in ("school", "kindergarten"):
+            problems.append(f"{path.name} line {n}: set_kind value must be school or kindergarten")
+            continue
+        if action == "merge_into":
+            if ":" not in value and "," not in value:
+                problems.append(f"{path.name} line {n}: merge_into value must be a source key like osm:n123")
+                continue
+            vs, vi = re.split("[:,]", value, maxsplit=1)
+            value = ":".join(normalize_key(vs, vi))
+        out.append(Decision(source, source_id, action, value, (row.get("reason") or "").strip(), n))
+    return out, problems
+
+
+def apply_entry_decisions(decisions: list[Decision], entries: list[RawEntry], review: ReviewOutcome) -> None:
+    """drop / keep / set_kind / rename_* on the raw entries, before cleaning
+    (merge_into comes after the duplicates, apply_merge_decisions)."""
+    by_key: dict[str, list[RawEntry]] = {}
+    for e in entries:
+        by_key.setdefault(f"{e.source}:{e.source_id}", []).append(e)
+    order = {"keep": 0, "set_kind": 1, "rename_ar": 2, "rename_en": 2, "drop": 3}
+    for d in sorted((d for d in decisions if d.action != "merge_into"), key=lambda d: (order[d.action], d.line)):
+        targets = by_key.get(d.key)
+        if not targets:
+            review.unmatched.append(d)
+            continue
+        for e in targets:
+            if d.action == "drop":
+                e.kind, e.drop_reason, e.review_keep = None, "review_drop", False
+            elif d.action == "keep":
+                if e.kind is None:
+                    e.kind = next((k for k in (name_says_school(n) for n in (e.name, e.name_ar, e.name_en) if n) if k), "school")
+                    e.drop_reason = ""
+                e.review_keep = True
+            elif d.action == "set_kind":
+                if e.kind is not None:
+                    e.kind = d.value
+            elif d.action == "rename_ar":
+                e.name_ar = d.value
+            elif d.action == "rename_en":
+                e.name_en = d.value
+        review.count(d.action)
+
+
+def apply_merge_decisions(
+    decisions: list[Decision], schools: list[School], groups: list[list[School]], links: list[MergeLink], review: ReviewOutcome
+) -> tuple[list[School], list[list[School]]]:
+    """merge_into: the kept school holding key A joins the one holding key B
+    (B's school stays the main entry)."""
+    merges = [d for d in decisions if d.action == "merge_into"]
+    if not merges:
+        return schools, groups
+    holder: dict[str, School] = {k: s for s in schools for k in s.source_keys}
+    out = {s.id: s for s in schools}
+    for d in merges:
+        a, b = holder.get(d.key), holder.get(d.value)
+        if a is None or b is None:
+            review.unmatched.append(d)
+            continue
+        a, b = out.get(a.id, a), out.get(b.id, b)
+        if a.id == b.id:
+            review.count(d.action)
+            continue
+        combined = _merge([b, a])
+        combined = School(**{**combined.__dict__, "id": b.id, "source": b.source, "source_id": b.source_id,
+                             "lat": b.lat if b.lat is not None else a.lat, "lng": b.lng if b.lng is not None else a.lng,
+                             "merged_from": sorted(set(b.merged_from) | set(a.merged_from) | {a.id})})
+        out.pop(a.id, None)
+        out[b.id] = combined
+        for k in combined.source_keys:
+            holder[k] = combined
+        links.append(MergeLink(b.id, a.id, "review", None))
+        review.count(d.action)
+    links.sort(key=lambda l: (l.kept_id, l.merged_id))
+    return sorted(out.values(), key=lambda s: s.id), groups
+
+
+def review_lines(result: "Result") -> list[str]:
+    r = result.review
+    if r is None or not (r.applied or r.unmatched or r.problems):
+        return []
+    lines = [
+        "Review decisions applied: " + (", ".join(f"{a} {n}" for a, n in sorted(r.applied.items())) or "none")
+        + f"; not matched in this run: {len(r.unmatched)}"
+    ]
+    for d in r.unmatched[:20]:
+        lines.append(f"  not matched: line {d.line} {d.key} {d.action} {d.value}".rstrip())
+    lines += [f"  {p}" for p in r.problems[:20]]
+    return lines
+
+
+REVIEW_INPUT_COLUMNS = (
+    "source", "source_id", "name_ar", "name_en", "raw_names", "kind", "category", "confidence",
+    "governorate", "lat", "lon", "drop_reason", "group_id",
+)
+
+
+def write_review_input(result: "Result", path: Path) -> int:
+    """build/schools/review_input.csv: one row per entry read (kept or
+    dropped), for the review of every name. Public place data only;
+    positions rounded to 3 decimals (about 100 m)."""
+    dropped = {}
+    for d in result.dropped:
+        dropped.setdefault(d.source_key, d.reason)
+    school_of = {k: s for s in result.schools for k in s.source_keys}
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=REVIEW_INPUT_COLUMNS)
+    writer.writeheader()
+    seen: set[str] = set()
+    for e in result.entries:
+        key = f"{e.source}:{e.source_id}"
+        if key in seen:
+            continue
+        seen.add(key)
+        s = school_of.get(key)
+        gov = s.governorate if s else (governorate_code(e.governorate_text) or "")
+        if not gov and e.lat is not None and e.lng is not None:
+            at = result.boundaries.governorate_at(e.lat, e.lng) if result.boundaries else None
+            gov = at or nearest_town(e.lat, e.lng)[0]
+        writer.writerow(
+            {
+                "source": e.source,
+                "source_id": e.source_id,
+                "name_ar": s.name_ar if s else e.name_ar,
+                "name_en": s.name_en if s else e.name_en,
+                "raw_names": e.raw_names,
+                "kind": s.kind if s else (e.kind or ""),
+                "category": e.category,
+                "confidence": "" if e.confidence is None else f"{e.confidence:.2f}",
+                "governorate": gov,
+                "lat": "" if e.lat is None else f"{e.lat:.3f}",
+                "lon": "" if e.lng is None else f"{e.lng:.3f}",
+                "drop_reason": "" if s else dropped.get(key, ""),
+                "group_id": s.id if s else "",
+            }
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\ufeff" + buffer.getvalue(), encoding="utf-8")
+    return len(seen)
 
 
 def source_family(source: str) -> str:
@@ -1484,6 +1826,125 @@ def source_family(source: str) -> str:
     return source
 
 
+DROPPED_CSV_COLUMNS = ("name", "name_ar", "name_en", "source", "source_id", "category", "governorate", "confidence", "file")
+
+
+def dropped_rows(result: Result) -> dict[str, list[dict[str, str]]]:
+    """Dropped entries per reason, as CSV rows (public place data only:
+    names, source, category, governorate, Overture confidence; no position)."""
+    out: dict[str, list[dict[str, str]]] = {}
+    for d in result.dropped:
+        e = d.entry
+        gov = ""
+        if e is not None:
+            gov = governorate_code(e.governorate_text) or ""
+            if not gov and e.lat is not None and e.lng is not None:
+                at = result.boundaries.governorate_at(e.lat, e.lng) if result.boundaries else None
+                gov = at or nearest_town(e.lat, e.lng)[0]
+        source, _, source_id = d.source_key.partition(":")
+        out.setdefault(d.reason, []).append(
+            {
+                "name": d.name,
+                "name_ar": e.name_ar if e else "",
+                "name_en": e.name_en if e else "",
+                "source": source,
+                "source_id": source_id,
+                "category": e.category if e else "",
+                "governorate": gov,
+                "confidence": "" if e is None or e.confidence is None else f"{e.confidence:.2f}",
+                "file": d.file,
+            }
+        )
+    return out
+
+
+def write_dropped_csvs(result: Result, folder: Path) -> list[tuple[str, int, Path]]:
+    """build/schools/dropped_<reason>.csv (UTF-8 with BOM so Excel shows
+    Arabic). Returns (reason, count, path), largest first. Old files of
+    reasons that no longer occur are removed."""
+    folder.mkdir(parents=True, exist_ok=True)
+    for old in folder.glob("dropped_*.csv"):
+        old.unlink()
+    written: list[tuple[str, int, Path]] = []
+    for reason, rows in dropped_rows(result).items():
+        path = folder / f"dropped_{reason}.csv"
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=DROPPED_CSV_COLUMNS)
+        writer.writeheader()
+        for row in sorted(rows, key=lambda r: (r["source"], r["governorate"], r["name"])):
+            writer.writerow(row)
+        path.write_text("\ufeff" + buffer.getvalue(), encoding="utf-8")
+        written.append((reason, len(rows), path))
+    written.sort(key=lambda w: (-w[1], w[0]))
+    return written
+
+
+def dropped_by_source_lines(result: Result) -> list[str]:
+    """"Dropped per reason and source: No name: osm 373, overture 2; ..."."""
+    table: dict[str, dict[str, int]] = {}
+    for d in result.dropped:
+        fam = source_family(d.source_key.split(":", 1)[0])
+        table.setdefault(d.reason, {})[fam] = table.setdefault(d.reason, {}).get(fam, 0) + 1
+    ranked = sorted(table.items(), key=lambda kv: -sum(kv[1].values()))
+    return [
+        "Dropped per reason and source: "
+        + "; ".join(f"{DROP_REASONS.get(r, r)}: " + ", ".join(f"{f} {n}" for f, n in sorted(c.items())) for r, c in ranked)
+    ] if ranked else []
+
+
+def dedupe_lines(result: Result) -> list[str]:
+    """Auto-merged per rule, and what is left to check (and why)."""
+    import dedupe
+
+    per_rule: dict[str, int] = {}
+    for link in result.merge_links:
+        per_rule[link.rule] = per_rule.get(link.rule, 0) + 1
+    left: dict[str, int] = {}
+    for p in result.likely:
+        left[p.keep or "similar"] = left.get(p.keep or "similar", 0) + 1
+    lines = [
+        f"Auto-merged duplicates: {len(result.merge_links)}"
+        + (" (" + ", ".join(f"{dedupe.RULE_TEXT.get(r, r)} {n}" for r, n in sorted(per_rule.items(), key=lambda kv: -kv[1])) + ")" if per_rule else "")
+    ]
+    lines.append(
+        f"Left apart on purpose (look alike, not merged): {len(result.likely)}"
+        + (" (" + ", ".join(f"{dedupe.KEEP_TEXT.get(k, k)} {n}" for k, n in sorted(left.items(), key=lambda kv: -kv[1])) + ")" if left else "")
+    )
+    return lines
+
+
+MERGED_CSV_COLUMNS = ("group", "kept_id", "merged_id", "kept_name_ar", "kept_name_en", "merged_name_ar", "merged_name_en", "distance_m", "rule")
+
+
+def write_merged_csv(result: Result, groups_before: dict[str, School], path: Path) -> int:
+    """build/schools/merged.csv: one row per entry merged into another
+    (group = the kept id). [groups_before] maps every entry id to its
+    School before the merge (for its own names)."""
+    kept = {s.id: s for s in result.schools}
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=MERGED_CSV_COLUMNS)
+    writer.writeheader()
+    for link in result.merge_links:
+        k = kept.get(link.kept_id)
+        m = groups_before.get(link.merged_id)
+        writer.writerow(
+            {
+                "group": link.kept_id,
+                "kept_id": link.kept_id,
+                "merged_id": link.merged_id,
+                "kept_name_ar": k.name_ar if k else "",
+                "kept_name_en": k.name_en if k else "",
+                "merged_name_ar": m.name_ar if m else "",
+                "merged_name_en": m.name_en if m else "",
+                "distance_m": "" if link.distance_m is None else f"{link.distance_m:.0f}",
+                "rule": link.rule,
+            }
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\ufeff" + buffer.getvalue(), encoding="utf-8")
+    return len(result.merge_links)
+
+
 def schools_json(result: Result, generated_at: str) -> dict:
     return {
         "format": "school-carpool-schools/1",
@@ -1491,6 +1952,13 @@ def schools_json(result: Result, generated_at: str) -> dict:
         "files": result.files,
         "count": len(result.schools),
         "schools": [s.to_json() for s in result.schools],
+        # Entries the rules drop now (the loader takes earlier copies out of
+        # the list: out of search, kept as documents). Not the bookkeeping
+        # reasons (an entry read twice, a Wikidata item already in OSM).
+        "dropped": sorted(
+            ({"key": d.source_key, "reason": d.reason} for d in result.dropped if d.reason not in ("repeated_source_id", "wikidata_linked")),
+            key=lambda x: x["key"],
+        ),
     }
 
 
@@ -1626,6 +2094,11 @@ def summary_text(result: Result) -> str:
     ]
     if reasons:
         parts.append("Dropped: " + ", ".join(f"{DROP_REASONS.get(r, r)} {n}" for r, n in sorted(reasons.items(), key=lambda kv: -kv[1])))
+    if result.name_fixes:
+        parts.append(
+            "Names fixed: "
+            + ", ".join(f"{'mojibake repaired' if k == 'mojibake' else 'presentation forms, fancy letters, controls or emoji cleaned'} {n}" for k, n in sorted(result.name_fixes.items()))
+        )
     if result.names_recovered:
         parts.append(
             "Names recovered from other tags: " + ", ".join(f"{k} {n}" for k, n in sorted(result.names_recovered.items()))
