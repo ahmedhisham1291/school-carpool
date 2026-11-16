@@ -476,7 +476,16 @@ class CarpoolDraft {
 /// A search (searchCarpools).
 @immutable
 class CarpoolQuery {
-  const CarpoolQuery({this.kind = CarpoolKind.school, this.schoolId, this.areaId, this.morning, this.afternoon, this.radiusKm, this.parentUid});
+  const CarpoolQuery({
+    this.kind = CarpoolKind.school,
+    this.schoolId,
+    this.areaId,
+    this.morning,
+    this.afternoon,
+    this.radiusKm,
+    this.parentUid,
+    this.activityName,
+  });
 
   final CarpoolKind kind;
   final String? schoolId;
@@ -488,6 +497,10 @@ class CarpoolQuery {
   /// Only this parent's carpools (the nearby map's Join button).
   final String? parentUid;
 
+  /// R9: an activity search names one activity (the server shows only
+  /// carpools of that activity).
+  final String? activityName;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'kind': kind.name,
     'schoolId': ?schoolId,
@@ -496,6 +509,7 @@ class CarpoolQuery {
     'afternoon': ?afternoon,
     'radiusKm': ?radiusKm,
     'parentUid': ?parentUid,
+    'activityName': ?activityName,
   };
 }
 

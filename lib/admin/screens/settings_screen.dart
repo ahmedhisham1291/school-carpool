@@ -30,6 +30,7 @@ String adminFeatureTitle(AppLocalizations l10n, AppFeature f) => switch (f) {
   AppFeature.yearlyChecks => l10n.adminFeatureYearly,
   AppFeature.settleUp => l10n.adminFeatureSettle,
   AppFeature.contributions => l10n.adminFeatureContributions,
+  AppFeature.activityCarpools => l10n.adminFeatureActivity,
 };
 
 String adminFeatureHelper(AppLocalizations l10n, AppFeature f) => switch (f) {
@@ -38,6 +39,7 @@ String adminFeatureHelper(AppLocalizations l10n, AppFeature f) => switch (f) {
   AppFeature.yearlyChecks => l10n.adminFeatureYearlyHelper,
   AppFeature.settleUp => l10n.adminFeatureSettleHelper,
   AppFeature.contributions => l10n.adminFeatureContributionsHelper,
+  AppFeature.activityCarpools => l10n.adminFeatureActivityHelper,
 };
 
 /// Settings (pilot feature switches): one switch per optional feature

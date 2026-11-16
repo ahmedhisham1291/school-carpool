@@ -121,6 +121,7 @@ class FirebaseAdminFeaturesApi implements AdminFeaturesApi {
       yearlyChecks: f.flag('yearlyChecks'),
       settleUp: f.flag('settleUp'),
       contributions: f.flag('contributions'),
+      activityCarpools: f.flag('activityCarpools'),
     );
   }
 

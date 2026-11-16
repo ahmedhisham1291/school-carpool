@@ -17,7 +17,7 @@
  * Pure; unit-tested (test/features.test.ts).
  */
 
-export const FEATURE_KEYS = ["wallet", "ratingsAndVouching", "yearlyChecks", "settleUp", "contributions"] as const;
+export const FEATURE_KEYS = ["wallet", "ratingsAndVouching", "yearlyChecks", "settleUp", "contributions", "activityCarpools"] as const;
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
 export type FeatureSwitches = Readonly<Record<FeatureKey, boolean>>;
 
@@ -37,13 +37,16 @@ export const PILOT_DEFAULTS: FeatureSwitches = {
   yearlyChecks: false,
   settleUp: false,
   contributions: false,
+  // R9 (answers.md 2.1, 2.4): activity carpools (F39) stay off in the pilot
+  // until the lawyer's written Law 87/2018 opinion covers them.
+  activityCarpools: false,
 };
 
 /** The switches that carry money or a cost between parents (all off by default). */
 export const MONEY_FEATURES: readonly FeatureKey[] = ["wallet", "settleUp", "contributions"];
 
 /** Every switch on (unit tests of the features themselves). */
-export const ALL_ON: FeatureSwitches = { wallet: true, ratingsAndVouching: true, yearlyChecks: true, settleUp: true, contributions: true };
+export const ALL_ON: FeatureSwitches = { wallet: true, ratingsAndVouching: true, yearlyChecks: true, settleUp: true, contributions: true, activityCarpools: true };
 
 export const FEATURES_DOC = "config/features";
 
@@ -183,6 +186,13 @@ export const GATED_FUNCTIONS: Readonly<Record<FeatureKey, { callables: readonly 
   // createCarpool refuses a contribution and requestToJoinCarpool ignores
   // one while it is off, and searches leave it out (carpools/flow.ts).
   contributions: {
+    callables: [],
+    jobs: [],
+  },
+  // R9 (F39): no callable of its own either: createCarpool refuses an
+  // activity carpool, searchCarpools an activity search and
+  // requestToJoinCarpool a join to one while it is off (carpools/flow.ts).
+  activityCarpools: {
     callables: [],
     jobs: [],
   },

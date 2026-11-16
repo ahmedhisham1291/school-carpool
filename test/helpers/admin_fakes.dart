@@ -646,6 +646,7 @@ class FakeAdminFeaturesApi implements AdminFeaturesApi {
       AppFeature.yearlyChecks => switches.copyWith(yearlyChecks: on),
       AppFeature.settleUp => switches.copyWith(settleUp: on),
       AppFeature.contributions => switches.copyWith(contributions: on),
+      AppFeature.activityCarpools => switches.copyWith(activityCarpools: on),
     };
     return switches;
   }

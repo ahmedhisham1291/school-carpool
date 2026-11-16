@@ -59,6 +59,7 @@ Open questions (none block; recorded for the owner and the lawyer):
 ## Progress
 
 - R1: done.
+- R9: done (keep `activityCarpools` off in staging and prod until the lawyer opinion covers F39).
 - R8: done (owner: give the registered address once the company exists; the lawyer approves the texts).
 - R7: done.
 - R6: done (owner action: submit the WhatsApp template `cp_emergency_contact_intro` in Meta; until it is approved the server falls back to `cp_emergency_contact`; `LEGAL_SITE_URL` must be set in the app build for "Send the link"). Built as answers.md says: alerts still go before the contact confirms.

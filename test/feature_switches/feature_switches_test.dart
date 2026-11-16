@@ -105,8 +105,11 @@ void main() {
       expect(FeatureSwitches.allOn.anyMoney, isTrue);
       expect(
         AppFeature.values.map((AppFeature f) => f.name),
-        <String>['wallet', 'ratingsAndVouching', 'yearlyChecks', 'settleUp', 'contributions'],
+        <String>['wallet', 'ratingsAndVouching', 'yearlyChecks', 'settleUp', 'contributions', 'activityCarpools'],
       );
+      // R9: activity carpools (F39) off in the pilot.
+      expect(FeatureSwitches.pilot.activityCarpools, isFalse);
+      expect(FeatureSwitches.fromMap(const <String, Object?>{'activityCarpools': true}).activityCarpools, isTrue);
     });
 
     test('a missing document reads as the pilot defaults', () {

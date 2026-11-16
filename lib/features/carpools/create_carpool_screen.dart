@@ -424,13 +424,15 @@ class _CreateCarpoolScreenState extends ConsumerState<CreateCarpoolScreen> {
                 selected: _kind == CarpoolKind.school,
                 onSelected: (bool _) => setState(() => _kind = CarpoolKind.school),
               ),
-              AppChip(
-                key: const Key('create.kind.activity'),
-                label: l10n.carpoolKindActivity,
-                icon: Icons.sports_soccer_outlined,
-                selected: _kind == CarpoolKind.activity,
-                onSelected: (bool _) => setState(() => _kind = CarpoolKind.activity),
-              ),
+              // R9: activity carpools (F39) only while their switch is on.
+              if (ref.watch(featureSwitchesProvider).activityCarpools)
+                AppChip(
+                  key: const Key('create.kind.activity'),
+                  label: l10n.carpoolKindActivity,
+                  icon: Icons.sports_soccer_outlined,
+                  selected: _kind == CarpoolKind.activity,
+                  onSelected: (bool _) => setState(() => _kind = CarpoolKind.activity),
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.s16),

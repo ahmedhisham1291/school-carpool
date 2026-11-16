@@ -44,8 +44,8 @@ describe("feature switches: the document", () => {
   it("pilot defaults: everything off, the money features (wallet, Settle up, contributions) included", () => {
     assert.deepEqual([...MONEY_FEATURES], ["wallet", "settleUp", "contributions"]);
     for (const key of MONEY_FEATURES) assert.equal(PILOT_DEFAULTS[key], false, key);
-    assert.deepEqual(PILOT_DEFAULTS, { wallet: false, ratingsAndVouching: false, yearlyChecks: false, settleUp: false, contributions: false });
-    assert.deepEqual([...FEATURE_KEYS], ["wallet", "ratingsAndVouching", "yearlyChecks", "settleUp", "contributions"]);
+    assert.deepEqual(PILOT_DEFAULTS, { wallet: false, ratingsAndVouching: false, yearlyChecks: false, settleUp: false, contributions: false, activityCarpools: false });
+    assert.deepEqual([...FEATURE_KEYS], ["wallet", "ratingsAndVouching", "yearlyChecks", "settleUp", "contributions", "activityCarpools"]);
     assert.equal(FEATURES_DOC, "config/features");
   });
 
@@ -56,7 +56,7 @@ describe("feature switches: the document", () => {
   });
 
   it("only real booleans count; anything else keeps the default; unknown keys are ignored", () => {
-    assert.deepEqual(switchesFrom({ wallet: true, settleUp: false }), { wallet: true, ratingsAndVouching: false, yearlyChecks: false, settleUp: false, contributions: false });
+    assert.deepEqual(switchesFrom({ wallet: true, settleUp: false }), { wallet: true, ratingsAndVouching: false, yearlyChecks: false, settleUp: false, contributions: false, activityCarpools: false });
     assert.deepEqual(switchesFrom({ wallet: "true", ratingsAndVouching: 1, yearlyChecks: null, settleUp: "no", chat: false }), PILOT_DEFAULTS);
   });
 
@@ -128,7 +128,7 @@ describe("feature switches: the per-instance cache", () => {
     const cache = new FeatureCache(
       async () => {
         if (fail) throw new Error("firestore down");
-        return { wallet: true, ratingsAndVouching: true, yearlyChecks: true, settleUp: true, contributions: true };
+        return { wallet: true, ratingsAndVouching: true, yearlyChecks: true, settleUp: true, contributions: true, activityCarpools: true };
       },
       () => now,
     );
@@ -216,8 +216,9 @@ describe("feature switches: every gated entry point", () => {
     yearlyChecks: () => require("../src/trust/callables") as Record<string, unknown>,
     settleUp: () => require("../src/settle_up/callables") as Record<string, unknown>,
     contributions: () => require("../src/carpools/callables") as Record<string, unknown>,
+    activityCarpools: () => require("../src/carpools/callables") as Record<string, unknown>,
   };
-  const ALL_OFF = { wallet: false, ratingsAndVouching: false, yearlyChecks: false, settleUp: false, contributions: false };
+  const ALL_OFF = { wallet: false, ratingsAndVouching: false, yearlyChecks: false, settleUp: false, contributions: false, activityCarpools: false };
 
   it("every gated function is exported from index.ts under that name", () => {
     const index = readFileSync(join(__dirname, "..", "..", "src", "index.ts"), "utf8");

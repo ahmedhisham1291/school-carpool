@@ -593,3 +593,10 @@ Where an item replaces an earlier decision, it says so.
   and sign-in log (180 days) lines. Versions terms and privacy
   `2026-11-17`: every account accepts them again (and signs storage
   abroad, R3) on the next app start.
+- **R9 - activity carpools (F39) off in the pilot.** New switch
+  `activityCarpools` (default off everywhere): creating, searching and
+  joining an activity carpool are refused with `feature-off` and the app
+  hides the option. When switched on (only after the lawyer's written Law
+  87/2018 opinion covers F39): one activity at one venue (a search names
+  the activity), joining by approval plus every parent's driver consent
+  (F26), no public offers (never on the nearby map's parent list).

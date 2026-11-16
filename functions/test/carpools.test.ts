@@ -317,12 +317,32 @@ describe("search (F5, F6, F36, F39)", () => {
       createCarpool(deps, as("alice"), schoolCarpool({ kind: "activity", activity: { name: "Club (test)", label: "", location } }));
     const a = await make(near);
     await make(far);
-    const { carpools } = await searchCarpools(deps, as("cara"), { kind: "activity", radiusKm: 3 });
+    const { carpools } = await searchCarpools(deps, as("cara"), { kind: "activity", radiusKm: 3, activityName: "club  (TEST)" });
     assert.deepEqual(carpools.map((c) => c.id), [a.carpoolId]);
     assert.equal(carpools[0].distanceKm, 1);
     assert.ok(store.activityQueries.length <= 9);
-    await rejects(searchCarpools(deps, as("bob"), { kind: "activity" }), "no-home");
-    await rejects(searchCarpools(deps, as("cara"), { kind: "activity", radiusKm: 7 }), "invalid-request");
+    await rejects(searchCarpools(deps, as("bob"), { kind: "activity", activityName: "Club (test)" }), "no-home");
+    await rejects(searchCarpools(deps, as("cara"), { kind: "activity", radiusKm: 7, activityName: "Club (test)" }), "invalid-request");
+    // R9: one activity at a time; no activity name, no search.
+    assert.deepEqual((await searchCarpools(deps, as("cara"), { kind: "activity", radiusKm: 3, activityName: "Football (test)" })).carpools, []);
+    await rejects(searchCarpools(deps, as("cara"), { kind: "activity", radiusKm: 3 }), "invalid-request");
+    // R9: never on the nearby map's "this parent's carpools" list (no public ride offers).
+    assert.deepEqual((await searchCarpools(deps, as("cara"), { kind: "activity", radiusKm: 3, activityName: "Club (test)", parentUid: "alice" })).carpools, []);
+  });
+
+  it("R9: activity carpools (F39) are off in the pilot: create, search and join refuse with feature-off", async () => {
+    const { deps } = setup();
+    let on = true;
+    deps.activityCarpoolsOn = async () => on;
+    const location = { lat: 29.97, lng: 31.26 };
+    const made = await createCarpool(deps, as("alice"), schoolCarpool({ kind: "activity", activity: { name: "Club (test)", label: "", location } }));
+    on = false;
+    const isOff = (e: unknown) => e instanceof FeatureOffError && e.feature === "activityCarpools";
+    await assert.rejects(createCarpool(deps, as("alice"), schoolCarpool({ kind: "activity", activity: { name: "Club (test)", label: "", location } })), isOff);
+    await assert.rejects(searchCarpools(deps, as("cara"), { kind: "activity", radiusKm: 3, activityName: "Club (test)" }), isOff);
+    await assert.rejects(requestToJoin(deps, as("cara"), { carpoolId: made.carpoolId, childIds: ["c1"], acceptRules: true, acceptVolunteer: true }), isOff);
+    // School carpools are not touched.
+    await createCarpool(deps, as("alice"), schoolCarpool());
   });
 
   it("searches are limited per hour", async () => {

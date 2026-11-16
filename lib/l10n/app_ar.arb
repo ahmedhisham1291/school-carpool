@@ -3789,7 +3789,7 @@
   },
   "carpoolActivityNameLabel": "اسم النشاط",
   "@carpoolActivityNameLabel": {
-    "description": "Field label"
+    "description": "R9: dialog field label. One line."
   },
   "carpoolActivityNameHint": "مثلًا: سباحة النادي",
   "@carpoolActivityNameHint": {
@@ -10968,5 +10968,37 @@
   "emergencyContactNoLink": "الرابط غير متاح في هذه النسخة.",
   "@emergencyContactNoLink": {
     "description": "R6: no links site configured (dev)."
+  },
+  "adminFeatureActivity": "مجموعات الأنشطة",
+  "@adminFeatureActivity": {
+    "description": "Admin Settings switch (R9, F39). One line."
+  },
+  "adminFeatureActivityHelper": "مجموعات لمكان نشاط واحد (نادٍ، دروس). اتركها متوقفة حتى يشملها رأي المحامي المكتوب.",
+  "@adminFeatureActivityHelper": {
+    "description": "Admin Settings helper (R9)."
+  },
+  "carpoolActivityNameChip": "أي نشاط؟",
+  "@carpoolActivityNameChip": {
+    "description": "R9: chip and action to type the one activity searched for. One line."
+  },
+  "carpoolActivityFirstTitle": "اكتب اسم النشاط",
+  "@carpoolActivityFirstTitle": {
+    "description": "R9: empty state before an activity search. One line."
+  },
+  "carpoolActivityFirstBody": "مجموعات الأنشطة لنشاط واحد في مكان واحد. اكتبه كما يسميه النادي أو المدرب.",
+  "@carpoolActivityFirstBody": {
+    "description": "R9: why the activity name is needed."
+  },
+  "carpoolActivityNameTitle": "النشاط",
+  "@carpoolActivityNameTitle": {
+    "description": "R9: dialog title. One line."
+  },
+  "carpoolActivityNameHelper": "مثال: سباحة، نادي الزمالك",
+  "@carpoolActivityNameHelper": {
+    "description": "R9: dialog field helper."
+  },
+  "carpoolActivityNameSearch": "ابحث",
+  "@carpoolActivityNameSearch": {
+    "description": "R9: dialog primary action. One line."
   }
 }

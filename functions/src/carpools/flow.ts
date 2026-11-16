@@ -219,10 +219,27 @@ export interface CarpoolDeps {
    * it out (= on).
    */
   contributionsOn?: () => Promise<boolean>;
+  /**
+   * R9 (F39; answers.md 2.1, 2.4): the "activityCarpools" switch, off in the
+   * pilot until the lawyer's Law 87/2018 opinion covers activity carpools.
+   * Off: creating, searching and joining an activity carpool are refused
+   * with "feature-off". Absent in unit tests (= on).
+   */
+  activityCarpoolsOn?: () => Promise<boolean>;
 }
 
 async function contributionsAllowed(deps: CarpoolDeps): Promise<boolean> {
   return deps.contributionsOn ? deps.contributionsOn() : true;
+}
+
+async function requireActivityCarpools(deps: CarpoolDeps): Promise<void> {
+  if (deps.activityCarpoolsOn && !(await deps.activityCarpoolsOn())) throw new FeatureOffError("activityCarpools");
+}
+
+/** R9: one activity: the same name, compared without case, accents or extra spaces. */
+export function sameActivity(a: string, b: string): boolean {
+  const norm = (s: string) => s.normalize("NFKC").toLowerCase().replace(/[\u064B-\u065F\u0640]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/\s+/g, " ").trim();
+  return norm(a) === norm(b);
 }
 
 export interface Caller {
@@ -382,6 +399,7 @@ export function parseCreate(data: unknown): CreateInput {
 export async function createCarpool(deps: CarpoolDeps, caller: Caller, data: unknown): Promise<{ carpoolId: string }> {
   const input = parseCreate(data);
   if (input.contribution && !(await contributionsAllowed(deps))) throw new FeatureOffError("contributions");
+  if (input.kind === "activity") await requireActivityCarpools(deps);
   const account = await requireVerified(deps, caller);
   if (!input.acceptVolunteer) throw new CarpoolError("must-accept");
   const children = await ownChildren(deps, caller.uid, input.childIds);
@@ -535,6 +553,14 @@ export interface SearchInput {
   afternoon: string | null;
   radiusKm: number;
   parentUid: string | null;
+  /** R9: an activity search names the activity: only carpools of that activity show. */
+  activityName: string | null;
+}
+
+function activityNameOf(value: unknown): string {
+  const name = typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+  if (name.length < 2 || name.length > 60) throw new CarpoolError("invalid-request");
+  return name;
 }
 
 export function parseSearch(data: unknown): SearchInput {
@@ -551,6 +577,7 @@ export function parseSearch(data: unknown): SearchInput {
     afternoon: parseTime(raw.afternoon),
     radiusKm: radiusKm as number,
     parentUid: optionalDocId(raw.parentUid),
+    activityName: kind === "activity" ? activityNameOf(raw.activityName) : null,
   };
 }
 
@@ -574,6 +601,11 @@ export async function searchCarpools(deps: CarpoolDeps, caller: Caller, data: un
       .filter((c) => c.schoolId === schoolId && (!input.areaId || c.areaId === input.areaId))
       .map((c) => ({ c, km: null }));
   } else {
+    // R9: activity carpools only while the switch is on, one activity at a
+    // time, never on the nearby map's "this parent's carpools" list (no
+    // public ride offers).
+    await requireActivityCarpools(deps);
+    if (input.parentUid) return { carpools: [] };
     const home = await deps.store.home(caller.uid);
     if (!home) throw new CarpoolError("no-home");
     await take(deps, caller.uid, "searches", HOUR, deps.limits.searchesPerHour);
@@ -581,7 +613,7 @@ export async function searchCarpools(deps: CarpoolDeps, caller: Caller, data: un
     const seen = new Set<string>();
     for (const prefix of geohashCoverPrefixes(center, input.radiusKm)) {
       for (const c of await deps.store.activityCarpools(prefix, SEARCH_QUERY_LIMIT)) {
-        if (seen.has(c.id) || !c.activity) continue;
+        if (seen.has(c.id) || !c.activity || !sameActivity(c.activity.name, input.activityName as string)) continue;
         seen.add(c.id);
         const km = distanceKm(center, c.activity.point);
         if (km <= input.radiusKm) candidates.push({ c, km });
@@ -636,6 +668,7 @@ export function parseJoin(data: unknown): { carpoolId: string; childIds: string[
 export async function requestToJoin(deps: CarpoolDeps, caller: Caller, data: unknown): Promise<{ status: MembershipStatus }> {
   const input = parseJoin(data);
   const contributionsOn = await contributionsAllowed(deps);
+  const activityOn = deps.activityCarpoolsOn ? await deps.activityCarpoolsOn() : true;
   const account = await requireVerified(deps, caller);
   const children = await ownChildren(deps, caller.uid, input.childIds);
   const car = carInfo(await deps.store.vehicle(caller.uid));
@@ -645,6 +678,8 @@ export async function requestToJoin(deps: CarpoolDeps, caller: Caller, data: unk
 
   return deps.store.transact(async (tx) => {
     const carpool = await requireActiveCarpool(tx, input.carpoolId);
+    // R9: no joining an activity carpool while the switch is off.
+    if (carpool.kind === "activity" && !activityOn) throw new FeatureOffError("activityCarpools");
     const existing = await tx.membership(input.carpoolId, caller.uid);
     if (existing?.status === "approved") throw new CarpoolError("already-member");
     if (existing?.status === "requested") throw new CarpoolError("already-requested");

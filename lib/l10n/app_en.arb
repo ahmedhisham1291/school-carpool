@@ -2464,5 +2464,13 @@
   "emergencyContactSendLink": "Send the link",
   "emergencyContactShareText": "I added you as my emergency contact in School Carpool. You get a WhatsApp message only if I press the emergency button on a school run. Please confirm, or say no, here: {link}",
   "emergencyContactLinkCopied": "Link copied. Paste it in a message to your contact.",
-  "emergencyContactNoLink": "The link is not available in this build."
+  "emergencyContactNoLink": "The link is not available in this build.",
+  "adminFeatureActivity": "Activity carpools",
+  "adminFeatureActivityHelper": "Carpools for one activity venue (club, lessons). Keep off until the lawyer's written opinion covers them.",
+  "carpoolActivityNameChip": "Which activity?",
+  "carpoolActivityFirstTitle": "Name the activity",
+  "carpoolActivityFirstBody": "Activity carpools are for one activity at one place. Type it as the club or coach calls it.",
+  "carpoolActivityNameTitle": "Activity",
+  "carpoolActivityNameHelper": "For example: Swimming, Zamalek Club",
+  "carpoolActivityNameSearch": "Search"
 }
