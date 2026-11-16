@@ -18,6 +18,22 @@ import patch_native  # noqa: E402
 TOOL_IOS = Path(__file__).resolve().parent / "ios"
 
 
+def scene_manifest(delegate="Runner.SceneDelegate"):
+    return {
+        "UIApplicationSupportsMultipleScenes": False,
+        "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+                {
+                    "UISceneClassName": "UIWindowScene",
+                    "UISceneDelegateClassName": delegate,
+                    "UISceneConfigurationName": "flutter",
+                    "UISceneStoryboardFile": "Main",
+                }
+            ]
+        },
+    }
+
+
 def good_info(name="School Carpool", bundle="org.schoolcarpool.app"):
     info = {
         "CFBundleDisplayName": name,
@@ -28,6 +44,7 @@ def good_info(name="School Carpool", bundle="org.schoolcarpool.app"):
         "GOOGLE_ANALYTICS_ADID_COLLECTION_ENABLED": False,
         "CFBundleIcons": {"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon"}},
         "DTSDKName": "iphoneos26.4",
+        "UIApplicationSceneManifest": scene_manifest(),
     }
     info.update({k: v for k, v in patch_native.PERMISSION_TEXTS.items() if k != "NSLocalNetworkUsageDescription"})
     return info
@@ -71,7 +88,7 @@ class CheckIosAppTest(unittest.TestCase):
             "ITSAppUsesNonExemptEncryption": lambda i: i.pop("ITSAppUsesNonExemptEncryption"),
             "UIDeviceFamily": lambda i: i.update(UIDeviceFamily=[1, 2]),
             "ADID": lambda i: i.pop("GOOGLE_ANALYTICS_ADID_COLLECTION_ENABLED"),
-            "UIScene": lambda i: i.update(DTSDKName="iphoneos27.0"),
+            "UIScene": lambda i: i.pop("UIApplicationSceneManifest"),
             "app icon": lambda i: i.pop("CFBundleIcons"),
         }
         for expected, change in cases.items():
@@ -81,7 +98,20 @@ class CheckIosAppTest(unittest.TestCase):
 
     def test_scene_app_on_sdk_27_is_fine(self):
         info = good_info()
-        info.update(DTSDKName="iphoneos27.0", UIApplicationSceneManifest={})
+        info.update(DTSDKName="iphoneos27.0")
+        self.assertEqual(self.problems(info), [])
+        info.update(UIApplicationSceneManifest=scene_manifest("FlutterSceneDelegate"))
+        self.assertEqual(self.problems(info), [])
+
+    def test_scene_manifest_must_name_a_flutter_scene_delegate(self):
+        for bad in ({}, scene_manifest(""), scene_manifest("$(PRODUCT_MODULE_NAME).SceneDelegate"), scene_manifest("MyDelegate")):
+            info = good_info()
+            info.update(UIApplicationSceneManifest=bad)
+            self.assertIn("UIScene", " ".join(self.problems(info)), bad)
+
+    def test_what_patch_native_writes_passes(self):
+        info = good_info()
+        info["UIApplicationSceneManifest"] = patch_native.scene_manifest(patch_native.SCENE_DELEGATE_CLASS)
         self.assertEqual(self.problems(info), [])
 
     def test_missing_privacy_manifest(self):

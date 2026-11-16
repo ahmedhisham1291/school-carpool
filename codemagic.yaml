@@ -43,10 +43,10 @@ workflows:
     environment:
       <<: *env_versions
       # Pinned, not `latest` (App Review audit): Apple requires Xcode 26 or
-      # later for uploads, and an app built with the iOS 27 SDK (Xcode 27)
-      # must use the UIScene life cycle or it fails to launch. Our Runner is
-      # a classic app-delegate app (tool/patch_native.py, run recovery), so
-      # stay on Xcode 26 until that is migrated (docs/apple-review/audit.md).
+      # later for uploads. The Runner uses the UIScene life cycle since 16
+      # Nov 2026 (tool/patch_native.py), which the iOS 27 SDK requires; stay
+      # on a tested Xcode and move to 27 on purpose, after one staging build
+      # and docs/test-iphone.md (docs/apple-review/audit.md).
       xcode: 26.4
       ios_signing:
         distribution_type: app_store
@@ -186,10 +186,10 @@ workflows:
     environment:
       <<: *env_versions
       # Pinned, not `latest` (App Review audit): Apple requires Xcode 26 or
-      # later for uploads, and an app built with the iOS 27 SDK (Xcode 27)
-      # must use the UIScene life cycle or it fails to launch. Our Runner is
-      # a classic app-delegate app (tool/patch_native.py, run recovery), so
-      # stay on Xcode 26 until that is migrated (docs/apple-review/audit.md).
+      # later for uploads. The Runner uses the UIScene life cycle since 16
+      # Nov 2026 (tool/patch_native.py), which the iOS 27 SDK requires; stay
+      # on a tested Xcode and move to 27 on purpose, after one staging build
+      # and docs/test-iphone.md (docs/apple-review/audit.md).
       xcode: 26.4
       ios_signing:
         distribution_type: app_store

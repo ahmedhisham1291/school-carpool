@@ -45,13 +45,14 @@ What it changes
            (tool/ios/PrivacyInfo.xcprivacy); no local-network text or
            local networking outside dev; no ATS exceptions; a prod name
            with "Stg", "Dev", "test" or "beta" is refused.
-  Launch   (Prompt 13 review, blocker 2) classic app delegate, no UIScene:
-           the AppDelegate starts the Flutter engine (Dart main) and
-           registers the plugins in didFinishLaunching, also when iOS
-           relaunches the app in the background for location, and plugins
-           get the real launch options. The scene manifest is removed and a
-           generated SceneDelegate.swift is emptied. Revisit when Apple
-           requires UIScene (docs/DECISIONS.md).
+  Launch   (16 Nov 2026, replaces the classic app delegate of the Prompt
+           13 review) UIScene life cycle as in Flutter's "UIScene
+           adoption" guide: plugins registered in
+           didInitializeImplicitFlutterEngine, FlutterSceneDelegate (or the
+           template's SceneDelegate subclass) in the Info.plist scene
+           manifest. Required for apps built with the iOS 27 SDK; safe now
+           because the app no longer relaunches in the background for
+           location (no Always). docs/DECISIONS.md.
 """
 
 from __future__ import annotations
@@ -381,51 +382,95 @@ def patch_ios(bundle_id: str, display_name: str, flavor: str | None = None) -> N
 _DOMAIN = re.compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$")
 
 
+# The marker of the classic launch used before 16 Nov 2026 (no UIScene).
+# Kept so a project patched by an older run is migrated, never left behind.
 CLASSIC_MARKER = "school-carpool: classic app delegate"
 
-CLASSIC_APP_DELEGATE = """import Flutter
+SCENE_MARKER = "school-carpool: UIScene app delegate"
+
+# Flutter's "UIScene adoption" guide (docs.flutter.dev/release/
+# breaking-changes/uiscenedelegate, read 16 Nov 2026) and the Flutter 3.50
+# `flutter create` template: plugins are registered on the implicit engine
+# in didInitializeImplicitFlutterEngine; the scene delegate
+# (FlutterSceneDelegate) shows the Flutter view. Apps built with the iOS 27
+# SDK must use UIScene or they do not launch (guideline 2.1(a)).
+SCENE_APP_DELEGATE = """import Flutter
 import UIKit
 
-// """ + CLASSIC_MARKER + """ (tool/patch_native.py, Prompt 13 review).
-// No UIScene: when iOS relaunches the app in the background for a
-// significant location change during a run, no scene connects, so the
-// engine must start here for Dart main() (run recovery) to run, and plugins
-// must be registered here to receive the real launch options.
+// """ + SCENE_MARKER + """ (tool/patch_native.py, 16 Nov 2026).
+// UIScene life cycle (required from the iOS 27 SDK). The engine starts when
+// the scene connects; nothing here needs a background launch any more: the
+// app never asks for Always location and never relaunches for location
+// (review-risks item 2). A run closed by iOS resumes from its local marker
+// when the driver opens the app (lib/features/trips/run_recovery.dart).
+// Code that must run before launch ends (Maps key, notification center
+// delegate) is added to didFinishLaunching by the patches below.
 @main
-@objc class AppDelegate: FlutterAppDelegate {
-  private lazy var flutterEngine = FlutterEngine(name: "school_carpool")
-
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Dart main() starts now, with or without a screen.
-    flutterEngine.run()
-    GeneratedPluginRegistrant.register(with: flutterEngine)
-    let controller = FlutterViewController(engine: flutterEngine, nibName: nil, bundle: nil)
-    window = UIWindow(frame: UIScreen.main.bounds)
-    window?.rootViewController = controller
-    window?.makeKeyAndVisible()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
   }
 }
 """
 
-EMPTY_SCENE_DELEGATE = (
-    "// " + CLASSIC_MARKER + ": not used (no UIScene; tool/patch_native.py).\n"
-)
+SCENE_DELEGATE = """import Flutter
+import UIKit
+
+// """ + SCENE_MARKER + """: Flutter's scene delegate, unchanged.
+class SceneDelegate: FlutterSceneDelegate {
+}
+"""
+
+SCENE_DELEGATE_CLASS = "FlutterSceneDelegate"
+OWN_SCENE_DELEGATE_CLASS = "$(PRODUCT_MODULE_NAME).SceneDelegate"
 
 
-def classic_app_delegate(text: str) -> str:
-    """The generated AppDelegate.swift becomes the classic one (idempotent)."""
-    return text if CLASSIC_MARKER in text else CLASSIC_APP_DELEGATE
+def scene_manifest(delegate_class: str) -> dict:
+    """The Application Scene Manifest of Flutter's guide (one scene, storyboard Main)."""
+    return {
+        "UIApplicationSupportsMultipleScenes": False,
+        "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+                {
+                    "UISceneClassName": "UIWindowScene",
+                    "UISceneDelegateClassName": delegate_class,
+                    "UISceneConfigurationName": "flutter",
+                    "UISceneStoryboardFile": "Main",
+                }
+            ]
+        },
+    }
 
 
-def classic_info(info: dict) -> dict:
-    """No scene manifest and no main storyboard (the AppDelegate builds the window)."""
+def scene_app_delegate(text: str) -> str:
+    """The generated AppDelegate.swift becomes ours (idempotent: later patches are kept)."""
+    return text if SCENE_MARKER in text else SCENE_APP_DELEGATE
+
+
+def scene_delegate_file(text: str) -> str:
+    """A SceneDelegate emptied by the old classic patch gets Flutter's back; any other is kept."""
+    return SCENE_DELEGATE if CLASSIC_MARKER in text or "FlutterSceneDelegate" not in text else text
+
+
+def scene_info(info: dict, has_scene_delegate: bool) -> dict:
+    """Scene manifest present and pointing at a scene delegate that exists; Main storyboard set."""
     out = dict(info)
-    out.pop("UIApplicationSceneManifest", None)
-    out.pop("UIMainStoryboardFile", None)
+    wanted = OWN_SCENE_DELEGATE_CLASS if has_scene_delegate else SCENE_DELEGATE_CLASS
+    manifest = out.get("UIApplicationSceneManifest")
+    try:
+        current = manifest["UISceneConfigurations"]["UIWindowSceneSessionRoleApplication"][0]["UISceneDelegateClassName"]
+    except (KeyError, IndexError, TypeError):
+        current = None
+    if current not in (SCENE_DELEGATE_CLASS, OWN_SCENE_DELEGATE_CLASS) or (current == OWN_SCENE_DELEGATE_CLASS and not has_scene_delegate):
+        out["UIApplicationSceneManifest"] = scene_manifest(wanted)
+    out["UIMainStoryboardFile"] = out.get("UIMainStoryboardFile") or "Main"
     return out
 
 
@@ -435,20 +480,19 @@ def patch_ios_launch() -> None:
         return
     delegate = runner / "AppDelegate.swift"
     if delegate.exists():
-        patch_text(delegate, classic_app_delegate)
+        patch_text(delegate, scene_app_delegate)
     scene = runner / "SceneDelegate.swift"
     if scene.exists():
-        # Emptied, not deleted: the Xcode project still lists the file.
-        patch_text(scene, lambda t: t if CLASSIC_MARKER in t else EMPTY_SCENE_DELEGATE)
+        patch_text(scene, scene_delegate_file)
     info_path = runner / "Info.plist"
     if info_path.exists():
         with info_path.open("rb") as f:
             info = plistlib.load(f)
-        updated = classic_info(info)
+        updated = scene_info(info, scene.exists())
         if updated != info:
             with info_path.open("wb") as f:
                 plistlib.dump(updated, f, sort_keys=False)
-            log("updated ios/Runner/Info.plist (classic launch, no scene manifest)")
+            log("updated ios/Runner/Info.plist (UIScene manifest)")
 
 
 def patch_associated_domains(entitlements: Path) -> None:

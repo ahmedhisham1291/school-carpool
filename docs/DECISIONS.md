@@ -221,6 +221,17 @@ paid plugin, no new third-party dependency.
   a few minutes after the car moves. **Revisit** when Apple requires UIScene
   (announced for an SDK after iOS 26): then the AppDelegate must start a
   headless engine on a location launch instead.
+- **Superseded 16 Nov 2026 (review-risks item 8): UIScene life cycle.** The
+  background relaunch for location is gone with "Always" (item 2), so the
+  classic launch is no longer needed. `tool/patch_native.py` now follows
+  Flutter's "UIScene adoption" guide: plugins are registered in
+  `didInitializeImplicitFlutterEngine`, the scene manifest names
+  `FlutterSceneDelegate` (or the template's `SceneDelegate` subclass), the
+  Maps key and the notification-center delegate stay in
+  `didFinishLaunching` (they must be set before launch ends). A project
+  patched the old way is migrated. `tool/check_ios_app.py` fails any build
+  without the scene manifest. Xcode stays pinned at 26.4 until a staging
+  build on 27 is tested.
 
 ## Improvements (owner, 14 Nov 2026, 17:17): "do all of them"
 

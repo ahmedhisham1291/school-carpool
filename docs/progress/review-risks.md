@@ -100,3 +100,36 @@ verification). So the line was moved in the app only, to match the server:
   (5, run here). Cost: one Cloud Scheduler job (docs/COSTS.md).
 - Not run here: the scripts against a real project (they compile; the
   Firestore writes are the same code as before, moved).
+
+### 8. UIScene life cycle for the Runner (done, not built here)
+
+- Read 16 Nov 2026: Flutter's "UIScene adoption" guide
+  (docs.flutter.dev/release/breaking-changes/uiscenedelegate): UIScene is
+  the default from Flutter 3.41, apps built with Xcode 27 (iOS 27 SDK)
+  without it fail to launch; a custom AppDelegate must conform to
+  `FlutterImplicitEngineDelegate` and register plugins in
+  `didInitializeImplicitFlutterEngine`; the Info.plist scene manifest
+  names `FlutterSceneDelegate` (or `$(PRODUCT_MODULE_NAME).SceneDelegate`).
+  GitHub raw files could not be opened from this workspace; Flutter's own
+  integration test `ios_add2app_uiscene` (googlesource mirror) shows the
+  same shape. Our tests model the 3.50 template as the earlier builder
+  recorded it (SceneDelegate subclass + `$(PRODUCT_MODULE_NAME).SceneDelegate`).
+- `tool/patch_native.py`: `SCENE_APP_DELEGATE` replaces the classic one;
+  the template's SceneDelegate is kept (an old emptied one is restored);
+  the manifest is added or fixed; Maps key and notification delegate
+  still go into didFinishLaunching. Run recovery no longer needs a
+  background relaunch (item 2).
+- `tool/check_ios_app.py`: every build must have the scene manifest with a
+  Flutter scene delegate.
+- `tool/ios/configure_xcode.rb`: idempotent (saves only when something
+  changed), never adds PrivacyInfo.xcprivacy or InfoPlist.strings twice,
+  and with an Xcode synchronized Runner folder adds nothing, takes our files
+  out of exception sets and drops an old duplicate reference.
+  `tool/test_configure_xcode.py` runs the real script against a stub of the
+  `xcodeproj` gem (`tool/ios/xcodeproj_stub`; the gem cannot be installed
+  here).
+- Xcode stays pinned at 26.4 (codemagic.yaml comments updated).
+- Run here: `python3 -m unittest discover -s tool -p 'test_*.py'`.
+  Not run: a real `flutter create` + build; the first Codemagic staging
+  build and docs/test-iphone.md T1-T6 on a real iPhone are the real test
+  (launch, push tap, universal link, background run, resume after close).

@@ -61,6 +61,21 @@ def load(path: Path) -> dict:
         return plistlib.load(f)
 
 
+def scene_life_cycle_problem(info: dict) -> str | None:
+    """None when the scene manifest names Flutter's scene delegate (or the app's subclass)."""
+    sdk = str(info.get("DTSDKName", "")) or "an unknown SDK"
+    manifest = info.get("UIApplicationSceneManifest")
+    if not isinstance(manifest, dict):
+        return f"no UIScene life cycle (UIApplicationSceneManifest missing, built with {sdk}): run tool/patch_native.py"
+    try:
+        delegate = manifest["UISceneConfigurations"]["UIWindowSceneSessionRoleApplication"][0]["UISceneDelegateClassName"]
+    except (KeyError, IndexError, TypeError):
+        delegate = ""
+    if delegate != "FlutterSceneDelegate" and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*\.SceneDelegate", str(delegate)):
+        return f"UIScene manifest names {delegate!r}, not FlutterSceneDelegate or <module>.SceneDelegate"
+    return None
+
+
 def check(app: Path, flavor: str) -> tuple[list[str], list[str]]:
     problems: list[str] = []
     warnings: list[str] = []
@@ -96,11 +111,12 @@ def check(app: Path, flavor: str) -> tuple[list[str], list[str]]:
         problems.append(f"UIDeviceFamily is {info.get('UIDeviceFamily')}, expected [1] (iPhone only)")
     if info.get("GOOGLE_ANALYTICS_ADID_COLLECTION_ENABLED") is not False:
         problems.append("GOOGLE_ANALYTICS_ADID_COLLECTION_ENABLED must be false (no IDFA, no tracking prompt)")
-    if "UIApplicationSceneManifest" not in info:
-        sdk = str(info.get("DTSDKName", ""))
-        match = re.search(r"(\d+)", sdk)
-        if match and int(match.group(1)) >= 27:
-            problems.append(f"built with {sdk} without the UIScene life cycle: the app fails to launch (build with Xcode 26)")
+    # UIScene life cycle (16 Nov 2026, tool/patch_native.py): required by
+    # the iOS 27 SDK (an app without it does not launch: guideline 2.1(a)),
+    # and what we ship on every SDK.
+    scene_problem = scene_life_cycle_problem(info)
+    if scene_problem:
+        problems.append(scene_problem)
     if not (info.get("CFBundleIcons") or info.get("CFBundleIconFiles")) or not (app / "Assets.car").is_file():
         problems.append("no app icon in the bundle")
     for lang in ("ar", "en"):
