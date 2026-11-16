@@ -31,6 +31,7 @@ import {
   overdueHandovers,
   parseUpload,
   pendingHandovers,
+  POINT_KEEP_MS,
   pointOf,
   QUICK_GAP_MS,
   QUICK_KINDS,
@@ -844,7 +845,7 @@ export async function uploadPoints(deps: TripDeps, id: unknown, token: unknown, 
       return { status: 410, accepted: 0 };
     }
   }
-  if (outcome.points.length > 0) await deps.store.addPoints(id, outcome.points, nowMs + 12 * 3_600_000);
+  if (outcome.points.length > 0) await deps.store.addPoints(id, outcome.points, nowMs + POINT_KEEP_MS);
   if (outcome.trip) await refreshEtas(deps, outcome.trip, nowMs);
   return { status: 200, accepted: outcome.points.length };
 }

@@ -1,6 +1,6 @@
 import { randomBytes, randomInt } from "node:crypto";
 import * as logger from "firebase-functions/logger";
-import { HttpsError, onRequest, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { HttpsError, onRequest, type CallableRequest } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { adminDb, adminStorage } from "../admin";
@@ -59,6 +59,7 @@ import { TRIP_ERROR_CODES, TripError, tripSettings } from "./model";
 import { createRoutesProvider } from "./routes";
 import { FirestoreTripStore } from "./store";
 import { gatedCall, sessionCall } from "../privacy/device_gate";
+import { callerOf, reasonErrorMapper, runCallable } from "../common/callable";
 
 /**
  * Trip callables (Prompt 10). Every trip write happens here. Logs carry
@@ -135,23 +136,11 @@ function streamSecret(): string {
 }
 
 function caller(request: CallableRequest): Caller {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
-  return { uid, verifiedClaim: request.auth?.token?.verified === true };
+  return callerOf(request);
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    if (error instanceof TripError) {
-      throw new HttpsError(TRIP_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
-    }
-    logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-    await reportError(error);
-    throw new HttpsError("internal", "Something went wrong.");
-  }
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, { map: [reasonErrorMapper(TripError, TRIP_ERROR_CODES)] });
 }
 
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK };

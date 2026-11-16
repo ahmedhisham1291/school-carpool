@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/core/app_failure.dart';
 import 'package:school_carpool/design/bidi.dart';
 import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/l10n/l10n.dart';
@@ -410,7 +411,7 @@ enum WalletFailureKind {
   unknown,
 }
 
-class WalletFailure implements Exception {
+class WalletFailure implements AppFailure {
   const WalletFailure(this.kind, {this.demo, this.amount});
 
   factory WalletFailure.from(Object error) {
@@ -465,6 +466,7 @@ class WalletFailure implements Exception {
   /// The limit, what is left today, or the smallest amount (piastres).
   final int? amount;
 
+  @override
   bool get isOffline => kind == WalletFailureKind.offline;
 
   /// The request may or may not have reached the server: the same request
@@ -472,6 +474,7 @@ class WalletFailure implements Exception {
   bool get outcomeUnknown => kind == WalletFailureKind.offline || kind == WalletFailureKind.unavailable || kind == WalletFailureKind.unknown;
 
   /// One short sentence that says what happened and what to do.
+  @override
   String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
 
   String _kindMessage(AppLocalizations l10n) => switch (kind) {

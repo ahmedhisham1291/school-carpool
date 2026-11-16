@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
-import * as logger from "firebase-functions/logger";
-import { HttpsError, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { type CallableRequest } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
 import {
   CARPOOL_CREATES_PER_DAY,
@@ -19,7 +18,6 @@ import {
 } from "../config";
 import { DEFAULT_DEADLINES, type DeadlineSettings } from "../schedule/model";
 import { PARENT_ID_ALPHABET } from "../auth/parent_id";
-import { reportError } from "../sentry";
 import {
   cancelJoinRequest as cancelFlow,
   createCarpool as createFlow,
@@ -43,6 +41,7 @@ import { FeatureOffError } from "../features/model";
 import { FirestoreCarpoolStore } from "./store";
 import { noteAbuse } from "../privacy/abuse_hook";
 import { gatedCall, isReviewDemoCaller, demoAccountError, realParentCall } from "../privacy/device_gate";
+import { callerOf, reasonErrorMapper, runCallable } from "../common/callable";
 
 /**
  * Carpool callables (Prompt 6). Every membership, ownership and status
@@ -89,27 +88,17 @@ export function deps(): CarpoolDeps {
 }
 
 export function caller(request: CallableRequest): Caller {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
-  return { uid, verifiedClaim: request.auth?.token?.verified === true };
+  return callerOf(request);
 }
 
-export async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    if (error instanceof FeatureOffError) throw featureOffError(error.feature);
-    if (error instanceof CarpoolError) {
-      throw new HttpsError(CARPOOL_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, {
-        reason: error.reason,
-        retryAfterSeconds: Math.ceil(error.retryAfterMs / 1000),
-      });
-    }
-    logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-    await reportError(error);
-    throw new HttpsError("internal", "Something went wrong.");
-  }
+export function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, {
+    map: [
+      // F25 "contributions" switch off (no money in the app, 16 Nov 2026).
+      (error) => (error instanceof FeatureOffError ? featureOffError(error.feature) : undefined),
+      reasonErrorMapper(CarpoolError, CARPOOL_ERROR_CODES, "retryAfter"),
+    ],
+  });
 }
 
 export const opts = { enforceAppCheck: ENFORCE_APP_CHECK };

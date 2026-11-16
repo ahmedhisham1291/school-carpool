@@ -35,6 +35,7 @@ import {
 import { FirestoreOtpStore } from "./otp_store";
 import { emailConfirmationIsNew } from "./sign_in_policy";
 import { afterSignIn } from "../privacy/callables";
+import { classesMapper, requireUid, runCallable } from "../common/callable";
 
 /**
  * Callable functions for sign-up and sign-in (F1). App Check is enforced in
@@ -148,22 +149,8 @@ function field(request: CallableRequest, name: string): unknown {
 }
 
 /** Logs unexpected errors (never the request data) and converts them. */
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (!(error instanceof OtpError || error instanceof ConsentError || error instanceof HttpsError)) {
-      logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-      await reportError(error);
-    }
-    throw toHttpsError(error);
-  }
-}
-
-function requireUid(request: CallableRequest): string {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
-  return uid;
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, { map: [classesMapper([OtpError, ConsentError], toHttpsError)] });
 }
 
 const signInOptions = {

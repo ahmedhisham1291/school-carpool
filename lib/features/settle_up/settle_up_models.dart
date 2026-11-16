@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/core/app_failure.dart';
 import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/wallet/wallet_models.dart' show Money;
 import 'package:school_carpool/l10n/l10n.dart';
@@ -394,7 +395,7 @@ enum SettleFailureKind {
 
 /// A settle-up problem with one sentence that says what to do. Built from
 /// `details.reason` of our functions.
-class SettleFailure implements Exception {
+class SettleFailure implements AppFailure {
   const SettleFailure(this.kind, {this.demo, this.amount});
 
   factory SettleFailure.from(Object error) {
@@ -448,8 +449,10 @@ class SettleFailure implements Exception {
   /// The largest amount allowed (piastres), when the server said.
   final int? amount;
 
+  @override
   bool get isOffline => kind == SettleFailureKind.offline;
 
+  @override
   String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
 
   String _kindMessage(AppLocalizations l10n) => switch (kind) {

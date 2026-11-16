@@ -11,6 +11,7 @@ import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/trips/trip_models.dart';
+import 'package:school_carpool/firebase/collections.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -116,7 +117,7 @@ class FirebaseTripRepository implements TripRepository {
   Stream<Trip?> watchTrip(String carpoolId, String runId) {
     final String id = Trip.idOf(carpoolId, runId);
     return _orNull(
-      _db.collection('trips').doc(id).snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
+      _db.collection(Collections.trips).doc(id).snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
         final Map<String, dynamic>? data = s.data();
         return data == null ? null : Trip.fromDoc(id, data);
       }),
@@ -125,7 +126,7 @@ class FirebaseTripRepository implements TripRepository {
 
   @override
   Stream<ScheduleRun?> watchRun(String carpoolId, String runId) => _orNull(
-    _db.collection('carpools').doc(carpoolId).collection('schedule').doc(runId).snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
+    _db.collection(Collections.carpools).doc(carpoolId).collection(Collections.schedule).doc(runId).snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
       final Map<String, dynamic>? data = s.data();
       return data == null ? null : ScheduleRun.fromDoc(s.id, data);
     }),
@@ -133,7 +134,7 @@ class FirebaseTripRepository implements TripRepository {
 
   @override
   Stream<TripEta?> watchEta(String tripId, String uid) => _orNull(
-    _db.collection('trips').doc(tripId).collection('eta').doc(uid).snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
+    _db.collection(Collections.trips).doc(tripId).collection(Collections.eta).doc(uid).snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
       final Map<String, dynamic>? data = s.data();
       return data == null ? null : TripEta.fromDoc(data);
     }),
@@ -141,9 +142,9 @@ class FirebaseTripRepository implements TripRepository {
 
   @override
   Stream<List<EmergencyAlert>> watchEmergencies(String carpoolId) => _db
-      .collection('carpools')
+      .collection(Collections.carpools)
       .doc(carpoolId)
-      .collection('emergencies')
+      .collection(Collections.emergencies)
       .orderBy('at', descending: true)
       .limit(10)
       .snapshots()
@@ -155,7 +156,7 @@ class FirebaseTripRepository implements TripRepository {
 
   @override
   Stream<EmergencyContact?> watchEmergencyContact(String uid) =>
-      _db.collection('emergencyContacts').doc(uid).snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
+      _db.collection(Collections.emergencyContacts).doc(uid).snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
         final Map<String, dynamic>? data = s.data();
         return data == null ? null : EmergencyContact.fromDoc(data);
       });

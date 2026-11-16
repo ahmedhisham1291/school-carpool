@@ -1,6 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { HttpsError, type CallableRequest, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { HttpsError } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
 import { DEMO_IDS } from "../auth/review_demo";
 import {
@@ -33,6 +33,7 @@ import { mapRefreshNeeded } from "./sync";
 import { FirestoreMapStore, FirestorePlaceCache } from "./store";
 import { noteAbuse } from "../privacy/abuse_hook";
 import { gatedCall, realParentCall, sessionCall } from "../privacy/device_gate";
+import { reasonErrorMapper, requireUid, runCallable } from "../common/callable";
 
 /**
  * Maps functions (Prompt 5: F21 to F24). The app sends the exact home only
@@ -55,28 +56,8 @@ export function mapDeps(): MapDeps {
   };
 }
 
-function requireUid(request: CallableRequest): string {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
-  return uid;
-}
-
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    if (error instanceof MapError) {
-      throw new HttpsError(MAP_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, {
-        reason: error.reason,
-        retryAfterSeconds: Math.ceil(error.retryAfterMs / 1000),
-      });
-    }
-    // Never the request data: it holds coordinates or typed addresses.
-    logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-    await reportError(error);
-    throw new HttpsError("internal", "Something went wrong.");
-  }
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, { map: [reasonErrorMapper(MapError, MAP_ERROR_CODES, "retryAfter")] });
 }
 
 function placesProvider(): PlacesProvider {

@@ -1,14 +1,13 @@
 import { Timestamp, type DocumentData, type Firestore } from "firebase-admin/firestore";
-import * as logger from "firebase-functions/logger";
-import { HttpsError, onCall, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { onCall } from "firebase-functions/v2/https";
 import { adminDb } from "../admin";
+import { reasonErrorMapper, runCallable } from "../common/callable";
 import { ipOf, requireAdminCaller } from "../admin_panel/access";
 import { ADMIN_ERROR_CODES, AdminError } from "../admin_panel/errors";
 import type { AdminCaller } from "../admin_panel/guard";
 import { AUDIT_LOG, auditDoc } from "../admin_panel/store";
 import type { AuditEntry } from "../admin_panel/types";
 import { ENFORCE_APP_CHECK } from "../config";
-import { reportError } from "../sentry";
 import { applyBreachUpdate, BREACH_REGISTER, BreachError, breachView, newBreach, type BreachRecord } from "./breaches";
 
 /**
@@ -32,7 +31,7 @@ export interface BreachDeps {
   now: () => number;
 }
 
-const errorCodes: Record<string, string> = { "invalid-request": "invalid-argument", "not-found": "not-found", "invalid-state": "failed-precondition" };
+const BREACH_ERROR_CODES: Record<string, string> = { "invalid-request": "invalid-argument", "not-found": "not-found", "invalid-state": "failed-precondition" };
 
 export async function reportIncident(deps: BreachDeps, caller: AdminCaller, data: unknown, ip: string | null) {
   const nowMs = deps.now();
@@ -116,17 +115,10 @@ function deps(): BreachDeps {
   return { store: new FirestoreBreachStore(adminDb()), now: () => Date.now() };
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    if (error instanceof BreachError) throw new HttpsError(errorCodes[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
-    if (error instanceof AdminError) throw new HttpsError(ADMIN_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
-    logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-    await reportError(error);
-    throw new HttpsError("internal", "Something went wrong.");
-  }
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, {
+    map: [reasonErrorMapper(BreachError, BREACH_ERROR_CODES), reasonErrorMapper(AdminError, ADMIN_ERROR_CODES, "details")],
+  });
 }
 
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK };

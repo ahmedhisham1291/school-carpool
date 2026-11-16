@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
+import 'package:school_carpool/firebase/collections.dart';
 
 /// Who is using the app right now. Drives the router's redirects.
 sealed class SessionState {
@@ -68,7 +69,7 @@ Stream<SessionState> sessionStates(FirebaseAuth auth, FirebaseFirestore db) {
         bool first = true;
         int? lastMarker;
         accountSubscription = db
-            .collection('users')
+            .collection(Collections.users)
             .doc(user.uid)
             .snapshots()
             .listen((DocumentSnapshot<Map<String, dynamic>> snapshot) {

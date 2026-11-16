@@ -58,6 +58,7 @@ import {
   searchUsers as searchFlow,
   type UsersDeps,
 } from "./users";
+import { classesMapper, runCallable } from "../common/callable";
 
 /**
  * Admin panel functions (F14). Every one requires an admin (claim, second
@@ -80,17 +81,8 @@ function toHttpsError(error: unknown): HttpsError {
   return new HttpsError("internal", "Something went wrong.");
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (!(error instanceof AdminError || error instanceof HttpsError)) {
-      // Never the request data: it may hold a phone number or a name.
-      logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-      await reportError(error);
-    }
-    throw toHttpsError(error);
-  }
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, { map: [classesMapper([AdminError], toHttpsError)] });
 }
 
 /** Wraps an admin-only callable. */

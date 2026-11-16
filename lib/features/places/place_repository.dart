@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/places/place_models.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
+import 'package:school_carpool/firebase/collections.dart';
 
 enum PlaceFailureKind { offline, unavailable }
 
@@ -59,7 +60,7 @@ class FirestorePlaceRepository implements PlaceRepository {
   Future<List<PlaceArea>> areas(String governorate) async {
     // Inactive and merged areas stay as records only.
     final List<PlaceArea> all = await _read(
-      _db.collection('placeAreas').where('governorate', isEqualTo: governorate).where('active', isEqualTo: true).limit(500),
+      _db.collection(Collections.placeAreas).where('governorate', isEqualTo: governorate).where('active', isEqualTo: true).limit(500),
       PlaceArea.fromMap,
     );
     return all.where((PlaceArea a) => a.nameAr.isNotEmpty || a.nameEn.isNotEmpty).toList();
@@ -67,7 +68,7 @@ class FirestorePlaceRepository implements PlaceRepository {
 
   @override
   Future<List<PlaceDistrict>> districts(String areaId) =>
-      _read(_db.collection('placeDistricts').where('areaId', isEqualTo: areaId).where('active', isEqualTo: true).limit(500), PlaceDistrict.fromMap);
+      _read(_db.collection(Collections.placeDistricts).where('areaId', isEqualTo: areaId).where('active', isEqualTo: true).limit(500), PlaceDistrict.fromMap);
 
   @override
   Future<List<SchoolOption>> schoolsInArea(String areaId) async {
@@ -76,7 +77,7 @@ class FirestorePlaceRepository implements PlaceRepository {
     // stay as documents but are not offered.
     final List<SchoolOption?> all = await _read(
       _db
-          .collection('schools')
+          .collection(Collections.schools)
           .where('status', isEqualTo: 'active')
           .where('placeAreaId', isEqualTo: areaId)
           .limit(kAreaSchoolsLimit),
