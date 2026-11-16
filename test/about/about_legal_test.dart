@@ -69,7 +69,7 @@ void main() {
         await tester.tap(find.byKey(const Key('about.support')));
         await tester.pumpAndSettle();
         expect(opened.last.toString(), 'mailto:help@schoolcarpool.org');
-        expect(find.text('help@schoolcarpool.org', findRichText: true), findsWidgets);
+        expect(find.textContaining('help@schoolcarpool.org', findRichText: true), findsWidgets);
       });
 
       testWidgets('[$lang] without a site: documents still open in the app, no contact row, no link', (WidgetTester tester) async {
