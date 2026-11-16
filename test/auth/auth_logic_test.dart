@@ -186,7 +186,7 @@ void main() {
       // Current version, or no stored version (dev seed): not asked again.
       expect(_account(termsVersion: LegalDocuments.terms).stage, RegistrationStage.complete);
       expect(_account().stage, RegistrationStage.complete);
-      expect(Account.fromMap(<String, dynamic>{'emailVerified': true, 'termsAcceptedAt': 1, 'termsVersion': '2026-11-13'}).stage, RegistrationStage.termsUpdate);
+      expect(Account.fromMap(const <String, dynamic>{'emailVerified': true, 'termsAcceptedAt': 1, 'termsVersion': '2026-11-13'}).stage, RegistrationStage.termsUpdate);
     });
 
     test('unverified, pending and rejected: look around; another family needs the check (16 Nov 2026)', () {

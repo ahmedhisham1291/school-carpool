@@ -1,7 +1,7 @@
 // Admin panel > Incidents (breach register, Law 151 of 2020 Art. 7) with a
 // fake API. Written, not run here (no Flutter SDK in the build workspace).
 // CI runs it.
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
@@ -121,7 +121,7 @@ void main() {
       IncidentDraft(
         awareAt: DateTime.utc(2026, 11, 16, 8),
         kind: IncidentKind.loss,
-        categories: <IncidentCategory>{IncidentCategory.contact},
+        categories: const <IncidentCategory>{IncidentCategory.contact},
         source: IncidentSource.us,
         approxPeople: 3,
         approxRecords: 3,
