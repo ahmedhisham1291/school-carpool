@@ -8,7 +8,8 @@ import 'package:school_carpool/firebase/collections.dart';
 /// without an app release (docs/DECISIONS.md, "Improvements, revised").
 /// Core features (sign-in, verification, carpools, schedule, trips and
 /// alerts, chat) have no switch.
-enum AppFeature { wallet, ratingsAndVouching, yearlyChecks, settleUp }
+/// `contributions` is the per-child contribution of F25.
+enum AppFeature { wallet, ratingsAndVouching, yearlyChecks, settleUp, contributions }
 
 /// The pilot feature switches (server document `config/features`, same
 /// names as functions/src/features/model.ts). The server is the authority:
@@ -21,6 +22,7 @@ class FeatureSwitches {
     required this.ratingsAndVouching,
     required this.yearlyChecks,
     required this.settleUp,
+    required this.contributions,
   });
 
   /// From the stored document. A missing document, a missing field or a
@@ -36,17 +38,21 @@ class FeatureSwitches {
       ratingsAndVouching: pick('ratingsAndVouching', pilot.ratingsAndVouching),
       yearlyChecks: pick('yearlyChecks', pilot.yearlyChecks),
       settleUp: pick('settleUp', pilot.settleUp),
+      contributions: pick('contributions', pilot.contributions),
     );
   }
 
-  /// Pilot defaults: the wallet, ratings and vouching and the yearly check
-  /// are off; Settle up is on. Used while loading, offline with nothing
-  /// cached, and signed out.
+  /// Pilot defaults: everything off. No money in the app (owner decision
+  /// 16 Nov 2026, docs/DECISIONS.md): rides are free volunteer turns, so
+  /// the wallet, Settle up and the contribution per child are off in every
+  /// environment (their code stays). Used while loading, offline with
+  /// nothing cached, and signed out.
   static const FeatureSwitches pilot = FeatureSwitches(
     wallet: false,
     ratingsAndVouching: false,
     yearlyChecks: false,
-    settleUp: true,
+    settleUp: false,
+    contributions: false,
   );
 
   /// Everything on (tests of the features themselves).
@@ -55,6 +61,7 @@ class FeatureSwitches {
     ratingsAndVouching: true,
     yearlyChecks: true,
     settleUp: true,
+    contributions: true,
   );
 
   final bool wallet;
@@ -62,18 +69,26 @@ class FeatureSwitches {
   final bool yearlyChecks;
   final bool settleUp;
 
+  /// F25: the contribution per child (create, show, accept).
+  final bool contributions;
+
+  /// True when any feature that carries money or a cost is on.
+  bool get anyMoney => wallet || settleUp || contributions;
+
   bool isOn(AppFeature feature) => switch (feature) {
     AppFeature.wallet => wallet,
     AppFeature.ratingsAndVouching => ratingsAndVouching,
     AppFeature.yearlyChecks => yearlyChecks,
     AppFeature.settleUp => settleUp,
+    AppFeature.contributions => contributions,
   };
 
-  FeatureSwitches copyWith({bool? wallet, bool? ratingsAndVouching, bool? yearlyChecks, bool? settleUp}) => FeatureSwitches(
+  FeatureSwitches copyWith({bool? wallet, bool? ratingsAndVouching, bool? yearlyChecks, bool? settleUp, bool? contributions}) => FeatureSwitches(
     wallet: wallet ?? this.wallet,
     ratingsAndVouching: ratingsAndVouching ?? this.ratingsAndVouching,
     yearlyChecks: yearlyChecks ?? this.yearlyChecks,
     settleUp: settleUp ?? this.settleUp,
+    contributions: contributions ?? this.contributions,
   );
 
   @override
@@ -82,14 +97,15 @@ class FeatureSwitches {
       other.wallet == wallet &&
       other.ratingsAndVouching == ratingsAndVouching &&
       other.yearlyChecks == yearlyChecks &&
-      other.settleUp == settleUp;
+      other.settleUp == settleUp &&
+      other.contributions == contributions;
 
   @override
-  int get hashCode => Object.hash(wallet, ratingsAndVouching, yearlyChecks, settleUp);
+  int get hashCode => Object.hash(wallet, ratingsAndVouching, yearlyChecks, settleUp, contributions);
 
   @override
   String toString() =>
-      'FeatureSwitches(wallet: $wallet, ratingsAndVouching: $ratingsAndVouching, yearlyChecks: $yearlyChecks, settleUp: $settleUp)';
+      'FeatureSwitches(wallet: $wallet, ratingsAndVouching: $ratingsAndVouching, yearlyChecks: $yearlyChecks, settleUp: $settleUp, contributions: $contributions)';
 }
 
 /// No automatic retry: a refused or failed read falls back to the pilot

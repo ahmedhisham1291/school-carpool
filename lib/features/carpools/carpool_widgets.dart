@@ -9,15 +9,19 @@ import 'package:school_carpool/l10n/l10n.dart';
 /// components (shown in the gallery under "Carpools").
 
 /// A carpool in a list (search results, my carpools): title, area, times
-/// and days, free seats, the rules (F36) and the contribution (F25).
+/// and days, free seats, the rules (F36) and either the contribution (F25,
+/// only while its switch is on) or the "Free, by turns" badge.
 class CarpoolCard extends StatelessWidget {
-  const CarpoolCard({required this.carpool, super.key, this.onTap, this.badge});
+  const CarpoolCard({required this.carpool, super.key, this.onTap, this.badge, this.showContribution = false});
 
   final Carpool carpool;
   final VoidCallback? onTap;
 
   /// Shown at the top end, for example "Requested" or "Admin".
   final Widget? badge;
+
+  /// The "contributions" feature switch (off by default: no money in the app).
+  final bool showContribution;
 
   @override
   Widget build(BuildContext context) {
@@ -56,10 +60,17 @@ class CarpoolCard extends StatelessWidget {
                 tone: carpool.seatsLeft == 0 ? AppBadgeTone.warning : AppBadgeTone.success,
                 icon: Icons.event_seat_outlined,
               ),
-              AppStatusBadge(
-                label: contribution == null ? l10n.contributionNone : contributionText(l10n, contribution),
-                icon: Icons.payments_outlined,
-              ),
+              if (showContribution)
+                AppStatusBadge(
+                  label: contribution == null ? l10n.contributionNone : contributionText(l10n, contribution),
+                  icon: Icons.payments_outlined,
+                )
+              else
+                AppStatusBadge(
+                  key: const Key('carpool.free'),
+                  label: l10n.carpoolFreeBadge,
+                  icon: Icons.volunteer_activism_outlined,
+                ),
             ],
           ),
           if (carpool.rules.isNotEmpty) ...<Widget>[

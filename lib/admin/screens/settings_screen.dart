@@ -24,6 +24,7 @@ String adminFeatureTitle(AppLocalizations l10n, AppFeature f) => switch (f) {
   AppFeature.ratingsAndVouching => l10n.adminFeatureRatings,
   AppFeature.yearlyChecks => l10n.adminFeatureYearly,
   AppFeature.settleUp => l10n.adminFeatureSettle,
+  AppFeature.contributions => l10n.adminFeatureContributions,
 };
 
 String adminFeatureHelper(AppLocalizations l10n, AppFeature f) => switch (f) {
@@ -31,6 +32,7 @@ String adminFeatureHelper(AppLocalizations l10n, AppFeature f) => switch (f) {
   AppFeature.ratingsAndVouching => l10n.adminFeatureRatingsHelper,
   AppFeature.yearlyChecks => l10n.adminFeatureYearlyHelper,
   AppFeature.settleUp => l10n.adminFeatureSettleHelper,
+  AppFeature.contributions => l10n.adminFeatureContributionsHelper,
 };
 
 /// Settings (pilot feature switches): one switch per optional feature
@@ -71,7 +73,9 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     try {
       await ref.read(adminFeaturesApiProvider).setFeature(feature, on: on);
       showAppSnackBarOn(messenger, l10n.adminSaved);
-      ref.invalidate(_featuresProvider);
+      ref
+        ..invalidate(_featuresProvider)
+        ..invalidate(adminSwitchesProvider);
     } on AdminFailure catch (f) {
       showAppSnackBarOn(messenger, f.message(l10n));
     } finally {

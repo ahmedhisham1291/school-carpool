@@ -107,12 +107,12 @@ void main() {
       }
     });
 
-    testWidgets('pilot switches: the wallet and ratings are not listed while off; Settle up is', (WidgetTester tester) async {
+    testWidgets('pilot switches: the wallet, Settle up and ratings are not listed while off (no money in the app)', (WidgetTester tester) async {
       final _World w = _World();
       await _pump(tester, PrivacyRoutes.privacy, w, features: FeatureSwitches.pilot);
       for (final DataType t in DataType.values) {
         final Finder row = find.byKey(Key('privacy.data.${t.name}'));
-        if (t == DataType.wallet || t == DataType.ratings) {
+        if (t == DataType.wallet || t == DataType.ratings || t == DataType.settleUp) {
           expect(row, findsNothing, reason: t.name);
         } else {
           await tester.scrollUntilVisible(row, 200, scrollable: find.byType(Scrollable).first);

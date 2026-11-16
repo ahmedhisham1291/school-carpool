@@ -70,6 +70,10 @@ String? _signedInTarget(Account account, String location) {
       return AuthRoutes.email;
     case RegistrationStage.terms:
       return AuthRoutes.terms;
+    case RegistrationStage.termsUpdate:
+      // Asked once for the new versions; export and deletion stay open
+      // (Law 151 of 2020: rights do not depend on accepting new terms).
+      return termsUpdateOpen(location) ? null : AuthRoutes.terms;
     case RegistrationStage.complete:
       break;
   }
@@ -107,6 +111,14 @@ String? _signedInTarget(Account account, String location) {
   }
   return needsVerification(location) ? AuthRoutes.verifyFor(location) : null;
 }
+
+/// While a parent is asked to accept updated documents
+/// ([RegistrationStage.termsUpdate]): the terms screen and Privacy (see,
+/// export, withdraw, delete account) stay open; everything else waits.
+bool termsUpdateOpen(String location) =>
+    location == AuthRoutes.terms ||
+    location == PrivacyRoutes.privacy ||
+    (location.startsWith('${PrivacyRoutes.privacy}/') && location != PrivacyRoutes.newDevice);
 
 /// Profile pages that involve another parent (and that the server refuses
 /// before verification): handover adults and the emergency contact are for

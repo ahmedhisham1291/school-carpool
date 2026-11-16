@@ -40,7 +40,7 @@
   "@placeholderNotificationsBody": {
     "description": "Placeholder text on the Notifications tab"
   },
-  "placeholderProfileBody": "هنا ستجد بياناتك ورقم ولي الأمر والأطفال والسيارة والمحفظة.",
+  "placeholderProfileBody": "هنا ستجد بياناتك ورقم ولي الأمر والأطفال والسيارة.",
   "@placeholderProfileBody": {
     "description": "Placeholder text on the Profile tab"
   },
@@ -524,7 +524,7 @@
   "@termsAcceptButton": {
     "description": "Terms step main button"
   },
-  "termsRequiredHint": "وافق على المستندات الثلاثة للمتابعة.",
+  "termsRequiredHint": "وافق على المستندات الثلاثة وعلى التخزين خارج مصر للمتابعة.",
   "@termsRequiredHint": {
     "description": "Shown while a required document is not accepted"
   },
@@ -532,13 +532,13 @@
   "@termsDraftNotice": {
     "description": "Notice on draft legal texts"
   },
-  "termsTermsText": "التطبيق مجاني وغير ربحي ويساعد الأهالي الموثّقين على تنظيم مشاوير المدرسة بالتناوب. كل ولي أمر مسؤول عن قيادته وعن الالتزام بقواعد المرور. التطبيق لا يأخذ أي رسوم أو عمولة. يمكننا إيقاف أي حساب يخالف هذه الشروط أو قواعد السلوك. يمكنك حذف حسابك في أي وقت.",
+  "termsTermsText": "التطبيق مجاني وغير ربحي. يساعد الأهالي الموثّقين في المدرسة نفسها على التناوب في توصيل أبنائهم، تطوعًا وبلا مقابل. التطبيق لا يقدّم خدمة نقل ولا يوظّف سائقين ولا يأخذ أي رسوم، ولا يدفع أي ولي أمر لآخر مقابل التوصيل. يقود كل ولي أمر سيارته على مسؤوليته، برخصة سارية وبالتأمين الإجباري للسيارة، ويلتزم بقواعد المرور. يمكننا إيقاف أي حساب يخالف هذه الشروط أو قواعد السلوك. يمكنك حذف حسابك في أي وقت. يسري القانون المصري، والنص العربي هو المعتمد.",
   "@termsTermsText": {
-    "description": "Draft terms of use"
+    "description": "Terms of use summary (legal review 16 Nov 2026)"
   },
-  "termsPrivacyText": "نجمع ما نحتاجه لتوثيق الأهالي وتنظيم المشاوير وحمايتها: رقم الموبايل والبريد، ثم صورة البطاقة والسيلفي وبيانات الأطفال ورخص القيادة. تُحفظ الصور مشفّرة في مخزن خاص ما دام حسابك مفتوحًا، وتُحذف عند حذف حسابك. نحتفظ بملخص كل مشوار ومسار مضغوط له لمدة أقصاها سنة للتحقيق في السلامة، ويراه المسؤولون فقط مع سبب مسجّل. عند حذف حسابك تُحذف صورك ورسائلك وعنوانك ومساراتك، ولا يبقى إلا ما يتطلبه القانون أو السلامة، بلا اسمك. إذا وافقت فقط نجمع إحصاءات استخدام بلا أسماء أو أرقام أو أماكن، ويمكنك إيقافها في أي وقت. تقارير الأعطال تُرسل دائمًا بعد حذف البيانات الشخصية منها لنصلح الأخطاء. يرى الأهالي الآخرون اسمك الأول ومدرستك ومنطقتك وشارة التوثيق فقط. لا نبيع بياناتك أبدًا. يمكنك رؤية بياناتك وتصحيحها وتنزيلها وحذفها وسحب أي موافقة من شاشة الخصوصية.",
+  "termsPrivacyText": "نجمع ما نحتاجه لتوثيق الأهالي وتنظيم المشاوير وحماية الأطفال: رقم الموبايل والبريد، ثم صورة البطاقة والسيلفي (بيانات بيومترية) وبيانات الأطفال ورخص القيادة. لا نجمع أي بيانات مالية. تُحفظ الصور مشفّرة ما دام حسابك مفتوحًا، وتُحذف عند حذف حسابك. نحتفظ بملخص كل مشوار ومسار مضغوط له لمدة أقصاها سنة للتحقيق في السلامة، ويراه المسؤولون فقط مع سبب مسجّل. عند حذف حسابك تُحذف صورك ورسائلك وعنوانك ومساراتك، ولا يبقى إلا ما يتطلبه القانون أو السلامة، بلا اسمك. تُخزَّن البيانات في بلجيكا (الاتحاد الأوروبي)؛ راجع «التخزين خارج مصر». إذا وافقت فقط نجمع إحصاءات استخدام بلا أسماء أو أرقام أو أماكن. تقارير الأعطال تُرسل دائمًا بعد حذف البيانات الشخصية منها لنصلح الأخطاء. يرى الأهالي الآخرون اسمك الأول ومدرستك ومنطقتك وشارة التوثيق فقط. لا نبيع بياناتك أبدًا. يمكنك من شاشة الخصوصية رؤية بياناتك وتصحيحها وتنزيلها وحذفها وسحب أي موافقة، ونرد على الطلبات خلال 6 أيام عمل.",
   "@termsPrivacyText": {
-    "description": "Draft privacy policy summary"
+    "description": "Privacy policy summary (legal review 16 Nov 2026)"
   },
   "termsConductText": "احترم الأهالي الآخرين والأطفال. التزم بمواعيدك وأبلغ المجموعة مبكرًا إذا لم تستطع القيادة. لا تشارك بيانات أو صور الأطفال خارج المجموعة. قُد بأمان وبحزام أمان لكل طفل. أبلغ عن أي سلوك غير آمن. لا تسامح مع المحتوى المسيء أو المستخدمين المسيئين: يُمنع السب والتحرش والتهديد والمحتوى الجنسي أو العنيف. يمكنك الإبلاغ عن أي شخص أو حظره من المحادثة؛ نراجع البلاغات خلال 24 ساعة ونحذف المحتوى ونوقف صاحبه.",
   "@termsConductText": {
@@ -989,9 +989,9 @@
   "@verifyConsentLabel": {
     "description": "Consent checkbox"
   },
-  "verifyConsentHelper": "تُستخدم بطاقتك وصور وجهك وبيانات أطفالك للتحقق منك ولفحص السيلفي أثناء المشاوير. تُحفظ الصور ما دام حسابك مفتوحًا وتُحذف عند حذف حسابك. يمكنك سحب موافقتك من شاشة الخصوصية.",
+  "verifyConsentHelper": "أوافق صراحةً على معالجة بطاقة الرقم القومي وصور وجهي (بيانات بيومترية) للتحقق مني ولفحص السيلفي أثناء المشاوير. تُحفظ الصور ما دام حسابي مفتوحًا وتُحذف عند حذفه. يمكنني سحب الموافقة من شاشة الخصوصية، وهذا يغلق الحساب.",
   "@verifyConsentHelper": {
-    "description": "Consent helper"
+    "description": "Consent helper (ID and face: explicit consent to sensitive data)"
   },
   "verifySubmit": "أرسل للمراجعة",
   "@verifySubmit": {
@@ -3431,7 +3431,7 @@
   "@carpoolDaysLabel": {
     "description": "Label"
   },
-  "carpoolSeatsSection": "المقاعد والمساهمة",
+  "carpoolSeatsSection": "المقاعد",
   "@carpoolSeatsSection": {
     "description": "Section header"
   },
@@ -3945,7 +3945,7 @@
   "@carpoolErrorNotMember": {
     "description": "Error"
   },
-  "carpoolErrorMustAccept": "وافق على القواعد والمساهمة أولًا.",
+  "carpoolErrorMustAccept": "وافق على القواعد وشروط التناوب المجاني أولًا.",
   "@carpoolErrorMustAccept": {
     "description": "Error"
   },
@@ -8347,9 +8347,9 @@
   "@deleteYearTitle": {
     "description": "Card title"
   },
-  "deleteYearBody": "ملخصات المشاوير المشتركة مع أسر أخرى (تظهر بحرف واحد)، وسجل موافقاتك، وسجلات «تسوية الحساب» لدى ولي الأمر الآخر.",
+  "deleteYearBody": "ملخصات المشاوير المشتركة مع أسر أخرى (تظهر بحرف واحد)، وسجل موافقاتك.",
   "@deleteYearBody": {
-    "description": "Card body"
+    "description": "Delete account: what stays for a while (no money in the app)"
   },
   "deleteKeptTitle": "يبقى بعد ذلك",
   "@deleteKeptTitle": {
@@ -8472,11 +8472,11 @@
   "@newDeviceTitle": {
     "description": "Screen and banner title"
   },
-  "newDeviceBody": "دخلت من هاتف جديد. التقط سيلفي لنتأكد أنك أنت قبل فتح المحادثات والمحفظة وبيانات الأطفال.",
+  "newDeviceBody": "دخلت من هاتف جديد. التقط سيلفي لنتأكد أنك أنت قبل فتح المحادثات وبيانات الأطفال.",
   "@newDeviceBody": {
     "description": "Screen body"
   },
-  "newDeviceBanner": "التقط سيلفي لفتح المحادثات والمحفظة وبيانات الأطفال.",
+  "newDeviceBanner": "التقط سيلفي لفتح المحادثات وبيانات الأطفال.",
   "@newDeviceBanner": {
     "description": "Profile banner body"
   },
@@ -8508,7 +8508,7 @@
   "@privacyExport": {
     "description": "Primary button"
   },
-  "privacyExportHelper": "ملف واحد فيه كل بياناتك ومحادثاتك وسجل المحفظة. الرابط صالح ساعة.",
+  "privacyExportHelper": "ملف واحد فيه كل بياناتك ومحادثاتك. الرابط صالح ساعة.",
   "@privacyExportHelper": {
     "description": "Helper"
   },
@@ -10386,5 +10386,330 @@
   "demoAccountClosed": "انتهت فترة هذا الحساب التجريبي. يمكنك حذفه من حسابي > الخصوصية.",
   "@demoAccountClosed": {
     "description": "Shown when App Review's demo account is used after the review window (server reason demo-closed)"
+  },
+  "carpoolFreeBadge": "مجاني بالتناوب",
+  "@carpoolFreeBadge": {
+    "description": "Badge on a carpool card: rides are free volunteer turns. One line."
+  },
+  "carpoolFreeTitle": "مجاني: الأهل يتناوبون",
+  "@carpoolFreeTitle": {
+    "description": "Carpool detail row title: no payment for rides. One line."
+  },
+  "carpoolFreeHelper": "تناوب تطوعي بين الأهل. لا أجرة ولا مقابل للتوصيل.",
+  "@carpoolFreeHelper": {
+    "description": "Carpool detail row subtitle (Law 87/2018 safe side)"
+  },
+  "volunteerAccept": "تناوب مجاني بلا مقابل",
+  "@volunteerAccept": {
+    "description": "Checkbox label when creating or joining a carpool. One line."
+  },
+  "volunteerAcceptHelper": "أقود سيارتي على مسؤوليتي، بالتناوب ومجانًا. لا يتقاضى أحد مقابلًا عن أي توصيلة. التطبيق لا يقدّم خدمة نقل.",
+  "@volunteerAcceptHelper": {
+    "description": "Checkbox helper: the volunteer acknowledgement (VOLUNTEER_TERMS_VERSION)"
+  },
+  "volunteerError": "اختر «تناوب مجاني بلا مقابل» للمتابعة.",
+  "@volunteerError": {
+    "description": "Step error when the volunteer box is not ticked"
+  },
+  "adminFeatureContributions": "تكلفة لكل طفل",
+  "@adminFeatureContributions": {
+    "description": "Feature switch title (F25 contribution). One line."
+  },
+  "adminFeatureContributionsHelper": "مبلغ متفق عليه لكل طفل. عند الإيقاف تبقى الرحلات مجانية. اسأل المحامي قبل التشغيل.",
+  "@adminFeatureContributionsHelper": {
+    "description": "Feature switch helper"
+  },
+  "termsAcceptTransfer": "أوافق على التخزين خارج مصر",
+  "@termsAcceptTransfer": {
+    "description": "Checkbox: separate explicit consent to transfer and store data outside Egypt (Law 151/2020, Arts. 14-15). One line."
+  },
+  "termsTransferHelper": "تُخزَّن بياناتك لدى Google Cloud في بلجيكا (الاتحاد الأوروبي). مطلوب لاستخدام التطبيق.",
+  "@termsTransferHelper": {
+    "description": "Checkbox helper"
+  },
+  "termsDocTransfer": "التخزين خارج مصر",
+  "@termsDocTransfer": {
+    "description": "Sheet title. One line."
+  },
+  "termsTransferText": "تُخزَّن بياناتك على خوادم Google Cloud في بلجيكا (الاتحاد الأوروبي). وتعالج الشركات التالية جزءًا منها لحسابنا خارج مصر: Google (‏Firebase والخرائط، وVertex AI لأسماء المدارس العامة فقط)، وMeta (رموز الدخول والتنبيهات عبر واتساب)، ومزوّد المحادثات، وAlgolia (البحث عن المدارس بلا هوية)، وSentry (تقارير الأعطال بعد حذف البيانات الشخصية)، ومزوّد البريد الإلكتروني، وValify (التحقق من الهوية) عند تفعيله. وتلتزم كل منها بحماية بياناتك بمستوى لا يقل عما يتطلبه القانون المصري. ويتم النقل وفق قانون حماية البيانات الشخصية رقم 151 لسنة 2020 وترخيص مركز حماية البيانات الشخصية. لا يعمل التطبيق دون هذه الموافقة، وسحبها يعني حذف حسابك.",
+  "@termsTransferText": {
+    "description": "Transfer-abroad notice shown from the terms step"
+  },
+  "consentTransferAbroad": "التخزين خارج مصر",
+  "@consentTransferAbroad": {
+    "description": "Consent row"
+  },
+  "verifyGuardianLabel": "أنا الوالد أو الولي",
+  "@verifyGuardianLabel": {
+    "description": "Checkbox and dialog title: guardian declaration for children's data. One line."
+  },
+  "verifyGuardianHelper": "أقرّ بأنني الوالد أو الولي القانوني للأطفال الذين أضيفهم، وأوافق صراحةً على معالجة بياناتهم (الاسم الأول والسن والصف والمدرسة وصورة كارنيه المدرسة) ومكانهم أثناء المشاوير، فقط لتنظيم مشاويرهم المدرسية وحمايتها. يمكنني سحب ذلك بحذف الأطفال.",
+  "@verifyGuardianHelper": {
+    "description": "Guardian declaration (children's data is sensitive data, Law 151/2020)"
+  },
+  "verifyGuardianConfirm": "أؤكد",
+  "@verifyGuardianConfirm": {
+    "description": "Dialog button. One line."
+  },
+  "keepDays180": "180 يومًا (حسب القانون)",
+  "@keepDays180": {
+    "description": "Retention label: sign-in history (Anti-Cybercrime Law 175/2018). One line."
+  },
+  "adminNavIncidents": "الحوادث",
+  "@adminNavIncidents": {
+    "description": "Admin rail: breach register. One line."
+  },
+  "incidentsTitle": "حوادث البيانات",
+  "@incidentsTitle": {
+    "description": "Admin page title. One line."
+  },
+  "incidentsRule": "أي تسريب أو اختراق أو فقد لبيانات شخصية: سجّله هنا فورًا. يجب إبلاغ مركز حماية البيانات الشخصية خلال 72 ساعة (فورًا إذا شمل بيانات الأطفال أو صور الوجه أو الأمن القومي)، ثم الأهالي خلال 3 أيام عمل.",
+  "@incidentsRule": {
+    "description": "Admin incidents intro"
+  },
+  "incidentsEmpty": "لا توجد حوادث",
+  "@incidentsEmpty": {
+    "description": "Empty state. One line."
+  },
+  "incidentReportButton": "تسجيل حادثة",
+  "@incidentReportButton": {
+    "description": "Button. One line."
+  },
+  "incidentReportTitle": "تسجيل حادثة",
+  "@incidentReportTitle": {
+    "description": "Sheet title. One line."
+  },
+  "incidentReportSend": "ابدأ العدّ",
+  "@incidentReportSend": {
+    "description": "Form button. One line."
+  },
+  "incidentReported": "سُجّلت الحادثة وظهرت المواعيد",
+  "@incidentReported": {
+    "description": "Snack bar"
+  },
+  "incidentNoPersonalData": "صف ما حدث دون أسماء أو أرقام هواتف أو أرقام بطاقات أو أماكن.",
+  "@incidentNoPersonalData": {
+    "description": "Form note"
+  },
+  "incidentAwareLabel": "متى علمنا؟",
+  "@incidentAwareLabel": {
+    "description": "Select label. One line."
+  },
+  "incidentAwareNow": "الآن",
+  "@incidentAwareNow": {
+    "description": "Option. One line."
+  },
+  "incidentAwareHoursAgo": "منذ {hours} ساعة",
+  "@incidentAwareHoursAgo": {
+    "description": "Option. One line.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "incidentKindLabel": "ما الذي حدث",
+  "@incidentKindLabel": {
+    "description": "Select label. One line."
+  },
+  "incidentKindAccess": "دخول غير مصرّح",
+  "@incidentKindAccess": {
+    "description": "Option. One line."
+  },
+  "incidentKindDisclosure": "كشف بيانات",
+  "@incidentKindDisclosure": {
+    "description": "Option. One line."
+  },
+  "incidentKindLoss": "فقد بيانات",
+  "@incidentKindLoss": {
+    "description": "Option. One line."
+  },
+  "incidentKindAlteration": "تغيير بيانات",
+  "@incidentKindAlteration": {
+    "description": "Option. One line."
+  },
+  "incidentKindUnavailable": "تعذّر الوصول",
+  "@incidentKindUnavailable": {
+    "description": "Option. One line."
+  },
+  "incidentKindOther": "أخرى",
+  "@incidentKindOther": {
+    "description": "Option. One line."
+  },
+  "incidentCategoriesLabel": "البيانات المتأثرة",
+  "@incidentCategoriesLabel": {
+    "description": "Section header. One line."
+  },
+  "incidentCatAccount": "الحسابات",
+  "@incidentCatAccount": {
+    "description": "Chip. One line."
+  },
+  "incidentCatContact": "الهواتف والبريد",
+  "@incidentCatContact": {
+    "description": "Chip. One line."
+  },
+  "incidentCatIdImages": "صور البطاقات",
+  "@incidentCatIdImages": {
+    "description": "Chip. One line."
+  },
+  "incidentCatBiometric": "بيانات الوجه",
+  "@incidentCatBiometric": {
+    "description": "Chip. One line."
+  },
+  "incidentCatChildren": "الأطفال",
+  "@incidentCatChildren": {
+    "description": "Chip. One line."
+  },
+  "incidentCatLocation": "المواقع",
+  "@incidentCatLocation": {
+    "description": "Chip. One line."
+  },
+  "incidentCatHome": "عناوين المنازل",
+  "@incidentCatHome": {
+    "description": "Chip. One line."
+  },
+  "incidentCatChat": "المحادثات",
+  "@incidentCatChat": {
+    "description": "Chip. One line."
+  },
+  "incidentCatDevices": "الأجهزة",
+  "@incidentCatDevices": {
+    "description": "Chip. One line."
+  },
+  "incidentCatOther": "أخرى",
+  "@incidentCatOther": {
+    "description": "Chip. One line."
+  },
+  "incidentSourceLabel": "أين",
+  "@incidentSourceLabel": {
+    "description": "Select label. One line."
+  },
+  "incidentSourceUs": "تطبيقنا أو خوادمنا",
+  "@incidentSourceUs": {
+    "description": "Option. One line."
+  },
+  "incidentSourceEmail": "مزوّد البريد",
+  "@incidentSourceEmail": {
+    "description": "Option. One line."
+  },
+  "incidentSourceOther": "جهة أخرى",
+  "@incidentSourceOther": {
+    "description": "Option. One line."
+  },
+  "incidentPeople": "عدد المتأثرين (تقريبًا)",
+  "@incidentPeople": {
+    "description": "Field label. One line."
+  },
+  "incidentRecords": "عدد السجلات (تقريبًا)",
+  "@incidentRecords": {
+    "description": "Field label. One line."
+  },
+  "incidentSummaryLabel": "ما حدث",
+  "@incidentSummaryLabel": {
+    "description": "Field label. One line."
+  },
+  "incidentMeasuresLabel": "ما فعلناه حتى الآن",
+  "@incidentMeasuresLabel": {
+    "description": "Field label. One line."
+  },
+  "incidentNationalSecurity": "قد يمس الأمن القومي",
+  "@incidentNationalSecurity": {
+    "description": "Checkbox. One line."
+  },
+  "incidentSensitive": "بيانات أطفال أو وجه: أبلغ المركز فورًا ولا تنتظر 72 ساعة.",
+  "@incidentSensitive": {
+    "description": "Warning"
+  },
+  "incidentErrorCategories": "اختر نوع بيانات واحدًا على الأقل.",
+  "@incidentErrorCategories": {
+    "description": "Form error"
+  },
+  "incidentErrorCounts": "أدخل العدد التقريبي للأشخاص والسجلات (0 إن لم يُعرف بعد).",
+  "@incidentErrorCounts": {
+    "description": "Form error"
+  },
+  "incidentErrorSummary": "اكتب بكلمات قليلة ما حدث.",
+  "@incidentErrorSummary": {
+    "description": "Form error"
+  },
+  "incidentAwareAt": "وقت العلم",
+  "@incidentAwareAt": {
+    "description": "Fact label. One line."
+  },
+  "incidentPdpcBy": "إبلاغ المركز قبل",
+  "@incidentPdpcBy": {
+    "description": "Fact label. One line."
+  },
+  "incidentParentsBy": "إبلاغ الأهالي قبل",
+  "@incidentParentsBy": {
+    "description": "Fact label. One line."
+  },
+  "incidentImmediately": "فورًا",
+  "@incidentImmediately": {
+    "description": "Deadline value. One line."
+  },
+  "incidentStateDone": "تم",
+  "@incidentStateDone": {
+    "description": "Badge. One line."
+  },
+  "incidentStateNow": "الآن",
+  "@incidentStateNow": {
+    "description": "Badge. One line."
+  },
+  "incidentStateOnTime": "في الموعد",
+  "@incidentStateOnTime": {
+    "description": "Badge. One line."
+  },
+  "incidentStateDueSoon": "قريبًا",
+  "@incidentStateDueSoon": {
+    "description": "Badge. One line."
+  },
+  "incidentStateOverdue": "متأخر",
+  "@incidentStateOverdue": {
+    "description": "Badge. One line."
+  },
+  "incidentStepContained": "تم الاحتواء",
+  "@incidentStepContained": {
+    "description": "Button and dialog title. One line."
+  },
+  "incidentStepContainedBody": "سجّل أن التسريب توقف. يُحفظ الوقت.",
+  "@incidentStepContainedBody": {
+    "description": "Dialog body"
+  },
+  "incidentStepPdpc": "أُبلغ المركز",
+  "@incidentStepPdpc": {
+    "description": "Button and dialog title. One line."
+  },
+  "incidentStepPdpcBody": "سجّل أن مركز حماية البيانات أُبلغ الآن (البوابة أو الخط الساخن). يبدأ هذا مهلة 3 أيام عمل لإبلاغ الأهالي ولا يمكن التراجع عنه.",
+  "@incidentStepPdpcBody": {
+    "description": "Dialog body"
+  },
+  "incidentStepParents": "أُبلغ الأهالي",
+  "@incidentStepParents": {
+    "description": "Button and dialog title. One line."
+  },
+  "incidentStepParentsBody": "سجّل أن كل ولي أمر متأثر أُبلغ الآن. لا يمكن التراجع عن ذلك.",
+  "@incidentStepParentsBody": {
+    "description": "Dialog body"
+  },
+  "incidentStepClose": "إغلاق",
+  "@incidentStepClose": {
+    "description": "Button and dialog title. One line."
+  },
+  "incidentStepCloseBody": "أغلق الحادثة بعد إصلاح السبب. يبقى السجل محفوظًا.",
+  "@incidentStepCloseBody": {
+    "description": "Dialog body"
+  },
+  "incidentConfirm": "تسجيل",
+  "@incidentConfirm": {
+    "description": "Dialog button. One line."
+  },
+  "termsUpdatedBody": "حدّثنا الشروط وسياسة الخصوصية، وأضفنا موافقة مستقلة على التخزين خارج مصر. اقرأها ووافق عليها للمتابعة. يمكنك تنزيل بياناتك أو حذف حسابك من «الخصوصية».",
+  "@termsUpdatedBody": {
+    "description": "Terms screen text when an existing account is asked once to accept updated documents (legal review 16 Nov 2026)."
+  },
+  "termsUpdatedPrivacy": "الخصوصية",
+  "@termsUpdatedPrivacy": {
+    "description": "Tertiary button on the updated-terms screen: opens Privacy (export, delete account). One line."
   }
 }

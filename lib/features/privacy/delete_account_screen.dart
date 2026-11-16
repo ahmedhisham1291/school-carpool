@@ -9,6 +9,7 @@ import 'package:school_carpool/features/analytics/analytics.dart';
 import 'package:school_carpool/features/auth/auth_repository.dart';
 import 'package:school_carpool/features/auth/signup_flow.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/notifications/notification_center.dart';
 import 'package:school_carpool/features/privacy/privacy_models.dart';
 import 'package:school_carpool/features/privacy/privacy_repository.dart';
@@ -126,8 +127,11 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                 onPressed: () => setState(() => _step = 2),
               ),
             ] else ...<Widget>[
-              Text(l10n.deleteWalletNote, style: context.text.bodyLarge),
-              const SizedBox(height: AppSpacing.s16),
+              // The wallet note only while the wallet is on (no money in the app).
+              if (ref.watch(featureSwitchesProvider).wallet) ...<Widget>[
+                Text(l10n.deleteWalletNote, style: context.text.bodyLarge),
+                const SizedBox(height: AppSpacing.s16),
+              ],
               if (failure != null) ...<Widget>[
                 if (failure.kind == PrivacyFailureKind.walletNotEmpty || failure.kind == PrivacyFailureKind.walletPending)
                   AppAlertBanner(

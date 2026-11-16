@@ -161,6 +161,15 @@ service cloud.firestore {
       allow get: if name == 'features' && sessionValid();
       allow list, write: if false;
     }
+    // Personal data breach register (Law 151 of 2020, Art. 7; Decree
+    // 816/2025, Art. 5): written and read only through the audited admin
+    // callables (functions/src/privacy/breach_callables.ts). Closed to every
+    // client, admins included (the deny-all default says the same; this
+    // match makes it explicit and is tested in tests/rules/admin.test.ts).
+    match /breachRegister/{incidentId} {
+      allow read, write: if false;
+    }
+
     // Audit log (Prompt 3, Prompt 4): written only by Cloud Functions.
     // Admins signed in with two steps may read it; nobody edits or deletes
     // an entry, admins included.

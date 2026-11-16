@@ -301,6 +301,15 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
           value: draft.consent,
           onChanged: _busy ? null : (bool v) => _draft.update((VerificationDraft d) => d.copyWith(consent: v)),
         ),
+        // Separate from the ID consent: the guardian's declaration for the
+        // children's data (sensitive data, Law 151 of 2020).
+        AppCheckRow(
+          key: const Key('verify.consentChild'),
+          label: l10n.verifyGuardianLabel,
+          helperText: l10n.verifyGuardianHelper,
+          value: draft.guardianConsent,
+          onChanged: _busy ? null : (bool v) => _draft.update((VerificationDraft d) => d.copyWith(guardianConsent: v)),
+        ),
         if (progress != null) ...<Widget>[
           const SizedBox(height: AppSpacing.s16),
           Semantics(

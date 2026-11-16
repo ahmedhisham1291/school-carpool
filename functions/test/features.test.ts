@@ -23,6 +23,7 @@ import {
   GATED_NOTIFICATIONS,
   notificationFeature,
   parseFeatureChange,
+  MONEY_FEATURES,
   PILOT_DEFAULTS,
   switchesFrom,
   type FeatureKey,
@@ -40,9 +41,11 @@ const NOW = Date.UTC(2026, 10, 14, 8);
 afterEach(() => setFeatureReaderForTests(null));
 
 describe("feature switches: the document", () => {
-  it("pilot defaults: wallet, ratings and vouching, yearly checks off; Settle up on", () => {
-    assert.deepEqual(PILOT_DEFAULTS, { wallet: false, ratingsAndVouching: false, yearlyChecks: false, settleUp: true });
-    assert.deepEqual([...FEATURE_KEYS], ["wallet", "ratingsAndVouching", "yearlyChecks", "settleUp"]);
+  it("pilot defaults: everything off, the money features (wallet, Settle up, contributions) included", () => {
+    assert.deepEqual([...MONEY_FEATURES], ["wallet", "settleUp", "contributions"]);
+    for (const key of MONEY_FEATURES) assert.equal(PILOT_DEFAULTS[key], false, key);
+    assert.deepEqual(PILOT_DEFAULTS, { wallet: false, ratingsAndVouching: false, yearlyChecks: false, settleUp: false, contributions: false });
+    assert.deepEqual([...FEATURE_KEYS], ["wallet", "ratingsAndVouching", "yearlyChecks", "settleUp", "contributions"]);
     assert.equal(FEATURES_DOC, "config/features");
   });
 
@@ -53,7 +56,7 @@ describe("feature switches: the document", () => {
   });
 
   it("only real booleans count; anything else keeps the default; unknown keys are ignored", () => {
-    assert.deepEqual(switchesFrom({ wallet: true, settleUp: false }), { wallet: true, ratingsAndVouching: false, yearlyChecks: false, settleUp: false });
+    assert.deepEqual(switchesFrom({ wallet: true, settleUp: false }), { wallet: true, ratingsAndVouching: false, yearlyChecks: false, settleUp: false, contributions: false });
     assert.deepEqual(switchesFrom({ wallet: "true", ratingsAndVouching: 1, yearlyChecks: null, settleUp: "no", chat: false }), PILOT_DEFAULTS);
   });
 
@@ -74,7 +77,7 @@ describe("feature switches: the per-instance cache", () => {
       return doc;
     }, () => now);
     assert.equal(await cache.isOn("wallet"), true);
-    assert.equal(await cache.isOn("settleUp"), true);
+    assert.equal(await cache.isOn("settleUp"), false, "not stored: the default (off)");
     await cache.get();
     assert.equal(reads, 1, "one read for many calls");
     doc = { wallet: false };
@@ -125,7 +128,7 @@ describe("feature switches: the per-instance cache", () => {
     const cache = new FeatureCache(
       async () => {
         if (fail) throw new Error("firestore down");
-        return { wallet: true, ratingsAndVouching: true, yearlyChecks: true, settleUp: true };
+        return { wallet: true, ratingsAndVouching: true, yearlyChecks: true, settleUp: true, contributions: true };
       },
       () => now,
     );
@@ -136,7 +139,7 @@ describe("feature switches: the per-instance cache", () => {
       assert.equal(await cache.isOn("wallet"), true, `failed read ${i}: the last known value`);
     }
     now += FEATURE_CACHE_MS + 1;
-    assert.deepEqual(await cache.get(), PILOT_DEFAULTS, "the wallet, ratings and yearly checks are off; Settle up (default on) stays");
+    assert.deepEqual(await cache.get(), PILOT_DEFAULTS, "every switch is back to its default: all off");
     assert.equal(await cache.isOn("wallet"), false);
     await assert.rejects(cache.require("wallet"), (e: unknown) => e instanceof FeatureOffError);
     // Firestore answers again: the stored values are back.
@@ -154,7 +157,7 @@ describe("feature switches: the per-instance cache", () => {
     let doc: Record<string, unknown> = {};
     const cache = new FeatureCache(async () => doc);
     await assert.rejects(cache.require("wallet"), (e: unknown) => e instanceof FeatureOffError && e.feature === "wallet");
-    await cache.require("settleUp");
+    await assert.rejects(cache.require("settleUp"), (e: unknown) => e instanceof FeatureOffError && e.feature === "settleUp");
     doc = { wallet: true };
     cache.clear();
     await cache.require("wallet");
@@ -168,7 +171,8 @@ describe("feature switches: the gate used by Cloud Functions", () => {
       const err = e as { code?: string; message?: string; details?: { reason?: string; feature?: string } };
       return err.code === "failed-precondition" && err.message === "feature-off" && err.details?.reason === "feature-off" && err.details?.feature === "wallet";
     });
-    await requireFeature("settleUp");
+    await assert.rejects(requireFeature("settleUp"), (e: unknown) => (e as { details?: { feature?: string } }).details?.feature === "settleUp");
+    await assert.rejects(requireFeature("contributions"), (e: unknown) => (e as { details?: { feature?: string } }).details?.feature === "contributions");
     assert.deepEqual(await features(), PILOT_DEFAULTS);
   });
 
@@ -211,8 +215,9 @@ describe("feature switches: every gated entry point", () => {
     ratingsAndVouching: () => require("../src/trust/callables") as Record<string, unknown>,
     yearlyChecks: () => require("../src/trust/callables") as Record<string, unknown>,
     settleUp: () => require("../src/settle_up/callables") as Record<string, unknown>,
+    contributions: () => require("../src/carpools/callables") as Record<string, unknown>,
   };
-  const ALL_OFF = { wallet: false, ratingsAndVouching: false, yearlyChecks: false, settleUp: false };
+  const ALL_OFF = { wallet: false, ratingsAndVouching: false, yearlyChecks: false, settleUp: false, contributions: false };
 
   it("every gated function is exported from index.ts under that name", () => {
     const index = readFileSync(join(__dirname, "..", "..", "src", "index.ts"), "utf8");
@@ -258,6 +263,10 @@ describe("feature switches: every gated entry point", () => {
     await assert.rejects(handlerOf(modules.wallet().sendMoney)(request("alice", { amount: 100 })), isFeatureOff("wallet"));
     await assert.rejects(handlerOf(modules.ratingsAndVouching().rateParent)(request("alice")), isFeatureOff("ratingsAndVouching"));
     await assert.rejects(handlerOf(modules.yearlyChecks().confirmSchoolYear)(request("alice")), isFeatureOff("yearlyChecks"));
+    // No money in the app (owner, 16 Nov 2026): Settle up refuses too.
+    await assert.rejects(handlerOf(modules.settleUp().createSettleUp)(request("alice", { amount: 100 })), isFeatureOff("settleUp"));
+    await assert.rejects(handlerOf(modules.settleUp().getSettleUpAddress)(request("alice")), isFeatureOff("settleUp"));
+    await assert.rejects(handlerOf(modules.wallet().getWallet)(request("alice")), isFeatureOff("wallet"));
   });
 });
 
@@ -348,7 +357,7 @@ describe("admin panel: Settings (feature switches)", () => {
     const t = setup();
     const view = await setFeature(t.deps, superAdmin, { feature: "wallet", on: true }, "10.0.0.1");
     assert.equal(view.features.wallet, true);
-    assert.equal(view.features.settleUp, true, "the others keep their value");
+    assert.equal(view.features.settleUp, false, "the others keep their value");
     assert.deepEqual(t.writes, [{ feature: "wallet", on: true, adminUid: "root" }]);
     assert.equal(t.audit.length, 1);
     assert.equal(t.audit[0].action, "feature.on");
@@ -374,7 +383,7 @@ describe("admin panel: Settings (feature switches)", () => {
 
   it("setting a switch to the value it has writes nothing and logs nothing", async () => {
     const t = setup();
-    await setFeature(t.deps, superAdmin, { feature: "settleUp", on: true }, null);
+    await setFeature(t.deps, superAdmin, { feature: "settleUp", on: false }, null);
     assert.equal(t.writes.length, 0);
     assert.equal(t.audit.length, 0);
   });

@@ -221,6 +221,12 @@ void main() {
       expect(find.textContaining('29001150123456'), findsNothing);
       await tester.tap(find.byKey(const Key('verify.consent')));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('verify.consentChild')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('verify.consentChild')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('verify.next')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('verify.next')));
       await tester.pumpAndSettle();
 
@@ -259,6 +265,7 @@ void main() {
             ChildDraft(ref: 'c1', firstName: 'Omar', age: 8, grade: Grade.g3, schoolId: 'nile', schoolName: 'Nile', schoolIdPhoto: fakePhoto),
           ],
           consent: true,
+          guardianConsent: true,
         ),
       );
       // Rebuild first: until then the button still has the disabled state of

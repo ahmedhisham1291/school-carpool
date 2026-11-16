@@ -181,6 +181,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   otpLimits: "keyed hashes only, TTL",
   closedAccounts: "the deletion report and purge date (no name, phone or ID)",
   privacyRequests: "proof that each request was answered, 3 years",
+  breachRegister: "personal data breach register (Law 151 Art. 7, Decree 816/2025 Art. 5); incidents, counts and admin notes, never a parent's data; kept as the law requires (docs/legal/breach-runbook.md)",
   securityAlerts: "admin alerts, 1 year after handled",
   routeArchives: "purged 1 year after the run; the routes of a deleted driver go with the account (evidence step)",
   retentionRuns: "job reports (counts only)",

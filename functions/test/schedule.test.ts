@@ -484,9 +484,10 @@ async function readyCarpool(deps: CarpoolDeps, { consent = true } = {}): Promise
     seats: 4,
     childIds: ["a1"],
     rules: [],
+    acceptVolunteer: true,
   });
   for (const [uid, kids] of [["bob", ["b1", "b2"]], ["cara", ["c1"]]] as const) {
-    await requestToJoin(deps, as(uid), { carpoolId, childIds: kids, acceptRules: true });
+    await requestToJoin(deps, as(uid), { carpoolId, childIds: kids, acceptRules: true, acceptVolunteer: true });
     await decideJoinRequest(deps, as("alice"), { carpoolId, uid, approve: true });
   }
   if (consent) {

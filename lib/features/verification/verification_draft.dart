@@ -145,6 +145,7 @@ class VerificationDraft {
     this.drives = false,
     this.driver = const DriverDraft(),
     this.consent = false,
+    this.guardianConsent = false,
     this.uploaded = const <String>{},
   });
 
@@ -168,8 +169,13 @@ class VerificationDraft {
   final bool drives;
   final DriverDraft driver;
 
-  /// Consent to process ID, face and child data (Law 151).
+  /// Explicit consent to process the ID and the face images (biometric
+  /// data; Law 151 of 2020, Art. 12).
   final bool consent;
+
+  /// The separate guardian declaration and consent for the children's data
+  /// (children's data is sensitive data; Law 151 of 2020, Arts. 1 and 12).
+  final bool guardianConsent;
 
   /// Upload names already in the pending folder. A retake removes its name.
   final Set<String> uploaded;
@@ -191,7 +197,8 @@ class VerificationDraft {
       selfieComplete &&
       childrenComplete &&
       drivingComplete(today) &&
-      consent;
+      consent &&
+      guardianConsent;
 
   /// Every image to upload, by upload name.
   Map<String, Uint8List> files() => <String, Uint8List>{
@@ -233,6 +240,7 @@ class VerificationDraft {
     bool? drives,
     DriverDraft? driver,
     bool? consent,
+    bool? guardianConsent,
     Set<String>? uploaded,
   }) => VerificationDraft(
     firstName: firstName ?? this.firstName,
@@ -248,6 +256,7 @@ class VerificationDraft {
     drives: drives ?? this.drives,
     driver: driver ?? this.driver,
     consent: consent ?? this.consent,
+    guardianConsent: guardianConsent ?? this.guardianConsent,
     uploaded: uploaded ?? this.uploaded,
   );
 }

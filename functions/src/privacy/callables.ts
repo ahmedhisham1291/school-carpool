@@ -54,7 +54,7 @@ import {
 import { runRetention } from "./jobs";
 import { accessReason, selfieArchivePath, thumbPath } from "./photos";
 import { dropThumb, ensureThumb } from "./thumbs";
-import { consentKind, consentViews, correctionField, needsAdmin, newRequest, withdrawEffect, type PrivacyRequest } from "./requests";
+import { adminQueue, consentKind, consentViews, correctionField, needsAdmin, newRequest, slaOf, withdrawEffect, type PrivacyRequest } from "./requests";
 import { routeArchivePurgeAt } from "./retention";
 import { archivePath, packArchive, unpackArchive, type TrackPoint } from "./route_archive";
 import { gatedCall, gatedCallAlsoClosedDemo, sessionCall } from "./device_gate";
@@ -237,7 +237,17 @@ async function logRequest(uid: string, kind: PrivacyRequest["kind"], subject: st
   return r;
 }
 
-const viewRequest = (r: PrivacyRequest) => ({ id: r.id, kind: r.kind, subject: r.subject, status: r.status, reason: r.reason, createdAtMs: r.createdAtMs, doneAtMs: r.doneAtMs });
+const viewRequest = (r: PrivacyRequest) => ({
+  id: r.id,
+  kind: r.kind,
+  subject: r.subject,
+  status: r.status,
+  reason: r.reason,
+  createdAtMs: r.createdAtMs,
+  doneAtMs: r.doneAtMs,
+  // Law 151/2020: answer within 6 working days (requests.ts responseDueAt).
+  dueAtMs: slaOf(r, Date.now()).dueAtMs,
+});
 
 /** {} -> { consents: [...], requests: [...] } */
 export const getPrivacyOverview = gatedCall(opts, (r) =>
@@ -654,11 +664,21 @@ export const adminResolveSecurityAlert = onCall(opts, (r) =>
   }),
 );
 
-/** {} -> { requests }: open privacy requests (ID-detail corrections, photo copies). */
+/**
+ * {} -> { requests, overdue }: open privacy requests (ID-detail
+ * corrections, photo copies, anything not done at once), the most urgent
+ * first, each with its deadline (6 working days, Law 151/2020) and state
+ * (onTime, dueSoon, overdue). docs/legal/dsr-procedure.md.
+ */
 export const adminListPrivacyRequests = onCall(opts, (r) =>
   run("adminListPrivacyRequests", async () => {
     await requireAdminCaller(r);
-    return { requests: (await new FirestorePrivacyStore(adminDb()).openRequests(100)).map((x) => ({ ...viewRequest(x), uid: x.uid })) };
+    const nowMs = Date.now();
+    const queue = adminQueue(await new FirestorePrivacyStore(adminDb()).openRequests(100), nowMs);
+    return {
+      requests: queue.map((x) => ({ ...viewRequest(x), uid: x.uid, dueAtMs: x.dueAtMs, sla: x.sla })),
+      overdue: queue.filter((x) => x.sla === "overdue").length,
+    };
   }),
 );
 

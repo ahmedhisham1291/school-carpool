@@ -1,4 +1,4 @@
-import type { CarpoolRecord, MembershipRecord } from "../carpools/model";
+import { VOLUNTEER_TERMS_VERSION, type CarpoolRecord, type MembershipRecord } from "../carpools/model";
 import { REVIEW_ACCESS_MAX_DAYS } from "./otp_flow";
 import { REVIEW_DEMO_FIELD, REVIEW_DEMO_MARK } from "./review_access";
 
@@ -139,7 +139,8 @@ export function demoPlan(input: DemoInput): DemoPlan {
     car: i === 0 ? { seats: 4, validUntil } : null,
     drivingDays: i === 0 ? [...SCHOOL_DAYS] : [],
     acceptedRules: true,
-    acceptedContribution: true,
+    acceptedContribution: false,
+    volunteerTerms: VOLUNTEER_TERMS_VERSION,
     requestedAtMs: nowMs,
     decidedAtMs: nowMs,
     decidedBy: driverUid,
@@ -162,7 +163,8 @@ export function demoPlan(input: DemoInput): DemoPlan {
     childrenCount: 2,
     memberCount: 2,
     rules: ["no_smoking", "seat_belts", "wait_5_min"],
-    contribution: { amount: 50, period: "week", note: "Fuel share (demo)" },
+    // No money in the app (owner, 16 Nov 2026): the demo carpool is free volunteer turns.
+    contribution: null,
     creatorUid: driverUid,
     creatorFirstName: people[0].firstName,
     status: "active",

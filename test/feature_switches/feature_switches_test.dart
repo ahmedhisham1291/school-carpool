@@ -95,12 +95,18 @@ void main() {
   setUpAll(loadAppFonts);
 
   group('the switches', () {
-    test('pilot defaults: wallet, ratings and vouching and yearly checks off; Settle up on', () {
+    test('pilot defaults: everything off; no money in the app (wallet, Settle up, contributions)', () {
       expect(FeatureSwitches.pilot.wallet, isFalse);
       expect(FeatureSwitches.pilot.ratingsAndVouching, isFalse);
       expect(FeatureSwitches.pilot.yearlyChecks, isFalse);
-      expect(FeatureSwitches.pilot.settleUp, isTrue);
-      expect(AppFeature.values.map((AppFeature f) => f.name), <String>['wallet', 'ratingsAndVouching', 'yearlyChecks', 'settleUp']);
+      expect(FeatureSwitches.pilot.settleUp, isFalse);
+      expect(FeatureSwitches.pilot.contributions, isFalse);
+      expect(FeatureSwitches.pilot.anyMoney, isFalse);
+      expect(FeatureSwitches.allOn.anyMoney, isTrue);
+      expect(
+        AppFeature.values.map((AppFeature f) => f.name),
+        <String>['wallet', 'ratingsAndVouching', 'yearlyChecks', 'settleUp', 'contributions'],
+      );
     });
 
     test('a missing document reads as the pilot defaults', () {
@@ -111,7 +117,7 @@ void main() {
     test('only real booleans count; anything else keeps the default', () {
       expect(
         FeatureSwitches.fromMap(const <String, Object?>{'wallet': true, 'settleUp': false}),
-        const FeatureSwitches(wallet: true, ratingsAndVouching: false, yearlyChecks: false, settleUp: false),
+        const FeatureSwitches(wallet: true, ratingsAndVouching: false, yearlyChecks: false, settleUp: false, contributions: false),
       );
       expect(
         FeatureSwitches.fromMap(const <String, Object?>{'wallet': 'true', 'ratingsAndVouching': 1, 'yearlyChecks': null, 'settleUp': 'no', 'chat': false}),
@@ -120,13 +126,14 @@ void main() {
     });
 
     test('isOn follows each field', () {
-      const FeatureSwitches s = FeatureSwitches(wallet: true, ratingsAndVouching: false, yearlyChecks: true, settleUp: false);
+      const FeatureSwitches s = FeatureSwitches(wallet: true, ratingsAndVouching: false, yearlyChecks: true, settleUp: false, contributions: false);
       expect(s.isOn(AppFeature.wallet), isTrue);
       expect(s.isOn(AppFeature.ratingsAndVouching), isFalse);
       expect(s.isOn(AppFeature.yearlyChecks), isTrue);
       expect(s.isOn(AppFeature.settleUp), isFalse);
       expect(FeatureSwitches.pilot.copyWith(wallet: true).wallet, isTrue);
-      expect(FeatureSwitches.pilot.copyWith(wallet: true).settleUp, isTrue);
+      expect(FeatureSwitches.pilot.copyWith(wallet: true).settleUp, isFalse);
+      expect(FeatureSwitches.pilot.copyWith(contributions: true).contributions, isTrue);
       expect(AppFeature.values.every(FeatureSwitches.allOn.isOn), isTrue);
     });
   });
@@ -178,13 +185,15 @@ void main() {
   });
 
   group('Profile hides what is switched off', () {
-    testWidgets('pilot: no wallet row, no ratings row, no yearly check card; Settle up and family links stay', (WidgetTester tester) async {
+    testWidgets('pilot: no money UI (no wallet, no Settle up), no ratings row, no yearly check card; family links stay', (WidgetTester tester) async {
       final _World w = _World();
       await _pump(tester, AppTab.profile.path, w, FeatureSwitches.pilot);
       expect(_key('profile.wallet'), findsNothing);
       expect(_key('profile.ratings'), findsNothing);
       expect(_key('profile.yearCheck'), findsNothing);
-      expect(_key('profile.settleUp'), findsOneWidget);
+      expect(_key('profile.settleUp'), findsNothing);
+      expect(find.textContaining('InstaPay'), findsNothing);
+      expect(w.settle.calls, isEmpty);
       // Not switchable: family links, driving papers, children, privacy.
       expect(_key('profile.family'), findsOneWidget);
       expect(find.text('1 request to answer'), findsOneWidget);
@@ -231,7 +240,13 @@ void main() {
           overrides: <Override>[
             flavorConfigProvider.overrideWithValue(testDevConfig),
             settingsStoreProvider.overrideWithValue(InMemorySettingsStore()),
-            ...authOverrides(session: testUnverifiedSession, wallet: w.wallet, trust: w.trust, settle: w.settle, features: FeatureSwitches.pilot),
+            ...authOverrides(
+              session: testUnverifiedSession,
+              wallet: w.wallet,
+              trust: w.trust,
+              settle: w.settle,
+              features: FeatureSwitches.pilot.copyWith(settleUp: true),
+            ),
           ],
           child: MaterialApp.router(
             routerConfig: router,
@@ -247,7 +262,7 @@ void main() {
     });
 
     testWidgets('the Settle up row opens Settle up', (WidgetTester tester) async {
-      final GoRouter router = await _pump(tester, AppTab.profile.path, _World(), FeatureSwitches.pilot);
+      final GoRouter router = await _pump(tester, AppTab.profile.path, _World(), FeatureSwitches.pilot.copyWith(settleUp: true));
       await tester.ensureVisible(_key('profile.settleUp'));
       await tester.pumpAndSettle();
       await tester.tap(_key('profile.settleUp'));
@@ -280,8 +295,8 @@ void main() {
       expect(find.byType(SchoolYearScreen), findsNothing);
     });
 
-    testWidgets('Settle up off: its four screens show "Not available yet"', (WidgetTester tester) async {
-      final FeatureSwitches off = FeatureSwitches.pilot.copyWith(settleUp: false);
+    testWidgets('Settle up off (the default): its four screens show "Not available yet"', (WidgetTester tester) async {
+      const FeatureSwitches off = FeatureSwitches.pilot;
       for (final String link in <String>[SettleUpRoutes.home, SettleUpRoutes.create(), SettleUpRoutes.address, SettleUpRoutes.record('s_owe')]) {
         final _World w = _World();
         await _pump(tester, link, w, off);
@@ -332,7 +347,8 @@ void main() {
           await _pump(tester, ProfileRoutes.wallet, _World(), FeatureSwitches.pilot, locale: locale, width: 320, textScale: scale);
           expectOneLine(find.byType(AppBar), 'feature off app bar $where', requireText: true);
           expectOneLine(find.byType(AppButton), 'feature off action $where', requireText: true);
-          await _pump(tester, AppTab.profile.path, _World(), FeatureSwitches.pilot, locale: locale, width: 320, textScale: scale);
+          // The Settle up row shows only while Settle up is on (off by default: no money in the app).
+          await _pump(tester, AppTab.profile.path, _World(), FeatureSwitches.allOn, locale: locale, width: 320, textScale: scale);
           expectOneLine(
             find.descendant(of: _key('profile.settleUp'), matching: find.byType(OneLineText)).first,
             'profile settle up row $where',

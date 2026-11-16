@@ -8,7 +8,7 @@ import { GeoPoint, Timestamp, type Firestore } from "firebase-admin/firestore";
 import { schoolSearchGrams } from "../src/admin_panel/school_search";
 import type { FirestoreListsStore } from "../src/admin_panel/store";
 import { FirebaseAccountService } from "../src/auth/accounts";
-import { CONSENT_VERSIONS } from "../src/auth/consents";
+import { CONSENT_VERSIONS, REQUIRED_CONSENTS } from "../src/auth/consents";
 import { isReviewPhone } from "../src/auth/otp_flow";
 import { REVIEW_ACCESS_DOC, isReviewDemoAccount, readReviewAccess, reviewDemoState } from "../src/auth/review_access";
 import { DEMO_IDS, demoPlan, demoWindowMs } from "../src/auth/review_demo";
@@ -21,6 +21,7 @@ import { addDays, weekStartOf } from "../src/schedule/cairo";
 import { confirmRun, planWeek } from "../src/schedule/flow";
 import { searchKeysFor } from "../src/schools/catalog";
 import { nameSearchFields } from "../src/text/normalize";
+import { VERIFICATION_CONSENT_VERSIONS } from "../src/verification/submission";
 
 /** A refusal with a reason the script prints (never a number or code). */
 export class SeedRefused extends Error {}
@@ -107,6 +108,23 @@ export async function seedReviewDemo(ctx: SeedContext): Promise<void> {
       },
       { merge: true },
     );
+    // The consent records a real sign-up and ID check would leave (current
+    // versions, incl. storage abroad and the guardian declaration), so the
+    // Privacy screen shows them as given and the app never asks again.
+    // Fixed IDs: a second seed overwrites, never duplicates.
+    const consents: Array<[string, string]> = [
+      ...REQUIRED_CONSENTS.map((t): [string, string] => [t, CONSENT_VERSIONS[t]]),
+      ...(Object.entries(VERIFICATION_CONSENT_VERSIONS) as Array<[string, string]>),
+    ];
+    for (const [type, version] of consents) {
+      batch.set(db.collection("users").doc(u.uid).collection("consents").doc(`review-demo-${type}`), {
+        type,
+        version,
+        acceptedAt: now,
+        withdrawnAt: null,
+        source: "reviewDemo",
+      });
+    }
   }
   for (const c of plan.children) batch.set(db.collection("children").doc(c.id), { ...c.fields, createdAt: now });
   for (const v of plan.vehicles) batch.set(db.collection("vehicles").doc(v.uid), { ...v.fields, updatedAt: now });

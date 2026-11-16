@@ -157,6 +157,7 @@ FirebaseStorage, our run_recovery (own manifest).
 
 | Item | Status | Evidence and change |
 | --- | --- | --- |
+| (16 Nov 2026: Settle up, the wallet and contributions are now switched off everywhere; no money in the app. Rows below are history.) | | |
 | Settle up is not a purchase | PASS | Records requests between two parents for real-world shared costs; "The app does not move money" (`app_en.arb:2077`); no card or bank number; nothing digital is sold; guideline 3.1.3(e) covers goods and services used outside the app, and here the app does not even take the payment. |
 | No in-app purchase, no external purchase link for digital content | PASS | No IAP code; the only money wording is Settle up. |
 | Wallet | PASS | Off, hidden, refused by the server. If switched on later it is money management (3.2.1(viii): by the licensed institution): ask the lawyer and tell App Review before turning it on. |
@@ -234,7 +235,7 @@ FirebaseStorage, our run_recovery (own manifest).
 | ID check provider in prod | NEEDS OWNER | The fake KYC is refused in prod; real parents' verification needs `KYC_PROVIDER=valify` (contract) before the public launch. The demo accounts are verified by the script. |
 | Maps key | NEEDS OWNER | `MAPS_API_KEY_IOS` in `prod_defines`; the prod build refuses to start without it. |
 | School search (Algolia), chat (Stream), Sentry on prod | NEEDS OWNER | Keys and `chat:setup` on the prod apps. |
-| Feature switch defaults | PASS | Missing document reads as pilot defaults (wallet off, Settle up on). |
+| Feature switch defaults | PASS | Missing document reads as pilot defaults: everything off, including every money feature (wallet, Settle up, contributions; owner decision 16 Nov 2026). |
 | Verification wall | FIXED | The demo accounts are verified by the seed; see section 1. |
 | A run to start on review day | FIXED (review-risks 7) | `review-access -- on` with both demo numbers seeds the demo data and lists it; the scheduled function `reviewDemoDaily` (18:30 Cairo) plans this week and the next and confirms the demo driver's runs while the access is on (demo carpool only, at most 2 plans and 20 confirmations). Friday and Saturday have no school run: the notes say so. |
 

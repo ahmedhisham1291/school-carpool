@@ -8,6 +8,7 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_repository.dart';
 import 'package:school_carpool/features/maps/my_schools.dart';
@@ -209,6 +210,7 @@ class _CarpoolSearchScreenState extends ConsumerState<CarpoolSearchScreen> {
             child: CarpoolCard(
               key: Key('search.result.${c.id}'),
               carpool: c,
+              showContribution: ref.watch(featureSwitchesProvider).contributions,
               badge: switch (c.myStatus) {
                 MembershipStatus.approved => AppStatusBadge(label: l10n.carpoolMember, tone: AppBadgeTone.success),
                 MembershipStatus.requested => AppStatusBadge(label: l10n.carpoolRequested, tone: AppBadgeTone.warning),

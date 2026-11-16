@@ -68,6 +68,7 @@ String keepLabel(AppLocalizations l10n, Keep k) => switch (k) {
   Keep.yearAfterChat => l10n.keepYearAfterChat,
   Keep.sixtyDays => l10n.keepSixtyDays,
   Keep.ninetyDays => l10n.keepNinetyDays,
+  Keep.days180 => l10n.keepDays180,
   Keep.law => l10n.keepLaw,
   Keep.untilHandled => l10n.keepUntilHandled,
 };
@@ -76,6 +77,7 @@ String consentTitle(AppLocalizations l10n, ConsentKind k) => switch (k) {
   ConsentKind.terms => l10n.consentTerms,
   ConsentKind.privacy => l10n.consentPrivacy,
   ConsentKind.conduct => l10n.consentConduct,
+  ConsentKind.transferAbroad => l10n.consentTransferAbroad,
   ConsentKind.whatsapp => l10n.consentWhatsapp,
   ConsentKind.id => l10n.consentId,
   ConsentKind.face => l10n.consentFace,

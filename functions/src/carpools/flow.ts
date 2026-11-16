@@ -22,6 +22,7 @@ import {
   seatsLeft,
   suggestion,
   timesMatch,
+  VOLUNTEER_TERMS_VERSION,
   WANTED_DAYS,
   type CarpoolKind,
   type CarpoolRecord,
@@ -37,6 +38,7 @@ import {
   type WantedRecord,
   type WantedSuggestion,
 } from "./model";
+import { FeatureOffError } from "../features/model";
 import { DEFAULT_DEADLINES, type BalanceRecord, type DeadlineSettings, type ExceptionRecord, type RunRecord, type ScheduleEvent, type SwapRecord } from "../schedule/model";
 import { event, releaseAfterLeave, releaseAfterWithdraw } from "../schedule/release";
 
@@ -208,6 +210,19 @@ export interface CarpoolDeps {
   linkBase: string;
   /** Prompt 7: confirm-by settings (F28); defaults to DEFAULT_DEADLINES. */
   deadlines?: DeadlineSettings;
+  /**
+   * The "contributions" feature switch (F25; features/model.ts). Off by
+   * default (owner, 16 Nov 2026: no money in the app; rides are free
+   * volunteer turns): a new contribution is refused with "feature-off",
+   * joining never asks to accept one and searches leave it out. The
+   * callables always pass it; unit tests of the feature itself may leave
+   * it out (= on).
+   */
+  contributionsOn?: () => Promise<boolean>;
+}
+
+async function contributionsAllowed(deps: CarpoolDeps): Promise<boolean> {
+  return deps.contributionsOn ? deps.contributionsOn() : true;
 }
 
 export interface Caller {
@@ -325,6 +340,8 @@ export interface CreateInput {
   childIds: string[];
   rules: ReturnType<typeof parseRules>;
   contribution: ReturnType<typeof parseContribution>;
+  /** The volunteer acknowledgement (VOLUNTEER_TERMS_VERSION) was ticked. */
+  acceptVolunteer: boolean;
 }
 
 export function parseCreate(data: unknown): CreateInput {
@@ -352,6 +369,7 @@ export function parseCreate(data: unknown): CreateInput {
     childIds: parseIds(raw.childIds, MAX_SEATS),
     rules: parseRules(raw.rules),
     contribution: parseContribution(raw.contribution),
+    acceptVolunteer: raw.acceptVolunteer === true,
   };
 }
 
@@ -363,7 +381,9 @@ export function parseCreate(data: unknown): CreateInput {
  */
 export async function createCarpool(deps: CarpoolDeps, caller: Caller, data: unknown): Promise<{ carpoolId: string }> {
   const input = parseCreate(data);
+  if (input.contribution && !(await contributionsAllowed(deps))) throw new FeatureOffError("contributions");
   const account = await requireVerified(deps, caller);
+  if (!input.acceptVolunteer) throw new CarpoolError("must-accept");
   const children = await ownChildren(deps, caller.uid, input.childIds);
 
   let schoolNameAr = "";
@@ -437,6 +457,7 @@ export async function createCarpool(deps: CarpoolDeps, caller: Caller, data: unk
     drivingDays: input.driveDays,
     acceptedRules: true,
     acceptedContribution: true,
+    volunteerTerms: VOLUNTEER_TERMS_VERSION,
     requestedAtMs: nowMs,
     decidedAtMs: nowMs,
     decidedBy: caller.uid,
@@ -583,20 +604,27 @@ export async function searchCarpools(deps: CarpoolDeps, caller: Caller, data: un
     .filter(({ c }) => seatsLeft(c) > 0 || myStatus.has(c.id))
     .sort((a, b) => (a.km ?? 0) - (b.km ?? 0) || b.c.createdAtMs - a.c.createdAtMs)
     .slice(0, SEARCH_MAX_RESULTS);
-  return { carpools: results.map(({ c, km }) => summaryOf(c, myStatus.get(c.id) ?? null, km)) };
+  const showContribution = await contributionsAllowed(deps);
+  return {
+    carpools: results.map(({ c, km }) => {
+      const summary = summaryOf(c, myStatus.get(c.id) ?? null, km);
+      return showContribution ? summary : { ...summary, contribution: null };
+    }),
+  };
 }
 
 // --------------------------------------------------------------------------
 // Join requests (F6, F25, F36)
 // --------------------------------------------------------------------------
 
-export function parseJoin(data: unknown): { carpoolId: string; childIds: string[]; acceptRules: boolean; acceptContribution: boolean } {
+export function parseJoin(data: unknown): { carpoolId: string; childIds: string[]; acceptRules: boolean; acceptContribution: boolean; acceptVolunteer: boolean } {
   const raw = record(data);
   return {
     carpoolId: docId(raw.carpoolId),
     childIds: parseIds(raw.childIds, MAX_SEATS),
     acceptRules: raw.acceptRules === true,
     acceptContribution: raw.acceptContribution === true,
+    acceptVolunteer: raw.acceptVolunteer === true,
   };
 }
 
@@ -607,6 +635,7 @@ export function parseJoin(data: unknown): { carpoolId: string; childIds: string[
  */
 export async function requestToJoin(deps: CarpoolDeps, caller: Caller, data: unknown): Promise<{ status: MembershipStatus }> {
   const input = parseJoin(data);
+  const contributionsOn = await contributionsAllowed(deps);
   const account = await requireVerified(deps, caller);
   const children = await ownChildren(deps, caller.uid, input.childIds);
   const car = carInfo(await deps.store.vehicle(caller.uid));
@@ -620,7 +649,9 @@ export async function requestToJoin(deps: CarpoolDeps, caller: Caller, data: unk
     if (existing?.status === "approved") throw new CarpoolError("already-member");
     if (existing?.status === "requested") throw new CarpoolError("already-requested");
     if (carpool.kind === "school" && children.some((c) => c.schoolId !== carpool.schoolId)) throw new CarpoolError("wrong-school");
-    if (!input.acceptRules || (carpool.contribution && !input.acceptContribution)) throw new CarpoolError("must-accept");
+    // While contributions are off an old contribution is not asked for nor recorded.
+    const withContribution = contributionsOn && carpool.contribution !== null;
+    if (!input.acceptRules || !input.acceptVolunteer || (withContribution && !input.acceptContribution)) throw new CarpoolError("must-accept");
     const current = await tx.members(input.carpoolId);
     // Prompt 11 (F17): a child linked to both parents (guardian link) is in
     // a carpool once: the other parent may already have brought them.
@@ -640,7 +671,8 @@ export async function requestToJoin(deps: CarpoolDeps, caller: Caller, data: unk
       car,
       drivingDays: [],
       acceptedRules: true,
-      acceptedContribution: carpool.contribution !== null,
+      acceptedContribution: withContribution,
+      volunteerTerms: VOLUNTEER_TERMS_VERSION,
       requestedAtMs: nowMs,
       decidedAtMs: null,
       decidedBy: null,

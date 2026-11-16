@@ -58,6 +58,20 @@ beforeEach(async () => {
     await db.doc("reports/r1").set({ reporterId: "bob", targetType: "user", targetId: "alice", status: "open" });
     await db.doc("schools/s1").set({ nameAr: "مدرسة", nameEn: "School", status: "active" });
     await db.doc("areas/a1").set({ schoolId: "s1", nameAr: "حي", nameEn: "Area" });
+    await db.doc("breachRegister/b1").set({ id: "b1", status: "open", awareAtMs: 1, summary: "Test incident (fake)" });
+  });
+});
+
+describe("breach register (Law 151/2020 Art. 7): only the audited admin callables", () => {
+  it("nobody reads, lists, creates, edits or deletes it from a client, admins and super admins included", async () => {
+    for (const make of [asAdmin, asSuperAdmin, asParent, signedOut]) {
+      const db = make().firestore();
+      await assertFails(db.doc("breachRegister/b1").get());
+      await assertFails(db.collection("breachRegister").get());
+      await assertFails(db.collection("breachRegister").add({ status: "open" }));
+      await assertFails(db.doc("breachRegister/b1").update({ status: "closed" }));
+      await assertFails(db.doc("breachRegister/b1").delete());
+    }
   });
 });
 
