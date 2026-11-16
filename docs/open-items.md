@@ -23,8 +23,9 @@ to 13, docs/DECISIONS.md.
 | A12 | **KMS key** for the photos bucket, Storage lifecycle, retention TTLs | Staging and prod | SETUP.md 23.2, `tool/setup_retention.sh` |
 | A13 | **Public privacy policy, terms, support and delete-account pages**: built by `tool/links_site.py` (16 Nov 2026); the owner deploys them with a real support address and legal name, the lawyer approves the wording | App Store | docs/apple-review/submission-kit.md steps 5 to 7 |
 | A14 | **Admin accounts** with two-step sign-in on staging (to approve verifications during the test) | TestFlight test | SETUP.md 13.1, 13.2 |
-| A15 | Two demo accounts, review codes and demo data for Apple (`review-access`, `review-demo`) | App Store review | docs/apple-review/submission-kit.md section B |
+| A15 | Two demo accounts and review codes for Apple: `review-access -- on` with both numbers also seeds the demo data and lists it; `reviewDemoDaily` keeps the demo runs fresh while the access is on (16 Nov 2026) | App Store review | docs/apple-review/submission-kit.md section B |
 | A17 | **App Store submission**: everything only the owner can do, in order (account type, prod project, pages, icon, screenshots, answers) | App Store | **docs/apple-review/submission-kit.md**; findings in docs/apple-review/audit.md |
+| A18 | **Apple Developer account must be an Organization** (guideline 5.1.1(ix): the app requires national IDs and face images). If it is an Individual account, convert it before submitting (needs a D-U-N-S number; takes days) | App Store | submission-kit.md step 1 |
 | A16 | **Make the repository private again** (it is public for free CI): secret scan of the whole history, decide about `docs/reviews` and this file, set an Actions budget, switch, re-check Codemagic and the Cloud Shell clone | Before the public launch | **docs/launch-private-repo.md** |
 
 ## B. Owner decisions still open
@@ -42,7 +43,7 @@ to 13, docs/DECISIONS.md.
 | B9 | **InstaPay link:** InstaPay publishes no link or URL scheme an app may build with a payee and an amount (the `ipn.eg/S/...` links are made inside the InstaPay app, one per user). The payer copies the address. Option for later: let a payee paste their own InstaPay share link | Copy only |
 | B10 | **Feature switches after the pilot:** when to turn on ratings and vouching, and the yearly check (first checked school year is 2027-28) | Both off |
 
-| B11 | **Notifications required to start a run** (the driver gate): App Review guideline 4.5.4 says push must not be required. Make it a warning instead of a block? | Required (owner decision 14 Nov, 13:05); audit recommends a warning |
+| B11 | ~~Notifications required to start a run~~ **Decided 16 Nov 2026:** not required, a warning with Start anyway (DECISIONS.md "App Review risks") | Done (review-risks item 1) |
 | B13 | **Lawyer to confirm the 16 Nov 2026 deletion rule** (DECISIONS.md "Data after account deletion"): that deleting photos, case records, routes and the parent's messages WITH the account is allowed (no law asks us to keep them longer), that the kept records (shared run summaries with an initial, consent record 1 year, Settle up 1 year, transfers 5 years, reports, audit log 2 years, ban-list hash) are the ones the law or child safety requires, and that a 30-day safety hold on photos and routes while a report about the parent is open is acceptable | Built as described; the public pages say so |
 | B12 | **App icon**: keep the default drawing (`tool/ios/AppIcon/icon_1024.png`) or supply a designer's icon | Default drawing |
 
@@ -51,22 +52,22 @@ to 13, docs/DECISIONS.md.
 | # | Item | Decision |
 | --- | --- | --- |
 | C1 | **Chat stays connected up to 60 minutes after sign-out** on a signed-out phone (Stream token lifetime, `CHAT_TOKEN_TTL_MIN`) | Accepted by the owner (14 Nov 2026, 13:29). Firebase data closes at once. Fix later: call `chat.revokeTokens(uid)` in `revokeSessions`. |
-| C2 | **Swiping the app away stops location on iPhone** (free plugin) | Without the optional "Always": accepted, the server pushes the driver "Run still on" after 2 minutes and tells the parents. With "Always": our run_recovery plugin resumes the run after iOS relaunches the app (owner, 13:44) |
+| C2 | **Swiping the app away stops location on iPhone** (free plugin) | Accepted: the server pushes the driver "Run still on" after 2 minutes and tells the parents; the run resumes from the local marker when the driver opens the app. "Always" is never asked (owner, 16 Nov 2026, replaces the 13:44 optional screen) |
 | C3 | Transfer records kept 5 years | Confirmed (owner, 13:29) |
 | C4 | Trips of a closed carpool | Kept per parent: active + 1 year; built in Prompt 13 (`trip_retention.ts`) |
 
 ## D. Known bugs and gaps (not done)
 
-App Review audit (16 Nov 2026): D35 to D38 below; full list in docs/apple-review/audit.md.
+App Review audit (16 Nov 2026): D35 to D40 below; full list in docs/apple-review/audit.md.
 
 | # | Item | Impact | Plan |
 | --- | --- | --- | --- |
 | D1 | **Flutter and rules tests not run in this workspace** (no Flutter SDK, no emulators). Prompt 13's widget, golden and screen tests are written, not run | CI may show small analyzer or test fixes | One CI run on the branch (coordinator) |
 | D2 | **Screenshots / goldens** of the new screens (gate, banner, steps) not produced here (`full=false` in CI) | Owner cannot see them yet | Run the full screenshots workflow at merge |
-| D3 | The gate's first location prompt (geolocator) must offer "While Using the App"; "Always" comes only from the optional screen (run_recovery plugin) | If iOS shows "Always" first, App Review may ask | Check in test-iphone.md L2 |
-| D3b | **Run recovery verified only on a real iPhone:** the app is patched to the classic app delegate (no UIScene) so a background relaunch runs Dart; must be revisited when Apple requires UIScene. The Swift plugin and the AppDelegate are compiled only in CI; relaunch after a swipe needs Always and movement (iOS decides when, usually after about 500 m); a relaunched app has seconds of background time to sign in, call the server and restart tracking; iOS may not relaunch after a force quit on some versions, and never with Background App Refresh or Location Services off | Recovery may be slower than the 2-minute fallback, or not happen | test-iphone.md T5 to T8; if unreliable, the paid plugin (B1) |
+| D3 | The gate's location prompt (geolocator) must offer only "While Using the App" (geolocator is built with its Always request removed; no Always text in Info.plist since 16 Nov 2026) | If iOS ever shows "Always", App Review may ask | Check in test-iphone.md L2 |
+| D3b | **Run recovery and the UIScene launch verified only on a real iPhone** (16 Nov 2026): no background relaunch any more (no Always); a run closed by iOS resumes when the driver opens the app. The UIScene AppDelegate, the Swift plugin and configure_xcode.rb are compiled only in CI | A launch, push-tap or universal-link problem would show only on a device | First staging build; test-iphone.md T1 to T8 |
 | D4 | Android background tracking needs a foreground-service notification (geolocator `ForegroundNotificationConfig`) and "Allow all the time" flow | Android only | Stage 3 |
-| D5 | The notification permission is asked at first sign-in without an in-app explanation screen (drivers see one in the gate) | Some parents may refuse | Add a pre-permission screen in a later design prompt |
+| D5 | The notification permission is asked at first sign-in without an in-app explanation screen | Some parents may refuse; nothing is blocked (16 Nov 2026: notifications are never required) | Add a pre-permission screen in a later design prompt |
 | D6 | Mid-run loss is detected on the run screen; if the driver is on another screen of the app, the steps show when they come back to the run screen (the server alert still goes after 2 minutes) | Small delay | Move monitoring to the app shell later |
 | D7 | Route-archive trigger cost (`archiveRouteOnTripWrite` runs on every trip write) | Cost at scale | Prompt 12 review item 11; filter in the trigger |
 | D8 | Anonymising stops silently at its read limits (2,000 trips, 500 memberships) | Very large accounts | Throw when a page is full (Prompt 12 review open item 4); the new trip-retention steps already do |
@@ -98,8 +99,9 @@ App Review audit (16 Nov 2026): D35 to D38 below; full list in docs/apple-review
 | D31 | University switch (`data/schools/categories.json`) is off; if it is ever switched on, the app and admin panel need a type filter and a label for kind `university` (server and search index already accept it) | None while off | Owner decision first |
 | D25 | Sample schools hidden on staging stay in Firestore (`searchHidden`) and still appear in the admin panel's school list as active | Admins only | Delete them later if no test data points at them |
 | D18 | Lawyer's answers: all confirmed (DECISIONS.md "Legal" and "Owner updates 12:30"); the retention periods need the privacy policy text updated by the lawyer for the published page (A13) | — | Owner |
-| D35 | **UIScene migration before the iOS 27 SDK is mandatory** (reported for April 2027): builds are pinned to Xcode 26.4 because our classic app-delegate Runner fails to launch when built with the iOS 27 SDK | A launch crash is a rejection; later, uploads with Xcode 26 will be refused | Move the Runner to UIScene with a headless engine for location launches (DECISIONS.md, "Classic iOS launch"); test run recovery again on a real iPhone |
+| D35 | ~~UIScene migration~~ **Done 16 Nov 2026** (review-risks item 8): the Runner uses UIScene per Flutter's guide; `check_ios_app.py` fails a build without it. Xcode stays pinned at 26.4 | Moving to Xcode 27 is a separate, tested step | One staging build on Xcode 27 before switching the pin |
 | D36 | **App Review branch: Flutter tests written, not run here** (`test/about/about_legal_test.dart`, About and terms changes); native changes (privacy manifest in the Xcode project, single-size icon, iPhone-only, podspec resource bundle) first compiled by the next Codemagic staging build; `tool/check_ios_app.py` only reports on staging and stops the prod build | CI or the staging build may show small fixes | One CI run and one staging build (coordinator) |
-| D37 | When the Firestore chat replaces Stream: add a word filter to it (guideline 1.2) and take Stream out of `hosting/links/privacy.html`, docs/app-store-privacy.md and the review notes | Rejection or a wrong privacy label if forgotten | With the chat merge |
+| D37 | When the Firestore chat replaces Stream: add a word filter to it (guideline 1.2) and take Stream out of `hosting/links/privacy.html`, docs/app-store-privacy.md and the review notes | Rejection or a wrong privacy label if forgotten | Being done on branch `chat-review-safe` (review-risks item 9) |
 | D38 | The conduct document is version 2026-11-16 (no-tolerance sentence): functions and app must be deployed together; a parent on an older build is asked to update at the terms step | Staging testers reinstall | With the next staging build |
-
+| D39 | **review-risks branch: Flutter tests written, not run here** (look around before verification, demo refusal text, location gate warning, analytics card, delete screen); the UIScene AppDelegate and configure_xcode.rb first run in the next staging build; the review scripts first run against a real project at submission | CI or the staging build may show small fixes | One CI run and one staging build (coordinator); docs/progress/review-risks.md |
+| D40 | **Cannot be made zero-risk by code:** App Review is a human judgement (a reviewer may still ask for the run video, a demo, or a wording change); the account type (A18); the lawyer's confirmation of the deletion and retention list (B13) and of the public pages (A13) | A rejection is answered in App Store Connect and fixed, not final | Owner |

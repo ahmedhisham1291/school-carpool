@@ -8391,7 +8391,7 @@
   "@deviceIphone": {
     "description": "Platform"
   },
-  "deviceAndroid": "أندرويد",
+  "deviceAndroid": "هاتف آخر",
   "@deviceAndroid": {
     "description": "Platform"
   },

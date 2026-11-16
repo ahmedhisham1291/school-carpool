@@ -150,3 +150,23 @@ verification). So the line was moved in the app only, to match the server:
   `ios/Podfile.lock` after a build).
 - Tests: `tool/test_check_ios_app.py` (run here). Not run: on a real built
   app (first Codemagic build).
+
+### 11. Audit, submission kit, open items, DECISIONS (done)
+
+- `docs/apple-review/audit.md`: RISK 13 -> 3 in sections 1 to 13 (the
+  three left are not code: device crashes, the reviewer's reading of
+  children's data, data-source credits); new section 14, "What code cannot
+  make zero-risk" (reviewer judgement, Individual vs Organization account
+  5.1.1(ix), lawyer confirmation, device testing); SDK table (item 10).
+- `docs/apple-review/submission-kit.md`: review notes (new account looks
+  around, notifications optional, never Always, deletion, statistics
+  opt-in, demo refusal), privacy answers (analytics only after yes),
+  answers to likely rejections, demo steps (item 7).
+- `docs/app-review-notes.md`, `docs/open-items.md` (A15, A18 new, B11
+  decided, C2, D3, D3b, D5, D35 done, D37, D39, D40 new), `docs/DECISIONS.md`
+  ("App Review risks (owner, 16 Nov 2026)": notifications not required, no
+  Always, prompt deletion superseding the 1-year rule with the lawyer to
+  confirm, analytics opt-in; old lines marked superseded).
+- Small fix found while auditing: the phones list said "Android" for a
+  parent's own non-iPhone device (2.3.10 wording); now "Other phone" /
+  "هاتف آخر" (test updated, written, not run here).

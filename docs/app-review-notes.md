@@ -46,12 +46,16 @@ account in **Sign-In Information** (section 2). Attach the run video
 > **Demo account.** The demo account is an already verified test parent
 > in a test carpool with test children (fake data). To see a run: Carpools
 > tab > the test carpool > Schedule > today's run > Start run (allow
-> location "While Using the App", Precise Location and notifications when
-> asked). The attached video shows a full run recorded on an iPhone.
+> location "While Using the App" and Precise Location when asked;
+> notifications are optional). The attached video shows a full run
+> recorded on an iPhone.
 >
 > **Identity check.** Real parents are verified with an ID photo and a
-> live selfie before they can join carpools. The demo account is already
-> verified, so you do not need to upload any document.
+> live selfie before they can join or start a carpool, drive, chat or see
+> other parents (other families' children ride with them). A new account
+> can sign up and look around first; the app explains the check on one
+> screen with a "Later" button. The demo account is already verified, so
+> you do not need to upload any document.
 >
 > **Payments: the app does not process payments.** "Settle up" (Profile >
 > Settle up) only records payment requests between two parents of the same

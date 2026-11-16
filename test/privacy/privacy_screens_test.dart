@@ -166,7 +166,7 @@ void main() {
       final _World w = _World();
       await _pump(tester, PrivacyRoutes.devices, w);
       expect(find.text('This phone'), findsOneWidget);
-      expect(find.text('Android'), findsWidgets);
+      expect(find.text('Other phone'), findsWidgets);
       expect(find.text('Recent sign-ins'), findsOneWidget);
       await _tap(tester, find.byKey(Key('devices.device.s_${'b' * 40}')));
       expect(find.byType(AlertDialog), findsOneWidget);

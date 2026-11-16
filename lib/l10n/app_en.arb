@@ -1877,7 +1877,7 @@
   "deleteRefusedTitle": "Can't delete yet",
   "deleteOpenWallet": "Open wallet",
   "deviceIphone": "iPhone",
-  "deviceAndroid": "Android",
+  "deviceAndroid": "Other phone",
   "deviceWeb": "Browser",
   "devicesTitle": "Phones and sign-ins",
   "devicesHelper": "Phones on your account and recent sign-ins.",

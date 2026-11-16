@@ -144,7 +144,8 @@ they never passed an ID check:
   parents or real carpools), join another carpool, open an invite link,
   post "looking for a carpool", create an activity carpool, add a child
   or documents, add a school, link a guardian, change the phone number or
-  use the wallet. The app shows its normal error message there. Settle up
+  use the wallet. The app says "This demo account can't do that" there
+  (Arabic and English). Settle up
   and chat work only inside the demo carpool (the server allows them
   only between members of one carpool or school).
 - Running `review-access -- on` again (new window or new codes) seeds
@@ -241,7 +242,9 @@ app's privacy manifest (a test checks that). Short form:
   grade, school; ID number hash; car details).
 - **Not linked, purpose Analytics:** Coarse Location, Product
   Interaction; Device ID also has Analytics (the anonymous Analytics
-  instance ID).
+  instance ID). Collected **only after the parent says yes** (off by
+  default since 16 Nov 2026); Apple still asks you to list data you may
+  collect, so keep these rows.
 - **Not linked, purpose App Functionality:** Search History (school and
   address searches).
 - Not collected: Health, Fitness, Contacts, Browsing History, Purchases,
@@ -262,14 +265,18 @@ app's privacy manifest (a test checks that). Short form:
 >
 > DEMO ACCOUNT. It is an already verified demo parent ("Mona Demo", a
 > driver) in a demo carpool with a second demo parent ("Karim Demo").
-> All data is fake. Please use this account: a new account cannot join a
-> carpool until our team has verified the parent's identity document,
-> which is the app's core safety rule. For the same reason the demo
-> account is limited to its demo school and carpool: it cannot join
-> other carpools, add a child or change its phone number.
+> All data is fake. Please use this account to see carpools and runs. A
+> NEW account can also sign up and look around (Home, the Carpools and
+> Chats tabs, home address, settings, privacy, account deletion), but it
+> cannot join or start a carpool, drive, chat or see other parents until
+> our team has verified the parent's identity document: other families'
+> children ride with them. The app explains this on one screen with a
+> "Later" button. The demo account is limited to its demo school and
+> carpool: other actions show "This demo account can't do that".
 > To see the main feature: Carpools tab > Demo School carpool > Schedule
 > > today's run > Start run. Allow location "While Using the App" with
-> Precise Location, and notifications, when asked. School runs are
+> Precise Location when asked. Notifications are optional: if they are
+> off the app shows one warning and "Start anyway". School runs are
 > planned Sunday to Thursday (the school week in Egypt); on a Friday or
 > Saturday open the next run in the schedule. The attached video shows a
 > full run recorded on an iPhone.
@@ -284,9 +291,10 @@ app's privacy manifest (a test checks that). Short form:
 > drop-off, when the driver ends the run, and after 4 hours at the
 > latest. Parents who do not drive are never tracked. Without location
 > permission a parent can use everything except starting a run.
-> "Always" is optional: one screen offers it to drivers so a run resumes
-> by itself if iOS closes the app mid-run. Declining changes nothing
-> else.
+> The app never asks for "Always" location: "While Using the App" with
+> the background location mode is enough while the run is on. If iOS
+> closes the app mid-run, the run continues when the driver opens the
+> app again, and the other parents are told that the location stopped.
 >
 > IDENTITY CHECK. Real parents are verified with a photo of their
 > national ID and a live selfie before they can join carpools, because
@@ -313,8 +321,17 @@ app's privacy manifest (a test checks that). Short form:
 > Contact support.
 >
 > ACCOUNT DELETION. Profile > Privacy > Delete account (inside the app,
-> no email needed). The screen lists what is deleted at once and what is
-> kept for one year for child-safety investigations.
+> no email needed). The account, ID and selfie photos, the face
+> reference, the parent's chat messages, home address and pin, children,
+> car and the routes of runs they drove are deleted with the account.
+> Only minimal records without the name, phone, photo or address are
+> kept where the law or child safety requires (run summaries other
+> families share, consent records, payment records between parents);
+> the screen lists them before the parent confirms.
+>
+> USAGE STATISTICS. Off until the parent says yes (one card on Home,
+> asked once, never blocking; a switch in Settings). No advertising, no
+> tracking, no advertising identifier.
 >
 > EMERGENCY BUTTON. It alerts the parents of the carpool and the driver's
 > emergency contact only. It does not contact emergency services; the
@@ -387,9 +404,11 @@ prices, and nothing that suggests the app is for children to use.
 | --- | --- |
 | "We were unable to sign in" | `review-demo -- status`; check the review access has days left; confirm the number format in Sign-In Information; make sure nobody used the demo number on another phone. |
 | Guideline 2.5.4 / background location | Reply with the BACKGROUND LOCATION note and attach the video again. |
-| Guideline 5.1.1 "Always" location | Developer removes the optional "Always" screen (the app works without it). |
-| Guideline 4.5.4 / 5.1.2 notifications required | Developer makes notifications optional for starting a run (audit section 2). |
-| Guideline 5.1.1(v) data kept after deletion | Reply: kept one year for child-safety investigations, shown before deletion, confirmed by counsel; or decide a shorter period with the lawyer. |
+| Guideline 5.1.1 "Always" location | Reply: the app never asks for Always (removed 16 Nov 2026); check that the build is a current one. |
+| Guideline 4.5.4 / 5.1.2 notifications required | Reply: notifications are optional; with them off the driver sees one warning and "Start anyway". |
+| Guideline 5.1.1(v) data kept after deletion | Reply with the ACCOUNT DELETION note: photos, messages, address and routes are deleted with the account; only minimised records the law or child safety requires are kept (lawyer, open item B13). |
+| Guideline 2.1 "we could not use the app with a new account" | Reply: a new account can look around; joining a carpool needs the ID check for child safety; please use the demo account. |
+| "This demo account can't do that" in a screenshot | Reply: the demo account is limited to the demo school and carpool on purpose; the second demo account shows the other side. |
 | Guideline 5.1.1(ix) individual account | Checklist step 1. |
 | Guideline 1.2 | Reply with the USER-GENERATED CONTENT note; check `chat:setup` ran on prod. |
 | Guideline 3.1.1 (payments) | Reply with the PAYMENTS note. |
