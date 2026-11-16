@@ -162,9 +162,10 @@ Tick each line when done and write the date next to it.
     message, ask the developer to make that policy the enforced one (one
     line in firebase.json). If there are messages, send them to the
     developer (they name the host to add).
-21. **Feature switches.** Admin panel > Settings: switch Settle up **off**
-    once (and leave the wallet off). The server already treats a missing
-    switch as off; writing it makes the app hide Settle up too.
+21. **Feature switches.** Admin panel > Settings: check that the wallet
+    and Settle up show **off**. The server and the app both treat a missing
+    switch as off, so nothing needs writing; turning one on needs a super
+    admin who signed in less than 30 minutes ago.
 22. **Admins sign in again for sensitive actions.** Opening photos or
     routes, suspending, admin accounts and feature switches now ask for a
     sign-in less than 30 minutes old ("Your session ended. Sign in

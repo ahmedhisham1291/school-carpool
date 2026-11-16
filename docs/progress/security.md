@@ -39,10 +39,10 @@ this." The coordinator said "go".
 - Dedicated least-privilege service account for Cloud Functions
   (owner-actions item 10): a deploy-affecting change, best done as its own
   prompt and tried on staging.
-- The app's own pilot default still shows Settle up when
-  `config/features` is missing (`lib/features/feature_switches`); changing
-  it touches many widget tests that cannot run here. The server refuses
-  either way; owner-actions item 21 writes the switch.
+- Done in validation: the app's pilot default now has Settle up off too
+  (`lib/features/feature_switches`), so a missing `config/features` hides
+  every money feature in the app as well as on the server; widget tests
+  updated (run in CI).
 - Enforcing the full admin CSP after the owner checks the console
   (owner-actions item 20).
 - Phone-number change does not sign the other phones out (low).

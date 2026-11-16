@@ -432,7 +432,8 @@ void main() {
             direction: 'a',
             logicalSize: const Size(390, 1200),
             pixelRatio: 3,
-            features: FeatureSwitches.pilot,
+            // Settle up screens: the switch on (Money: OFF is the default).
+            features: FeatureSwitches.pilot.copyWith(settleUp: true),
             settle: settle,
           );
           await tester.pump(const Duration(milliseconds: 100));
@@ -456,7 +457,8 @@ void main() {
             logicalSize: const Size(320, 1200),
             pixelRatio: 3,
             textScale: scale,
-            features: FeatureSwitches.pilot,
+            // Settle up screens: the switch on (Money: OFF is the default).
+            features: FeatureSwitches.pilot.copyWith(settleUp: true),
             settle: settle,
           );
           await tester.pump(const Duration(milliseconds: 100));

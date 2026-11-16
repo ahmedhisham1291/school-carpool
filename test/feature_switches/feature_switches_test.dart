@@ -95,11 +95,11 @@ void main() {
   setUpAll(loadAppFonts);
 
   group('the switches', () {
-    test('pilot defaults: wallet, ratings and vouching and yearly checks off; Settle up on', () {
+    test('pilot defaults: every switch off, the money features included (Money: OFF)', () {
       expect(FeatureSwitches.pilot.wallet, isFalse);
       expect(FeatureSwitches.pilot.ratingsAndVouching, isFalse);
       expect(FeatureSwitches.pilot.yearlyChecks, isFalse);
-      expect(FeatureSwitches.pilot.settleUp, isTrue);
+      expect(FeatureSwitches.pilot.settleUp, isFalse);
       expect(AppFeature.values.map((AppFeature f) => f.name), <String>['wallet', 'ratingsAndVouching', 'yearlyChecks', 'settleUp']);
     });
 
@@ -126,7 +126,8 @@ void main() {
       expect(s.isOn(AppFeature.yearlyChecks), isTrue);
       expect(s.isOn(AppFeature.settleUp), isFalse);
       expect(FeatureSwitches.pilot.copyWith(wallet: true).wallet, isTrue);
-      expect(FeatureSwitches.pilot.copyWith(wallet: true).settleUp, isTrue);
+      expect(FeatureSwitches.pilot.copyWith(wallet: true).settleUp, isFalse);
+      expect(FeatureSwitches.pilot.copyWith(settleUp: true).settleUp, isTrue);
       expect(AppFeature.values.every(FeatureSwitches.allOn.isOn), isTrue);
     });
   });
@@ -178,13 +179,13 @@ void main() {
   });
 
   group('Profile hides what is switched off', () {
-    testWidgets('pilot: no wallet row, no ratings row, no yearly check card; Settle up and family links stay', (WidgetTester tester) async {
+    testWidgets('pilot: no wallet row, no ratings row, no yearly check card, no Settle up row; family links stay', (WidgetTester tester) async {
       final _World w = _World();
       await _pump(tester, AppTab.profile.path, w, FeatureSwitches.pilot);
       expect(_key('profile.wallet'), findsNothing);
       expect(_key('profile.ratings'), findsNothing);
       expect(_key('profile.yearCheck'), findsNothing);
-      expect(_key('profile.settleUp'), findsOneWidget);
+      expect(_key('profile.settleUp'), findsNothing);
       // Not switchable: family links, driving papers, children, privacy.
       expect(_key('profile.family'), findsOneWidget);
       expect(find.text('1 request to answer'), findsOneWidget);
@@ -231,7 +232,13 @@ void main() {
           overrides: <Override>[
             flavorConfigProvider.overrideWithValue(testDevConfig),
             settingsStoreProvider.overrideWithValue(InMemorySettingsStore()),
-            ...authOverrides(session: testUnverifiedSession, wallet: w.wallet, trust: w.trust, settle: w.settle, features: FeatureSwitches.pilot),
+            ...authOverrides(
+              session: testUnverifiedSession,
+              wallet: w.wallet,
+              trust: w.trust,
+              settle: w.settle,
+              features: FeatureSwitches.pilot.copyWith(settleUp: true),
+            ),
           ],
           child: MaterialApp.router(
             routerConfig: router,
@@ -247,7 +254,7 @@ void main() {
     });
 
     testWidgets('the Settle up row opens Settle up', (WidgetTester tester) async {
-      final GoRouter router = await _pump(tester, AppTab.profile.path, _World(), FeatureSwitches.pilot);
+      final GoRouter router = await _pump(tester, AppTab.profile.path, _World(), FeatureSwitches.pilot.copyWith(settleUp: true));
       await tester.ensureVisible(_key('profile.settleUp'));
       await tester.pumpAndSettle();
       await tester.tap(_key('profile.settleUp'));
@@ -332,7 +339,7 @@ void main() {
           await _pump(tester, ProfileRoutes.wallet, _World(), FeatureSwitches.pilot, locale: locale, width: 320, textScale: scale);
           expectOneLine(find.byType(AppBar), 'feature off app bar $where', requireText: true);
           expectOneLine(find.byType(AppButton), 'feature off action $where', requireText: true);
-          await _pump(tester, AppTab.profile.path, _World(), FeatureSwitches.pilot, locale: locale, width: 320, textScale: scale);
+          await _pump(tester, AppTab.profile.path, _World(), FeatureSwitches.pilot.copyWith(settleUp: true), locale: locale, width: 320, textScale: scale);
           expectOneLine(
             find.descendant(of: _key('profile.settleUp'), matching: find.byType(OneLineText)).first,
             'profile settle up row $where',

@@ -40,7 +40,7 @@ void main() {
       expect(_row(tester, AppFeature.wallet).value, isFalse);
       expect(_row(tester, AppFeature.ratingsAndVouching).value, isFalse);
       expect(_row(tester, AppFeature.yearlyChecks).value, isFalse);
-      expect(_row(tester, AppFeature.settleUp).value, isTrue);
+      expect(_row(tester, AppFeature.settleUp).value, isFalse);
       expect(find.byType(AppSwitchRow), findsNWidgets(AppFeature.values.length));
       // Core features are named as always on, with no switch.
       expect(find.textContaining('are always on'), findsOneWidget);
@@ -67,12 +67,12 @@ void main() {
       await _settle(tester);
       expect(api.calls, contains('setFeature:wallet:true'));
       expect(_row(tester, AppFeature.wallet).value, isTrue);
-      expect(_row(tester, AppFeature.settleUp).value, isTrue, reason: 'the other switches keep their value');
+      expect(_row(tester, AppFeature.settleUp).value, isFalse, reason: 'the other switches keep their value');
       expect(find.text('Saved'), findsOneWidget);
     });
 
     testWidgets('turning a feature off asks too and says nothing is deleted', (WidgetTester tester) async {
-      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
+      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi()..switches = FeatureSwitches.pilot.copyWith(settleUp: true);
       await pumpAdminPanel(tester, session: superAdmin, location: AdminRoutes.settings, features: api, locale: 'en');
       await _settle(tester);
       _row(tester, AppFeature.settleUp).onChanged!(false);

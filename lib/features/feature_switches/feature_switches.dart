@@ -38,14 +38,17 @@ class FeatureSwitches {
     );
   }
 
-  /// Pilot defaults: the wallet, ratings and vouching and the yearly check
-  /// are off; Settle up is on. Used while loading, offline with nothing
-  /// cached, and signed out.
+  /// Pilot defaults: every switch is off, the money features (wallet and
+  /// Settle up) included (owner decision 16 Nov 2026, "Money: OFF"; same as
+  /// PILOT_DEFAULTS in functions/src/features/model.ts). Used while
+  /// loading, offline with nothing cached, signed out, and when
+  /// config/features or a field is missing: a missing record never shows a
+  /// money feature.
   static const FeatureSwitches pilot = FeatureSwitches(
     wallet: false,
     ratingsAndVouching: false,
     yearlyChecks: false,
-    settleUp: true,
+    settleUp: false,
   );
 
   /// Everything on (tests of the features themselves).

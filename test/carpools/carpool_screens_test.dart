@@ -465,11 +465,15 @@ void main() {
       expect(uri.queryParameters, <String, String>{'carpool': 'k1', 'amount': '5000'});
     });
 
-    testWidgets('pilot switches: no Pay contribution while the wallet is off; the contribution is paid in cash or by Settle up', (WidgetTester tester) async {
-      final GoRouter router = await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: memberRepo(), features: FeatureSwitches.pilot));
+    testWidgets('wallet off, Settle up on: no Pay contribution; the contribution is paid in cash or by Settle up', (WidgetTester tester) async {
+      // Money: OFF is the pilot default; this is the wallet-off,
+      // Settle-up-on case a super admin can switch to.
+      final FeatureSwitches settleOnly = FeatureSwitches.pilot.copyWith(settleUp: true);
+      final GoRouter router = await _pump(tester, '/carpools/k1', overrides: _overrides(carpools: memberRepo(), features: settleOnly));
       expect(find.byKey(const Key('detail.payContribution')), findsNothing);
       final AppLocalizations en = lookupAppLocalizations(AppLocales.english);
-      expect(contributionHelperText(en, FeatureSwitches.pilot), contains('paid in cash or by Settle up'));
+      expect(contributionHelperText(en, settleOnly), contains('paid in cash or by Settle up'));
+      expect(contributionHelperText(en, FeatureSwitches.pilot), en.contributionHelperCash);
       expect(contributionHelperText(en, FeatureSwitches.allOn), contains('from the wallet'));
       // Settle up (F45) opens with this carpool.
       await _tapVisible(tester, 'detail.settleUp');
