@@ -9,6 +9,13 @@ Status words: **done** (in the code and tested, or set up by a SETUP.md
 step), **open** (not done yet; the reason and the plan are given),
 **owner** (needs the owner, the lawyer or a contract).
 
+Security review (16 Nov 2026): the threat model with every finding and
+its status is in [docs/security/threat-model.md](docs/security/threat-model.md),
+the incident and key-rotation steps in
+[docs/security/runbook.md](docs/security/runbook.md), and the console work
+only the owner can do in
+[docs/security/owner-actions.md](docs/security/owner-actions.md).
+
 Before the pilot, the spec asks for a penetration test of the app, the
 rules and the admin panel by an outside tester, using this checklist as the
 starting point. That test is **open** (owner: choose and pay a tester).
@@ -34,7 +41,7 @@ starting point. That test is **open** (owner: choose and pay a tester).
 
 | Item | Status | How |
 | --- | --- | --- |
-| AUTH-1 Secure authentication | done | WhatsApp one-time code (6 digits, hash only, 5 minutes, one use, capped per number, device and IP), then a Firebase custom token. App Check replay protection on `requestCode` (limited-use token consumed by the server). Blocking functions refuse every other sign-in method for parents. Admins: email, password and TOTP, 8-hour sessions, 15-minute idle limit. |
+| AUTH-1 Secure authentication | done | WhatsApp one-time code (6 digits, hash only, 5 minutes, one use, capped per number, device and IP), then a Firebase custom token. App Check replay protection on `requestCode` (limited-use token consumed by the server). Blocking functions refuse every other sign-in method for parents. Admins: email, password and TOTP (an SMS second factor is refused), 8-hour sessions, 15-minute idle limit, a sign-in under 30 minutes old for photos, routes, moderation, admin accounts and feature switches. |
 | AUTH-1 Lockout that strangers cannot abuse | done | Wrong codes lock one number on one device for an hour; the daily cap per number (`OTP_MAX_FAILURES_PER_DAY`) never closes a device where the number signed in before (Prompt 12), so rotating device IDs cannot lock the parent out of their own phone. |
 | AUTH-2 Session management | done | Every sign-in is recorded (phone kind and time, keyed device hash). The parent sees phones and recent sign-ins and signs any phone out. Signing out revokes the refresh tokens AND writes `users/{uid}.sessionsValidAfter` (the revocation time): Firestore rules (`sessionValid()`) and every gated callable (`device_gate.ts`) refuse an ID token whose sign-in (`auth_time`) is older, so a signed-out phone loses access at once, not when its token expires (up to 1 hour). The asking phone gets a fresh token; a signed-out phone also signs itself out at its next start or resume. Stream tokens already issued stay valid until they expire (chat token callable is gated). |
 | AUTH-2 New-phone risk (SIM swap, recycled numbers) | done | A sign-in from a new phone signs the other phones out (as above), emails the parent (mail outbox; SETUP 23.4 for the email extension), pushes "New phone signed in" (reaches the old phone) and sets `users/{uid}.newDeviceCheck`. Until a fresh selfie matches the face reference, the SERVER refuses: Firestore rules (`deviceChecked()`) close children, carpool members, join requests, pickup points, runs, swaps, balances, emergencies, trips with live points and arrival times, handover adults, homes, emergency contacts, notifications and chat records; every callable that reads or changes child, carpool, schedule, trip, location, chat, wallet, family-link or privacy data refuses with `device-check` (export and account deletion included). The face match is the project's KycProvider (Valify in prod) and FAILS CLOSED: an error or no answer keeps everything closed and files a report; an admin clears it with a logged reason (`adminClearDeviceCheck`). If the sign-in record itself fails, a verified parent is treated as on a new phone. Rules and function tests include the SIM-swap case. |
@@ -61,7 +68,7 @@ starting point. That test is **open** (owner: choose and pay a tester).
 | --- | --- | --- |
 | CODE-1 Up-to-date platform | done | iOS 15+; Flutter stable pinned in CI. |
 | CODE-2 Update mechanism | open | No forced-update screen yet. The server refuses outdated consent versions, so old builds are told to update at sign-up. A minimum-version check comes with the first TestFlight release (Prompt 13). |
-| CODE-3 No known vulnerable dependencies | open | Lockfiles are committed from CI; Dependabot or `npm audit` in CI is not set up yet (owner: switch on Dependabot alerts in GitHub). |
+| CODE-3 No known vulnerable dependencies | done / owner | Lockfiles are committed from CI; `npm audit` of the functions' production packages runs in CI (report only) and `.github/dependabot.yml` covers npm, pub and Actions (security review). Owner: switch on Dependabot alerts and security updates in GitHub. |
 | CODE-4 Input validated | done | Every callable validates its input on the server (types, lengths, patterns); Firestore and Storage rules deny by default with emulator tests for every collection and path. |
 
 ### MASVS-RESILIENCE

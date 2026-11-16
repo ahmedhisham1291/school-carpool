@@ -16,6 +16,23 @@ export const MIN_INSTANCES = defineInt("MIN_INSTANCES", { default: 0 });
 /** Hard cap so a bug or abuse cannot scale the bill. */
 export const MAX_INSTANCES = 10;
 
+export type AppEnv = "dev" | "staging" | "prod";
+
+/**
+ * The environment the functions run in (functions/.env.<alias> sets
+ * APP_ENV). FAILS CLOSED (security review, 16 Nov 2026): a missing or
+ * unknown value in a cloud project counts as "prod", so a deploy that
+ * lost its .env file (for example `--project <id>` instead of the alias)
+ * refuses the fake ID check, WhatsApp, push, wallet and routes providers
+ * instead of quietly running them on real accounts. Only the local
+ * emulators default to "dev".
+ */
+export function appEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
+  const value = env.APP_ENV;
+  if (value === "dev" || value === "staging" || value === "prod") return value;
+  return env.FUNCTIONS_EMULATOR === "true" ? "dev" : "prod";
+}
+
 /** App Check on callable functions. On in staging and prod. */
 export const ENFORCE_APP_CHECK_PARAM = defineBoolean("ENFORCE_APP_CHECK", { default: true });
 

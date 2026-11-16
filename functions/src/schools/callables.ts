@@ -9,6 +9,7 @@ import {
   ENFORCE_APP_CHECK,
   REGION,
   SCHOOL_SEARCH_PROVIDER,
+  appEnv,
 } from "../config";
 import { reportError } from "../sentry";
 import { AlgoliaRestClient } from "./algolia";
@@ -60,7 +61,7 @@ export const getSchoolSearchKey = sessionCall(
       return issueSearchKey(
         {
           provider: SCHOOL_SEARCH_PROVIDER.value(),
-          appEnv: process.env.APP_ENV ?? "dev",
+          appEnv: appEnv(),
           appId: ALGOLIA_APP_ID.value(),
           parentSearchKey: ALGOLIA_SEARCH_KEY.value(),
           indexName: ALGOLIA_INDEX.value(),

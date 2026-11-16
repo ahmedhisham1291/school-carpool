@@ -31,6 +31,13 @@ const asAdmin = (): RulesTestContext => env.authenticatedContext("admin1", withM
 const asSuperAdmin = (): RulesTestContext => env.authenticatedContext("super1", withMfa({ admin: true, superAdmin: true }));
 const asAdminNoMfa = (): RulesTestContext =>
   env.authenticatedContext("admin1", { admin: true, auth_time: nowSeconds() - 60, firebase: { sign_in_provider: "password" } });
+// Security review (16 Nov 2026): only TOTP counts; an SMS second factor
+// (SIM swap) or a custom-token sign-in with a forged-looking claim does not.
+const asAdminSmsFactor = (): RulesTestContext =>
+  env.authenticatedContext("admin1", withMfa({
+    admin: true,
+    firebase: { sign_in_provider: "password" as const, sign_in_second_factor: "phone" },
+  }));
 const asAdminOldSession = (): RulesTestContext =>
   env.authenticatedContext("admin1", withMfa({ admin: true, auth_time: nowSeconds() - 9 * 60 * 60 }));
 const asParent = (): RulesTestContext => env.authenticatedContext("alice", { verified: true });
@@ -118,7 +125,7 @@ describe("audit log", () => {
   });
 
   it("parents, signed-out visitors and incomplete admin sessions cannot read it", async () => {
-    for (const make of [asParent, asParentWithMfa, asSuperClaimOnly, asAdminNoMfa, asAdminOldSession, signedOut]) {
+    for (const make of [asParent, asParentWithMfa, asSuperClaimOnly, asAdminNoMfa, asAdminSmsFactor, asAdminOldSession, signedOut]) {
       await assertFails(make().firestore().doc("auditLog/l1").get());
       await assertFails(make().firestore().collection("auditLog").get());
     }

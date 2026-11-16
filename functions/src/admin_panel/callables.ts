@@ -89,7 +89,7 @@ function run<T>(name: string, body: () => Promise<T>): Promise<T> {
 function adminCall<T>(
   name: string,
   body: (caller: AdminCaller, request: CallableRequest) => Promise<T>,
-  access: { superAdmin?: boolean } = {},
+  access: { superAdmin?: boolean; recentSignIn?: boolean } = {},
 ) {
   return onCall(options, (request) =>
     run(name, async () => body(await requireAdminCaller(request, access), request)),
@@ -99,7 +99,7 @@ function adminCall<T>(
 function usersDeps(): UsersDeps {
   return {
     store: new FirestoreUsersStore(adminDb()),
-    claims: new FirebaseClaimsService(adminAuth()),
+    claims: new FirebaseClaimsService(adminAuth(), adminDb()),
     now: () => Date.now(),
     searchLimit: ADMIN_SEARCH_LIMIT.value(),
     searchWindowMs: SEARCH_WINDOW_MS,
@@ -146,8 +146,10 @@ export const adminGetUser = adminCall("adminGetUser", (caller, request) =>
 );
 
 /** { uid, action: suspend | unsuspend | ban, reasonCode, note? } -> { status } */
-export const adminModerateUser = adminCall("adminModerateUser", (caller, request) =>
-  moderateFlow(usersDeps(), caller, request.data, ipOf(request)),
+export const adminModerateUser = adminCall(
+  "adminModerateUser",
+  (caller, request) => moderateFlow(usersDeps(), caller, request.data, ipOf(request)),
+  { recentSignIn: true },
 );
 
 // Schools and areas -----------------------------------------------------
@@ -252,7 +254,7 @@ export const adminListAuditLog = adminCall("adminListAuditLog", (caller, request
 export const adminCreateAdmin = adminCall(
   "adminCreateAdmin",
   (caller, request) => createAdminFlow(adminsDeps(), caller, request.data, ipOf(request)),
-  { superAdmin: true },
+  { superAdmin: true, recentSignIn: true },
 );
 
 /** {} -> { admins } */
@@ -273,7 +275,7 @@ export const adminPing = adminCall("adminPing", async () => ({ ok: true }));
 export const adminSetAdminDisabled = adminCall(
   "adminSetAdminDisabled",
   (caller, request) => setAdminDisabledFlow(adminsDeps(), caller, request.data, ipOf(request)),
-  { superAdmin: true },
+  { superAdmin: true, recentSignIn: true },
 );
 
 // Chat reports (Prompt 9: F13). The reported message with a little context

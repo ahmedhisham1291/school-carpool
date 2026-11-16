@@ -21,6 +21,7 @@ import {
   WHATSAPP_PROVIDER,
   WHATSAPP_TEMPLATE_LANG_AR,
   WHATSAPP_TEMPLATE_LANG_EN,
+  appEnv,
 } from "../config";
 import { CAIRO_TZ } from "../schedule/cairo";
 import { reportError } from "../sentry";
@@ -53,16 +54,16 @@ const alarmDelayMs = (): number => {
 };
 
 function dispatchDeps(): DispatchDeps {
-  const appEnv = process.env.APP_ENV ?? "dev";
+  const env = appEnv();
   const log = (message: string) => logger.info(message);
   const phoneNumberId = WHATSAPP_PHONE_NUMBER_ID.value();
   return {
     store: new FirestoreNotifyStore(adminDb()),
-    push: createPushSender(PUSH_PROVIDER.value(), appEnv, adminApp, log),
+    push: createPushSender(PUSH_PROVIDER.value(), env, adminApp, log),
     whatsapp: createWhatsAppSender(
       {
         provider: WHATSAPP_PROVIDER.value(),
-        appEnv,
+        appEnv: env,
         meta: {
           accessToken: WHATSAPP_ACCESS_TOKEN.value(),
           phoneNumberId: phoneNumberId === "none" ? "" : phoneNumberId,

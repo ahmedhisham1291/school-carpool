@@ -52,11 +52,18 @@ abstract final class PiiScrubber {
   static final RegExp _longNumber = RegExp('(?:\\+|00)?$_d(?:[\\s\\-.]?$_d){6,}');
 
   /// Removes emails, InstaPay addresses, coordinates and long numbers from [input].
+  /// Longest text scrubbed (security review, 16 Nov 2026): the patterns
+  /// backtrack on long runs of digits, so longer text is cut first. Same
+  /// limit as functions/src/scrub.ts.
+  static const int maxLength = 4000;
+  static const String truncated = '[truncated]';
+
   static String scrubString(String input) {
     if (input.isEmpty) {
       return input;
     }
-    return input
+    final String text = input.length > maxLength ? '${input.substring(0, maxLength)}$truncated' : input;
+    return text
         .replaceAll(_email, redacted)
         .replaceAll(_instaPay, redacted)
         .replaceAll(_coordinatePair, redacted)

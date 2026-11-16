@@ -40,8 +40,18 @@ service cloud.firestore {
           || (request.auth.token.auth_time is int
             && request.auth.token.auth_time >= userRecord().sessionsValidAfter));
     }
+    // Security review (16 Nov 2026), defence in depth: a suspended or
+    // banned parent reads no child, carpool, trip or location data even
+    // with an ID token issued before the suspension (the functions also
+    // set sessionsValidAfter when they suspend).
+    function notBlocked() {
+      return !hasUserRecord()
+        || (userRecord().get('status', '') != 'suspended'
+          && userRecord().get('banned', false) != true);
+    }
     function deviceChecked() {
       return sessionValid()
+        && notBlocked()
         && (!hasUserRecord()
           || !('newDeviceCheck' in userRecord())
           || userRecord().newDeviceCheck == null
@@ -50,7 +60,8 @@ service cloud.firestore {
 
     // Prompt 4 (F14): an admin of the panel. The "admin" custom claim is
     // set only by a super admin (createAdmin function) or the bootstrap
-    // script; the sign-in used a second factor (TOTP); the sign-in is less
+    // script; the sign-in used the TOTP second factor (an SMS factor is
+    // refused: security review 16 Nov 2026); the sign-in is less
     // than 8 hours old (keep in sync with ADMIN_SESSION_MAX_SECONDS in
     // functions/src/admin_panel/guard.ts); and the admin's record exists,
     // is not disabled, and the token was issued after any revocation (so a
@@ -67,6 +78,7 @@ service cloud.firestore {
       return signedIn()
         && request.auth.token.admin == true
         && 'sign_in_second_factor' in request.auth.token.firebase
+        && request.auth.token.firebase.sign_in_second_factor == 'totp'
         && request.auth.token.auth_time is int
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
         && adminRecordAllows()

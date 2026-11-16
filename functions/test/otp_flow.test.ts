@@ -278,6 +278,39 @@ describe("sign-in codes", () => {
     assert.ok([...store.known.values()].every((until) => until < now));
   });
 
+  it("strangers spending the number's hourly codes do not keep the parent out of their own phone (security review)", async () => {
+    // The parent's phone is known after one sign-in.
+    await ask();
+    await check("123456");
+    now += 3600_000;
+    // Strangers use up the number's codes for this hour from other devices.
+    for (let i = 0; i < DEFAULT_OTP_LIMITS.maxSendsPerPhone; i++) {
+      await ask({ deviceId: `${String(i).padStart(4, "0")}aaaaaaaaaaaaaaaa`, ip: `10.0.0.${i}` });
+      now += 61_000;
+    }
+    await expectReason(ask({ deviceId: "bbbbbbbbbbbbbbbb", ip: "10.0.1.1" }), "rate-limited");
+    // The parent's own phone still gets a code at once (no cooldown from the strangers) and signs in.
+    now += 1_000;
+    codes = ["246802"];
+    await ask();
+    assert.deepEqual(await check("246802"), { uid: "uid-1", token: "token-for-uid-1" });
+  });
+
+  it("a known device keeps its own cooldown and hourly cap", async () => {
+    await ask();
+    await check("123456");
+    now += 3600_000;
+    await ask();
+    now += 30_000;
+    await expectReason(ask(), "too-soon");
+    now += 31_000;
+    for (let i = 1; i < DEFAULT_OTP_LIMITS.maxSendsPerPhone; i++) {
+      await ask();
+      now += 61_000;
+    }
+    await expectReason(ask(), "rate-limited");
+  });
+
   it("stores no plain value in the lock key either", async () => {
     await ask();
     await expectReason(check("000000"), "wrong-code");

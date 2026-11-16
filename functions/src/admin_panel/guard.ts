@@ -5,8 +5,10 @@
  * An admin caller must have:
  * - the "admin" custom claim (a super admin also has "superAdmin"); only a
  *   super admin (createAdmin) or the bootstrap script sets them,
- * - signed in with a second factor (TOTP, Identity Platform), unless the
- *   local emulators run (the Auth emulator has no TOTP),
+ * - signed in with the TOTP second factor (Identity Platform), unless the
+ *   local emulators run (the Auth emulator has no TOTP). Only "totp"
+ *   counts: an SMS second factor can be taken over with the SIM (security
+ *   review, 16 Nov 2026),
  * - signed in less than ADMIN_SESSION_MAX_SECONDS ago (short sessions; the
  *   panel also signs out after 15 idle minutes).
  *
@@ -29,7 +31,20 @@ export type AccessRefusal =
   | "session-expired"
   | "session-revoked"
   | "session-idle"
-  | "not-super-admin";
+  | "not-super-admin"
+  | "reauth-required";
+
+/**
+ * Step-up for sensitive admin actions (security review, 16 Nov 2026):
+ * opening a parent's photos or an archived route, clearing a new-phone
+ * check, suspending or banning, admin accounts and the feature switches
+ * need a sign-in (password + TOTP) less than this long ago, not just a
+ * live 8-hour session. The panel sends the admin to sign in again.
+ */
+export const ADMIN_STEP_UP_SECONDS = 30 * 60;
+
+/** The only second factor accepted for admins. */
+export const ADMIN_SECOND_FACTOR = "totp";
 
 /** Server-side idle limit; the panel also signs out after this long. */
 export const ADMIN_IDLE_MS = 15 * 60 * 1000;
@@ -88,18 +103,24 @@ function secondFactorOf(token: Record<string, unknown>): string | null {
   return typeof factor === "string" && factor.length > 0 ? factor : null;
 }
 
+/** Whether the token's second factor is TOTP (not SMS, not missing). */
+export function hasTotpFactor(token: Record<string, unknown>): boolean {
+  return secondFactorOf(token) === ADMIN_SECOND_FACTOR;
+}
+
 export function adminAccess(
   auth: CallerAuth | undefined,
   nowSeconds: number,
-  options: { requireMfa: boolean; superAdmin?: boolean },
+  options: { requireMfa: boolean; superAdmin?: boolean; recentSignIn?: boolean },
 ): AdminCaller | AccessRefusal {
   if (!auth?.uid) return "unauthenticated";
   const role = adminRoleOf(auth.token);
   if (!role) return "not-admin";
-  if (options.requireMfa && !secondFactorOf(auth.token)) return "mfa-required";
+  if (options.requireMfa && !hasTotpFactor(auth.token)) return "mfa-required";
   const authTime = typeof auth.token.auth_time === "number" ? auth.token.auth_time : 0;
   if (nowSeconds - authTime > ADMIN_SESSION_MAX_SECONDS) return "session-expired";
   if (options.superAdmin && role !== "superAdmin") return "not-super-admin";
+  if (options.recentSignIn && nowSeconds - authTime > ADMIN_STEP_UP_SECONDS) return "reauth-required";
   return { uid: auth.uid, role };
 }
 

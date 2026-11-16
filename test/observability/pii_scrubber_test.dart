@@ -152,4 +152,12 @@ void main() {
       expect(trip['stage'], 'arrived');
     });
   });
+
+  test('long text is cut before the patterns run (security review, ReDoS)', () {
+    final String evil = '1.${'1' * 100000}';
+    final Stopwatch watch = Stopwatch()..start();
+    final String out = PiiScrubber.scrubString(evil);
+    expect(watch.elapsedMilliseconds, lessThan(2000));
+    expect(out.length, lessThanOrEqualTo(PiiScrubber.maxLength + PiiScrubber.truncated.length));
+  });
 }

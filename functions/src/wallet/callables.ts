@@ -5,7 +5,7 @@ import { adminDb } from "../admin";
 import { ipOf, requireAdminCaller } from "../admin_panel/access";
 import type { AdminCaller } from "../admin_panel/guard";
 import { FirestoreListsStore } from "../admin_panel/store";
-import { ENFORCE_APP_CHECK, MIN_INSTANCES_WALLET, WALLET_PARTNER_ENABLED, WALLET_PROVIDER } from "../config";
+import { appEnv as configAppEnv, ENFORCE_APP_CHECK, MIN_INSTANCES_WALLET, WALLET_PARTNER_ENABLED, WALLET_PROVIDER } from "../config";
 import { CAIRO_TZ } from "../schedule/cairo";
 import { reportError } from "../sentry";
 import {
@@ -50,7 +50,7 @@ import { callerOf, reasonErrorMapper, runCallable, unavailable } from "../common
  * else, and walletReconcile does nothing.
  */
 
-const appEnv = (): string => process.env.APP_ENV ?? "dev";
+const appEnv = (): string => configAppEnv();
 
 /** The provider, or null when the wallet is switched off here (the app says "not open yet"). */
 export function walletProvider(): WalletProvider | null {

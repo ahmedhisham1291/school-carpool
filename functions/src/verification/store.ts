@@ -457,7 +457,16 @@ export class CloudStorageFiles implements VerificationFiles {
 }
 
 export class FirebaseClaimsService implements ClaimsService {
-  constructor(private readonly auth: Auth) {}
+  /**
+   * [db]: users/{uid}.sessionsValidAfter is written on revocation (security
+   * review, 16 Nov 2026). Revoking refresh tokens alone left a suspended or
+   * banned parent's ID token (with the "verified" claim) working in the
+   * rules for up to an hour: live runs, members and exact pickup points.
+   */
+  constructor(
+    private readonly auth: Auth,
+    private readonly db: Pick<Firestore, "collection"> | null = null,
+  ) {}
 
   async setVerified(uid: string, verified: boolean): Promise<void> {
     const user = await this.auth.getUser(uid);
@@ -469,5 +478,16 @@ export class FirebaseClaimsService implements ClaimsService {
 
   async revokeSessions(uid: string): Promise<void> {
     await this.auth.revokeRefreshTokens(uid);
+    if (!this.db) return;
+    // Same as privacy/callables.ts revokeSessions: rules (sessionValid) and
+    // the gated callables refuse ID tokens from a sign-in before this.
+    const user = await this.auth.getUser(uid);
+    await this.db.collection(USERS).doc(uid).update({ sessionsValidAfter: sessionsValidAfterSeconds(user.tokensValidAfterTime, Date.now()) });
   }
+}
+
+/** Seconds of Auth's tokensValidAfterTime (the revocation), or now when it is missing. */
+export function sessionsValidAfterSeconds(tokensValidAfterTime: string | undefined, nowMs: number): number {
+  const ms = Date.parse(tokensValidAfterTime ?? "");
+  return Math.floor((Number.isFinite(ms) ? ms : nowMs) / 1000);
 }

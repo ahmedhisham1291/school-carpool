@@ -8,6 +8,7 @@ import {
   VALIFY_ENABLED,
   VALIFY_PASSWORD_NAME,
   VALIFY_USERNAME,
+  appEnv,
 } from "../config";
 import { createKycProvider, type FaceMatcher, type KycFactoryOptions } from "./kyc";
 import { readFakeKycSetting } from "./store";
@@ -37,7 +38,7 @@ export function faceMatcher(): FaceMatcher {
     matchFace: (reference, live) => {
       const kyc = createKycProvider({
         provider: KYC_PROVIDER.value(),
-        appEnv: process.env.APP_ENV ?? "dev",
+        appEnv: appEnv(),
         fakeSetting: () => readFakeKycSetting(adminDb()),
         valify: valifyOptions(),
       }) as unknown as FaceMatcher;

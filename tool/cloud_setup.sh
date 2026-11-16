@@ -312,7 +312,19 @@ grant() { # member role
   gcloud projects add-iam-policy-binding "${PROJECT}" --member="$1" --role="$2" --condition=None --quiet >/dev/null
 }
 # SETUP 11.2: custom tokens (verifyCode) and signed links (admins, exports).
-grant "serviceAccount:${SA}" roles/iam.serviceAccountTokenCreator
+# Security review (16 Nov 2026): Token Creator ONLY on the account itself
+# (it signs as itself). Granted on the whole project it could mint tokens
+# for every service account there, including any with more rights.
+gcloud iam service-accounts add-iam-policy-binding "${SA}" --project="${PROJECT}" \
+  --member="serviceAccount:${SA}" --role=roles/iam.serviceAccountTokenCreator --condition=None --quiet >/dev/null
+if gcloud projects get-iam-policy "${PROJECT}" --flatten='bindings[].members' \
+     --filter="bindings.members:serviceAccount:${SA} AND bindings.role:roles/iam.serviceAccountTokenCreator" \
+     --format='value(bindings.role)' 2>/dev/null | grep -q .; then
+  # An earlier run of this script granted it project-wide: take that back.
+  gcloud projects remove-iam-policy-binding "${PROJECT}" --member="serviceAccount:${SA}" \
+    --role=roles/iam.serviceAccountTokenCreator --condition=None --quiet >/dev/null 2>&1 \
+    || todo "IAM: ${GCP}/iam-admin/iam?project=${PROJECT} > ${SA} > remove 'Service Account Token Creator' at project level (it stays on the account itself)."
+fi
 grant "serviceAccount:${SA}" roles/secretmanager.secretAccessor
 grant "serviceAccount:${SA}" roles/eventarc.eventReceiver
 HAS_EDITOR="$(gcloud projects get-iam-policy "${PROJECT}" --flatten='bindings[].members' \
@@ -335,7 +347,7 @@ if [ -n "${GCS_AGENT}" ]; then
 fi
 EXTRA_ROLE=""
 [ -n "${HAS_EDITOR}" ] || EXTRA_ROLE=", Cloud Build builder"
-ok "service account roles: Token Creator, Secret accessor, Eventarc receiver${EXTRA_ROLE}; Storage agent: Pub/Sub publisher"
+ok "service account roles: Token Creator (on itself only), Secret accessor, Eventarc receiver${EXTRA_ROLE}; Storage agent: Pub/Sub publisher"
 
 # ============================================================== 5. Maps keys
 step "5. Google Maps keys"

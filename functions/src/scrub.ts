@@ -40,9 +40,20 @@ const COORDINATE_PAIR = new RegExp(`-?${D}{1,3}[.٫]${D}{2,}\\s*[,،]?\\s*-?${D}
 const PRECISE_DECIMAL = new RegExp(`-?${D}{1,3}[.٫]${D}{4,}`, "g");
 const LONG_NUMBER = new RegExp(`(?:\\+|00)?${D}(?:[\\s\\-.]?${D}){6,}`, "g");
 
+/**
+ * Longest text scrubbed and sent (security review, 16 Nov 2026). The
+ * patterns above backtrack on long runs of digits (50,000 digits took
+ * about 6 seconds), and an error message can carry request text, so a
+ * caller could stall a function instance. Anything longer is cut first;
+ * Sentry does not need more.
+ */
+export const MAX_SCRUB_LENGTH = 4000;
+export const TRUNCATED = "[truncated]";
+
 export function scrubString(input: string): string {
   if (!input) return input;
-  return input
+  const text = input.length > MAX_SCRUB_LENGTH ? `${input.slice(0, MAX_SCRUB_LENGTH)}${TRUNCATED}` : input;
+  return text
     .replace(EMAIL, REDACTED)
     .replace(INSTAPAY, REDACTED)
     .replace(COORDINATE_PAIR, REDACTED)
