@@ -315,11 +315,20 @@ export async function requestCode(deps: OtpDeps, input: RequestCodeInput): Promi
     }
     const dailyRefusal = known ? null : dailyLimitRefusal(phoneRecord, now, limits);
     if (dailyRefusal) return dailyRefusal;
-    if (phoneRecord.lastSendMs > 0 && now - phoneRecord.lastSendMs < cooldownMs) {
-      return new OtpError("too-soon", { retryAfterSeconds: secondsUntil(phoneRecord.lastSendMs + cooldownMs - now) });
+    // Security review (16 Nov 2026): on a device where this number signed
+    // in before, the number's cooldown and hourly cap are counted for
+    // THIS device only (the lock record of number + device). Otherwise a
+    // stranger who knows the number could spend its 5 codes an hour from
+    // their own phones and keep the parent out of their own phone. Codes
+    // from unknown devices still count against the number as before, so
+    // guessing stays capped.
+    const knownRecord = rollSendWindow(lockRecord, now, windowMs);
+    const budget = known ? knownRecord : phoneRecord;
+    if (budget.lastSendMs > 0 && now - budget.lastSendMs < cooldownMs) {
+      return new OtpError("too-soon", { retryAfterSeconds: secondsUntil(budget.lastSendMs + cooldownMs - now) });
     }
     const checks: Array<[LimitRecord, number]> = [
-      [phoneRecord, limits.maxSendsPerPhone],
+      [budget, limits.maxSendsPerPhone],
       [deviceRecord, limits.maxSendsPerDevice],
       [ipRecord, limits.maxSendsPerIp],
     ];
@@ -330,6 +339,7 @@ export async function requestCode(deps: OtpDeps, input: RequestCodeInput): Promi
     }
 
     tx.setLimit(pKey, { ...phoneRecord, sends: phoneRecord.sends + 1, lastSendMs: now });
+    if (known) tx.setLimit(lKey, { ...knownRecord, sends: knownRecord.sends + 1, lastSendMs: now });
     tx.setLimit(dKey, { ...deviceRecord, sends: deviceRecord.sends + 1, lastSendMs: now });
     tx.setLimit(iKey, { ...ipRecord, sends: ipRecord.sends + 1, lastSendMs: now });
     tx.setCode(pKey, {
