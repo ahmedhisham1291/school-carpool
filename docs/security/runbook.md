@@ -83,9 +83,13 @@ case.
 2. Measure: which collections or files, which parents and children, which
    time window. Data Access audit logs (owner-actions, item 6) show who
    read what in Firestore and Storage.
-3. Notify per docs/legal/breach-runbook.md (PDPC within 72 hours of
-   awareness; parents without undue delay where there is a risk to them),
-   **per legal review**.
+3. Notify per [docs/legal/breach-runbook.md](../legal/breach-runbook.md),
+   which holds the legal timeline and wording (Law 151 of 2020 and its
+   Executive Regulations): the Personal Data Protection Center within
+   **72 hours** of becoming aware, and the parents affected within
+   **3 working days** of notifying the Center. There is no risk
+   threshold: every breach of personal data is notified. **Per legal
+   review.**
 4. Recover: restore from PITR or the daily backup if data was changed
    (docs/restore-test.md).
 5. Review within 2 weeks: add a test that would have caught it.

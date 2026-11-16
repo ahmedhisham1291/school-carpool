@@ -153,8 +153,10 @@ starting point. That test is **open** (owner: choose and pay a tester).
    - the DPO's contact.
    If not everything is known by then, report what is known and send the
    rest as it comes. Keep a copy and the time sent.
-6. **Tell the parents** affected without undue delay when there is a risk
-   to them (in Arabic and English): what happened, what data, what we did,
+6. **Tell the parents** affected within 3 working days of notifying the
+   PDPC (Executive Regulations of Law 151 of 2020; no risk threshold:
+   every breach of personal data; legal timeline and wording in
+   `docs/legal/breach-runbook.md`), in Arabic and English: what happened, what data, what we did,
    what they should do (for example watch for calls asking for codes), and
    how to reach us.
 7. **Recover**: restore from backup or PITR if data was damaged
