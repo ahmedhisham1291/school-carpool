@@ -115,7 +115,16 @@ export interface ReviewAccess {
   phoneKey: string;
   codeHash: string;
   expiresAtMs: number;
+  /**
+   * App Review audit: more allow-listed demo phones (the second demo
+   * parent, "the other side" of the carpool), each with its own code
+   * hash. At most REVIEW_ACCESS_MAX_EXTRA; same window and limits.
+   */
+  extra?: ReadonlyArray<{ phoneKey: string; codeHash: string }>;
 }
+
+/** How many demo phones may be allow-listed besides the first. */
+export const REVIEW_ACCESS_MAX_EXTRA = 1;
 
 /** The longest a review window may be open (the script refuses more). */
 export const REVIEW_ACCESS_MAX_DAYS = 30;
@@ -125,12 +134,26 @@ export function activeReview(review: ReviewAccess | null | undefined, pKey: stri
   if (!review || review.enabled !== true) return null;
   if (!/^p_[0-9a-f]{64}$/.test(review.phoneKey) || !/^[0-9a-f]{64}$/.test(review.codeHash)) return null;
   if (!(review.expiresAtMs > nowMs) || review.expiresAtMs - nowMs > REVIEW_ACCESS_MAX_DAYS * DAY_MS) return null;
-  return review.phoneKey === pKey ? review : null;
+  if (review.phoneKey === pKey) return review;
+  const extra = Array.isArray(review.extra) ? review.extra.slice(0, REVIEW_ACCESS_MAX_EXTRA) : [];
+  for (const e of extra) {
+    if (!e || !/^p_[0-9a-f]{64}$/.test(e.phoneKey) || !/^[0-9a-f]{64}$/.test(e.codeHash)) continue;
+    // The entry for this phone, shaped like the first one.
+    if (e.phoneKey === pKey) return { enabled: true, phoneKey: e.phoneKey, codeHash: e.codeHash, expiresAtMs: review.expiresAtMs };
+  }
+  return null;
+}
+
+/** A demo phone of the open review window: its sign-ins are written to the audit log. */
+export function isReviewPhone(review: ReviewAccess | null | undefined, hmacKey: string, phoneE164: string, nowMs: number): boolean {
+  return activeReview(review, phoneKey(hmacKey, phoneE164), nowMs) !== null;
 }
 
 export interface OtpDeps {
   /** Prompt 13: the App Review access, if any (read per request). */
   review?: () => Promise<ReviewAccess | null>;
+  /** App Review audit: called after a demo phone signed in (admin audit log; no number, no code). */
+  onReviewSignIn?: (uid: string) => Promise<void>;
   store: OtpStore;
   sender: WhatsAppSender;
   accounts: AccountService;
@@ -337,6 +360,15 @@ export async function verifyCode(deps: OtpDeps, input: VerifyCodeInput): Promise
   const phone = await checkCode(deps, input);
   const { uid, suspended } = await deps.accounts.signInWithPhone(phone, input.language);
   if (suspended) throw new OtpError("suspended");
+  if (deps.review && deps.onReviewSignIn) {
+    // Audited, never blocking: a failed audit write is reported, the
+    // sign-in still works (the reviewer must get in).
+    try {
+      if (isReviewPhone(await deps.review(), deps.hmacKey, phone, deps.now())) await deps.onReviewSignIn(uid);
+    } catch (error) {
+      deps.reportError?.(error);
+    }
+  }
   return { uid, token: await deps.accounts.createToken(uid) };
 }
 

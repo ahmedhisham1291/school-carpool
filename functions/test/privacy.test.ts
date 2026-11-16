@@ -285,6 +285,22 @@ function deviceWorld() {
 }
 
 describe("devices and the new-phone rule", () => {
+  it("App Review demo parent: a new phone opens no selfie check, but still signs the old phone out", async () => {
+    const w = deviceWorld();
+    await recordSignIn(w.deps, "u1", ID_A, "ios");
+    w.store.accounts.set("u1", { status: "verified", email: "parent@example.com", language: "ar", hasFaceRef: true, reviewDemo: true });
+    const demo = await recordSignIn(w.deps, "u1", ID_B, "ios");
+    assert.equal(demo.newDevice, true);
+    assert.equal(demo.freshSelfieRequired, false);
+    assert.equal(await w.store.deviceCheck("u1"), null);
+    assert.deepEqual(w.revoked, ["u1"]);
+    // Without the exemption (the window ended) the same sign-in asks for the selfie.
+    const n = deviceWorld();
+    await recordSignIn(n.deps, "u1", ID_A, "ios");
+    n.store.accounts.set("u1", { status: "verified", email: "parent@example.com", language: "ar", hasFaceRef: true, reviewDemo: false });
+    assert.equal((await recordSignIn(n.deps, "u1", ID_B, "ios")).freshSelfieRequired, true);
+  });
+
   it("the first phone of an account is trusted; it is listed with a sign-in line", async () => {
     const w = deviceWorld();
     const r = await recordSignIn(w.deps, "u1", ID_A, "ios");

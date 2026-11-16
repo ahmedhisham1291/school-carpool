@@ -1,4 +1,5 @@
 import { anonymiseSettleUp, planRetention } from "../settle_up/model";
+import { REVIEW_DEMO_FIELD, reviewDemoActive } from "../auth/review_access";
 import { SETTLE_ADDRESSES, SETTLE_UPS, settleFromDoc, settleToDoc } from "../settle_up/store";
 import type { Bucket } from "../verification/store";
 import { FieldPath, FieldValue, Timestamp, type DocumentData, type Firestore, type Query, type QueryDocumentSnapshot, type QuerySnapshot } from "firebase-admin/firestore";
@@ -142,6 +143,7 @@ export class FirestoreDeviceStore implements DeviceStore {
       email: snap.get("emailVerified") === true && text(snap.get("email")) ? text(snap.get("email")) : null,
       language: snap.get("language") === "en" ? "en" : "ar",
       hasFaceRef,
+      reviewDemo: reviewDemoActive(snap.get(REVIEW_DEMO_FIELD), Date.now()),
     };
   }
 

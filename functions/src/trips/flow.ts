@@ -79,6 +79,12 @@ export interface TripAccount {
   /** F38: a failed selfie check paused this parent's driving. */
   drivingPaused: boolean;
   language: Language;
+  /**
+   * An App Review demo parent inside its window (auth/review_access.ts,
+   * fake data only): drives without a face reference and is never picked
+   * for the live selfie, so Apple's reviewer can start the demo run.
+   */
+  reviewDemo?: boolean;
 }
 
 export interface CarpoolPlace {
@@ -306,14 +312,19 @@ export async function faceReference(deps: TripDeps, uid: string): Promise<string
   return null;
 }
 
+/** True for an App Review demo driver inside its window (see TripAccount.reviewDemo). */
+async function isReviewDemo(deps: TripDeps, uid: string): Promise<boolean> {
+  return (await deps.store.account(uid))?.reviewDemo === true;
+}
+
 /** The selfie-check record of one run AND one driver: a swap gets a new decision. */
 export const checkId = (tripIdValue: string, uid: string): string => `${tripIdValue}_${uid}`;
 
 /** Decides once per run and driver whether a live selfie is needed first (F38). */
-async function decideCheck(deps: TripDeps, id: string, uid: string, nowMs: number): Promise<TripCheck> {
+async function decideCheck(deps: TripDeps, id: string, uid: string, nowMs: number, reviewDemo = false): Promise<TripCheck> {
   return deps.store.ensureCheck(checkId(id, uid), {
     driverUid: uid,
-    status: selfieRequired(settingsOf(deps).selfiePercent, deps.roll(), true) ? "required" : "none",
+    status: !reviewDemo && selfieRequired(settingsOf(deps).selfiePercent, deps.roll(), true) ? "required" : "none",
     decidedAtMs: nowMs,
     checkedAtMs: null,
   });
@@ -326,8 +337,9 @@ async function decideCheck(deps: TripDeps, id: string, uid: string, nowMs: numbe
  */
 export async function prepareTrip(deps: TripDeps, caller: Caller, data: unknown): Promise<PrepareResult> {
   const { id, existing, nowMs } = await runForDriver(deps, caller, data);
-  if (!(await faceReference(deps, caller.uid))) throw new TripError("no-reference");
-  const check = await decideCheck(deps, id, caller.uid, nowMs);
+  const demo = await isReviewDemo(deps, caller.uid);
+  if (!demo && !(await faceReference(deps, caller.uid))) throw new TripError("no-reference");
+  const check = await decideCheck(deps, id, caller.uid, nowMs, demo);
   return { tripId: id, selfieRequired: check.status === "required" || check.status === "failed", selfieStatus: check.status, active: existing?.status === "active" };
 }
 
@@ -410,10 +422,11 @@ export async function startTrip(deps: TripDeps, caller: Caller, data: unknown): 
   const account = await requireVerified(deps, caller);
   const { carpoolId, runId, id, run, nowMs } = await runForDriver(deps, caller, data);
   await take(deps, caller.uid, "starts", 86_400_000, 30);
-  if (!(await faceReference(deps, caller.uid))) throw new TripError("no-reference");
+  const demo = account.reviewDemo === true;
+  if (!demo && !(await faceReference(deps, caller.uid))) throw new TripError("no-reference");
   // The same decision as prepareTrip, so skipping prepareTrip never skips
   // the selfie check (F38).
-  const check = await decideCheck(deps, id, caller.uid, nowMs);
+  const check = await decideCheck(deps, id, caller.uid, nowMs, demo);
   if (check.status === "required") throw new TripError("selfie-required");
   if (check.status === "failed") throw new TripError("driving-paused");
 
