@@ -16,7 +16,8 @@ downloading anything.
 - Some entries are there on purpose to exercise the cleaning: a school with
   no name, one called only "مدرسة", a university, a college, a driving
   school, a school in Beirut, duplicates with spelling differences (merged)
-  and two pairs that the report lists as "likely duplicates".
+  and pairs the automatic de-duplication merges (same name within 2 km, one
+  name inside the other within 300 m; tools/import_schools/dedupe.py).
 
 Never load the sample into the prod project.
 

@@ -233,6 +233,41 @@ revised list ("implement all your suggestions"):
   by default). A language button is on the sign-in and two-step setup
   screens as well as inside the panel.
 
+## Owner decisions (16 Nov 2026, after the first full staging run): a clean list
+
+- **No manual duplicate review:** duplicates are merged automatically
+  (tools/import_schools/dedupe.py: same name within 500 m; 85 % alike
+  within 300 m; Arabic and English names alike within 300 m; one name
+  inside the other within 100 m, or 300 m when the extra words are not a
+  place; a school's KG section within 300 m; same name within 2 km).
+  Branches of a chain with a place word in the name, different stages or
+  boys/girls never merge. The survivor: owner list > OSM > Wikidata >
+  Overture (higher confidence first), best Arabic and English names, OSM or
+  Wikidata position; merged ids in `mergedFrom`, one row each in
+  build/schools/merged.csv. Already loaded duplicates get status "merged"
+  + mergedInto (never deleted); an admin-edited school is always the
+  survivor; parents' schools are never merged, only listed.
+- **Names only in Arabic or Latin letters:** mojibake is repaired, Arabic
+  presentation forms, fancy and fullwidth letters normalised, controls and
+  emoji removed; a school with no Arabic or Latin name is dropped ("Name
+  not in Arabic or English"); a few odd letters in a mostly Arabic/Latin
+  name are removed. Loaded schools that now fail are taken out of the list
+  (searchHidden + hiddenReason), never deleted.
+- **Tutoring centres and Quran memorisation are not schools** (سنتر, دروس,
+  IELTS, دار تحفيظ, كتاب); Overture preschools named for small children
+  ("Kids Academy", "Baby Club") are kept.
+- **A reviewer's decisions win:** data/schools/review/decisions.csv
+  (drop, keep, rename_ar, rename_en, set_kind, merge_into) is applied after
+  every automatic rule on every import.
+- **Areas are Egypt's ADM2 units** (qism / markaz / new city; OCHA COD-AB
+  on HDX, geoBoundaries as a fallback): OpenStreetMap has almost no
+  boundaries below the governorate in Egypt. Districts stay OpenStreetMap
+  (named neighbourhoods inside the area, boundaries where they exist).
+- **Empty child menus say why** ("Choose a city first", "No areas for this
+  city yet", "No districts for this area yet"); in the address form a city
+  with no areas lets the parent go on (area optional, district typed and
+  optional).
+
 ## Owner decisions (16 Nov 2026): what counts as a school, more sources
 
 - **Schools, kindergartens and nurseries only.** Universities, colleges and
