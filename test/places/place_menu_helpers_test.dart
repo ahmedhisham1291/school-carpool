@@ -25,11 +25,19 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-Future<void> _pumpApp(WidgetTester tester, Widget screen, {Locale locale = AppLocales.english, FakeAddressRepository? address}) async {
+Future<void> _pumpApp(
+  WidgetTester tester,
+  Widget screen, {
+  Locale locale = AppLocales.english,
+  FakeAddressRepository? address,
+  double width = 320,
+}) async {
   tester.view
     ..devicePixelRatio = 2
-    ..physicalSize = const Size(320 * 2, 900 * 2);
+    ..physicalSize = Size(width * 2, 900 * 2);
   addTearDown(tester.view.reset);
+  // A fresh screen each time (a second pump of the same screen would keep its state).
+  await tester.pumpWidget(const SizedBox.shrink());
   await tester.pumpWidget(
     buildTestApp(
       screen,
@@ -73,7 +81,7 @@ void main() {
 
   testWidgets('address form: a city with no areas goes on with an optional typed district', (WidgetTester tester) async {
     final FakeAddressRepository repo = FakeAddressRepository();
-    await _pumpApp(tester, const AddressScreen(), address: repo);
+    await _pumpApp(tester, const AddressScreen(), address: repo, width: 400);
     expect(find.text('Choose a city first'), findsNWidgets(2));
     await pickFromDropdown(tester, const Key('address.city'), 'Luxor');
     expect(find.text('No areas for this city yet'), findsOneWidget);
@@ -87,8 +95,11 @@ void main() {
     await tester.enterText(find.byKey(const Key('address.street')), 'Karnak Street');
     await tester.enterText(find.byKey(const Key('address.building')), '12');
     await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('address.next2')));
     await tester.tap(find.byKey(const Key('address.next2')));
     await tester.pumpAndSettle();
+    expect(find.text('Step 3 of 3'), findsOneWidget);
+    expect(repo.geocoded.single.placeAreaId, '');
     await tester.tap(find.byKey(const Key('address.save')));
     await tester.pumpAndSettle();
     final (HomeAddress saved, GeoPin _) = repo.saved.single;
