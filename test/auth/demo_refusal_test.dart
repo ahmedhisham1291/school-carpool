@@ -2,6 +2,8 @@
 // the generic error (server reasons demo-account and demo-closed,
 // functions/src/privacy/device_gate.ts). Written, not run here (no Flutter
 // SDK in the build workspace).
+import 'dart:ui' show Locale;
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
