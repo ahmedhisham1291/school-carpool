@@ -1,10 +1,10 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
-/// Reading the answer of a refused callable.
-///
-/// Every Cloud Function answers a known refusal with an HttpsError whose
-/// `details` is `{ reason, ...extras }` (functions/src/common/callable.ts).
-/// The feature failure types map [callableReason] to their own kinds.
+// Reading the answer of a refused callable.
+//
+// Every Cloud Function answers a known refusal with an HttpsError whose
+// `details` is `{ reason, ...extras }` (functions/src/common/callable.ts).
+// The feature failure types map [callableReason] to their own kinds.
 
 /// `details.reason` of [error], or null.
 String? callableReason(FirebaseFunctionsException error) {
