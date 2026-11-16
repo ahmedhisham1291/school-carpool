@@ -582,3 +582,14 @@ Where an item replaces an earlier decision, it says so.
 - **R7 - breach register kept 5 years after an incident closes**
   (`BREACH_REGISTER_YEARS`, `retainUntilMs` set on close; runbook and
   record of processing). No deletion job yet.
+- **R8 - terms and privacy wording** (drafts until the lawyer approves,
+  answers.md 5.2): same school OR the same activity at one venue, closed
+  carpools (approval, no public offers); "Emergencies, accidents and
+  insurance" (122/123, report in the app, the driving parent notifies the
+  compulsory insurance pool and the insurer within 15 days, Law 155/2024
+  Art. 51; run records disclosed only on a lawful request); the operator's
+  registered address after its name (`tool/links_site.py
+  --operator-address`, `--require-address` for prod); consent (3 years)
+  and sign-in log (180 days) lines. Versions terms and privacy
+  `2026-11-17`: every account accepts them again (and signs storage
+  abroad, R3) on the next app start.

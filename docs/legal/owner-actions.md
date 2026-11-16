@@ -64,9 +64,12 @@ docs/legal/egypt-legal-review.md. **This is not legal advice: take steps 1 to
    ```
    python3 tool/links_site.py --team-id <TEAM ID> --bundle-id org.schoolcarpool.app \
      --support-email <address> --operator-name "<legal name>" \
+     --operator-address "<registered address>" --require-address \
      --dpo-email <dpo address> --dpo-name "<DPO name>" --require-legal
    ```
-   (Cloud Shell: put `DPO_EMAIL=... DPO_NAME="..."` in front of
+   (R8: the registered address is required for prod: Law 175/2018 Art. 2
+   asks a service provider to publish its name and address.)
+   (Cloud Shell: put `OPERATOR_ADDRESS="..." DPO_EMAIL=... DPO_NAME="..."` in front of
    `bash tool/cloud_setup.sh ...`.) Ask the lawyer to approve the Arabic
    texts of the privacy policy and terms (question 5.2); the Arabic text is
    the governing one.

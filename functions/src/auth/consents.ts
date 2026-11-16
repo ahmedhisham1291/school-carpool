@@ -14,14 +14,18 @@ import { parseSignature, type SignatureInput, type SignatureRecord } from "./sig
 export const CONSENT_VERSIONS = {
   // 16 Nov 2026 (legal review): free volunteer turns, no payments, Arabic
   // text prevails, liability wording within Egyptian civil law.
-  terms: "2026-11-16",
+  // 2026-11-17 (R8): same school or activity, closed carpools, accidents
+  // and the 15-day insurance notice, lawful disclosure, operator address.
+  terms: "2026-11-17",
   // 16 Nov 2026 (legal review): answer within 6 working days, data
   // protection contact, transfer abroad section, breach notice, no
   // financial data, sign-in history 180 days.
   // Also (owner, App Review 5.1.1): photos, messages, address and routes
   // are deleted with the account; usage statistics only with the parent's
   // yes. Deploy functions and app together.
-  privacy: "2026-11-16",
+  // 2026-11-17 (R1, R2, R3, R8): consent records 3 years, the legal
+  // sign-in log 180 days after deletion, written consents and their copy.
+  privacy: "2026-11-17",
   // App Review audit (guideline 1.2): no tolerance for objectionable content.
   conduct: "2026-11-16",
   whatsapp: "2026-11-13",

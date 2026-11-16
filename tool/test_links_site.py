@@ -106,6 +106,27 @@ class LegalPagesTest(unittest.TestCase):
             self.assertIn("carpool invite", (out / "invite.html").read_text(encoding="utf-8"))
             self.assertIn("https://apps.apple.com/app/id1234567890", (out / "index.html").read_text(encoding="utf-8"))
 
+    def test_terms_r8_activity_incidents_insurance_and_address(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool LLC",
+                             operator_address="12 Nile St, Zamalek, Cairo")
+            terms = (out / "terms.html").read_text(encoding="utf-8")
+            for must in ("same activity at one venue", "النشاط نفسه", "no public ride offers", "within 15 days of the accident",
+                         "خلال 15 يومًا", "Law No. 155 of 2024, Article 51", "lawful request or a judicial order",
+                         "School Carpool LLC, 12 Nile St, Zamalek, Cairo", "School Carpool LLC، 12 Nile St"):
+                self.assertIn(must, terms)
+            for name in ("privacy", "support"):
+                self.assertIn("12 Nile St, Zamalek, Cairo", (out / f"{name}.html").read_text(encoding="utf-8"), name)
+            privacy = (out / "privacy.html").read_text(encoding="utf-8")
+            self.assertIn(links_site.document_versions()["privacy"], privacy)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool LLC")
+            self.assertNotIn("__ADDRESS", (out / "terms.html").read_text(encoding="utf-8"), "no address: the name alone")
+            with self.assertRaises(SystemExit):
+                self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool LLC", require_address=True)
+            with self.assertRaises(SystemExit):
+                self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool LLC", operator_address="<b>")
+
     def test_data_protection_officer(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool Foundation",
