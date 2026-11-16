@@ -27,6 +27,12 @@ import { isCairoWorkingDay } from "./requests";
 
 export const BREACH_REGISTER = "breachRegister";
 export const PDPC_NOTICE_HOURS = 72;
+/**
+ * R15 (answers.md 1.10): our own target for a breach of children's or
+ * biometric data: the PDPC notice within 24 hours of awareness ("act as
+ * if immediately"), never later than 72 hours. National security: at once.
+ */
+export const SENSITIVE_TARGET_HOURS = 24;
 export const SUBJECT_NOTICE_WORKING_DAYS = 3;
 /** "Due soon" when less than this is left. */
 export const BREACH_WARN_MS = 12 * 3_600_000;
@@ -78,6 +84,8 @@ export interface BreachRecord {
   status: BreachStatus;
   pdpcDueAtMs: number;
   immediate: boolean;
+  /** R15: our internal target for the PDPC notice (24 h for children/biometrics, at once for national security, else 72 h). */
+  targetAtMs?: number;
   pdpcNotifiedAtMs: number | null;
   pdpcReference: string | null;
   subjectsNotifiedAtMs: number | null;
@@ -151,6 +159,13 @@ export function pdpcDeadline(awareAtMs: number, nationalSecurity: boolean, sensi
   return { dueAtMs: awareAtMs + PDPC_NOTICE_HOURS * 3_600_000, immediate: false };
 }
 
+/** R15: the internal target for the PDPC notice. */
+export function pdpcTarget(awareAtMs: number, nationalSecurity: boolean, sensitive: boolean): number {
+  if (nationalSecurity) return awareAtMs;
+  if (sensitive) return awareAtMs + SENSITIVE_TARGET_HOURS * 3_600_000;
+  return awareAtMs + PDPC_NOTICE_HOURS * 3_600_000;
+}
+
 /** Parents must be told within 3 working days of the PDPC notice (provisional until it is sent). */
 export function subjectsDeadline(r: Pick<BreachRecord, "pdpcNotifiedAtMs" | "pdpcDueAtMs">): number {
   return addWorkingDays(r.pdpcNotifiedAtMs ?? r.pdpcDueAtMs, SUBJECT_NOTICE_WORKING_DAYS);
@@ -189,6 +204,7 @@ export function newBreach(id: string, data: unknown, byUid: string, nowMs: numbe
     status: "open",
     pdpcDueAtMs: deadline.dueAtMs,
     immediate: deadline.immediate,
+    targetAtMs: pdpcTarget(awareAtMs, raw.nationalSecurity, sensitive),
     pdpcNotifiedAtMs: null,
     pdpcReference: null,
     subjectsNotifiedAtMs: null,
@@ -249,10 +265,16 @@ function stateOf(doneAtMs: number | null, dueAtMs: number, nowMs: number): Deadl
 /** What the admin panel shows: both clocks and where each stands. */
 export function breachView(r: BreachRecord, nowMs: number) {
   const subjectsDueAtMs = subjectsDeadline(r);
+  const targetAtMs = r.targetAtMs ?? pdpcTarget(r.awareAtMs, r.nationalSecurity, r.sensitive);
   return {
     ...r,
+    targetAtMs,
     subjectsDueAtMs,
-    pdpcState: r.immediate && r.pdpcNotifiedAtMs === null ? ("now" as DeadlineState) : stateOf(r.pdpcNotifiedAtMs, r.immediate ? r.awareAtMs + PDPC_NOTICE_HOURS * 3_600_000 : r.pdpcDueAtMs, nowMs),
+    // R15: a sensitive breach not notified yet is "now" until 24 h, then overdue.
+    pdpcState:
+      r.immediate && r.pdpcNotifiedAtMs === null && !r.nationalSecurity && nowMs > targetAtMs
+        ? ("overdue" as DeadlineState)
+        : r.immediate && r.pdpcNotifiedAtMs === null ? ("now" as DeadlineState) : stateOf(r.pdpcNotifiedAtMs, r.immediate ? r.awareAtMs + PDPC_NOTICE_HOURS * 3_600_000 : r.pdpcDueAtMs, nowMs),
     subjectsState: stateOf(r.subjectsNotifiedAtMs, subjectsDueAtMs, nowMs),
   };
 }

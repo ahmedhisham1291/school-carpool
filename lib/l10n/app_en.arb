@@ -2472,5 +2472,6 @@
   "carpoolActivityNameTitle": "Activity",
   "carpoolActivityNameHelper": "For example: Swimming, Zamalek Club",
   "carpoolActivityNameSearch": "Search",
-  "keepNinetyDaysAfterRun": "90 days after the run"
+  "keepNinetyDaysAfterRun": "90 days after the run",
+  "incidentImmediatelyBy": "Now, at the latest {time}"
 }

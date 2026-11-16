@@ -14,8 +14,11 @@ lawyer adapt it. Checked 16 Nov 2026.
    (Decree 816/2025, Art. 5). In practice we notify; a processor tells us.
 2. **PDPC:** within **72 hours of becoming aware**, through the PDPC portal
    or its hotline (Law Art. 7; Decree Art. 5). **Immediately** if national
-   security may be involved. **Our rule (safe side): immediately also when
-   children's data or face (biometric) data is involved.**
+   security may be involved. **Our rule (safe side, R15): immediately also
+   when children's data or face (biometric) data is involved, with an
+   internal target of 24 hours from awareness** (never later than 72
+   hours). The Incidents page shows "Now, at the latest <time>" and turns
+   the notice overdue after 24 hours.
 3. **Parents:** within **3 working days of notifying the PDPC**, by the
    channel agreed at sign-up (in-app notice and WhatsApp/email), saying
    what happened and the safeguards taken. **There is no "low risk"
@@ -26,7 +29,20 @@ lawyer adapt it. Checked 16 Nov 2026.
 5. **Crimes:** if the breach is a crime (hack, theft), the manager of the
    legal entity must report it to the competent authorities when aware
    (Anti-Cybercrime Law 175/2018, Art. 35) and must not touch the evidence
-   (Art. 28).
+   (Art. 28). **Where (R15):** the **Public Prosecution** (النيابة العامة;
+   it always has jurisdiction over crimes; a complaint at the nearest
+   prosecution office or through the lawyer) and/or the **Ministry of
+   Interior's General Directorate for Information Technology Crimes**
+   (الإدارة العامة لمباحث تكنولوجيا المعلومات, the IT-crimes unit; hotline
+   108 for internet crimes, confirm the number with the lawyer). The
+   national CERT reporting of Decree 1699/2020 Art. 3 applies to critical
+   infrastructure, not to us.
+6. **Staging and test projects (R15):** staging holds **real testers'
+   phone numbers and emails** (and their names if they took the ID
+   check), so a staging incident that touches them **is a personal data
+   breach**: same steps, same deadlines. A breach that touched only fake
+   data needs no PDPC notice, but a crime (for example a hack of the
+   staging project) is still reported to the authorities.
 
 ## Timeline
 
@@ -38,9 +54,9 @@ for certainty: the clock starts at awareness.
 | --- | --- | --- |
 | 0 h | Whoever finds it | Tell the incident lead (owner) and the DPO by phone. Open the admin panel > **Incidents > Report incident**, choose "When did we find out?". This starts the clock and shows both deadlines. |
 | 0-2 h | Technical lead | Contain (security runbook): revoke keys, sessions, disable the function or rule. **Preserve evidence** before changing anything: export Cloud Logging, the `auditLog`, Sentry events, the processor's notice (Law 175 Arts. 6, 28). Record "Contained" on the incident. |
-| 0-2 h | DPO | If children's or face data, or national security: **notify the PDPC now** with what is known (template A) and add the rest later. |
+| 0-2 h | DPO | If children's or face data, or national security: **notify the PDPC now** with what is known (template A) and add the rest later. **Target: within 24 h of awareness** (R15). |
 | 2-24 h | DPO + technical lead | Assess: data categories, about how many people and records, when it happened, cause, still exposed? Update the incident (note). |
-| ≤ 24 h | Incident lead + lawyer | Crime? (hack, insider theft, extortion): report to the competent authority (Public Prosecution / the Ministry of Interior's cybercrime unit; the lawyer chooses) — Law 175 Art. 35. Keep the report number. |
+| ≤ 24 h | Incident lead + lawyer | Crime? (hack, insider theft, extortion): report it to the **Public Prosecution** and/or the **Ministry of Interior's General Directorate for IT Crimes** (see rule 5; the lawyer files) — Law 175 Art. 35. Keep the report number. Also for a staging project (rule 6). |
 | ≤ 48 h | DPO + lawyer | Draft the PDPC notice (template A) and the parents' notice (template B). |
 | **≤ 72 h** | DPO | **Notify the PDPC** (portal or hotline). Record "Centre told" with the reference: this starts the parents' clock. Unknown facts: say so and promise a follow-up. |
 | ≤ 3 working days after the PDPC notice | Incident lead | **Tell every affected parent** (template B) in Arabic and English, by in-app notification plus WhatsApp or email. Record "Parents told". |

@@ -59,6 +59,7 @@ Open questions (none block; recorded for the owner and the lawyer):
 ## Progress
 
 - R1: done.
+- R15: done (the lawyer confirms the authority to file with).
 - R14: done (owner actions 6 and 7a; docs only).
 - R13: done (owner: book the tester; docs only).
 - R12: done (CLAUDE.md PRIVACY line to change: see the final report; the composite index in `firestore.indexes.json` must be deployed before the daily job finds cases decided before R12).

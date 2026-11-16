@@ -11000,5 +11000,14 @@
   "keepNinetyDaysAfterRun": "90 يومًا بعد المشوار",
   "@keepNinetyDaysAfterRun": {
     "description": "Retention label: archived routes (R11). One line."
+  },
+  "incidentImmediatelyBy": "فورًا، وبحد أقصى {time}",
+  "@incidentImmediatelyBy": {
+    "description": "R15: PDPC notice for a children's or biometric data breach: immediately, with the 24-hour internal target. One line.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
   }
 }

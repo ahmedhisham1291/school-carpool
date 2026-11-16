@@ -627,3 +627,9 @@ Where an item replaces an earlier decision, it says so.
 - **R14 - trademark search and filing after incorporation**, and the
   pilot school's **written no-objection** before the pilot there (owner
   actions 6 and 7a; never suggest school or Ministry endorsement).
+- **R15 - breach runbook:** crimes go to the Public Prosecution and/or
+  the Ministry of Interior's General Directorate for IT Crimes; staging
+  with real testers' numbers counts as personal data; a 24-hour internal
+  target for the PDPC notice when children's or biometric data is
+  involved (`SENSITIVE_TARGET_HOURS`, `targetAtMs` on the register entry;
+  the Incidents page shows it and turns overdue after 24 hours).
