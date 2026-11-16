@@ -10765,10 +10765,6 @@
   "@consentCopyOpen": {
     "description": "Action on a signed consent row in Privacy: opens the copy (R3). One line."
   },
-  "consentCopyTitle": "نسخة الموافقة",
-  "@consentCopyTitle": {
-    "description": "App bar title of the consent copy screen (R3). One line."
-  },
   "consentCopySignedBy": "وقّعها",
   "@consentCopySignedBy": {
     "description": "Copy screen label. One line."

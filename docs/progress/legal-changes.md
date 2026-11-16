@@ -56,20 +56,61 @@ Open questions (none block; recorded for the owner and the lawyer):
    everything). The lawyer should confirm.
 3. CLAUDE.md is owner-edited: the lines to change are in the final report.
 
-## Progress
+## Progress (all done, one commit each)
 
-- R1: done.
-- R15: done (the lawyer confirms the authority to file with).
-- R14: done (owner actions 6 and 7a; docs only).
-- R13: done (owner: book the tester; docs only).
-- R12: done (CLAUDE.md PRIVACY line to change: see the final report; the composite index in `firestore.indexes.json` must be deployed before the daily job finds cases decided before R12).
-- R11: done (owner: re-apply `tool/storage_lifecycle.json` with `tool/setup_retention.sh` in staging and prod; the lawyer is told the route archive is now 90 days).
-- R10: done (docs; owner: the checklist per processor, Sentry/Algolia EU regions).
-- R9: done (keep `activityCarpools` off in staging and prod until the lawyer opinion covers F39).
-- R8: done (owner: give the registered address once the company exists; the lawyer approves the texts).
-- R7: done.
-- R6: done (owner action: submit the WhatsApp template `cp_emergency_contact_intro` in Meta; until it is approved the server falls back to `cp_emergency_contact`; `LEGAL_SITE_URL` must be set in the app build for "Send the link"). Built as answers.md says: alerts still go before the contact confirms.
-- R5: done (owner action: switch "PDPC licences granted" on in prod only when the three licences are granted).
-- R4: done (the app takes 15+ from the age and grade it already asks; the server also accepts an optional date of birth and never stores it).
-- R3: done (the server texts in `functions/src/auth/consent_texts.ts` must be regenerated from the ARB files whenever a signed consent text changes; the test fails otherwise).
-- R2: done (owner action: `SIGNIN_LOG_KEY` secret and the `signInLog` TTL policy in staging and prod; `tool/cloud_setup.sh` and `tool/setup_retention.sh` do both).
+| R | Commit | Notes and owner actions |
+| --- | --- | --- |
+| R1 | `8a0ac62` | Consents 3 years after closure. |
+| R2 | `6620425` | Owner: secret `SIGNIN_LOG_KEY` and the `signInLog` TTL policy in staging and prod (`tool/cloud_setup.sh`, `tool/setup_retention.sh`). |
+| R3 | `15c20c0` | Regenerate `functions/src/auth/consent_texts.ts` from the ARB files whenever a signed consent text changes (the test fails otherwise) and raise the version. |
+| R4 | `68a44f7` | The app takes 15+ from the age and grade it already asks; the server also accepts an optional date of birth and never stores it. |
+| R5 | `03cf773` | Owner: switch "PDPC licences granted" on in prod (Admin > Settings > Launch) only when the three licences are granted. |
+| R6 | `4ae2111` | Owner: submit the WhatsApp template `cp_emergency_contact_intro` to Meta (until approved the server falls back to `cp_emergency_contact`); set `LEGAL_SITE_URL` in the app build for "Send the link"; deploy hosting (rewrite `/ec/**`). Built as answers.md 1.8 says: alerts still go before the contact confirms. |
+| R7 | `66fd5e4` | No deletion job until the first entry is 5 years old. |
+| R8 | `4f0e30a` | Owner: `--operator-address` once the company exists; the lawyer approves the texts. Versions terms/privacy `2026-11-17`: every account accepts again. |
+| R9 | `e161407` | Keep `activityCarpools` off in staging and prod until the lawyer's opinion covers F39. |
+| R10 | `ae1ced2` | Owner: the checklist per processor; Sentry/Algolia EU regions. |
+| R11 | `da57c7d` | Owner: re-apply `tool/storage_lifecycle.json`; tell the lawyer (90 days replaces a lawyer-confirmed 1 year). |
+| R12 | `ee7a2c3` | Deploy `firestore.indexes.json` (new composite index) before the daily job finds cases decided before R12; tell the lawyer. |
+| R13 | `899e4b2` | Owner: book the tester. |
+| R14 | `1e310be` | Owner actions 6 and 7a. |
+| R15 | `ee77ebd` | The lawyer confirms the authority to file with (and the hotline number). |
+
+## Tests
+
+| Test | Result |
+| --- | --- |
+| Functions unit tests (`tsc` + `node --test`, incl. architecture tests; new `signin_log`, `signature`, `launch` test files and additions in privacy, consents, otp_flow, verification_flow, trips, carpools, features, breaches) | **Run here: 960 pass, 0 fail** (927 before). `tsc` prints only the workspace's known type-stub errors (+4 lines of the same stub kinds in the new stores). |
+| Python tool tests (`tool/test_*.py`, `tools/import_schools`) | **Run here: pass** (links site: R1, R2, R3, R4, R6, R8, R11, R12 assertions). |
+| Rules tests (`tests/rules/admin.test.ts`: `signInLog`, `config/launch`; `trips.test.ts`: emergency contact status/token) | Written, not run here (CI). |
+| Flutter widget and unit tests (signature names, terms signing and cancel, verification signing and teen box, consent copy screen, Opening soon, admin launch switch, emergency contact agreement/status, activity search, feature switches, privacy labels) | Written, not run here (no Flutter SDK; CI). |
+| Goldens / screenshots of the new screens (consent copy, Opening soon, signing sheet) | Not made here (no Flutter SDK). CI's screenshot job makes them; check Arabic and English, light and dark. |
+
+## How to test on the iPhone (staging)
+
+1. Sign up with a new number: on Terms, tick the four boxes, type your
+   full name, tap "Agree and continue": Face ID asks; cancel once (nothing
+   is sent), then confirm.
+2. Privacy > Your choices > Storage abroad > "View copy": the text, your
+   name, date, "Face ID or passcode", "Download copy" opens the file.
+3. Get verified: on the review step tick ID, face and guardian boxes, type
+   a wrong name (the field says which name to type), then your ID name;
+   "Send for review" asks Face ID. Add a child aged 15: a fourth box.
+4. Profile > Emergency contact: Save stays off until "This person agreed";
+   then "Send the link" opens WhatsApp; open the link on another phone and
+   tap "I agree": the status line says confirmed.
+5. Prod only (or set `APP_ENV=prod` in a test project): a new number gets
+   "Opening soon" after the code; an existing account signs in.
+6. Admin panel > Settings: "Launch" and "Activity carpools" switches
+   (super admin, fresh sign-in); Incidents: a children's-data incident
+   shows "Now, at the latest <time>".
+
+## Not done / open
+
+- CLAUDE.md is owner-edited: the lines to change are in the final report.
+- Flutter, rules tests and goldens were not run here.
+- The birth date is not asked in the app (age and grade already decide
+  15+); the server accepts one if a later form adds it.
+- A route under an open safety report is not held past 90 days (only the
+  account-deletion safety hold exists).
+- Texts stay drafts until the lawyer approves them (answers.md 5.2).

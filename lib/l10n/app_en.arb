@@ -2419,7 +2419,6 @@
   "signReauth": "To sign, sign in again or set a phone passcode.",
   "signHint": "Tick each box, type your name, then confirm with Face ID or your passcode.",
   "consentCopyOpen": "View copy",
-  "consentCopyTitle": "Consent copy",
   "consentCopySignedBy": "Signed by",
   "consentCopyDate": "Date and time",
   "consentCopyMethod": "Confirmed with",
