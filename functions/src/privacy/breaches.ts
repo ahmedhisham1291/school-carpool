@@ -1,4 +1,4 @@
-import { DAY_MS } from "./retention";
+import { BREACH_REGISTER_YEARS, DAY_MS, YEAR_DAYS } from "./retention";
 import { isCairoWorkingDay } from "./requests";
 
 /**
@@ -82,7 +82,14 @@ export interface BreachRecord {
   pdpcReference: string | null;
   subjectsNotifiedAtMs: number | null;
   closedAtMs: number | null;
+  /** R7: kept until this date (closed + BREACH_REGISTER_YEARS); null while open. */
+  retainUntilMs?: number | null;
   events: BreachEvent[];
+}
+
+/** R7: when a closed register entry may be deleted (5 years after closing). */
+export function breachRetainUntil(closedAtMs: number): number {
+  return closedAtMs + BREACH_REGISTER_YEARS * YEAR_DAYS * DAY_MS;
 }
 
 export type BreachErrorReason = "invalid-request" | "not-found" | "invalid-state";
@@ -221,6 +228,7 @@ export function applyBreachUpdate(r: BreachRecord, data: unknown, byUid: string,
     case "closed":
       if (r.pdpcNotifiedAtMs === null || r.subjectsNotifiedAtMs === null) throw new BreachError("invalid-state");
       next.closedAtMs = atMs;
+      next.retainUntilMs = breachRetainUntil(atMs);
       next.status = "closed";
       break;
     default:

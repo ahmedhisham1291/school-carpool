@@ -112,11 +112,18 @@ data with an estimate of the harm.
 | `pdpcNotifiedAtMs`, `pdpcReference` | When the PDPC was told, its reference (set once) |
 | `subjectsNotifiedAtMs` | When parents were told (set once, after the PDPC) |
 | `status` | open, pdpcNotified, subjectsNotified, closed |
+| `retainUntilMs` | R7: closing date + 5 years; the entry is kept at least until then |
 | `events` | Every step: reported, contained, pdpcNotified, subjectsNotified, note, closed, with time and admin |
 
 Every report and step also writes an `auditLog` entry (`breach.*`) in the
-same batch. Nothing is deleted. Retention: as the law requires (lawyer
-question); it holds no parent's data.
+same batch. Nothing is deleted. **Retention (R7, owner decision 16 Nov
+2026): each entry is kept 5 years after the incident is closed**
+(`BREACH_REGISTER_YEARS`; `retainUntilMs` is set when "Close" is
+recorded). Reason (answers.md 1.11): the law sets no period; breach-notice
+offences are misdemeanours (3-year limitation from the last act, and an
+incident may be found late), PDPC inspections, and the 3-year licence
+renewal cycle. It holds no parent's data. No job deletes entries yet; one
+may be added after the first 5 years with the owner's go.
 
 ## Processors: what they promise us (checked 16 Nov 2026)
 

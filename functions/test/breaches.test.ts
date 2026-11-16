@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { AuditEntry } from "../src/admin_panel/types";
 import { listIncidents, reportIncident, updateIncident, type BreachDeps, type BreachStore } from "../src/privacy/breach_callables";
-import { addWorkingDays, applyBreachUpdate, BreachError, breachView, newBreach, pdpcDeadline, type BreachRecord } from "../src/privacy/breaches";
+import { addWorkingDays, applyBreachUpdate, BreachError, breachView, newBreach, pdpcDeadline, type BreachRecord, breachRetainUntil } from "../src/privacy/breaches";
+import { BREACH_REGISTER_YEARS } from "../src/privacy/retention";
 import { DAY_MS } from "../src/privacy/retention";
 
 /**
@@ -135,6 +136,10 @@ describe("breach register: the record", () => {
     r = applyBreachUpdate(r, { action: "subjectsNotified" }, "a", SUN + DAY_MS);
     r = applyBreachUpdate(r, { action: "closed", text: "Root cause fixed" }, "a", SUN + 2 * DAY_MS);
     assert.equal(r.status, "closed");
+    // R7: kept 5 years after closing.
+    assert.equal(r.retainUntilMs, SUN + 2 * DAY_MS + 5 * 365 * DAY_MS);
+    assert.equal(breachRetainUntil(0), 5 * 365 * DAY_MS);
+    assert.equal(BREACH_REGISTER_YEARS, 5);
     assert.deepEqual(r.events.map((e) => e.action), ["reported", "contained", "pdpcNotified", "subjectsNotified", "closed"]);
     assert.throws(() => applyBreachUpdate(r, { action: "note", text: "x" }, "a", SUN + 3 * DAY_MS), BreachError, "closed is final");
   });

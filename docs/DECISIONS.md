@@ -579,3 +579,6 @@ Where an item replaces an earlier decision, it says so.
   `cp_emergency_contact_intro` (names the parent, why, how to stop); a
   contact who tapped "stop" gets nothing. Name, number, status and the
   link token only; deleted with the account.
+- **R7 - breach register kept 5 years after an incident closes**
+  (`BREACH_REGISTER_YEARS`, `retainUntilMs` set on close; runbook and
+  record of processing). No deletion job yet.

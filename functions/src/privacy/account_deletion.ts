@@ -193,7 +193,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   closedAccounts: "the deletion report and purge date (no name, phone or ID)",
   privacyRequests: "proof that each request was answered, 3 years",
   signInLog: "Anti-Cybercrime sign-in log (Law 175/2018 Art. 2; R2, owner 16 Nov 2026): one line per sign-in, kept 180 days FROM THAT SIGN-IN even after deletion (TTL expiresAt), phone and IP encrypted, server-only, disclosed only on a judicial order (privacy/signin_log.ts)",
-  breachRegister: "personal data breach register (Law 151 Art. 7, Decree 816/2025 Art. 5); incidents, counts and admin notes, never a parent's data; kept as the law requires (docs/legal/breach-runbook.md)",
+  breachRegister: "personal data breach register (Law 151 Art. 7, Decree 816/2025 Art. 5); incidents, counts and admin notes, never a parent's data; each entry kept 5 years after the incident closed (R7, BREACH_REGISTER_YEARS; docs/legal/breach-runbook.md)",
   securityAlerts: "admin alerts, 1 year after handled",
   routeArchives: "purged 1 year after the run; the routes of a deleted driver go with the account (evidence step)",
   retentionRuns: "job reports (counts only)",

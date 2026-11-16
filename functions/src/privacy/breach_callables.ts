@@ -76,12 +76,14 @@ function toDoc(r: BreachRecord): DocumentData {
     pdpcDueAt: ts(r.pdpcDueAtMs),
     pdpcNotifiedAt: ts(r.pdpcNotifiedAtMs),
     subjectsNotifiedAt: ts(r.subjectsNotifiedAtMs),
+    // R7: 5 years after closing (a deletion job needs the owner's go).
+    retainUntil: ts(r.retainUntilMs ?? null),
   };
 }
 
 function fromDoc(d: DocumentData): BreachRecord {
   // The numeric *Ms fields are stored next to the timestamps (the timestamps are for console queries).
-  const { awareAt: _a, pdpcDueAt: _p, pdpcNotifiedAt: _n, subjectsNotifiedAt: _s, ...rest } = d;
+  const { awareAt: _a, pdpcDueAt: _p, pdpcNotifiedAt: _n, subjectsNotifiedAt: _s, retainUntil: _r, ...rest } = d;
   return rest as BreachRecord;
 }
 

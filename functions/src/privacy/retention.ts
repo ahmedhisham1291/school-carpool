@@ -80,6 +80,16 @@ export const ABUSE_COUNTER_DAYS = 2;
  * confirmed, owner answer 14 Nov 2026 13:29, DECISIONS.md).
  */
 export const TRANSFER_RECORD_YEARS = 5;
+/**
+ * Breach register (breachRegister): each entry is kept 5 years after the
+ * incident is closed (R7, answers.md 1.11: the law sets no period;
+ * misdemeanour limitation 3 years from the last act, PDPC inspections and
+ * the 3-year licence renewal cycle). The entries hold no personal data.
+ * Nothing deletes them automatically yet (the first date is 5 years after
+ * the first closed incident); a deletion job needs the owner's go.
+ */
+export const BREACH_REGISTER_YEARS = 5;
+
 /** Security alerts for admins once handled. */
 export const SECURITY_ALERT_DAYS = YEAR_DAYS;
 /** A closed carpool (card, members, runs, swaps, balances) is deleted 1 year after it closed (Prompt 12 review); its trips stay per parent (owner, 14 Nov 2026 13:29). */

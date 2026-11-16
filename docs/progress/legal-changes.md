@@ -59,6 +59,7 @@ Open questions (none block; recorded for the owner and the lawyer):
 ## Progress
 
 - R1: done.
+- R7: done.
 - R6: done (owner action: submit the WhatsApp template `cp_emergency_contact_intro` in Meta; until it is approved the server falls back to `cp_emergency_contact`; `LEGAL_SITE_URL` must be set in the app build for "Send the link"). Built as answers.md says: alerts still go before the contact confirms.
 - R5: done (owner action: switch "PDPC licences granted" on in prod only when the three licences are granted).
 - R4: done (the app takes 15+ from the age and grade it already asks; the server also accepts an optional date of birth and never stores it).

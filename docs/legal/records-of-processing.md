@@ -30,7 +30,7 @@ the same project. **Last reviewed:** 16 Nov 2026.
 | 14 | Error reports | Parents | Scrubbed errors, opaque account ID | No | Fix faults | Legitimate interest | Sentry (US/EU, check project region) | 90 days | Scrubbers (`functions/src/scrub.ts`, `lib/observability`) |
 | 15 | School list | — (public data) | Public school names | No | Search | — | Algolia (US/EU); Vertex AI (EU, names only) | — | No user data sent |
 | 16 | Admin audit log | Admins | Actions, reasons, IPs | No | Accountability | Legal duty | Google (EU) | 2 years | Append-only |
-| 17 | Breach register | Admins (and, in summary, parents affected) | Incident facts, counts, admin notes (no personal data), notice times | No | Law 151 Art. 7 / Decree Art. 5 register | Legal duty | Google (EU) | As the law requires (lawyer Q 1.11) | Admin callables only; rules deny all clients; audit log |
+| 17 | Breach register | Admins (and, in summary, parents affected) | Incident facts, counts, admin notes (no personal data), notice times | No | Law 151 Art. 7 / Decree Art. 5 register | Legal duty | Google (EU) | 5 years after the incident is closed (R7; `retainUntilMs`) | Admin callables only; rules deny all clients; audit log |
 | — | Wallet, Settle up, contributions | — | — | — | **Switched off (no money in the app, 16 Nov 2026)** | — | — | — | — |
 
 **Not processed:** advertising IDs, contacts / address book, financial data,
