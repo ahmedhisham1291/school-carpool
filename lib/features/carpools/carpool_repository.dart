@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
+import 'package:school_carpool/firebase/collections.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:school_carpool/settings/settings_store.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -59,11 +60,11 @@ class FirebaseCarpoolRepository implements CarpoolRepository {
     }
   }
 
-  DocumentReference<Map<String, dynamic>> _carpool(String id) => _db.collection('carpools').doc(id);
+  DocumentReference<Map<String, dynamic>> _carpool(String id) => _db.collection(Collections.carpools).doc(id);
 
   @override
   Stream<List<Membership>> myMemberships(String uid) => _db
-      .collection('memberships')
+      .collection(Collections.memberships)
       .where('uid', isEqualTo: uid)
       .snapshots()
       .map((QuerySnapshot<Map<String, dynamic>> s) => <Membership>[for (final QueryDocumentSnapshot<Map<String, dynamic>> d in s.docs) Membership.fromDoc(d.data())]);
@@ -76,25 +77,25 @@ class FirebaseCarpoolRepository implements CarpoolRepository {
 
   @override
   Stream<List<CarpoolMember>> watchMembers(String carpoolId) => _carpool(carpoolId)
-      .collection('members')
+      .collection(Collections.members)
       .snapshots()
       .map((QuerySnapshot<Map<String, dynamic>> s) => <CarpoolMember>[for (final QueryDocumentSnapshot<Map<String, dynamic>> d in s.docs) CarpoolMember.fromDoc(d.id, d.data())]);
 
   @override
   Stream<List<DriverConsent>> watchConsents(String carpoolId) => _carpool(carpoolId)
-      .collection('driverConsents')
+      .collection(Collections.driverConsents)
       .snapshots()
       .map((QuerySnapshot<Map<String, dynamic>> s) => <DriverConsent>[for (final QueryDocumentSnapshot<Map<String, dynamic>> d in s.docs) DriverConsent.fromDoc(d.data())]);
 
   @override
   Stream<List<JoinRequest>> watchRequests(String carpoolId) => _carpool(carpoolId)
-      .collection('requests')
+      .collection(Collections.requests)
       .snapshots()
       .map((QuerySnapshot<Map<String, dynamic>> s) => <JoinRequest>[for (final QueryDocumentSnapshot<Map<String, dynamic>> d in s.docs) JoinRequest.fromDoc(d.id, d.data())]);
 
   @override
   Stream<Membership?> watchMyMembership(String carpoolId, String uid) =>
-      _db.collection('memberships').doc('${carpoolId}_$uid').snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
+      _db.collection(Collections.memberships).doc('${carpoolId}_$uid').snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
         final Map<String, dynamic>? data = s.data();
         return data == null ? null : Membership.fromDoc(data);
       });
@@ -103,7 +104,7 @@ class FirebaseCarpoolRepository implements CarpoolRepository {
   Future<List<SchoolArea>> areas(String schoolId) async {
     try {
       final QuerySnapshot<Map<String, dynamic>> snap = await _db
-          .collection('areas')
+          .collection(Collections.areas)
           .where('schoolId', isEqualTo: schoolId)
           .limit(200)
           .get();

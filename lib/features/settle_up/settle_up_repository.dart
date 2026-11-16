@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/settle_up/settle_up_models.dart';
 import 'package:school_carpool/features/wallet/wallet_models.dart' show newRequestId;
+import 'package:school_carpool/firebase/collections.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
 /// Settle up (F45) through our Cloud Functions. The app READS its own
@@ -68,7 +69,7 @@ class FirebaseSettleUpRepository implements SettleUpRepository {
 
   @override
   Stream<List<SettleUp>> watch(String uid) => _db
-      .collection('settleUps')
+      .collection(Collections.settleUps)
       .where('parties', arrayContains: uid)
       .orderBy('updatedAt', descending: true)
       .limit(pageSize)

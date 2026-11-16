@@ -59,6 +59,7 @@ import { routeArchivePurgeAt } from "./retention";
 import { archivePath, packArchive, unpackArchive, type TrackPoint } from "./route_archive";
 import { gatedCall, gatedCallAlsoClosedDemo, sessionCall } from "./device_gate";
 import { featureOn } from "../features/gate";
+import { reasonErrorMapper, runCallable } from "../common/callable";
 
 /**
  * Privacy and security callables (Prompt 12, spec section 7). The app
@@ -100,18 +101,14 @@ function data(request: CallableRequest): Record<string, unknown> {
   return typeof d === "object" && d !== null ? (d as Record<string, unknown>) : {};
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof HttpsError) throw error;
-    if (error instanceof DeviceError) throw new HttpsError(DEVICE_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
-    if (error instanceof DeletionError) fail(error.reason);
-    if (error instanceof AdminError) throw new HttpsError(ADMIN_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason, ...error.details });
-    logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-    await reportError(error);
-    throw new HttpsError("internal", "Something went wrong.");
-  }
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, {
+    map: [
+      reasonErrorMapper(DeviceError, DEVICE_ERROR_CODES),
+      (error) => (error instanceof DeletionError ? fail(error.reason) : undefined),
+      reasonErrorMapper(AdminError, ADMIN_ERROR_CODES, "details"),
+    ],
+  });
 }
 
 const bucket = () => adminStorage().bucket();

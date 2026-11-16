@@ -57,6 +57,7 @@ import { noteAbuse } from "../privacy/abuse_hook";
 import { featureGatedCall, featureOffError, features, requireFeature } from "../features/gate";
 import { FeatureOffError } from "../features/model";
 import { gatedCall, realParentCall } from "../privacy/device_gate";
+import { callerOf, classesMapper, runCallable } from "../common/callable";
 
 /**
  * Trust functions (Prompt 11, F17). The app reads and writes nothing of
@@ -83,9 +84,7 @@ function trustDeps(): TrustDeps {
 }
 
 function caller(request: CallableRequest): Caller {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
-  return { uid, verifiedClaim: request.auth?.token?.verified === true };
+  return callerOf(request);
 }
 
 function toHttpsError(error: unknown): HttpsError {
@@ -101,17 +100,8 @@ function toHttpsError(error: unknown): HttpsError {
   return new HttpsError("internal", "Something went wrong.");
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (!(error instanceof FeatureOffError || error instanceof TrustError || error instanceof OtpError || error instanceof AdminError || error instanceof HttpsError)) {
-      // Never the request data: it may hold a phone number.
-      logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-      await reportError(error);
-    }
-    throw toHttpsError(error);
-  }
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, { map: [classesMapper([FeatureOffError, TrustError, OtpError, AdminError], toHttpsError)] });
 }
 
 const opts = { enforceAppCheck: ENFORCE_APP_CHECK, minInstances: MIN_INSTANCES };

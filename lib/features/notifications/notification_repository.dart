@@ -3,6 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/notifications/notification_models.dart';
+import 'package:school_carpool/firebase/collections.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
 /// Notifications (Prompt 8: F12, F23). The app reads its own in-app
@@ -45,7 +46,7 @@ class FirebaseNotificationRepository implements NotificationRepository {
   final FirebaseFirestore _db;
 
   CollectionReference<Map<String, dynamic>> _records(String uid) =>
-      _db.collection('users').doc(uid).collection('notifications');
+      _db.collection(Collections.users).doc(uid).collection(Collections.notifications);
 
   Future<void> _call(String name, Map<String, Object?> data) async {
     try {
@@ -111,7 +112,7 @@ class FirebaseNotificationRepository implements NotificationRepository {
 
   @override
   Stream<NotificationSettings> watchSettings(String uid) => _db
-      .collection('notificationSettings')
+      .collection(Collections.notificationSettings)
       .doc(uid)
       .snapshots()
       .map((DocumentSnapshot<Map<String, dynamic>> s) => NotificationSettings.fromDoc(s.data()));

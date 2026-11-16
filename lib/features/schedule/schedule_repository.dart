@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
+import 'package:school_carpool/firebase/collections.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 
 /// Schedule (Prompt 7). Every change goes through Cloud Functions, in a
@@ -45,10 +46,10 @@ class FirebaseScheduleRepository implements ScheduleRepository {
   }
 
   CollectionReference<Map<String, dynamic>> _sub(String carpoolId, String name) =>
-      _db.collection('carpools').doc(carpoolId).collection(name);
+      _db.collection(Collections.carpools).doc(carpoolId).collection(name);
 
   @override
-  Stream<List<ScheduleRun>> watchWeek(String carpoolId, DateTime weekStart) => _sub(carpoolId, 'schedule')
+  Stream<List<ScheduleRun>> watchWeek(String carpoolId, DateTime weekStart) => _sub(carpoolId, Collections.schedule)
       .where('date', isGreaterThanOrEqualTo: ScheduleDates.key(weekStart))
       .where('date', isLessThanOrEqualTo: ScheduleDates.key(ScheduleDates.addDays(weekStart, 6)))
       .snapshots()
@@ -59,7 +60,7 @@ class FirebaseScheduleRepository implements ScheduleRepository {
       );
 
   @override
-  Stream<List<ScheduleException>> watchExceptions(String carpoolId) => _sub(carpoolId, 'exceptions').snapshots().map(
+  Stream<List<ScheduleException>> watchExceptions(String carpoolId) => _sub(carpoolId, Collections.exceptions).snapshots().map(
     (QuerySnapshot<Map<String, dynamic>> s) =>
         <ScheduleException>[
           for (final QueryDocumentSnapshot<Map<String, dynamic>> d in s.docs) ScheduleException.fromDoc(d.id, d.data()),
@@ -68,7 +69,7 @@ class FirebaseScheduleRepository implements ScheduleRepository {
 
   @override
   Stream<DriveBalance?> watchBalance(String carpoolId, String termId) =>
-      _sub(carpoolId, 'balances').doc(termId).snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
+      _sub(carpoolId, Collections.balances).doc(termId).snapshots().map((DocumentSnapshot<Map<String, dynamic>> s) {
         final Map<String, dynamic>? data = s.data();
         return data == null ? null : DriveBalance.fromDoc(termId, data);
       });

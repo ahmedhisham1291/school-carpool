@@ -28,6 +28,7 @@ import { createKycProvider, kycConfigProblem, type KycProvider } from "./kyc";
 import { CloudStorageFiles, FirebaseClaimsService, FirestoreVerificationStore, readFakeKycSetting } from "./store";
 import { VerificationError, type VerificationErrorReason } from "./submission";
 import { gatedCall, realParentCall } from "../privacy/device_gate";
+import { classesMapper, requireUid, runCallable } from "../common/callable";
 
 /**
  * Callable functions for verification (F2, F3, F18) and the daily
@@ -143,22 +144,8 @@ function deps(forSubmit: boolean): VerificationDeps {
   };
 }
 
-async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  try {
-    return await body();
-  } catch (error) {
-    if (!(error instanceof VerificationError || error instanceof HttpsError)) {
-      logger.error(`${name} failed`, { message: error instanceof Error ? error.message : "unknown" });
-      await reportError(error);
-    }
-    throw toVerificationHttpsError(error);
-  }
-}
-
-function requireUid(request: CallableRequest): string {
-  const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Sign in first.");
-  return uid;
+function run<T>(name: string, body: () => Promise<T>): Promise<T> {
+  return runCallable(name, body, { map: [classesMapper([VerificationError], toVerificationHttpsError)] });
 }
 
 /**

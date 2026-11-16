@@ -94,10 +94,6 @@ export function weekStartOf(date: string): string {
   return addDays(date, -DAYS.indexOf(weekdayOf(date)));
 }
 
-/** The seven dates of the week that starts on [weekStart]. */
-export function weekDates(weekStart: string): string[] {
-  return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-}
 
 /**
  * School term of a date, for the drive balance (F37). Egyptian schools run
