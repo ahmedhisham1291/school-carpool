@@ -513,3 +513,5 @@ sign-in history 180 days; public pages with a DPO contact, transfer
 section, 72 h breach promise and "Arabic text prevails"; volunteer
 acknowledgement at create/join; every money feature off (see the owner
 decision above).
+
+- Research answers available (docs/legal/answers.md), pending owner/lawyer confirmation.
