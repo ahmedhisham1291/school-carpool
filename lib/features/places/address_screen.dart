@@ -123,7 +123,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
     }
     _prefilled = true;
     _city = saved.governorate;
-    _areaId = saved.placeAreaId;
+    _areaId = saved.placeAreaId.isEmpty ? null : saved.placeAreaId;
     _districtId = saved.placeDistrictId ?? (saved.districtText.isNotEmpty ? kDistrictNotListed : null);
     _districtText.text = saved.districtText;
     _street.text = saved.street;
@@ -187,8 +187,22 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
 
   bool get _notListed => _districtId == kDistrictNotListed;
 
-  bool get _placeReady =>
-      _city != null && _areaId != null && _districtId != null && (!_notListed || AddressRules.districtText(_districtText.text) == null);
+  /// The chosen city has no areas yet (owner, 16 Nov 2026): the parent goes
+  /// on without one; the district is typed, and optional.
+  bool get _cityWithoutAreas {
+    final String? city = _city;
+    return city != null && (ref.read(_areasProvider(city)).value?.isEmpty ?? false);
+  }
+
+  bool get _placeReady {
+    if (_city == null) {
+      return false;
+    }
+    if (_cityWithoutAreas) {
+      return _districtText.text.trim().isEmpty || AddressRules.districtText(_districtText.text) == null;
+    }
+    return _areaId != null && _districtId != null && (!_notListed || AddressRules.districtText(_districtText.text) == null);
+  }
 
   bool get _streetReady =>
       AddressRules.street(_street.text) == null &&
@@ -201,6 +215,18 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
     final String? city = _city;
     final String? area = _areaId;
     final String? district = _districtId;
+    if (city != null && _cityWithoutAreas) {
+      return HomeAddress(
+        governorate: city,
+        placeAreaId: '',
+        districtText: AddressRules.clean(_districtText.text),
+        street: AddressRules.clean(_street.text),
+        building: AddressRules.clean(_building.text),
+        floor: AddressRules.clean(_floor.text),
+        apartment: AddressRules.clean(_apartment.text),
+        landmark: AddressRules.clean(_landmark.text),
+      );
+    }
     if (city == null || area == null || district == null) {
       return null;
     }
@@ -443,6 +469,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
     final List<PlaceDistrict> districtList = sortByName(districts?.value ?? const <PlaceDistrict>[], (PlaceDistrict d) => d.name(language));
     final Object? loadError = areas?.error ?? districts?.error;
     final bool districtsLoading = districts is AsyncLoading<List<PlaceDistrict>>;
+    final bool noAreas = areas is AsyncData<List<PlaceArea>> && areas.value.isEmpty;
 
     return _scroll(
       <Widget>[
@@ -471,29 +498,49 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
           leadingIcon: Icons.map_outlined,
           value: areaId,
           helperText: switch (areas) {
-            null => l10n.placeAreaWaitCity,
+            null => l10n.placeChooseCityFirst,
             AsyncLoading<List<PlaceArea>>() => l10n.placeAreasLoading,
-            AsyncData<List<PlaceArea>>(:final List<PlaceArea> value) when value.isEmpty => l10n.addressNoAreas,
+            AsyncData<List<PlaceArea>>(:final List<PlaceArea> value) when value.isEmpty => l10n.placeNoAreasForCity,
             _ => null,
           },
-          errorText: _attemptedPlace && city != null && areaId == null ? l10n.addressChooseArea : null,
+          errorText: _attemptedPlace && city != null && areaId == null && !noAreas ? l10n.addressChooseArea : null,
           items: <AppDropdownItem<String>>[for (final PlaceArea a in areaList) AppDropdownItem<String>(a.id, a.name(language))],
           onSelected: areaList.isEmpty ? null : _pickArea,
         ),
         const SizedBox(height: AppSpacing.s16),
-        AppDropdownMenu<String>(
-          key: Key('address.district.${areaId ?? ''}'),
-          label: l10n.placeDistrictLabel,
-          hintText: l10n.placeAreaHint,
-          leadingIcon: Icons.place_outlined,
-          value: _districtId,
-          helperText: areaId == null ? l10n.addressDistrictWaitArea : (districtsLoading ? l10n.addressDistrictsLoading : null),
-          errorText: _attemptedPlace && areaId != null && _districtId == null ? l10n.addressChooseDistrict : null,
-          items: <AppDropdownItem<String>>[for (final PlaceDistrict d in districtList) AppDropdownItem<String>(d.id, d.name(language))],
-          pinnedLast: AppDropdownItem<String>(kDistrictNotListed, l10n.addressDistrictNotListed, icon: Icons.edit_outlined),
-          onSelected: areaId == null || districtsLoading ? null : _pickDistrict,
-        ),
-        if (_notListed) ...<Widget>[
+        if (noAreas)
+          // No areas in this city yet: the district as text, optional; Next goes on.
+          AppTextField(
+            key: const Key('address.districtFree'),
+            label: l10n.addressDistrictTextLabel,
+            helperText: l10n.addressDistrictOptionalHelper,
+            controller: _districtText,
+            maxLength: 80,
+            textInputAction: TextInputAction.done,
+            errorText: _districtText.text.trim().isEmpty
+                ? null
+                : _fieldError(_districtText, AddressRules.districtText(_districtText.text), fix: l10n.addressDistrictTextFix, attempted: _attemptedPlace),
+          )
+        else
+          AppDropdownMenu<String>(
+            key: Key('address.district.${areaId ?? ''}'),
+            label: l10n.placeDistrictLabel,
+            hintText: l10n.placeAreaHint,
+            leadingIcon: Icons.place_outlined,
+            value: _districtId,
+            helperText: areaId == null
+                ? (city == null ? l10n.placeChooseCityFirst : l10n.placeChooseAreaFirst)
+                : districtsLoading
+                ? l10n.addressDistrictsLoading
+                : (districts?.value?.isEmpty ?? false)
+                ? l10n.placeNoDistrictsForArea
+                : null,
+            errorText: _attemptedPlace && areaId != null && _districtId == null ? l10n.addressChooseDistrict : null,
+            items: <AppDropdownItem<String>>[for (final PlaceDistrict d in districtList) AppDropdownItem<String>(d.id, d.name(language))],
+            pinnedLast: AppDropdownItem<String>(kDistrictNotListed, l10n.addressDistrictNotListed, icon: Icons.edit_outlined),
+            onSelected: areaId == null || districtsLoading ? null : _pickDistrict,
+          ),
+        if (_notListed && !noAreas) ...<Widget>[
           const SizedBox(height: AppSpacing.s16),
           AppTextField(
             key: const Key('address.districtText'),

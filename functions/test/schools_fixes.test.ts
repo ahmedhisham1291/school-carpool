@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { AddressError, addressFromDoc, checkAddress, countMoves, parseAddress } from "../src/places/address";
 import { planPlaces } from "../src/places/catalog";
 import {
   parseDropped,
@@ -141,5 +142,24 @@ describe("paged reads", () => {
       throw new Error("down");
     }, 2, async () => {}));
     assert.equal(n, 3);
+  });
+});
+
+
+describe("address in a city with no areas yet", () => {
+  const base = { governorate: "luxor", street: "Karnak Street", building: "12", floor: "", apartment: "", landmark: "" };
+  it("accepts no area (and an optional typed district) only when the city has none", () => {
+    const input = parseAddress({ ...base, placeAreaId: "", placeDistrictId: null, districtText: "" });
+    assert.equal(input.placeAreaId, "");
+    assert.throws(() => checkAddress(input, null, null, true), (e: unknown) => e instanceof AddressError && e.reason === "invalid-area");
+    const address = checkAddress(input, null, null, false);
+    assert.equal(address.placeAreaId, "");
+    assert.equal(checkAddress(parseAddress({ ...base, placeAreaId: null, districtText: "الكرنك" }), null, null, false).districtText, "الكرنك");
+    assert.deepEqual(countMoves(null, address), []);
+    assert.equal(addressFromDoc({ ...address })?.governorate, "luxor");
+  });
+  it("still needs the typed district when an area is chosen, and no district id without an area", () => {
+    assert.throws(() => parseAddress({ ...base, placeAreaId: "cod-EG2101", placeDistrictId: null, districtText: "" }));
+    assert.throws(() => parseAddress({ ...base, placeAreaId: "", placeDistrictId: "osm-n1" }));
   });
 });

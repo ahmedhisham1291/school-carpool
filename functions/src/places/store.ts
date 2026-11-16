@@ -152,6 +152,12 @@ export interface PlaceLocator {
   locate(p: LatLng): Promise<Located>;
   area(id: string): Promise<PlaceArea | null>;
   district(id: string): Promise<PlaceDistrict | null>;
+  /**
+   * Whether [governorate] has any active area with a shape. Without one,
+   * an address may leave the area empty (the app lets the parent go on).
+   * Optional: a locator without it is taken as "yes".
+   */
+  cityHasAreas?(governorate: string): Promise<boolean>;
 }
 
 /**
@@ -183,6 +189,10 @@ export class FirestorePlaceLocator implements PlaceLocator {
       : [];
     FirestorePlaceLocator.index = { entries, at: this.now() };
     return entries;
+  }
+
+  async cityHasAreas(governorate: string): Promise<boolean> {
+    return (await this.loadIndex()).some((e) => e.governorate === governorate);
   }
 
   async locate(p: LatLng): Promise<Located> {

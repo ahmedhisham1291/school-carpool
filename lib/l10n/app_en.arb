@@ -2307,5 +2307,10 @@
   "adminSchoolsCountAtLeast": "At least {count} schools",
   "adminSchoolsDegraded": "Searched in a slower way; the count may be low.",
   "adminSchoolsNoMatchTitle": "No schools match",
-  "adminSchoolsNoMatchBody": "Try another spelling, or clear the filters."
+  "adminSchoolsNoMatchBody": "Try another spelling, or clear the filters.",
+  "placeChooseCityFirst": "Choose a city first",
+  "placeChooseAreaFirst": "Choose an area first",
+  "placeNoAreasForCity": "No areas for this city yet",
+  "placeNoDistrictsForArea": "No districts for this area yet",
+  "addressDistrictOptionalHelper": "Optional. Type it if you know it."
 }

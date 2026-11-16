@@ -671,6 +671,7 @@ class _MoveAreaFormState extends ConsumerState<_MoveAreaForm> {
               key: const Key('move.area'),
               label: l10n.placeAreaLabel,
               hintText: l10n.placeAreaHint,
+              helperText: areas.isEmpty ? l10n.placeNoAreasForCity : null,
               value: _areaId,
               items: <AppDropdownItem<String>>[
                 for (final AdminPlace a in sortByName(areas.where((AdminPlace a) => a.active), (AdminPlace a) => a.name(language)))
@@ -690,6 +691,11 @@ class _MoveAreaFormState extends ConsumerState<_MoveAreaForm> {
               key: Key('move.district.${_areaId ?? ''}'),
               label: l10n.placeDistrictLabel,
               hintText: l10n.placeDistrictOptional,
+              helperText: _areaId == null
+                  ? l10n.placeChooseAreaFirst
+                  : snap.connectionState == ConnectionState.done && districts.isEmpty
+                  ? l10n.placeNoDistrictsForArea
+                  : null,
               value: _districtId,
               items: <AppDropdownItem<String>>[
                 for (final AdminPlace d in sortByName(districts.where((AdminPlace d) => d.active), (AdminPlace d) => d.name(language)))

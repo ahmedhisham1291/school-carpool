@@ -73,10 +73,10 @@ class _BrowseSchoolsScreenState extends ConsumerState<BrowseSchoolsScreen> {
     final List<PlaceArea> areaList = sortByName(areas?.value ?? const <PlaceArea>[], (PlaceArea a) => a.name(language));
 
     final String? areaHelper = switch (areas) {
-      null => l10n.placeAreaWaitCity,
+      null => l10n.placeChooseCityFirst,
       AsyncLoading<List<PlaceArea>>() => l10n.placeAreasLoading,
       AsyncError<List<PlaceArea>>() => null,
-      AsyncData<List<PlaceArea>>(:final List<PlaceArea> value) when value.isEmpty => l10n.placeAreasNone,
+      AsyncData<List<PlaceArea>>(:final List<PlaceArea> value) when value.isEmpty => l10n.placeNoAreasForCity,
       _ => null,
     };
 

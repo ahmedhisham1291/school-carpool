@@ -99,15 +99,19 @@ export function parseAddress(data: unknown): AddressInput {
   const raw = typeof data === "object" && data !== null && !Array.isArray(data) ? (data as Record<string, unknown>) : null;
   if (!raw) throw new AddressError("invalid-request");
   if (!isGovernorate(raw.governorate)) throw new AddressError("invalid-city");
-  if (!isPlaceId(raw.placeAreaId)) throw new AddressError("invalid-area");
+  // No area: only for a city that has none yet (checked in checkAddress).
+  const noArea = raw.placeAreaId === undefined || raw.placeAreaId === null || raw.placeAreaId === "";
+  if (!noArea && !isPlaceId(raw.placeAreaId)) throw new AddressError("invalid-area");
   const districtId = raw.placeDistrictId === undefined || raw.placeDistrictId === null || raw.placeDistrictId === "" ? null : raw.placeDistrictId;
-  if (districtId !== null && !isPlaceId(districtId)) throw new AddressError("invalid-district");
-  const districtText = districtId === null ? textOf(raw.districtText, 2, 80, "invalid-district") : "";
+  if (districtId !== null && (noArea || !isPlaceId(districtId))) throw new AddressError("invalid-district");
+  // The district as typed: required with an area ("my district isn't
+  // listed"), optional without one.
+  const districtText = districtId === null ? textOf(raw.districtText, 2, 80, "invalid-district", noArea) : "";
   const building = clean(raw.building);
   if (!BUILDING.test(building)) throw new AddressError("invalid-building");
   return {
     governorate: raw.governorate,
-    placeAreaId: raw.placeAreaId,
+    placeAreaId: noArea ? "" : (raw.placeAreaId as string),
     placeDistrictId: districtId as string | null,
     districtText,
     street: textOf(raw.street, 2, 120, "invalid-street"),
@@ -119,7 +123,27 @@ export function parseAddress(data: unknown): AddressInput {
 }
 
 /** The address with the area's and district's names, once they are checked against the places. */
-export function checkAddress(input: AddressInput, area: PlaceArea | null, district: PlaceDistrict | null): HomeAddress {
+export function checkAddress(input: AddressInput, area: PlaceArea | null, district: PlaceDistrict | null, cityHasAreas = true): HomeAddress {
+  if (input.placeAreaId === "") {
+    // A city with no areas yet (owner, 16 Nov 2026): the parent goes on
+    // without one; the district is what they typed, if anything.
+    if (cityHasAreas) throw new AddressError("invalid-area");
+    return {
+      governorate: input.governorate,
+      placeAreaId: "",
+      placeAreaNameAr: "",
+      placeAreaNameEn: "",
+      placeDistrictId: null,
+      placeDistrictNameAr: "",
+      placeDistrictNameEn: "",
+      districtText: input.districtText,
+      street: input.street,
+      building: input.building,
+      floor: input.floor,
+      apartment: input.apartment,
+      landmark: input.landmark,
+    };
+  }
   if (!area || !area.active || area.mergedInto || area.governorate !== input.governorate) throw new AddressError("invalid-area");
   if (input.placeDistrictId !== null) {
     if (!district || !district.active || district.mergedInto || district.areaId !== area.id) throw new AddressError("invalid-district");
@@ -229,9 +253,9 @@ export function countMoves(
   after: Pick<HomeAddress, "placeAreaId" | "placeDistrictId">,
 ): Array<{ kind: "area" | "district"; id: string; by: 1 | -1 }> {
   const out: Array<{ kind: "area" | "district"; id: string; by: 1 | -1 }> = [];
-  if (before?.placeAreaId !== after.placeAreaId) {
+  if ((before?.placeAreaId ?? "") !== after.placeAreaId) {
     if (before?.placeAreaId) out.push({ kind: "area", id: before.placeAreaId, by: -1 });
-    out.push({ kind: "area", id: after.placeAreaId, by: 1 });
+    if (after.placeAreaId) out.push({ kind: "area", id: after.placeAreaId, by: 1 });
   }
   if ((before?.placeDistrictId ?? null) !== after.placeDistrictId) {
     if (before?.placeDistrictId) out.push({ kind: "district", id: before.placeDistrictId, by: -1 });
@@ -243,7 +267,8 @@ export function countMoves(
 /** Reads a stored address (homes/{uid}.address); null when absent or not one. */
 export function addressFromDoc(v: unknown): HomeAddress | null {
   const o = typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
-  if (!o || typeof o.placeAreaId !== "string" || !o.placeAreaId) return null;
+  // An address without an area (a city with none yet) has its governorate and street.
+  if (!o || typeof o.placeAreaId !== "string" || (!o.placeAreaId && (typeof o.governorate !== "string" || !o.governorate || typeof o.street !== "string"))) return null;
   const s = (k: string) => (typeof o[k] === "string" ? (o[k] as string) : "");
   return {
     governorate: s("governorate"),

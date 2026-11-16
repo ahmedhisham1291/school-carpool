@@ -882,7 +882,7 @@ class _VerificationSamplesState extends State<_VerificationSamples> {
           key: Key('gallery.area.${_city ?? ''}'),
           label: l10n.placeAreaLabel,
           hintText: l10n.placeAreaHint,
-          helperText: _city == null ? l10n.placeAreaWaitCity : null,
+          helperText: _city == null ? l10n.placeChooseCityFirst : null,
           leadingIcon: Icons.map_outlined,
           value: _area,
           items: <AppDropdownItem<String>>[

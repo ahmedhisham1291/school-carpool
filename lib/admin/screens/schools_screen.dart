@@ -437,7 +437,14 @@ class _SchoolsScreenState extends ConsumerState<SchoolsScreen> {
                     return AppDropdownMenu<String>(
                       key: Key('schools.area.${city ?? ''}'),
                       label: l10n.placeAreaLabel,
-                      helperText: snap.hasError ? AdminFailure.from(snap.error!).message(l10n) : null,
+                      // Say why the menu cannot open instead of a silently disabled field.
+                      helperText: snap.hasError
+                          ? AdminFailure.from(snap.error!).message(l10n)
+                          : city == null
+                          ? l10n.placeChooseCityFirst
+                          : snap.connectionState == ConnectionState.done && areas.isEmpty
+                          ? l10n.placeNoAreasForCity
+                          : null,
                       value: areaId ?? '',
                       items: <AppDropdownItem<String>>[
                         AppDropdownItem<String>('', l10n.adminAllAreas),
@@ -458,7 +465,13 @@ class _SchoolsScreenState extends ConsumerState<SchoolsScreen> {
                     return AppDropdownMenu<String>(
                       key: Key('schools.district.${areaId ?? ''}'),
                       label: l10n.placeDistrictLabel,
-                      helperText: snap.hasError ? AdminFailure.from(snap.error!).message(l10n) : null,
+                      helperText: snap.hasError
+                          ? AdminFailure.from(snap.error!).message(l10n)
+                          : areaId == null
+                          ? (city == null ? l10n.placeChooseCityFirst : l10n.placeChooseAreaFirst)
+                          : snap.connectionState == ConnectionState.done && districts.isEmpty
+                          ? l10n.placeNoDistrictsForArea
+                          : null,
                       value: f.districtId ?? '',
                       items: <AppDropdownItem<String>>[
                         AppDropdownItem<String>('', l10n.adminAllDistricts),
