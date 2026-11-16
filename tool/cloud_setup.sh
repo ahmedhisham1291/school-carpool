@@ -1003,6 +1003,9 @@ deploy_links() {
   local legal=()
   if [ -n "${SUPPORT_EMAIL:-}" ] && [ -n "${OPERATOR_NAME:-}" ]; then
     legal=(--support-email "${SUPPORT_EMAIL}" --operator-name "${OPERATOR_NAME}" --require-legal)
+    # Data protection officer on the privacy policy (Law 151/2020; docs/legal/owner-actions.md).
+    if [ -n "${DPO_EMAIL:-}" ]; then legal+=(--dpo-email "${DPO_EMAIL}"); fi
+    if [ -n "${DPO_NAME:-}" ]; then legal+=(--dpo-name "${DPO_NAME}"); fi
   fi
   python3 tool/links_site.py --team-id "${APPLE_TEAM_ID}" --bundle-id "${BUNDLE_ID}" "${legal[@]}"
   fb deploy --only hosting:links

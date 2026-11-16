@@ -52,6 +52,10 @@ export const VERIFICATION_CONSENT_VERSIONS = {
   // 16 Nov 2026: photos are kept while the account is active and deleted
   // with it (DECISIONS.md, "Data after account deletion"), so the consent
   // text and its version changed.
+  // 16 Nov 2026 (legal review): the face consent says biometric data and
+  // written (explicit) consent; the child consent is the guardian's
+  // declaration and covers the child's whereabouts during runs (children's
+  // data is sensitive under Law 151 of 2020, Art. 1 and Art. 12).
   id: "2026-11-16",
   face: "2026-11-16",
   childData: "2026-11-16",

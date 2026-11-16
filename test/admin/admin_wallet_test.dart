@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/admin/auth/admin_session.dart';
 import 'package:school_carpool/admin/data/admin_wallet.dart';
 import 'package:school_carpool/admin/router/admin_redirect.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 
 import '../helpers/admin_fakes.dart';
 import '../helpers/one_line.dart';
@@ -68,9 +69,23 @@ void main() {
     expect(find.byKey(const Key('adminWallet.unfreeze')), findsOneWidget);
   });
 
+  testWidgets('wallet off (the default): no Wallet section and no wallet link on a user page', (WidgetTester tester) async {
+    await pumpAdminPanel(tester, session: signedIn, location: AdminRoutes.user('u-1'), api: FakeAdminApi(), locale: 'en');
+    await _settle(tester);
+    expect(find.byKey(const Key('user.wallet')), findsNothing);
+    expect(find.byIcon(Icons.account_balance_wallet_outlined), findsNothing);
+  });
+
   testWidgets('a user page links to the wallet', (WidgetTester tester) async {
     final FakeAdminApi api = FakeAdminApi();
-    final GoRouter router = await pumpAdminPanel(tester, session: signedIn, location: AdminRoutes.user('u-1'), api: api, locale: 'en');
+    final GoRouter router = await pumpAdminPanel(
+      tester,
+      session: signedIn,
+      location: AdminRoutes.user('u-1'),
+      api: api,
+      features: FakeAdminFeaturesApi()..switches = FeatureSwitches.allOn,
+      locale: 'en',
+    );
     await _settle(tester);
     final Finder link = find.byKey(const Key('user.wallet'));
     await tester.ensureVisible(link);

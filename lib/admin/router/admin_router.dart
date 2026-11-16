@@ -9,6 +9,7 @@ import 'package:school_carpool/admin/screens/admin_gallery_screen.dart';
 import 'package:school_carpool/admin/screens/admins_screen.dart';
 import 'package:school_carpool/admin/screens/audit_screen.dart';
 import 'package:school_carpool/admin/screens/case_screen.dart';
+import 'package:school_carpool/admin/screens/incidents_screen.dart';
 import 'package:school_carpool/admin/screens/other_schools_screen.dart';
 import 'package:school_carpool/admin/screens/places_screen.dart';
 import 'package:school_carpool/admin/screens/queue_screen.dart';
@@ -129,6 +130,10 @@ GoRouter buildAdminRouter({
           GoRoute(
             path: AdminRoutes.trust,
             builder: (BuildContext context, GoRouterState state) => const AdminTrustScreen(),
+          ),
+          GoRoute(
+            path: AdminRoutes.incidents,
+            builder: (BuildContext context, GoRouterState state) => const IncidentsScreen(),
           ),
           GoRoute(
             path: AdminRoutes.settings,

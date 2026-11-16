@@ -25,10 +25,79 @@ export interface PrivacyRequest {
   createdAtMs: number;
   doneAtMs: number | null;
   expiresAtMs: number;
+  /** When the answer is due (responseDueAt); older records without it get it computed. */
+  dueAtMs?: number;
 }
 
 export function newRequest(id: string, uid: string, kind: RequestKind, subject: string | null, nowMs: number): PrivacyRequest {
-  return { id, uid, kind, subject, status: "open", reason: null, createdAtMs: nowMs, doneAtMs: null, expiresAtMs: nowMs + PRIVACY_REQUEST_DAYS * DAY_MS };
+  return {
+    id,
+    uid,
+    kind,
+    subject,
+    status: "open",
+    reason: null,
+    createdAtMs: nowMs,
+    doneAtMs: null,
+    expiresAtMs: nowMs + PRIVACY_REQUEST_DAYS * DAY_MS,
+    dueAtMs: responseDueAt(nowMs),
+  };
+}
+
+/**
+ * Answer deadline for a data subject request (Law 151 of 2020: the
+ * controller replies within SIX WORKING DAYS of the request; PDPC
+ * compliance checklist, Sept 2026; docs/legal/egypt-legal-review.md
+ * section 1 and docs/legal/dsr-procedure.md).
+ *
+ * Working days are Sunday to Thursday in Cairo (Friday and Saturday are
+ * the weekend). Public holidays are COUNTED as working days on purpose:
+ * that gives an earlier deadline, never a later one (safe side). The
+ * deadline is the same clock time on the sixth working day after the
+ * request.
+ */
+export const DSR_RESPONSE_WORKING_DAYS = 6;
+
+/** A reminder for admins this long before the deadline. */
+export const DSR_WARN_BEFORE_MS = DAY_MS;
+
+const CAIRO_WEEKDAY = new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Cairo", weekday: "short" });
+
+/** True when [ms] falls on a Cairo working day (Sunday to Thursday). */
+export function isCairoWorkingDay(ms: number): boolean {
+  const day = CAIRO_WEEKDAY.format(new Date(ms));
+  return day !== "Fri" && day !== "Sat";
+}
+
+export function responseDueAt(createdAtMs: number, workingDays = DSR_RESPONSE_WORKING_DAYS): number {
+  let at = createdAtMs;
+  let left = workingDays;
+  while (left > 0) {
+    at += DAY_MS;
+    if (isCairoWorkingDay(at)) left -= 1;
+  }
+  return at;
+}
+
+export type SlaState = "done" | "onTime" | "dueSoon" | "overdue";
+
+/** Where a request stands against its deadline (admin queue, sorted by dueAtMs). */
+export function slaOf(r: Pick<PrivacyRequest, "status" | "createdAtMs" | "doneAtMs" | "dueAtMs">, nowMs: number): { dueAtMs: number; state: SlaState } {
+  const dueAtMs = r.dueAtMs ?? responseDueAt(r.createdAtMs);
+  if (r.status !== "open") return { dueAtMs, state: "done" };
+  if (nowMs > dueAtMs) return { dueAtMs, state: "overdue" };
+  return { dueAtMs, state: dueAtMs - nowMs <= DSR_WARN_BEFORE_MS ? "dueSoon" : "onTime" };
+}
+
+/** Open requests, the most urgent first (overdue, then by deadline). */
+export function adminQueue<T extends Pick<PrivacyRequest, "status" | "createdAtMs" | "doneAtMs" | "dueAtMs">>(requests: readonly T[], nowMs: number): Array<T & { dueAtMs: number; sla: SlaState }> {
+  return requests
+    .filter((r) => r.status === "open")
+    .map((r) => {
+      const s = slaOf(r, nowMs);
+      return { ...r, dueAtMs: s.dueAtMs, sla: s.state };
+    })
+    .sort((a, b) => a.dueAtMs - b.dueAtMs);
 }
 
 /**
@@ -39,12 +108,13 @@ export function newRequest(id: string, uid: string, kind: RequestKind, subject: 
  *   Analytics collection off) and the choice is recorded.
  * - showOnMap: the parent leaves the nearby map.
  * - walletTerms: the wallet closes; only when it is empty and settled.
- * - terms, privacy, conduct, id, face, childData: the app cannot work
+ * - terms, privacy, conduct, transferAbroad (every record is stored in
+ *   Belgium), id, face, childData: the app cannot work
  *   without them, so withdrawing them means deleting the account (or, for
  *   childData, removing the children). The answer says so; nothing is
  *   withdrawn half way.
  */
-export const CONSENT_KINDS = ["terms", "privacy", "conduct", "whatsapp", "id", "face", "childData", "walletTerms", "analytics", "showOnMap"] as const;
+export const CONSENT_KINDS = ["terms", "privacy", "conduct", "transferAbroad", "whatsapp", "id", "face", "childData", "walletTerms", "analytics", "showOnMap"] as const;
 export type ConsentKind = (typeof CONSENT_KINDS)[number];
 
 export type WithdrawEffect = "whatsappOff" | "analyticsOff" | "hiddenFromMap" | "walletClosed" | "needsDeletion" | "needsChildRemoval";

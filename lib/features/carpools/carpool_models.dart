@@ -467,6 +467,8 @@ class CarpoolDraft {
       'childIds': childIds,
       'rules': <String>[for (final CarpoolRule r in rules) r.code],
       'contribution': contribution?.toJson(),
+      // The last create step sends only after the volunteer box is ticked.
+      'acceptVolunteer': true,
     };
   }
 }

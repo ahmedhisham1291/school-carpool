@@ -36,6 +36,8 @@ import {
   type CarpoolDeps,
 } from "./flow";
 import { CARPOOL_ERROR_CODES, CarpoolError } from "./model";
+import { featureOffError, featureOn } from "../features/gate";
+import { FeatureOffError } from "../features/model";
 import { FirestoreCarpoolStore } from "./store";
 import { noteAbuse } from "../privacy/abuse_hook";
 import { gatedCall, isReviewDemoCaller, demoAccountError, realParentCall } from "../privacy/device_gate";
@@ -81,6 +83,7 @@ export function deps(): CarpoolDeps {
     newCode: newInviteCode,
     linkBase: INVITE_LINK_BASE.value(),
     deadlines: deadlineSettings(SCHEDULE_CONFIRM_BY.value(), SCHEDULE_LATE_LEAD_MIN.value()),
+    contributionsOn: () => featureOn("contributions"),
   };
 }
 
@@ -89,7 +92,13 @@ export function caller(request: CallableRequest): Caller {
 }
 
 export function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  return runCallable(name, body, { map: [reasonErrorMapper(CarpoolError, CARPOOL_ERROR_CODES, "retryAfter")] });
+  return runCallable(name, body, {
+    map: [
+      // F25 "contributions" switch off (no money in the app, 16 Nov 2026).
+      (error) => (error instanceof FeatureOffError ? featureOffError(error.feature) : undefined),
+      reasonErrorMapper(CarpoolError, CARPOOL_ERROR_CODES, "retryAfter"),
+    ],
+  });
 }
 
 export const opts = { enforceAppCheck: ENFORCE_APP_CHECK };

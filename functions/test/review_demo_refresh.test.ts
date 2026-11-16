@@ -68,8 +68,9 @@ function world(opts: { carpoolId?: string; schoolId?: string } = {}) {
         seats: 4,
         childIds: [DEMO_IDS.childOfDriver],
         rules: [],
+        acceptVolunteer: true,
       });
-      await requestToJoin(carpools, parent, { carpoolId, childIds: [DEMO_IDS.childOfParent], acceptRules: true });
+      await requestToJoin(carpools, parent, { carpoolId, childIds: [DEMO_IDS.childOfParent], acceptRules: true, acceptVolunteer: true });
       await decideJoinRequest(carpools, driver, { carpoolId, uid: "demo-parent", approve: true });
       await setDriverConsent(carpools, parent, { carpoolId, driverUid: "demo-driver", accept: true });
       return carpoolId;

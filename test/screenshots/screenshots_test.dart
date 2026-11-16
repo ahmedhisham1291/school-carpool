@@ -432,7 +432,7 @@ void main() {
             direction: 'a',
             logicalSize: const Size(390, 1200),
             pixelRatio: 3,
-            // Settle up screens: the switch on (Money: OFF is the default).
+            // Settle up's own goldens: the feature on (it is off by default).
             features: FeatureSwitches.pilot.copyWith(settleUp: true),
             settle: settle,
           );
@@ -457,7 +457,7 @@ void main() {
             logicalSize: const Size(320, 1200),
             pixelRatio: 3,
             textScale: scale,
-            // Settle up screens: the switch on (Money: OFF is the default).
+            // Settle up's own goldens: the feature on (it is off by default).
             features: FeatureSwitches.pilot.copyWith(settleUp: true),
             settle: settle,
           );

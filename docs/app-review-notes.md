@@ -57,23 +57,14 @@ account in **Sign-In Information** (section 2). Attach the run video
 > screen with a "Later" button. The demo account is already verified, so
 > you do not need to upload any document.
 >
-> **Payments: the app does not process payments.** "Settle up" (Profile >
-> Settle up) only records payment requests between two parents of the same
-> carpool (requested, paid, received) and shows the payee's InstaPay
-> address so the payer can copy it. The parent pays in the separate
-> InstaPay app (Egypt's national instant payment network); our app does
-> not open a payment, does not move, hold or see money, takes no fee or
-> commission, and never asks for a bank account or card number. There are
-> no in-app purchases and nothing digital is sold. The amounts are shared
-> real-world costs between parents (fuel, a contribution per child).
->
-> **Wallet.** The wallet is switched off in this build (it is not shown).
-> If it is switched on later, real money will only be handled by a payment
-> partner licensed by the Central Bank of Egypt.
+> **No payments.** The app is free and has no payment feature of any
+> kind: no in-app purchases, nothing digital is sold, and no money is
+> asked for, moved or recorded. Rides are free volunteer turns between
+> parents of the same school; no parent pays another for a ride.
 >
 > **Camera and photos** are used for the ID check, the live selfie and
 > photos a parent chooses to send in a chat. **Face ID** locks the app (if
-> the parent turns App lock on) and confirms wallet transfers.
+> the parent turns App lock on).
 
 ## 2. Demo account (owner fills in App Store Connect, never here)
 

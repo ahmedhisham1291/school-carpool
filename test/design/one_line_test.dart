@@ -812,6 +812,7 @@ void main() {
               ),
             ],
             consent: true,
+            guardianConsent: true,
           ),
         );
         // Rebuild so the Continue button has the complete draft.

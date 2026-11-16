@@ -188,27 +188,60 @@ void main() {
   });
 
   group('terms step', () {
-    testWidgets('needs all three documents; WhatsApp is optional', (WidgetTester tester) async {
+    testWidgets('needs all three documents and the transfer-abroad consent; WhatsApp is optional', (WidgetTester tester) async {
       final FakeAuthRepository repository = FakeAuthRepository();
       await _pump(tester, location: AuthRoutes.terms, repository: repository);
 
       await tester.tap(find.byKey(const Key('terms.accept')));
       await tester.pump();
       expect(repository.calls, isEmpty);
-      expect(find.text('Accept all three documents to continue.'), findsOneWidget);
+      expect(find.text('Accept the three documents and the storage abroad to continue.'), findsOneWidget);
 
-      for (final String key in <String>['terms.terms', 'terms.privacy', 'terms.conduct']) {
+      for (final String key in <String>['terms.terms', 'terms.privacy', 'terms.conduct', 'terms.transfer']) {
         final Finder box = find.descendant(of: find.byKey(Key(key)), matching: find.byType(Checkbox));
         await tester.ensureVisible(box);
         await tester.pump();
         await tester.tap(box);
         await tester.pump();
+        if (key != 'terms.transfer') {
+          // Not ready until the separate transfer-abroad box is ticked too.
+          await tester.ensureVisible(find.byKey(const Key('terms.accept')));
+          await tester.tap(find.byKey(const Key('terms.accept')));
+          await tester.pump();
+          expect(repository.calls, isEmpty, reason: key);
+        }
       }
       await tester.ensureVisible(find.byKey(const Key('terms.accept')));
       await tester.tap(find.byKey(const Key('terms.accept')));
       await tester.pump();
       expect(repository.calls, <String>['acceptConsents']);
       expect(repository.acceptedWhatsApp, isFalse);
+    });
+  });
+
+  group('updated terms (existing account, legal review 16 Nov 2026)', () {
+    const SessionState oldTerms = SessionSignedIn(
+      uid: 'uid-1',
+      account: Account(
+        parentId: 'ABCD2345',
+        status: AccountStatus.verified,
+        phone: '+201000000001',
+        email: 'parent@example.com',
+        emailVerified: true,
+        termsAccepted: true,
+        termsVersion: '2026-11-13',
+        language: 'ar',
+      ),
+    );
+
+    testWidgets('asks once with what changed and keeps Privacy reachable', (WidgetTester tester) async {
+      final FakeAuthRepository repository = FakeAuthRepository();
+      await _pump(tester, location: AuthRoutes.terms, repository: repository, session: oldTerms);
+      expect(find.textContaining('We updated the terms and privacy policy'), findsOneWidget);
+      expect(find.byKey(const Key('terms.transfer')), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('terms.privacy.open')));
+      expect(find.byKey(const Key('terms.privacy.open')), findsOneWidget);
+      expect(sessionRedirect(oldTerms, PrivacyRoutes.delete), isNull);
     });
   });
 

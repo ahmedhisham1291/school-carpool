@@ -20,6 +20,7 @@ import {
   type CarpoolDeps,
 } from "../src/carpools/flow";
 import { newInviteCode } from "../src/carpools/callables";
+import { FeatureOffError } from "../src/features/model";
 import {
   cairoDate,
   CarpoolError,
@@ -33,6 +34,7 @@ import {
   type ConsentRecord,
   type MemberRecord,
   type WantedRecord,
+  VOLUNTEER_TERMS_VERSION,
 } from "../src/carpools/model";
 import { roundToGrid } from "../src/maps/geo";
 import { MemoryCarpoolStore } from "./helpers/memory_carpools";
@@ -97,6 +99,7 @@ const schoolCarpool = (extra: Record<string, unknown> = {}) => ({
   childIds: ["a1"],
   rules: ["no_smoking", "seat_belts"],
   contribution: { amount: 50, period: "week", note: " Fuel  share " },
+  acceptVolunteer: true,
   ...extra,
 });
 
@@ -109,7 +112,7 @@ async function aliceCarpool(deps: CarpoolDeps, extra: Record<string, unknown> = 
 }
 
 async function join(deps: CarpoolDeps, uid: string, carpoolId: string, childIds: string[]): Promise<void> {
-  await requestToJoin(deps, as(uid), { carpoolId, childIds, acceptRules: true, acceptContribution: true });
+  await requestToJoin(deps, as(uid), { carpoolId, childIds, acceptRules: true, acceptVolunteer: true, acceptContribution: true });
   await decideJoinRequest(deps, as("alice"), { carpoolId, uid, approve: true });
 }
 
@@ -210,6 +213,17 @@ describe("create (F5, F25, F36, F39)", () => {
     await rejects(createCarpool(deps, as("eve"), schoolCarpool()), "not-verified");
     await rejects(createCarpool(deps, as("sam"), schoolCarpool()), "suspended");
     await rejects(createCarpool(deps, as("nobody"), schoolCarpool()), "no-account");
+  });
+
+  it("creating and joining need the volunteer acknowledgement (free turns, no payment for rides); its version is recorded", async () => {
+    const { deps, store } = setup();
+    await rejects(createCarpool(deps, as("alice"), schoolCarpool({ acceptVolunteer: false })), "must-accept");
+    await rejects(createCarpool(deps, as("alice"), schoolCarpool({ acceptVolunteer: undefined })), "must-accept");
+    const id = await aliceCarpool(deps);
+    assert.equal([...store.memberships.values()].find((m) => m.carpoolId === id && m.uid === "alice")?.volunteerTerms, VOLUNTEER_TERMS_VERSION);
+    await rejects(requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true }), "must-accept");
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true, acceptVolunteer: true });
+    assert.equal([...store.memberships.values()].find((m) => m.carpoolId === id && m.uid === "bob")?.volunteerTerms, VOLUNTEER_TERMS_VERSION);
   });
 
   it("an activity carpool keeps its place rounded to about 500 m (F39)", async () => {
@@ -326,7 +340,7 @@ describe("join requests and approval (F6, F25, F36)", () => {
   it("a request with the children's first names and grades reaches the admin; approval makes a member", async () => {
     const { deps, store } = setup();
     const id = await aliceCarpool(deps);
-    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1", "b2"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1", "b2"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
     assert.equal(store.memberships.get(`${id}_bob`)?.status, "requested");
     const req = store.requests.get(id)?.get("bob");
     assert.deepEqual(req?.children.map((c) => [c.firstName, c.grade]), [["Bassel", "g2"], ["Bana", "kg2"]]);
@@ -345,22 +359,41 @@ describe("join requests and approval (F6, F25, F36)", () => {
     const { deps } = setup();
     const id = await aliceCarpool(deps);
     await rejects(requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: false, acceptContribution: true }), "must-accept");
-    await rejects(requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: false }), "must-accept");
+    await rejects(requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: false }), "must-accept");
     const free = await aliceCarpool(deps, { contribution: null });
-    await requestToJoin(deps, as("bob"), { carpoolId: free, childIds: ["b1"], acceptRules: true });
+    await requestToJoin(deps, as("bob"), { carpoolId: free, childIds: ["b1"], acceptRules: true, acceptVolunteer: true });
+  });
+
+  it("contributions switched off (owner, 16 Nov 2026: no money in the app): a new one is refused, joining never asks for an old one, searches hide it", async () => {
+    const { deps, store } = setup();
+    // A carpool made while contributions were on (staging data).
+    const old = await aliceCarpool(deps);
+    const off: CarpoolDeps = { ...deps, contributionsOn: async () => false };
+    await assert.rejects(
+      createCarpool(off, as("bob"), schoolCarpool({ childIds: ["b1"] })),
+      (e: unknown) => e instanceof FeatureOffError && e.feature === "contributions",
+    );
+    const free = (await createCarpool(off, as("bob"), schoolCarpool({ childIds: ["b1"], contribution: null }))).carpoolId;
+    assert.equal(store.carpools.get(free)?.contribution, null);
+    const { carpools } = await searchCarpools(off, as("cara"), { kind: "school", schoolId: "nile" });
+    assert.equal(carpools.length, 2);
+    for (const c of carpools) assert.equal(c.contribution, null, "no amount is shown while off");
+    // Joining the old carpool: no contribution to accept, none recorded.
+    await requestToJoin(off, as("cara"), { carpoolId: old, childIds: ["c1"], acceptRules: true, acceptVolunteer: true });
+    assert.equal([...store.memberships.values()].find((m) => m.carpoolId === old && m.uid === "cara")?.acceptedContribution, false);
   });
 
   it("refuses children that do not fit the free seats", async () => {
     const { deps } = setup();
     const id = await aliceCarpool(deps, { seats: 2 });
-    await rejects(requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1", "b2"], acceptRules: true, acceptContribution: true }), "no-seats");
+    await rejects(requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1", "b2"], acceptRules: true, acceptVolunteer: true, acceptContribution: true }), "no-seats");
   });
 
   it("approval re-checks the seats: two requests that each fit cannot both be approved", async () => {
     const { deps, store } = setup();
     const id = await aliceCarpool(deps, { seats: 3 });
-    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1", "b2"], acceptRules: true, acceptContribution: true });
-    await requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1", "b2"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
+    await requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
     await decideJoinRequest(deps, as("alice"), { carpoolId: id, uid: "bob", approve: true });
     await rejects(decideJoinRequest(deps, as("alice"), { carpoolId: id, uid: "cara", approve: true }), "no-seats");
     assert.equal(store.carpools.get(id)?.childrenCount, 3);
@@ -371,22 +404,22 @@ describe("join requests and approval (F6, F25, F36)", () => {
     const { deps, store } = setup();
     const id = await aliceCarpool(deps);
     await join(deps, "bob", id, ["b1"]);
-    await requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
     await rejects(decideJoinRequest(deps, as("bob"), { carpoolId: id, uid: "cara", approve: true }), "not-admin");
     await rejects(decideJoinRequest(deps, as("dina"), { carpoolId: id, uid: "cara", approve: true }), "not-member");
     await decideJoinRequest(deps, as("alice"), { carpoolId: id, uid: "cara", approve: false });
     assert.equal(store.memberships.get(`${id}_cara`)?.status, "declined");
     assert.equal(store.members.get(id)?.has("cara"), false);
     // A declined parent may ask again.
-    await requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
   });
 
   it("Prompt 8: a join request tells the admins, a decision tells the requester (IDs only)", async () => {
     const { deps, store } = setup();
     const id = await aliceCarpool(deps);
     const before = store.events.length;
-    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
-    await requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
+    await requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
     await decideJoinRequest(deps, as("alice"), { carpoolId: id, uid: "bob", approve: true });
     await decideJoinRequest(deps, as("alice"), { carpoolId: id, uid: "cara", approve: false });
     const events = store.events.slice(before).map((e) => ({ type: e.type, recipients: e.recipients, carpoolId: e.carpoolId, actorUid: e.actorUid }));
@@ -403,17 +436,17 @@ describe("join requests and approval (F6, F25, F36)", () => {
   it("no double requests, no joining twice, children of the right school only", async () => {
     const { deps, store } = setup();
     const id = await aliceCarpool(deps);
-    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
-    await rejects(requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true }), "already-requested");
-    await rejects(requestToJoin(deps, as("alice"), { carpoolId: id, childIds: ["a1"], acceptRules: true, acceptContribution: true }), "already-member");
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
+    await rejects(requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true }), "already-requested");
+    await rejects(requestToJoin(deps, as("alice"), { carpoolId: id, childIds: ["a1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true }), "already-member");
     store.driving.set("dina", ["nile"]);
-    await rejects(requestToJoin(deps, as("dina"), { carpoolId: id, childIds: ["d1"], acceptRules: true, acceptContribution: true }), "wrong-school");
+    await rejects(requestToJoin(deps, as("dina"), { carpoolId: id, childIds: ["d1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true }), "wrong-school");
   });
 
   it("a requester can cancel", async () => {
     const { deps, store } = setup();
     const id = await aliceCarpool(deps);
-    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
     await cancelJoinRequest(deps, as("bob"), { carpoolId: id });
     assert.equal(store.memberships.get(`${id}_bob`)?.status, "left");
     assert.equal(store.requests.get(id)?.has("bob"), false);
@@ -424,9 +457,9 @@ describe("join requests and approval (F6, F25, F36)", () => {
     const { deps } = setup();
     deps.limits.joinRequestsPerDay = 1;
     const id = await aliceCarpool(deps);
-    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
     await cancelJoinRequest(deps, as("bob"), { carpoolId: id });
-    await rejects(requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true }), "rate-limited");
+    await rejects(requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true }), "rate-limited");
   });
 });
 
@@ -513,7 +546,7 @@ describe("driver consent (F26) and seats", () => {
   it("consent only between approved members, never to oneself", async () => {
     const { deps } = setup();
     const id = await aliceCarpool(deps);
-    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
     await rejects(setDriverConsent(deps, as("alice"), { carpoolId: id, driverUid: "bob", accept: true }), "not-member");
     await rejects(setDriverConsent(deps, as("bob"), { carpoolId: id, driverUid: "alice", accept: true }), "not-member");
     await rejects(setDriverConsent(deps, as("alice"), { carpoolId: id, driverUid: "alice", accept: true }), "self-consent");
@@ -541,7 +574,7 @@ describe("driver consent (F26) and seats", () => {
   it("closing the carpool declines its open requests", async () => {
     const { deps, store } = setup();
     const id = await aliceCarpool(deps);
-    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
     await leaveCarpool(deps, as("alice"), { carpoolId: id });
     assert.equal(store.memberships.get(`${id}_bob`)?.status, "declined");
     assert.equal(store.requests.get(id)?.size ?? 0, 0);
@@ -550,7 +583,7 @@ describe("driver consent (F26) and seats", () => {
   it("a requester whose account is gone cannot be approved", async () => {
     const { deps, store } = setup();
     const id = await aliceCarpool(deps);
-    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
     store.accounts.delete("bob");
     await rejects(decideJoinRequest(deps, as("alice"), { carpoolId: id, uid: "bob", approve: true }), "not-verified");
   });
@@ -563,7 +596,7 @@ describe("driver consent (F26) and seats", () => {
     await leaveCarpool(deps, as("bob"), { carpoolId: id });
     await leaveCarpool(deps, as("alice"), { carpoolId: id });
     assert.equal(store.carpools.get(id)?.status, "closed");
-    await rejects(requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptContribution: true }), "closed");
+    await rejects(requestToJoin(deps, as("cara"), { carpoolId: id, childIds: ["c1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true }), "closed");
   });
 });
 
@@ -697,7 +730,7 @@ describe("done when: two fake parents", () => {
     const id = await aliceCarpool(deps);
     const found = (await searchCarpools(deps, as("bob"), { kind: "school", schoolId: "nile", morning: "07:30" })).carpools;
     assert.equal(found[0].id, id);
-    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptContribution: true });
+    await requestToJoin(deps, as("bob"), { carpoolId: id, childIds: ["b1"], acceptRules: true, acceptVolunteer: true, acceptContribution: true });
     await decideJoinRequest(deps, as("alice"), { carpoolId: id, uid: "bob", approve: true });
     await setDriverConsent(deps, as("alice"), { carpoolId: id, driverUid: "bob", accept: true });
     await setDriverConsent(deps, as("bob"), { carpoolId: id, driverUid: "alice", accept: true });

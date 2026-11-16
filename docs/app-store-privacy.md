@@ -37,9 +37,7 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
   routes wait 30 days, then are deleted whatever the state of the case.
 - **Kept, minimised and detached from the profile** (no name, phone,
   address, photo or ID number): summaries of runs shared with other
-  families (an initial; 1 year), the consent record (1 year), Settle up
-  records for the other parent (an initial; 1 year), transfer records
-  (5 years), reports, the admin audit log (2 years), the keyed ID hash on
+  families (an initial; 1 year), the consent record (1 year), reports, the admin audit log (2 years), the keyed ID hash on
   the ban list (banned accounts only).
 - The Delete account screen, `/delete-account` and the privacy policy say
   the same. **The lawyer confirms that the kept records are the ones the
@@ -84,7 +82,7 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
 | Contact Info | Phone Number | Sign-in number; emergency contact's and handover adults' numbers | Us; WhatsApp (codes, alerts) | Yes | No | App Functionality |
 | Contact Info | Physical Address | Home location (exact for the parent, rounded about 500 m for others) and pickup points | Us; Google Maps (address search, arrival times) | Yes | No | App Functionality |
 | Health & Fitness | — | Not collected | | | | |
-| Financial Info | Other Financial Info | **Settle up (the pilot's payment feature):** the parent's InstaPay address (name@instapay) and the records of payment requests between two parents (amount, reason, short note, dates, state). The app does not process payments: the money moves in the InstaPay app, and no bank account or card number is ever asked for or stored. **Wallet (switched off for the pilot):** wallet history: amounts, the two parents, dates (the money and any card details are held by the licensed partner, never by us) | Us only for Settle up (the InstaPay address is shown to the parent who has an open request from its owner); the wallet partner once the wallet is on | Yes | No | App Functionality |
+| Financial Info | — | **Not collected.** No money in the app (owner decision 16 Nov 2026, docs/DECISIONS.md): rides are free volunteer turns; the wallet, Settle up (InstaPay address, payment records) and the contribution per child are switched off in every environment, so no amount, payment address, bank account or card number is collected. **If any of them is ever switched on, add "Other Financial Info" back here AND in `tool/ios/PrivacyInfo.xcprivacy` before the build ships.** | | | | |
 | Location | Precise Location | The driver's car during a run (While Using + background mode, live points deleted within 24 h; one compressed route kept 1 year, admins only); the home pin from "use my location" | Us; Google Routes (car and stops, for arrival times) | Yes | No | App Functionality |
 | Location | Coarse Location | City-level area that Google Analytics derives from the IP address (only after the parent said yes to usage statistics; off by default) | Google Analytics | No | No | Analytics |
 | Sensitive Info | Sensitive Info | Face images used for face matching (biometric): identity selfie as the face reference, live selfie checks, new-phone selfies | Us; Valify (when contracted) | Yes | No | App Functionality (identity, fraud prevention, child safety) |
@@ -117,7 +115,7 @@ this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
 | WhatsApp (Meta) | Server only | Phone numbers, sign-in codes, alert texts (date and direction only) | Names of children, amounts, message text |
 | Google Maps Platform | App (map tiles) and server (Places, Routes) | Map views, typed address searches, car and stop points during a run | Who the parent is |
 | Valify | Server only (fake until the pilot) | ID images, selfie | n/a |
-| Wallet partner | Server only (fake until the pilot) | Wallet holder reference, amounts, the two parties | Children's data, chats |
+| Wallet partner | None while the wallet is off (no money in the app, 16 Nov 2026) | Nothing | Everything |
 | Vertex AI (Google Cloud) | Owner's import tool only (`tools/import_schools/ai_review.py`), never the app or the functions | Public school names from the school list, to check spelling and duplicates | Anything about parents or children; names a parent types under "Other" (admins review those) |
 | Email delivery (Firebase "Trigger Email" extension with the owner's SMTP provider) | Server only | The parent's confirmed email address and the new-phone alert text | Anything else |
 | Apple Push (via FCM) | Server | Push token, short alert texts | Phone, coordinates, message text |

@@ -26,7 +26,8 @@ Console links use `<project>` for the project ID (`school-carpool-prod`,
    - Sentry: the issue links.
 4. Decide containment (below) with the owner. Do not delete data that is
    evidence; suspend instead.
-5. Start the legal clock: see docs/legal/breach-runbook.md.
+5. Start the legal clock: record the incident in Admin panel > Incidents
+   at once, then follow [docs/legal/breach-runbook.md](../legal/breach-runbook.md).
 
 ## 1. Parent account takeover (SIM swap, stolen phone, WhatsApp hijack)
 

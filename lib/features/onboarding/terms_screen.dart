@@ -1,21 +1,31 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/auth_repository.dart';
+import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/onboarding/onboarding_layout.dart';
 import 'package:school_carpool/l10n/l10n.dart';
+import 'package:school_carpool/router/app_router.dart';
 
-/// Step 4: terms of use, privacy policy and code of conduct (each must be
-/// accepted), plus optional WhatsApp alerts. The server saves one consent
+/// Step 4: terms of use, privacy policy, code of conduct and the separate
+/// consent to storage abroad (each must be accepted; Law 151 of 2020),
+/// plus optional WhatsApp alerts. The server saves one consent
 /// record per accepted document.
 ///
 /// States: empty (nothing ticked: the button is off and a line says why),
 /// loading (button spinner), error and offline (a message under the list).
+///
+/// Also shown once to an existing parent who accepted older versions
+/// (RegistrationStage.termsUpdate): no step progress, a line saying what
+/// changed, and "Privacy" so export and deletion stay reachable without
+/// accepting.
 class TermsScreen extends ConsumerStatefulWidget {
   const TermsScreen({super.key});
 
@@ -27,11 +37,12 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
   bool _terms = false;
   bool _privacy = false;
   bool _conduct = false;
+  bool _transfer = false;
   bool _whatsapp = false;
   bool _saving = false;
   AuthFailure? _failure;
 
-  bool get _ready => _terms && _privacy && _conduct;
+  bool get _ready => _terms && _privacy && _conduct && _transfer;
 
   Future<void> _accept() async {
     if (!_ready || _saving) {
@@ -82,11 +93,23 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
     final AppLocalizations l10n = context.l10n;
     final AuthFailure? failure = _failure;
     final bool enabled = !_saving;
+    final bool update = accountOf(ref.watch(sessionProvider))?.stage == RegistrationStage.termsUpdate;
 
     return OnboardingLayout(
-      step: 4,
+      step: update ? null : 4,
       title: l10n.termsTitle,
-      body: l10n.termsBody,
+      body: update ? l10n.termsUpdatedBody : l10n.termsBody,
+      secondary: <Widget>[
+        if (update) ...<Widget>[
+          const SizedBox(height: AppSpacing.s8),
+          AppButton(
+            key: const Key('terms.privacy.open'),
+            label: l10n.termsUpdatedPrivacy,
+            variant: AppButtonVariant.tertiary,
+            onPressed: _saving ? null : () => context.go(PrivacyRoutes.privacy),
+          ),
+        ],
+      ],
       primary: AppButton(
         key: const Key('terms.accept'),
         label: l10n.termsAcceptButton,
@@ -118,6 +141,15 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
           onChanged: enabled ? (bool v) => setState(() => _conduct = v) : null,
           actionLabel: l10n.termsRead,
           onAction: () => _read(l10n.termsDocConduct, l10n.termsConductText),
+        ),
+        AppCheckRow(
+          key: const Key('terms.transfer'),
+          label: l10n.termsAcceptTransfer,
+          helperText: l10n.termsTransferHelper,
+          value: _transfer,
+          onChanged: enabled ? (bool v) => setState(() => _transfer = v) : null,
+          actionLabel: l10n.termsRead,
+          onAction: () => _read(l10n.termsDocTransfer, l10n.termsTransferText),
         ),
         const Divider(height: AppSpacing.s32),
         AppCheckRow(

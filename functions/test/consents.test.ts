@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { newUserRecord, verifiedEmail } from "../src/auth/accounts";
 import { CONSENT_VERSIONS, ConsentError, parseConsentRequest } from "../src/auth/consents";
 
-const current = { terms: CONSENT_VERSIONS.terms, privacy: CONSENT_VERSIONS.privacy, conduct: CONSENT_VERSIONS.conduct };
+const current = { terms: CONSENT_VERSIONS.terms, privacy: CONSENT_VERSIONS.privacy, conduct: CONSENT_VERSIONS.conduct, transferAbroad: CONSENT_VERSIONS.transferAbroad };
 
 function reason(fn: () => unknown): string {
   try {
@@ -18,8 +18,8 @@ function reason(fn: () => unknown): string {
 
 describe("parseConsentRequest", () => {
   it("records terms, privacy and conduct, plus WhatsApp when chosen", () => {
-    assert.deepEqual(parseConsentRequest({ documents: current, whatsapp: true }).accepted, ["terms", "privacy", "conduct", "whatsapp"]);
-    assert.deepEqual(parseConsentRequest({ documents: current, whatsapp: false }).accepted, ["terms", "privacy", "conduct"]);
+    assert.deepEqual(parseConsentRequest({ documents: current, whatsapp: true }).accepted, ["terms", "privacy", "conduct", "transferAbroad", "whatsapp"]);
+    assert.deepEqual(parseConsentRequest({ documents: current, whatsapp: false }).accepted, ["terms", "privacy", "conduct", "transferAbroad"]);
   });
 
   it("needs every required document", () => {
@@ -28,6 +28,11 @@ describe("parseConsentRequest", () => {
 
   it("refuses an old document version", () => {
     assert.equal(reason(() => parseConsentRequest({ documents: { ...current, privacy: "2020-01-01" }, whatsapp: false })), "outdated-terms");
+    // The transfer-abroad consent is separate and required (Law 151/2020, Arts. 14-15).
+    const { transferAbroad: _omitted, ...withoutTransfer } = current;
+    assert.equal(reason(() => parseConsentRequest({ documents: withoutTransfer, whatsapp: false })), "missing-consent");
+    // An app build from before the legal review sends the old privacy version: it is asked to update.
+    assert.equal(reason(() => parseConsentRequest({ documents: { terms: "2026-11-13", privacy: "2026-11-14", conduct: CONSENT_VERSIONS.conduct }, whatsapp: false })), "outdated-terms");
   });
 
   it("refuses malformed input", () => {

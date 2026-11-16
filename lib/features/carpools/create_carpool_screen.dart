@@ -86,6 +86,7 @@ class _CreateCarpoolScreenState extends ConsumerState<CreateCarpoolScreen> {
 
   // Step 4
   final Set<CarpoolRule> _rules = <CarpoolRule>{};
+  bool _volunteer = false;
   bool _withContribution = false;
   final TextEditingController _amount = TextEditingController();
   ContributionPeriod _period = ContributionPeriod.week;
@@ -188,12 +189,19 @@ class _CreateCarpoolScreenState extends ConsumerState<CreateCarpoolScreen> {
         }
         return _childIds.length > _seatsFor(carSeats) ? l10n.carpoolErrorTooManyChildren : null;
       default:
-        if (!_withContribution) {
+        if (!_volunteer) {
+          return l10n.volunteerError;
+        }
+        if (!_withContribution || !ref.read(featureSwitchesProvider).contributions) {
           return null;
         }
-        final int? amount = int.tryParse(_amount.text.trim());
-        return amount == null || amount < 1 || amount > 10000 ? l10n.contributionAmountError : null;
+        return _amountValid ? null : l10n.contributionAmountError;
     }
+  }
+
+  bool get _amountValid {
+    final int? amount = int.tryParse(_amount.text.trim());
+    return amount != null && amount >= 1 && amount <= 10000;
   }
 
   CarpoolDraft _draft(int carSeats) {
@@ -213,7 +221,7 @@ class _CreateCarpoolScreenState extends ConsumerState<CreateCarpoolScreen> {
       seats: _seatsFor(carSeats),
       childIds: _childIds.toList(),
       rules: CarpoolRule.values.where(_rules.contains).toList(),
-      contribution: _withContribution && amount != null
+      contribution: _withContribution && amount != null && ref.read(featureSwitchesProvider).contributions
           ? Contribution(amount: amount, period: _period, note: _note.text.trim())
           : null,
     );
@@ -618,45 +626,57 @@ class _CreateCarpoolScreenState extends ConsumerState<CreateCarpoolScreen> {
                 ),
             ],
           ),
-          AppSectionHeader(l10n.contributionSection),
-          AppSwitchRow(
-            key: const Key('create.contribution'),
-            title: l10n.contributionSwitch,
-            subtitle: contributionHelperText(l10n, ref.watch(featureSwitchesProvider)),
-            value: _withContribution,
-            onChanged: (bool on) => setState(() => _withContribution = on),
+          const SizedBox(height: AppSpacing.s16),
+          AppCheckRow(
+            key: const Key('create.volunteer'),
+            label: l10n.volunteerAccept,
+            helperText: l10n.volunteerAcceptHelper,
+            value: _volunteer,
+            onChanged: (bool on) => setState(() => _volunteer = on),
           ),
-          if (_withContribution) ...<Widget>[
-            const SizedBox(height: AppSpacing.s8),
-            AppTextField(
-              key: const Key('create.amount'),
-              label: l10n.contributionAmountLabel,
-              controller: _amount,
-              keyboardType: TextInputType.number,
-              inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
-              maxLength: 5,
-              textDirection: TextDirection.ltr,
-              errorText: _tried && _stepError(l10n, const <ChildRecord>[], null) != null ? l10n.contributionAmountError : null,
-              onChanged: (String _) => setState(() {}),
+          // No money in the app (owner, 16 Nov 2026): the contribution per
+          // child (F25) only while its switch is on.
+          if (ref.watch(featureSwitchesProvider).contributions) ...<Widget>[
+            AppSectionHeader(l10n.contributionSection),
+            AppSwitchRow(
+              key: const Key('create.contribution'),
+              title: l10n.contributionSwitch,
+              subtitle: contributionHelperText(l10n, ref.watch(featureSwitchesProvider)),
+              value: _withContribution,
+              onChanged: (bool on) => setState(() => _withContribution = on),
             ),
-            const SizedBox(height: AppSpacing.s16),
-            AppSelectField<ContributionPeriod>(
-              key: const Key('create.period'),
-              label: l10n.contributionPeriodLabel,
-              options: <(ContributionPeriod, String)>[
-                for (final ContributionPeriod p in ContributionPeriod.values) (p, periodLabel(l10n, p)),
-              ],
-              value: _period,
-              onChanged: (ContributionPeriod p) => setState(() => _period = p),
-            ),
-            const SizedBox(height: AppSpacing.s16),
-            AppTextField(
-              key: const Key('create.note'),
-              label: l10n.contributionNoteLabel,
-              hintText: l10n.contributionNoteHint,
-              controller: _note,
-              maxLength: 120,
-            ),
+            if (_withContribution) ...<Widget>[
+              const SizedBox(height: AppSpacing.s8),
+              AppTextField(
+                key: const Key('create.amount'),
+                label: l10n.contributionAmountLabel,
+                controller: _amount,
+                keyboardType: TextInputType.number,
+                inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
+                maxLength: 5,
+                textDirection: TextDirection.ltr,
+                errorText: _tried && !_amountValid ? l10n.contributionAmountError : null,
+                onChanged: (String _) => setState(() {}),
+              ),
+              const SizedBox(height: AppSpacing.s16),
+              AppSelectField<ContributionPeriod>(
+                key: const Key('create.period'),
+                label: l10n.contributionPeriodLabel,
+                options: <(ContributionPeriod, String)>[
+                  for (final ContributionPeriod p in ContributionPeriod.values) (p, periodLabel(l10n, p)),
+                ],
+                value: _period,
+                onChanged: (ContributionPeriod p) => setState(() => _period = p),
+              ),
+              const SizedBox(height: AppSpacing.s16),
+              AppTextField(
+                key: const Key('create.note'),
+                label: l10n.contributionNoteLabel,
+                hintText: l10n.contributionNoteHint,
+                controller: _note,
+                maxLength: 120,
+              ),
+            ],
           ],
         ],
       ),

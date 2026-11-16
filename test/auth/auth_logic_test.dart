@@ -12,6 +12,7 @@ import 'package:school_carpool/design/components/digits_input_formatter.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/install_id.dart';
+import 'package:school_carpool/features/auth/legal_documents.dart';
 import 'package:school_carpool/features/auth/phone_number.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/chat/chats_screen.dart';
@@ -22,6 +23,7 @@ Account _account({
   AccountStatus status = AccountStatus.unverified,
   bool emailVerified = true,
   bool termsAccepted = true,
+  String? termsVersion,
 }) => Account(
   parentId: 'ABCD2345',
   status: status,
@@ -29,6 +31,7 @@ Account _account({
   email: 'parent@example.com',
   emailVerified: emailVerified,
   termsAccepted: termsAccepted,
+  termsVersion: termsVersion,
   language: 'ar',
 );
 
@@ -170,6 +173,20 @@ void main() {
       expect(sessionRedirect(_signedIn(_account(emailVerified: false)), '/profile'), AuthRoutes.email);
       expect(sessionRedirect(_signedIn(_account(termsAccepted: false)), AuthRoutes.email), AuthRoutes.terms);
       expect(sessionRedirect(_signedIn(_account(termsAccepted: false)), AuthRoutes.terms), isNull);
+    });
+
+    test('older accepted documents: asked once; Privacy (export, delete) stays open (legal review 16 Nov 2026)', () {
+      final Account old = _account(status: AccountStatus.verified, termsVersion: '2026-11-13');
+      expect(old.stage, RegistrationStage.termsUpdate);
+      expect(sessionRedirect(_signedIn(old), '/home'), AuthRoutes.terms);
+      expect(sessionRedirect(_signedIn(old), AuthRoutes.terms), isNull);
+      expect(sessionRedirect(_signedIn(old), PrivacyRoutes.privacy), isNull);
+      expect(sessionRedirect(_signedIn(old), PrivacyRoutes.delete), isNull);
+      expect(sessionRedirect(_signedIn(old), PrivacyRoutes.newDevice), AuthRoutes.terms);
+      // Current version, or no stored version (dev seed): not asked again.
+      expect(_account(termsVersion: LegalDocuments.terms).stage, RegistrationStage.complete);
+      expect(_account().stage, RegistrationStage.complete);
+      expect(Account.fromMap(const <String, dynamic>{'emailVerified': true, 'termsAcceptedAt': 1, 'termsVersion': '2026-11-13'}).stage, RegistrationStage.termsUpdate);
     });
 
     test('unverified, pending and rejected: look around; another family needs the check (16 Nov 2026)', () {

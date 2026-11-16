@@ -144,9 +144,8 @@ they never passed an ID check:
   parents or real carpools), join another carpool, open an invite link,
   post "looking for a carpool", create an activity carpool, add a child
   or documents, add a school, link a guardian, change the phone number or
-  use the wallet. The app says "This demo account can't do that" there
-  (Arabic and English). Settle up
-  and chat work only inside the demo carpool (the server allows them
+  use a money feature (all switched off). The app says "This demo account can't do that" there
+  (Arabic and English). Chat works only inside the demo carpool (the server allows them
   only between members of one carpool or school).
 - Running `review-access -- on` again (new window or new codes) seeds
   again by itself, so the demo parents are listed for the new window.
@@ -197,7 +196,7 @@ School Carpool helps parents in Egypt share the school run. Parents of the same 
 - A clear weekly schedule: who drives each morning and afternoon, with swaps when plans change.
 - Live run: when a parent drives, the other parents of that run see the car on a map and get an alert when it is outside and when their child is dropped off.
 - Chat with the parents of your carpool, with report and block.
-- Settle up: keep a record of shared costs such as fuel between parents. The app does not move money.
+- Free: parents drive by turns as volunteers. No fares, no payments, no fees.
 - Your privacy: other parents see only your first name and approximate area. See, download or delete your data at any time.
 
 The app is free and non-profit, with no ads and no fees. It is for adult parents. Each parent is responsible for their own driving. The Emergency button alerts the carpool only; in danger call 122 or 123.
@@ -210,7 +209,7 @@ The app is free and non-profit, with no ads and no fees. It is for adult parents
 - جدول أسبوعي واضح: من يقود كل صباح وكل ظهر، مع التبديل عند تغيّر الظروف.
 - مشوار مباشر: عندما يقود أحد أولياء الأمور يرى أولياء أمور ذلك المشوار السيارة على الخريطة، ويصلهم تنبيه عند وصولها وعند نزول ابنهم.
 - محادثة مع أولياء أمور مجموعتك، مع الإبلاغ والحظر.
-- تسوية الحساب: سجّل التكاليف المشتركة مثل الوقود بين أولياء الأمور. التطبيق لا ينقل الأموال.
+- مجاني: يتناوب الأهل على القيادة تطوعًا. لا أجرة ولا مدفوعات ولا رسوم.
 - خصوصيتك: يرى الآخرون اسمك الأول ومنطقتك التقريبية فقط. اطّلع على بياناتك أو نزّلها أو احذفها في أي وقت.
 
 التطبيق مجاني وغير ربحي، بلا إعلانات وبلا رسوم، وهو لأولياء الأمور البالغين. كل ولي أمر مسؤول عن قيادته. زر الطوارئ ينبّه المجموعة فقط؛ في الخطر اتصل بـ 122 أو 123.
@@ -234,8 +233,7 @@ app's privacy manifest (a test checks that). Short form:
 
 - Collect data? **Yes.** Used to track? **No**, for every type.
 - **Linked to the user, purpose App Functionality:** Name, Email Address,
-  Phone Number, Physical Address, Other Financial Info (Settle up
-  records and InstaPay address), Precise Location, Sensitive Info (face
+  Phone Number, Physical Address, Precise Location, Sensitive Info (face
   images used for matching), Photos or Videos, Other User Content (chat
   messages, reports), Customer Support, User ID, Device ID, Crash Data,
   Other Diagnostic Data, Other Data Types (children's first name, age,
@@ -303,14 +301,10 @@ app's privacy manifest (a test checks that). Short form:
 > separate screen. The demo account is already verified, so no document
 > is needed.
 >
-> PAYMENTS. The app does not process payments and has no in-app
-> purchases. "Settle up" (Profile > Settle up) only records payment
-> requests between two parents of the same carpool for shared real-world
-> costs such as fuel, and shows the payee's InstaPay address to copy.
-> The parent pays in the separate InstaPay app (Egypt's national instant
-> payment network). Our app does not move, hold or see money, takes no
-> fee, and never asks for a card or bank account. Nothing digital is
-> sold. The wallet feature is switched off and not shown.
+> PAYMENTS. None. The app is free, has no in-app purchases and no
+> payment feature of any kind; nothing digital is sold and no money is
+> asked for, moved or recorded. Rides are free volunteer turns between
+> parents of the same school.
 >
 > USER-GENERATED CONTENT. Chats are between verified parents of the same
 > carpool. Press and hold a message to report it; the chat menu has

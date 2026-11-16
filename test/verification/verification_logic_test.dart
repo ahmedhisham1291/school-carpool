@@ -44,6 +44,7 @@ VerificationDraft completeDraft() => VerificationDraft(
     ),
   ],
   consent: true,
+  guardianConsent: true,
 );
 
 Account account(AccountStatus status, {VerificationSummary? verification}) => Account(
@@ -89,6 +90,8 @@ void main() {
 
     test('needs consent, a child, both selfies and a valid expiry', () {
       expect(completeDraft().copyWith(consent: false).readyToSubmit(today), isFalse);
+      // The guardian's consent for the children is separate and required too.
+      expect(completeDraft().copyWith(guardianConsent: false).readyToSubmit(today), isFalse);
       expect(completeDraft().copyWith(children: <ChildDraft>[]).readyToSubmit(today), isFalse);
       expect(
         const VerificationDraft(challenge: LivenessChallenge.left).copyWith(selfie: fakePhoto).selfieComplete,

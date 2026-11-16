@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/features/auth/legal_documents.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 
 /// Verification states from spec section 3. Only Cloud Functions change
@@ -17,8 +18,11 @@ enum AccountStatus {
 }
 
 /// Where a signed-in parent is in sign-up (spec section 3, steps 1 and 2,
-/// then the terms).
-enum RegistrationStage { email, terms, complete }
+/// then the terms). [termsUpdate]: the parent accepted an older version of
+/// the documents and is asked once to accept the current ones (legal
+/// review 16 Nov 2026: new terms and the separate storage-abroad consent);
+/// meanwhile only the terms screen and Privacy (export, delete) are open.
+enum RegistrationStage { email, terms, termsUpdate, complete }
 
 /// The parent's own record, users/{uid}, written by Cloud Functions.
 @immutable
@@ -36,6 +40,7 @@ class Account {
     this.claimsUpdatedAtMs,
     this.whatsappOptIn = false,
     this.newDeviceCheck = false,
+    this.termsVersion,
   });
 
   factory Account.fromMap(Map<String, dynamic> data) => Account(
@@ -57,6 +62,7 @@ class Account {
       final Map<Object?, Object?> check => check['required'] == true,
       _ => false,
     },
+    termsVersion: data['termsVersion'] as String?,
   );
 
   /// Public 8-character parent ID (F44).
@@ -68,6 +74,12 @@ class Account {
   final String? email;
   final bool emailVerified;
   final bool termsAccepted;
+
+  /// The terms version accepted (users/{uid}.termsVersion, written by
+  /// acceptConsents together with every required consent). Null on
+  /// records made before versions were stored (the dev seed): not asked
+  /// again.
+  final String? termsVersion;
   final String language;
 
   /// Set from the ID details once documents are submitted (Prompt 3).
@@ -99,6 +111,10 @@ class Account {
     if (!termsAccepted) {
       return RegistrationStage.terms;
     }
+    final String? version = termsVersion;
+    if (version != null && version != LegalDocuments.terms) {
+      return RegistrationStage.termsUpdate;
+    }
     return RegistrationStage.complete;
   }
 
@@ -111,6 +127,7 @@ class Account {
       other.email == email &&
       other.emailVerified == emailVerified &&
       other.termsAccepted == termsAccepted &&
+      other.termsVersion == termsVersion &&
       other.language == language &&
       other.firstName == firstName &&
       other.verification == verification &&
@@ -125,6 +142,7 @@ class Account {
     email,
     emailVerified,
     termsAccepted,
+    termsVersion,
     language,
     firstName,
     verification,

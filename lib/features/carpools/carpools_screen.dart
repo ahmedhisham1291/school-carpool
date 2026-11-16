@@ -6,6 +6,7 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
+import 'package:school_carpool/features/feature_switches/feature_switches.dart';
 import 'package:school_carpool/features/onboarding/verify_prompt_card.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
@@ -150,6 +151,7 @@ class _MyCarpool extends ConsumerWidget {
       key: Key('carpools.mine.${c.id}'),
       carpool: c,
       badge: badge,
+      showContribution: ref.watch(featureSwitchesProvider).contributions,
       onTap: () => context.go(CarpoolRoutes.detail(c.id)),
     );
   }

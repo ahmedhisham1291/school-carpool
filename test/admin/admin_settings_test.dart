@@ -36,11 +36,14 @@ void main() {
       final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
       await pumpAdminPanel(tester, session: superAdmin, location: AdminRoutes.settings, features: api, locale: 'en');
       await _settle(tester);
-      expect(api.calls, <String>['features']);
+      // The shell reads the switches too (Wallet section only while on).
+      expect(api.calls.toSet(), <String>{'features'});
       expect(_row(tester, AppFeature.wallet).value, isFalse);
       expect(_row(tester, AppFeature.ratingsAndVouching).value, isFalse);
       expect(_row(tester, AppFeature.yearlyChecks).value, isFalse);
+      // No money in the app (16 Nov 2026): every money switch starts off.
       expect(_row(tester, AppFeature.settleUp).value, isFalse);
+      expect(_row(tester, AppFeature.contributions).value, isFalse);
       expect(find.byType(AppSwitchRow), findsNWidgets(AppFeature.values.length));
       // Core features are named as always on, with no switch.
       expect(find.textContaining('are always on'), findsOneWidget);
@@ -72,7 +75,7 @@ void main() {
     });
 
     testWidgets('turning a feature off asks too and says nothing is deleted', (WidgetTester tester) async {
-      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi()..switches = FeatureSwitches.pilot.copyWith(settleUp: true);
+      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi()..switches = FeatureSwitches.allOn;
       await pumpAdminPanel(tester, session: superAdmin, location: AdminRoutes.settings, features: api, locale: 'en');
       await _settle(tester);
       _row(tester, AppFeature.settleUp).onChanged!(false);
@@ -93,7 +96,7 @@ void main() {
         expect(_row(tester, f).onChanged, isNull, reason: f.name);
       }
       expect(find.text('Only a super admin can change these switches.'), findsOneWidget);
-      expect(api.calls, <String>['features']);
+      expect(api.calls.toSet(), <String>{'features'});
     });
 
     testWidgets('a refused change shows the reason and leaves the switch as it was', (WidgetTester tester) async {
@@ -123,6 +126,9 @@ void main() {
     test('every admin has the Settings section; the feature-off error has its own words', () {
       expect(adminSections(superAdmin: false).map((AdminSection s) => s.path), contains(AdminRoutes.settings));
       expect(adminSections(superAdmin: true).map((AdminSection s) => s.path), contains(AdminRoutes.settings));
+      // No money in the app: the Wallet section only while the wallet is on.
+      expect(adminSections(superAdmin: true).map((AdminSection s) => s.path), isNot(contains(AdminRoutes.wallets)));
+      expect(adminSections(superAdmin: true, wallet: true).map((AdminSection s) => s.path), contains(AdminRoutes.wallets));
       final AppLocalizations en = lookupAppLocalizations(AppLocales.english);
       expect(const AdminFailure(AdminFailureKind.featureOff).message(en), contains('switched off'));
       for (final AppFeature f in AppFeature.values) {
@@ -134,19 +140,19 @@ void main() {
 
   group('user page: settle-up records (read only, logged reason)', () {
     testWidgets('nothing is asked for until a reason is picked; then the list shows without an address', (WidgetTester tester) async {
-      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
+      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi()..switches = FeatureSwitches.allOn;
       await pumpAdminPanel(tester, session: reviewer, location: AdminRoutes.user('parent1'), features: api, locale: 'en', size: const Size(1280, 2400));
       await _settle(tester);
       expect(find.byKey(const Key('user.settleUp')), findsOneWidget);
       expect(tester.widget<AppButton>(find.byKey(const Key('user.settleUp.show'))).onPressed, isNull);
-      expect(api.calls, isEmpty);
+      expect(api.calls.where((String c) => c != 'features'), isEmpty);
       await tester.tap(find.byKey(const Key('user.settleUp.reason')));
       await _settle(tester);
       await tester.tap(find.text('Investigation').last);
       await _settle(tester);
       await tester.tap(find.byKey(const Key('user.settleUp.show')));
       await _settle(tester);
-      expect(api.calls, <String>['settleUps:parent1:investigation']);
+      expect(api.calls.where((String c) => c != 'features'), <String>['settleUps:parent1:investigation']);
       expect(find.byKey(const Key('user.settleUp.s_1')), findsOneWidget);
       expect(find.byKey(const Key('user.settleUp.s_2')), findsOneWidget);
       expect(find.textContaining('From Hoda'), findsOneWidget);
@@ -157,8 +163,18 @@ void main() {
       expect(find.byKey(const Key('user.settleUp.show')), findsNothing);
     });
 
+    testWidgets('Settle up off (the default): no settle-up section, nothing asked for', (WidgetTester tester) async {
+      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
+      await pumpAdminPanel(tester, session: reviewer, location: AdminRoutes.user('parent1'), features: api, locale: 'en', size: const Size(1280, 2400));
+      await _settle(tester);
+      expect(find.byKey(const Key('user.settleUp')), findsNothing);
+      expect(api.calls.where((String c) => c.startsWith('settleUps')), isEmpty);
+    });
+
     testWidgets('no records, and a refusal, each say so', (WidgetTester tester) async {
-      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi()..records = <AdminSettleRecord>[];
+      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi()
+        ..switches = FeatureSwitches.allOn
+        ..records = <AdminSettleRecord>[];
       await pumpAdminPanel(tester, session: reviewer, location: AdminRoutes.user('parent1'), features: api, locale: 'en', size: const Size(1280, 2400));
       await _settle(tester);
       await tester.tap(find.byKey(const Key('user.settleUp.reason')));

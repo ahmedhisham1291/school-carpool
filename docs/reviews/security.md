@@ -39,6 +39,20 @@ the step-up options of `requireAdminCaller` / `adminCall`, the
 collection literal or callable without App Check. Functions unit tests
 here: 910 pass, 0 fail (architecture tests 6/6).
 
+## Merge with main (legal-egypt)
+
+origin/main 2142092 merged. Conflicts resolved to main's side where
+legal-egypt did the same work more widely: `PILOT_DEFAULTS` /
+`FeatureSwitches.pilot` (all off, plus the new `contributions` switch,
+`MONEY_FEATURES` = wallet, settleUp, contributions) and the matching Dart
+and Functions tests; SECURITY.md incident steps 5-6 (legal clock lives in
+docs/legal/breach-runbook.md). Kept from this branch: super-admin step-up
+on `adminSetFeature` (covers `contributions` too), TOTP-only, suspension
+rules. runbook.md now starts the clock with Admin panel > Incidents and
+links the legal runbook. The new incident callables use
+`requireAdminCaller` (TOTP applies; no step-up, so reporting is never
+delayed). Functions unit tests here: 927 pass, 0 fail.
+
 ## Checked, no change needed
 
 1. **Suspension in rules.** `notBlocked()` reuses `userRecord()` /
