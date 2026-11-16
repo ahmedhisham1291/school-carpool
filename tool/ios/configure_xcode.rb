@@ -2,6 +2,7 @@
 #   - CODE_SIGN_ENTITLEMENTS for the Runner target (push + App Attest)
 #   - Arabic and English as known regions
 #   - ar/en InfoPlist.strings as a localized resource
+#   - PrivacyInfo.xcprivacy (the app's privacy manifest) as a resource
 # Needs the `xcodeproj` Ruby gem (installed with CocoaPods; present on
 # Codemagic macOS machines). Idempotent. If it cannot run, bootstrap.sh prints
 # the manual Xcode steps from SETUP.md instead.
@@ -32,5 +33,13 @@ unless variant
   target.resources_build_phase.add_file_reference(variant, true)
 end
 
+# The app's privacy manifest (copied by patch_native.py) must be in the
+# bundle root, or App Store Connect reports missing API declarations.
+unless runner_group.files.any? { |f| f.path == 'PrivacyInfo.xcprivacy' }
+  privacy = runner_group.new_reference('PrivacyInfo.xcprivacy')
+  privacy.last_known_file_type = 'text.xml'
+  target.resources_build_phase.add_file_reference(privacy, true)
+end
+
 project.save
-puts 'configure_xcode: entitlements, regions and InfoPlist.strings set'
+puts 'configure_xcode: entitlements, regions, InfoPlist.strings and privacy manifest set'

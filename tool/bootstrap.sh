@@ -71,7 +71,8 @@ fi
 python3 tool/patch_native.py \
   --ios-bundle-id "$APP_ID" \
   --android-app-id "$APP_ID" \
-  --display-name "$DISPLAY_NAME"
+  --display-name "$DISPLAY_NAME" \
+  --flavor "$FLAVOR"
 
 if [[ "$(uname)" == "Darwin" && -d ios ]]; then
   if ruby -e "require 'xcodeproj'" 2>/dev/null; then
@@ -82,7 +83,8 @@ bootstrap: WARNING the xcodeproj Ruby gem is missing (install CocoaPods, or
 `gem install xcodeproj`). Do these steps by hand in Xcode (SETUP.md, "Xcode
 by hand"): set Runner > Signing & Capabilities > Code Signing Entitlements to
 Runner/Runner.entitlements, and add ios/Runner/ar.lproj and en.lproj
-InfoPlist.strings to the Runner target as localized resources.
+InfoPlist.strings to the Runner target as localized resources, and add
+ios/Runner/PrivacyInfo.xcprivacy to the Runner target (Copy Bundle Resources).
 EOF
   fi
 fi

@@ -39,6 +39,12 @@ What it changes
   Location (Prompt 13) geolocator: background mode `location`, "While
            Using the App" texts; the paid plugin's keys, licence and
            background task are removed (no licence is needed).
+  Review   (App Review audit, docs/apple-review/audit.md) iPhone only and
+           portrait only; our app icon (tool/ios/AppIcon/icon_1024.png)
+           instead of the Flutter placeholder; the app's privacy manifest
+           (tool/ios/PrivacyInfo.xcprivacy); no local-network text or
+           local networking outside dev; no ATS exceptions; a prod name
+           with "Stg", "Dev", "test" or "beta" is refused.
   Launch   (Prompt 13 review, blocker 2) classic app delegate, no UIScene:
            the AppDelegate starts the Flutter engine (Dart main) and
            registers the plugins in didFinishLaunching, also when iOS
@@ -86,13 +92,148 @@ PERMISSION_TEXTS = {
         "a few minutes after the car moves, if iPhone closes the app. Used only during runs you start, with the blue indicator, "
         "for the parents of the children in your car; it stops when the run ends.",
     "NSFaceIDUsageDescription":
-        "Face ID unlocks the app and confirms every wallet transfer.",
+        "Face ID unlocks the app when you turn on App lock, and confirms money transfers.",
     "NSLocalNetworkUsageDescription":
         "Developer builds connect to test servers on your local network.",
 }
 
 # Keys and values from the paid location plugin (removed in Prompt 13),
 # dropped from an Info.plist generated before.
+# Only developer builds talk to the local emulators (App Review: no
+# developer wording or local-network access in a staging or prod build).
+DEV_ONLY_INFO_KEYS = ("NSLocalNetworkUsageDescription",)
+
+# iPhone only, portrait only (App Review audit, guideline 4.0 / 2.4.1): the
+# screens are designed for a phone held upright. Stage 2/3 may widen this.
+DEVICE_FAMILY_IPHONE = "1"
+ORIENTATIONS = ["UIInterfaceOrientationPortrait"]
+
+FLAVORS = ("dev", "staging", "prod")
+# Words that must never be in a prod app name (guideline 2.3: no test or
+# beta wording in the shipped app).
+NOT_FOR_PROD_NAME = ("stg", "dev", "test", "beta", "staging")
+
+
+def flavor_for(bundle_id: str, flavor: str | None) -> str:
+    """The flavor given, or the one the bundle id suffix says."""
+    if flavor:
+        if flavor not in FLAVORS:
+            raise SystemExit(f"patch_native: unknown flavor {flavor!r}")
+        return flavor
+    if bundle_id.endswith(".dev"):
+        return "dev"
+    if bundle_id.endswith(".stg"):
+        return "staging"
+    return "prod"
+
+
+def check_prod_name(flavor: str, display_name: str) -> None:
+    if flavor != "prod":
+        return
+    words = re.findall(r"[a-z]+", display_name.lower())
+    bad = [w for w in words if w in NOT_FOR_PROD_NAME]
+    if bad:
+        raise SystemExit(f"patch_native: the prod display name must not contain {bad[0]!r}")
+
+
+def pbx_line(line: str, bundle_id: str) -> str:
+    """One project.pbxproj line with our bundle id, iOS minimum and iPhone-only family."""
+    if "PRODUCT_BUNDLE_IDENTIFIER" in line:
+        target = f"{bundle_id}.RunnerTests" if "RunnerTests" in line else bundle_id
+        line = re.sub(r"PRODUCT_BUNDLE_IDENTIFIER = [^;]+;", f"PRODUCT_BUNDLE_IDENTIFIER = {target};", line)
+    line = re.sub(r"IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;", f"IPHONEOS_DEPLOYMENT_TARGET = {MIN_IOS};", line)
+    line = re.sub(r'TARGETED_DEVICE_FAMILY = "?[0-9,]+"?;', f'TARGETED_DEVICE_FAMILY = "{DEVICE_FAMILY_IPHONE}";', line)
+    return line
+
+
+def review_info(info: dict, flavor: str) -> dict:
+    """Info.plist settings from the App Review audit (docs/apple-review/audit.md)."""
+    out = dict(info)
+    ats = dict(out.get("NSAppTransportSecurity", {}))
+    # Never: HTTPS everywhere (guideline 2.5 / ATS).
+    for key in ("NSAllowsArbitraryLoads", "NSAllowsArbitraryLoadsInWebContent", "NSAllowsArbitraryLoadsForMedia", "NSExceptionDomains"):
+        ats.pop(key, None)
+    if flavor == "dev":
+        ats["NSAllowsLocalNetworking"] = True  # dev builds talk to the emulators
+    else:
+        ats.pop("NSAllowsLocalNetworking", None)
+        for key in DEV_ONLY_INFO_KEYS:
+            out.pop(key, None)
+    if ats:
+        out["NSAppTransportSecurity"] = ats
+    else:
+        out.pop("NSAppTransportSecurity", None)
+    out["UISupportedInterfaceOrientations"] = list(ORIENTATIONS)
+    out.pop("UISupportedInterfaceOrientations~ipad", None)
+    # iPhone only; on an iPad the app runs in the iPhone compatibility mode.
+    out["LSRequiresIPhoneOS"] = True
+    return out
+
+
+def localized_strings(text: str, flavor: str) -> str:
+    """InfoPlist.strings without the developer-only texts outside dev."""
+    if flavor == "dev":
+        return text
+    for key in DEV_ONLY_INFO_KEYS:
+        text = re.sub(rf'^"{key}" = "[^"]*";\n', "", text, flags=re.M)
+    return text
+
+
+def icon_problem(data: bytes) -> str | None:
+    """Why this PNG cannot be the App Store icon, or None (1024 x 1024, no alpha)."""
+    if data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
+        return "not a PNG file"
+    width, height = int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    if (width, height) != (1024, 1024):
+        return f"{width} x {height}, must be 1024 x 1024"
+    if data[25] in (4, 6) or b"tRNS" in data[:4096]:
+        return "has transparency (alpha), which App Store Connect refuses"
+    return None
+
+
+APP_ICON_CONTENTS = """{
+  "images" : [
+    {
+      "filename" : "icon_1024.png",
+      "idiom" : "universal",
+      "platform" : "ios",
+      "size" : "1024x1024"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
+"""
+
+
+def patch_app_icon() -> None:
+    """Our icon instead of the Flutter placeholder (single 1024 size; Xcode makes the rest)."""
+    icon_set = ROOT / "ios" / "Runner" / "Assets.xcassets" / "AppIcon.appiconset"
+    if not icon_set.parent.is_dir():
+        return
+    source = IOS_OVERRIDES / "AppIcon" / "icon_1024.png"
+    problem = icon_problem(source.read_bytes())
+    if problem:
+        raise SystemExit(f"patch_native: tool/ios/AppIcon/icon_1024.png: {problem}")
+    icon_set.mkdir(exist_ok=True)
+    for old in icon_set.glob("*.png"):
+        if old.name != "icon_1024.png":
+            old.unlink()
+    shutil.copyfile(source, icon_set / "icon_1024.png")
+    (icon_set / "Contents.json").write_text(APP_ICON_CONTENTS, encoding="utf-8")
+    log("app icon: tool/ios/AppIcon/icon_1024.png")
+
+
+def patch_privacy_manifest() -> None:
+    """The app's privacy manifest (tool/ios/configure_xcode.rb adds it to the target)."""
+    runner = ROOT / "ios" / "Runner"
+    if runner.is_dir():
+        shutil.copyfile(IOS_OVERRIDES / "PrivacyInfo.xcprivacy", runner / "PrivacyInfo.xcprivacy")
+        log("privacy manifest: ios/Runner/PrivacyInfo.xcprivacy")
+
+
 REMOVED_INFO_KEYS = ("NSMotionUsageDescription", "TSLocationManagerLicense")
 REMOVED_BG_TASKS = ("com.transistorsoft.fetch",)
 
@@ -113,7 +254,9 @@ def patch_text(path: Path, transform) -> None:
 # iOS
 # --------------------------------------------------------------------------
 
-def patch_ios(bundle_id: str, display_name: str) -> None:
+def patch_ios(bundle_id: str, display_name: str, flavor: str | None = None) -> None:
+    flavor = flavor_for(bundle_id, flavor)
+    check_prod_name(flavor, display_name)
     ios = ROOT / "ios"
     if not ios.is_dir():
         log("ios/ not found, skipping iOS")
@@ -122,19 +265,7 @@ def patch_ios(bundle_id: str, display_name: str) -> None:
     pbxproj = ios / "Runner.xcodeproj" / "project.pbxproj"
 
     def pbx(text: str) -> str:
-        lines = []
-        for line in text.splitlines(keepends=True):
-            if "PRODUCT_BUNDLE_IDENTIFIER" in line:
-                if "RunnerTests" in line:
-                    line = re.sub(r"PRODUCT_BUNDLE_IDENTIFIER = [^;]+;",
-                                  f"PRODUCT_BUNDLE_IDENTIFIER = {bundle_id}.RunnerTests;", line)
-                else:
-                    line = re.sub(r"PRODUCT_BUNDLE_IDENTIFIER = [^;]+;",
-                                  f"PRODUCT_BUNDLE_IDENTIFIER = {bundle_id};", line)
-            line = re.sub(r"IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;",
-                          f"IPHONEOS_DEPLOYMENT_TARGET = {MIN_IOS};", line)
-            lines.append(line)
-        return "".join(lines)
+        return "".join(pbx_line(line, bundle_id) for line in text.splitlines(keepends=True))
 
     patch_text(pbxproj, pbx)
 
@@ -156,9 +287,7 @@ def patch_ios(bundle_id: str, display_name: str) -> None:
     info.update(PERMISSION_TEXTS)
     for key in REMOVED_INFO_KEYS:
         info.pop(key, None)
-    ats = dict(info.get("NSAppTransportSecurity", {}))
-    ats["NSAllowsLocalNetworking"] = True  # dev builds talk to the emulators
-    info["NSAppTransportSecurity"] = ats
+    info = review_info(info, flavor)
     # Firebase Cloud Messaging, and (Prompt 13) live location during a run
     # with the phone locked. fetch and processing were only for the paid
     # location plugin.
@@ -203,6 +332,7 @@ def patch_ios(bundle_id: str, display_name: str) -> None:
         target.mkdir(exist_ok=True)
         shutil.copyfile(IOS_OVERRIDES / f"{lang}.lproj" / "InfoPlist.strings", target / "InfoPlist.strings")
         strings = target / "InfoPlist.strings"
+        patch_text(strings, lambda t: localized_strings(t, flavor))
         patch_text(strings, lambda t: re.sub(r'"CFBundleDisplayName" = "[^"]*";',
                                              f'"CFBundleDisplayName" = "{display_name_for(lang, display_name)}";', t))
 
@@ -578,9 +708,12 @@ def main() -> int:
     parser.add_argument("--ios-bundle-id", required=True)
     parser.add_argument("--android-app-id", required=True)
     parser.add_argument("--display-name", required=True)
+    parser.add_argument("--flavor", choices=FLAVORS, default=None, help="default: from the bundle id suffix")
     args = parser.parse_args()
 
-    patch_ios(args.ios_bundle_id, args.display_name)
+    patch_ios(args.ios_bundle_id, args.display_name, args.flavor)
+    patch_app_icon()
+    patch_privacy_manifest()
     # Before the Maps and alerts patches, which add lines to this delegate.
     patch_ios_launch()
     patch_maps_ios()
