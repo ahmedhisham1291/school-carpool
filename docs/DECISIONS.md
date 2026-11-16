@@ -605,3 +605,10 @@ Where an item replaces an earlier decision, it says so.
   breach notice with the Regs Art. 5 contents, region, sub-processors,
   deletion, audit); big vendors' standard DPAs accepted as they are;
   Sentry and Algolia move to EU regions where the plan allows (owner).
+- **R11 - live location of children: DPIA, and the route archive 1 year
+  -> 90 days** (`ROUTE_ARCHIVE_DAYS`; supersedes "Location history ...
+  kept 1 year" of 14 Nov 2026, which the lawyer had confirmed: the
+  shorter period is the safe side; the lawyer is told). Routes archived
+  under the 1-year rule go once the run is 90 days old (the daily job
+  checks `endedAt`); the Storage lifecycle deletes `routeArchive/` files
+  after 120 days as a safety net. DPIA: `docs/legal/dpia-live-location.md`.

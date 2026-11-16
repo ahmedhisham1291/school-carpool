@@ -82,6 +82,8 @@ class LegalPagesTest(unittest.TestCase):
             # R3: written consent (typed name + Face ID / passcode) and a copy on the Privacy screen.
             self.assertIn("your full name typed (it must match your ID)", privacy)
             self.assertIn("open and download a copy on the Privacy screen", privacy)
+            # R11: routes 90 days after the run.
+            self.assertIn("a compressed route (90 days after the run)", privacy)
             # R6: emergency contact opt-in.
             self.assertIn("send them, from your phone, a link to confirm or say no", privacy)
             # R4: children 15 to 18.

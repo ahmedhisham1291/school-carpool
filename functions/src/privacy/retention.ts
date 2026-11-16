@@ -42,8 +42,13 @@ export const CONSENT_AFTER_CLOSURE_DAYS = CONSENT_RECORD_YEARS * YEAR_DAYS;
  * the admins can finish the case; then it is deleted whatever the state.
  */
 export const SAFETY_HOLD_DAYS = 30;
-/** Archived routes (one per run) are kept this long after the run. */
-export const ROUTE_ARCHIVE_DAYS = YEAR_DAYS;
+/**
+ * Archived routes (one per run) are kept this long after the run: 90 days
+ * (R11, owner decision 16 Nov 2026; was 1 year). A child's whereabouts are
+ * children's data (sensitive); the DPIA (docs/legal/dpia-live-location.md)
+ * found 90 days enough for safety reviews, which are raised within days.
+ */
+export const ROUTE_ARCHIVE_DAYS = 90;
 /** Chat history is kept for the life of the chat plus this long. */
 export const CHAT_AFTER_END_DAYS = YEAR_DAYS;
 /** A handled report keeps its copy of the messages this long, then only the decision stays. */
@@ -265,6 +270,11 @@ export function consentPurgeAt(closedAtMs: number): number {
 /** When a run's archived route is deleted. */
 export function routeArchivePurgeAt(runEndedAtMs: number): number {
   return runEndedAtMs + ROUTE_ARCHIVE_DAYS * DAY_MS;
+}
+
+/** Runs that ended before this are past their archive period (R11; also for routes archived under the 1-year rule). */
+export function routeArchiveCutoff(nowMs: number): number {
+  return nowMs - ROUTE_ARCHIVE_DAYS * DAY_MS;
 }
 
 /** When an ended chat (carpool closed, a private chat whose parent left or blocked) is deleted. */

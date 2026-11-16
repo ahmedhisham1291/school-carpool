@@ -60,8 +60,8 @@ enum Keep {
   /// Deleted within 24 hours of each run.
   oneDay,
 
-  /// 1 year after the run.
-  yearAfterRun,
+  /// 90 days after the run (R11: archived routes; ROUTE_ARCHIVE_DAYS on the server).
+  ninetyDaysAfterRun,
 
   /// For the life of the chat and 1 year after it ends.
   yearAfterChat,
@@ -95,7 +95,7 @@ Keep keepOf(DataType t) => switch (t) {
   // Proof of consent: 3 years after closure (owner decision 16 Nov 2026, R1).
   DataType.consents => Keep.threeYearsAfterClosure,
   DataType.liveLocation => Keep.oneDay,
-  DataType.routeArchive => Keep.yearAfterRun,
+  DataType.routeArchive => Keep.ninetyDaysAfterRun,
   DataType.chat => Keep.yearAfterChat,
   DataType.notifications || DataType.analytics => Keep.sixtyDays,
   DataType.devices => Keep.days180,

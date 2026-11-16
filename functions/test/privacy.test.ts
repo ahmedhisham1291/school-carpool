@@ -92,7 +92,7 @@ describe("retention schedule", () => {
     assert.equal(rule("idPhotos").days, 0, "owner decision 16 Nov 2026: photos go with the account");
     assert.equal(rule("idPhotos").from, "accountClosed");
     assert.equal(rule("trips").from, "accountClosed");
-    assert.equal(rule("routeArchive").days, 365);
+    assert.equal(rule("routeArchive").days, 90, "R11: 90 days after the run");
     assert.equal(rule("chat").from, "chatEnd");
     assert.ok(rule("liveLocation").days !== null && (rule("liveLocation").days ?? 99) <= 1, "live points within 24 hours");
     assert.equal(rule("wallet").enforcedBy[0], "kept", "transfer records: as the law requires");
@@ -101,7 +101,9 @@ describe("retention schedule", () => {
   it("dates: one year after closure, after the run and after the chat ended", () => {
     assert.equal(purgeAfterClosure(NOW), NOW + 365 * DAY_MS);
     assert.equal(AFTER_CLOSURE_DAYS, 365);
-    assert.equal(routeArchivePurgeAt(NOW), NOW + 365 * DAY_MS);
+    // R11: 90 days after the run (was 1 year).
+    assert.equal(routeArchivePurgeAt(NOW), NOW + 90 * DAY_MS);
+    assert.equal(rule("routeArchive").days, 90);
     assert.equal(chatPurgeAt(NOW), NOW + 365 * DAY_MS);
     assert.equal(isDue(null, NOW), false);
     assert.equal(isDue(NOW, NOW), true);

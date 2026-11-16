@@ -59,6 +59,7 @@ Open questions (none block; recorded for the owner and the lawyer):
 ## Progress
 
 - R1: done.
+- R11: done (owner: re-apply `tool/storage_lifecycle.json` with `tool/setup_retention.sh` in staging and prod; the lawyer is told the route archive is now 90 days).
 - R10: done (docs; owner: the checklist per processor, Sentry/Algolia EU regions).
 - R9: done (keep `activityCarpools` off in staging and prod until the lawyer opinion covers F39).
 - R8: done (owner: give the registered address once the company exists; the lawyer approves the texts).

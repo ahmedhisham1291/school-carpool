@@ -30,7 +30,7 @@ import { PLACE_INTERNAL, internalId } from "../places/catalog";
 import type { RetentionReport, RetentionStore } from "./jobs";
 import { responseDueAt, type ConsentRow, type PrivacyRequest } from "./requests";
 import type { SignatureRecord } from "../auth/signature";
-import { ABUSE_COUNTER_DAYS, consentPurgeAt, DAY_MS, DEVICE_STALE_DAYS, LOGIN_HISTORY_DAYS, type DataTypeId } from "./retention";
+import { ABUSE_COUNTER_DAYS, consentPurgeAt, DAY_MS, DEVICE_STALE_DAYS, LOGIN_HISTORY_DAYS, routeArchiveCutoff, type DataTypeId } from "./retention";
 
 /**
  * Firestore and Storage side of Prompt 12. Every collection here is closed
@@ -713,12 +713,16 @@ export class FirestoreRetentionStore implements RetentionStore {
   }
 
   async deleteRouteArchivesDue(nowMs: number, limit: number): Promise<number> {
-    const snap = await this.db.collection(ROUTE_ARCHIVES).where("purgeAt", "<=", ts(nowMs)).limit(limit).get();
-    for (const d of snap.docs) {
+    const due = await this.db.collection(ROUTE_ARCHIVES).where("purgeAt", "<=", ts(nowMs)).limit(limit).get();
+    // R11: routes archived under the older 1-year rule carry a later purge
+    // date; they go once the run is ROUTE_ARCHIVE_DAYS (90) old.
+    const old = await this.db.collection(ROUTE_ARCHIVES).where("endedAt", "<=", ts(routeArchiveCutoff(nowMs))).limit(limit).get();
+    const docs = new Map([...due.docs, ...old.docs].map((d) => [d.id, d]));
+    for (const d of docs.values()) {
       await this.bucket.file(text(d.get("path"))).delete({ ignoreNotFound: true });
       await d.ref.delete();
     }
-    return snap.size;
+    return docs.size;
   }
 
   async endClosedCarpoolChats(nowMs: number, limit: number, freeze: (cid: string) => Promise<void>): Promise<number> {
