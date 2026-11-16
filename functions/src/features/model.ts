@@ -22,12 +22,22 @@ export type FeatureKey = (typeof FEATURE_KEYS)[number];
 export type FeatureSwitches = Readonly<Record<FeatureKey, boolean>>;
 
 /** A missing document, or a missing or odd field, reads as these. */
+/**
+ * Owner decision 16 Nov 2026 (CLAUDE.md "Money: OFF"): no money feature is
+ * on by default. The wallet AND Settle up start off; only a super admin
+ * turns one on, from the admin panel (adminSetFeature, audit log), which
+ * writes config/features. A missing document or field is therefore never
+ * a way to open a money feature.
+ */
 export const PILOT_DEFAULTS: FeatureSwitches = {
   wallet: false,
   ratingsAndVouching: false,
   yearlyChecks: false,
-  settleUp: true,
+  settleUp: false,
 };
+
+/** The money features: off unless config/features says true (security review). */
+export const MONEY_FEATURES: readonly FeatureKey[] = ["wallet", "settleUp"];
 
 /** Every switch on (unit tests of the features themselves). */
 export const ALL_ON: FeatureSwitches = { wallet: true, ratingsAndVouching: true, yearlyChecks: true, settleUp: true };
@@ -42,9 +52,7 @@ export const FEATURE_CACHE_MS = 30_000;
  * stops trusting its last known copy and uses the pilot defaults until a
  * read works again. So a stale "on" cannot outlive a switch-off for long
  * when Firestore cannot be read: the wallet, ratings and vouching and the
- * yearly check go off (their defaults). Settle up's default is on: it
- * moves no money and each of its calls needs Firestore anyway, so staying
- * on changes nothing while Firestore is unreachable.
+ * yearly check and Settle up go off (their defaults).
  */
 export const FEATURE_MAX_FAILED_READS = 3;
 
