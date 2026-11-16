@@ -219,6 +219,32 @@ void main() {
     });
   });
 
+  group('updated terms (existing account, legal review 16 Nov 2026)', () {
+    const SessionState oldTerms = SessionSignedIn(
+      uid: 'uid-1',
+      account: Account(
+        parentId: 'ABCD2345',
+        status: AccountStatus.verified,
+        phone: '+201000000001',
+        email: 'parent@example.com',
+        emailVerified: true,
+        termsAccepted: true,
+        termsVersion: '2026-11-13',
+        language: 'ar',
+      ),
+    );
+
+    testWidgets('asks once with what changed and keeps Privacy reachable', (WidgetTester tester) async {
+      final FakeAuthRepository repository = FakeAuthRepository();
+      await _pump(tester, location: AuthRoutes.terms, repository: repository, session: oldTerms);
+      expect(find.textContaining('We updated the terms and privacy policy'), findsOneWidget);
+      expect(find.byKey(const Key('terms.transfer')), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('terms.privacy.open')));
+      expect(find.byKey(const Key('terms.privacy.open')), findsOneWidget);
+      expect(sessionRedirect(oldTerms, PrivacyRoutes.delete), isNull);
+    });
+  });
+
   group('profile', () {
     testWidgets('shows the parent ID and copies it', (WidgetTester tester) async {
       final List<MethodCall> clipboard = <MethodCall>[];

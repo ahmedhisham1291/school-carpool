@@ -10703,5 +10703,13 @@
   "incidentConfirm": "تسجيل",
   "@incidentConfirm": {
     "description": "Dialog button. One line."
+  },
+  "termsUpdatedBody": "حدّثنا الشروط وسياسة الخصوصية، وأضفنا موافقة مستقلة على التخزين خارج مصر. اقرأها ووافق عليها للمتابعة. يمكنك تنزيل بياناتك أو حذف حسابك من «الخصوصية».",
+  "@termsUpdatedBody": {
+    "description": "Terms screen text when an existing account is asked once to accept updated documents (legal review 16 Nov 2026)."
+  },
+  "termsUpdatedPrivacy": "الخصوصية",
+  "@termsUpdatedPrivacy": {
+    "description": "Tertiary button on the updated-terms screen: opens Privacy (export, delete account). One line."
   }
 }

@@ -2404,5 +2404,7 @@
   "incidentStepParentsBody": "Record that every affected parent was told now. This cannot be undone.",
   "incidentStepClose": "Close",
   "incidentStepCloseBody": "Close the incident after the root cause is fixed. The record stays in the register.",
-  "incidentConfirm": "Record"
+  "incidentConfirm": "Record",
+  "termsUpdatedBody": "We updated the terms and privacy policy and added a separate consent to storage abroad. Read and accept them to continue. You can download your data or delete your account in Privacy.",
+  "termsUpdatedPrivacy": "Privacy"
 }

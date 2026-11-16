@@ -22,7 +22,7 @@ Gazette (الجريدة الرسمية) govern and the lawyer should check them.
 1. **حماية البيانات (القانون 151 لسنة 2020):** صدرت اللائحة التنفيذية بالقرار 816 لسنة 2025 في 1 نوفمبر 2025، وانتهت مهلة توفيق الأوضاع (سنة) في 31 أكتوبر / 1 نوفمبر 2026، وبدأ مركز حماية البيانات الشخصية الرقابة. يلزم **ترخيص** من المركز قبل معالجة البيانات، و**ترخيص للبيانات الحساسة** (بيانات الأطفال، والبيومترية مثل مطابقة الوجه)، و**ترخيص/تصريح للنقل خارج مصر** (Google Cloud في بلجيكا وغيرها)، و**تعيين مسؤول حماية بيانات** مسجّل لدى المركز. الإبلاغ عن الاختراق خلال 72 ساعة للمركز ثم خلال 3 أيام عمل لصاحب البيانات. الرد على طلبات أصحاب البيانات خلال 6 أيام عمل. الغرامات تصل إلى 5 ملايين جنيه مع الحبس في بعض الجرائم. **الخطر: مرتفع حتى يتم الترخيص وتعيين المسؤول.**
 1أ. **الإبلاغ عن اختراق أو تسريب البيانات:** يلتزم المتحكم والمعالج بإخطار مركز حماية البيانات خلال 72 ساعة من العلم (وفورًا إذا تعلق بالأمن القومي، ونحن نعامل بيانات الأطفال والوجه بالمثل احتياطًا)، ثم إخطار أصحاب البيانات خلال 3 أيام عمل من إخطار المركز، دون استثناء للمخاطر المنخفضة، مع تسجيل كل إخطار في سجل إلكتروني آمن. وإذا كان الاختراق جريمة يجب إبلاغ السلطات المختصة (المادة 35 من القانون 175 لسنة 2018) والحفاظ على الأدلة. أضفنا سجل الحوادث وشاشة «تسجيل حادثة» في لوحة الإدارة ودليل الإجراءات بنماذج عربية.
 2. **قانون النقل البري باستخدام تكنولوجيا المعلومات (87 لسنة 2018):** تعريف «الخدمة» لا يشترط الأجر، والتشغيل دون ترخيص غرامته 200 ألف إلى 5 ملايين جنيه. أفضل حماية هي ما قرره المالك: **التوصيل تطوعي ومجاني تمامًا** بين أهالي المدرسة نفسها، بلا أي أجرة أو مساهمة أو رسوم. أوقفنا المحفظة و«تسوية الحساب» والمساهمة لكل طفل في كل البيئات، وأضفنا إقرار «تناوب مجاني بلا مقابل». **الخطر: متوسط، ويجب أن يؤكده المحامي.**
-3. **التأمين والمرور:** التأمين الإجباري (قانون التأمين الموحد 155 لسنة 2024) يغطي الوفاة والإصابة حتى 100 ألف جنيه، ويحق لشركة التأمين الرجوع على المؤمَّن له إذا استُخدمت السيارة في غير الغرض المرخّص به، واستخدام السيارة الملاكي في غير غرضها قد يؤدي لسحب الرخصة. لذلك يجب ألا يتقاضى أحد أي مقابل. ننصح كل ولي أمر بتأمين شامل اختياري وتأمين حوادث شخصية للركاب.
+3. **التأمين والمرور:** التأمين الإجباري (قانون التأمين الموحد 155 لسنة 2024) يغطي الوفاة والإصابة حتى 100 ألف جنيه، ويحق لجهة التأمين (مجمعة التأمين الإجباري) الرجوع على المؤمَّن له إذا استُخدمت السيارة في غير الغرض المرخّص به (المادة 56)، واستخدام السيارة الملاكي في غير غرضها قد يؤدي لسحب الرخصة. لذلك يجب ألا يتقاضى أحد أي مقابل. ننصح كل ولي أمر بتأمين شامل اختياري وتأمين حوادث شخصية للركاب.
 4. **الطفل:** قانون الطفل (المادة 96) يعاقب على تعريض الطفل للخطر؛ الالتزام بأحزمة الأمان ومقاعد الأطفال وعدد المقاعد مهم.
 5. **الجرائم الإلكترونية (175 لسنة 2018):** قد يُعد التطبيق «مقدّم خدمة» يلزمه حفظ سجلات الدخول 180 يومًا؛ رفعنا مدة سجل الدخول إلى 180 يومًا.
 6. **حماية المستهلك (181 لسنة 2018):** العقود الإلكترونية يجب أن تكون بالعربية، والشروط التي تعفي المورد من التزاماته باطلة. جعلنا النص العربي هو المعتمد وصححنا بند حدود المسؤولية.
@@ -65,7 +65,12 @@ Gazette (الجريدة الرسمية) govern and the lawyer should check them.
   transition ends on 1 Nov 2026, prioritising complaints and breach reports
   ([Al Mal News, 26 Oct 2026](https://almalnews.com/2143437/%D8%B3%D9%88%D8%B2%D8%A7%D9%86-%D8%A7%D9%84%D8%B9%D9%82%D8%A8%D8%A7%D9%88%D9%8A-%D9%85%D8%B1%D9%83%D8%B2-%D8%AD%D9%85%D8%A7%D9%8A%D8%A9-%D8%A7%D9%84%D8%A8%D9%8A%D8%A7%D9%86%D8%A7%D8%AA-%D8%A7%D9%84%D8%B4%D8%AE%D8%B5%D9%8A%D8%A9-%D9%8A%D8%A8%D8%AF%D8%A3/)).
   **As of 16 Nov 2026 the regulations are in force and the grace period has
-  ended.** No extension was found.
+  ended.** No extension was found. (Validator, 16 Nov 2026: CMS notes that
+  because the full text was only published on 25 Dec 2025 the PDPC *might*
+  treat the period as running to the end of 2026, and advises planning
+  around 1 Nov 2026; Kennedys calls it a "Prime Ministerial" decree, but CMS
+  and Al Tamimi say the Minister of Communications and IT issued it. Plan
+  on 1 Nov 2026; the lawyer confirms.)
 - **Licences and registration.** A licence/permit from the PDPC is needed
   before collecting or processing personal data; separate licences/permits
   for sensitive data, cross-border transfer, direct electronic marketing and
@@ -273,10 +278,11 @@ questions 1.10-1.12.
   comprehensive bill ([Ahram Online](https://english.ahram.org.eg/News/561676.aspx)).
 - **Insurance:** the Unified Insurance Law No. 155 of 2024 repealed Law
   72/2007; compulsory motor cover is civil liability for death and bodily
-  injury (EGP 100,000 for death or permanent total disability; property
-  EGP 20,000; Arts. 40, 47), and the insurer may **recover from the insured
-  if the vehicle was used for purposes not authorised by the licence**
-  (Art. 56) ([Law 155/2024, Andersen translation](https://eg.andersen.com/wp-content/uploads/2026/02/Law-No.-155-of-2024.pdf)).
+  injury (EGP 100,000 for death or permanent total disability, which the
+  Board may raise by up to 50%; property up to EGP 20,000; both Art. 47),
+  and the compulsory-insurance pool (the insurer side) may **recover from
+  the insured "if the vehicle was used for purposes not authorized by the
+  license"** (Art. 56) ([Law 155/2024, Andersen translation](https://eg.andersen.com/wp-content/uploads/2026/02/Law-No.-155-of-2024.pdf)).
   Paid rides in a private car risk both.
 
 ### What the app does today (after this branch)
@@ -509,5 +515,22 @@ the terms say about incidents during a run?
 - No authoritative source on tax/company duties of a free app.
 - The admin panel screen for the privacy queue is not built (open item
   D13); the server queue exists.
-- Existing parents who accepted older documents are not forced to accept
-  the new transfer consent (open item B2) — recommended: ask them once.
+- (Done by the validator, 16 Nov 2026.) Existing parents who accepted
+  older documents are asked once, at their next app start, to accept the
+  current ones incl. storage abroad (`RegistrationStage.termsUpdate`);
+  Privacy (export, withdraw, delete account) stays open meanwhile. The
+  guardian declaration and ID/face wording are asked at the next ID
+  submission or child added, not retroactively (lawyer question 1.4).
+
+## 14. Validator citation check (16 Nov 2026)
+
+Five claims were checked against the sources by web search and fetch (secondary
+sources; the official Arabic texts still govern):
+
+| # | Claim | Result |
+| --- | --- | --- |
+| 1 | Decree 816/2025 issued 1 Nov 2025 by the Minister of Communications and IT; text public 25 Dec 2025; one-year compliance period | **Confirmed** (CMS, Al Tamimi). CMS adds that the PDPC might treat the period as running to end-2026 (now noted in section 1). Kennedys' "Prime Ministerial Decree" is a slip on their side. |
+| 2 | Breach: PDPC within 72 h of awareness, immediately for national security; data subjects within 3 working days of the PDPC notice; no risk threshold | **Confirmed** (Kennedys; Al Tamimi also says "immediately" for sensitive data, which the code applies). CMS says "three days" (not "working"): the code uses working days per the Regulations; lawyer 1.10. |
+| 3 | Law 87/2018: licence to provide or make available the service (Art. 2), 180 days' data (Art. 10), EGP 200,000-5 million without licence (Art. 15), drivers EGP 5,000-20,000 (Art. 16) | **Confirmed** (Manshurat Arabic text). The Art. 1 definition wording was not re-read. |
+| 4 | Law 155/2024 Art. 56 recourse when the vehicle is used for purposes not authorised by the licence; EGP 100,000 death/total disability | **Confirmed with a correction:** both amounts are in Art. 47 (not "Arts. 40, 47"), the Board may raise them up to 50%, and recourse is by the compulsory-insurance pool. Fixed above. |
+| 5 | Law 175/2018 Art. 2: service providers keep logs 180 continuous days; Art. 33 EGP 5-10 million; Art. 35 manager's duty to report crimes, >= 3 months and/or EGP 30,000-100,000 | **Confirmed** (Andersen translation). Art. 2 also lists data on the "content and nature" of the system handled. |

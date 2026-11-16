@@ -33,7 +33,7 @@ to 13, docs/DECISIONS.md.
 | # | Question | Default used now |
 | --- | --- | --- |
 | B1 | Paid location plugin (about USD 400) for Android or if iPhone tracking is not reliable enough in the pilot | Free geolocator; decide after test-iphone.md T1 to T7 |
-| B2 | Existing parents accepted the 2026-11-13 privacy policy: ask them again for the 2026-11-14 version (one-time screen) or rely on a notice | Notice (no forced screen) |
+| B2 | Existing parents accepted the 2026-11-13 privacy policy: ask them again for the 2026-11-14 version (one-time screen) or rely on a notice | **Done (legal-egypt, 16 Nov 2026):** a parent whose stored `termsVersion` is older than the current one is asked once at the next app start (terms screen, incl. storage abroad); Privacy (export, delete) stays open; the demo seed writes current versions and consent records. A future change to only the privacy policy must also raise the terms version to re-ask. |
 | B3 | A deletion job for transfer records at the end of the 5 years | None yet (append-only); records are kept |
 | B4 | External penetration test (MASVS L2): choose and pay a tester | Not done (SECURITY.md) |
 | B5 | **Data protection officer and PDPC licences (Law 151/2020 + Decree 816/2025; grace period ended 31 Oct / 1 Nov 2026):** controller, sensitive-data (children, biometrics) and transfer-abroad licences on the PDPC portal; DPO registered. **High risk until filed.** Steps: docs/legal/owner-actions.md 1-4 | Owner with the lawyer; nothing in code |

@@ -73,6 +73,22 @@ describe("breach register: deadlines", () => {
     assert.equal(v.subjectsDueAtMs, wed + 5 * DAY_MS);
   });
 
+  it("working days are counted in Cairo: Thu and Fri notices, late evening, and across Egypt's DST changes", () => {
+    const thu = SUN + 4 * DAY_MS; // Thu 19 Nov 2026, 10:00 Cairo
+    assert.equal(addWorkingDays(thu, 3), thu + 5 * DAY_MS, "Thu -> Sun (1), Mon (2), Tue (3)");
+    const fri = SUN + 5 * DAY_MS;
+    assert.equal(addWorkingDays(fri, 3), fri + 4 * DAY_MS, "Fri -> Sun (1), Mon (2), Tue (3)");
+    // Thu 23:30 Cairo (21:30 UTC in winter): the next day is Friday in Cairo even though it is still Thursday in UTC.
+    const thuLate = Date.UTC(2026, 10, 19, 21, 30);
+    assert.equal(addWorkingDays(thuLate, 1), thuLate + 3 * DAY_MS, "Thu 23:30 -> Sun 23:30");
+    // Egypt's summer time starts on the last Friday of April (2027: 30 Apr) and ends on the last Thursday of October.
+    // Thu 29 Apr 2027 23:30 Cairo (UTC+2) + 1 working day: Friday is skipped by the clock change, Saturday is weekend -> Sunday.
+    const springThu = Date.UTC(2027, 3, 29, 21, 30);
+    const due = addWorkingDays(springThu, 1);
+    const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Cairo", weekday: "short" }).format(new Date(due));
+    assert.equal(weekday, "Sun");
+  });
+
   it("states move from onTime to dueSoon to overdue; 'now' while an immediate notice is not sent", () => {
     const r = newBreach("b", input(), "a", SUN);
     assert.equal(breachView(r, SUN).pdpcState, "onTime");

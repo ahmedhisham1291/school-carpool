@@ -23,7 +23,8 @@ Task: "act as a lawyer, analyze the Egyptian law and be on the safe side"
 - Functions: 890 pass (run here, Node 22, workspace type stubs).
 - Python tool tests (`tool/test_links_site.py`, `tool/test_patch_native_review.py`): pass (run here).
 - Flutter widget/golden tests: written, not run here (D41).
-- Rules: no rules change.
+- Rules: `breachRegister` closed to every client (explicit match), test in `tests/rules/admin.test.ts` (CI).
+- Validator (16 Nov 2026): see docs/reviews/legal-egypt.md.
 
 ## Open questions
 
