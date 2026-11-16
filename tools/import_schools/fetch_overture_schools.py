@@ -59,6 +59,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import sys
 import urllib.request
 from pathlib import Path
@@ -213,6 +214,57 @@ def _common(names: dict) -> dict[str, str]:
     return {}
 
 
+_ARABIC = re.compile("[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]")
+_LATIN = re.compile("[A-Za-z\u00C0-\u024F]")
+
+
+def script_of(text: str) -> str:
+    """"ar", "en" (Latin letters) or "" for a name: the letters that
+    dominate (a mixed "Nile مدرسة النيل" goes by the larger count)."""
+    ar = len(_ARABIC.findall(text))
+    latin = len(_LATIN.findall(text))
+    if not ar and not latin:
+        return ""
+    return "ar" if ar >= latin else "en"
+
+
+def split_names(names: dict) -> tuple[str, str, str]:
+    """(Arabic name, English name, primary) of an Overture place.
+
+    names.primary carries no language (staging run, 16 Nov 2026: 0 of
+    6,202 kept places had names.common), so its script decides the side:
+    Arabic letters -> Arabic, Latin -> English, mixed -> the side of the
+    dominant script (primary itself is kept as "name" too). names.common
+    (language -> name) and names.rules (variant/language/value) fill the
+    other side, or win, when they say the language."""
+    from name_clean import fix_text  # mojibake repaired before the script is read
+
+    primary = fix_text(str(names.get("primary") or ""))
+    common = {k: fix_text(v) for k, v in _common(names).items()}
+    ar = common.get("ar", "")
+    en = common.get("en", "")
+    for rule in names.get("rules") or []:
+        if not isinstance(rule, dict) or not rule.get("value"):
+            continue
+        lang = str(rule.get("language") or "").split("-")[0].lower()
+        if lang == "ar" and not ar:
+            ar = str(rule["value"])
+        elif lang == "en" and not en:
+            en = str(rule["value"])
+    # A name in common/rules whose script contradicts its language tag is
+    # left to the script check below.
+    if ar and script_of(ar) == "en":
+        en, ar = en or ar, ""
+    if en and script_of(en) == "ar":
+        ar, en = ar or en, ""
+    side = script_of(primary)
+    if side == "ar" and not ar:
+        ar = primary
+    elif side == "en" and not en:
+        en = primary
+    return ar.strip(), en.strip(), primary
+
+
 def _band(confidence: float) -> str:
     low = max((b for b in CONFIDENCE_BANDS if confidence >= b), default=0.0)
     return f"{low:.1f}+"
@@ -263,24 +315,25 @@ def to_geojson(rows: list[dict], min_confidence: float, fetched_at: str, release
             bump("skipped", "address in another country")
             continue
         names = _json(row.get("names")) or {}
-        common = _common(names)
-        primary = str(names.get("primary") or "") if isinstance(names, dict) else ""
+        name_ar, name_en, primary = split_names(names if isinstance(names, dict) else {})
         props: dict[str, object] = {
             "@source": "overture",
             "@id": pid,
             "name": primary,
-            "name:ar": common.get("ar", ""),
-            "name:en": common.get("en", ""),
+            "name:ar": name_ar,
+            "name:en": name_en,
             "overture:category": category,
             "overture:confidence": round(confidence, 3),
             "overture:datasets": ";".join(datasets),
         }
         if first.get("locality"):
             props["addr:city"] = str(first["locality"])
-        if common.get("ar"):
+        if name_ar:
             bump("kept", "with an Arabic name")
-        if common.get("en"):
+        if name_en:
             bump("kept", "with an English name")
+        if name_ar and name_en:
+            bump("kept", "with both")
         bump("kept", "all")
         features.append(
             {"type": "Feature", "properties": props, "geometry": {"type": "Point", "coordinates": [round(float(lon), 7), round(float(lat), 7)]}}
@@ -311,7 +364,8 @@ def report_text(fetched_at: str, release: str, min_confidence: float, stats: dic
             f"- Downloaded: {fetched_at} (UTC), release {release} ({S3_PLACES.format(release=release)})",
             f"- Rows from the query (confidence >= {FETCH_FLOOR}): {stats['rows'].get('all', 0)}",
             f"- Written for the import (confidence >= {min_confidence}, not permanently closed, Egypt): {stats['kept'].get('all', 0)}"
-            f" (with an Arabic name {stats['kept'].get('with an Arabic name', 0)}, with an English name {stats['kept'].get('with an English name', 0)})",
+            f" (with an Arabic name {stats['kept'].get('with an Arabic name', 0)}, with an English name {stats['kept'].get('with an English name', 0)},"
+            f" with both {stats['kept'].get('with both', 0)}; the language comes from the letters when Overture gives none)",
             f"- Per category: {_counts(stats['category'])}",
             f"- Per confidence band: {_counts(stats['band'])}",
             f"- Per upstream dataset: {_counts(stats['dataset'])}",
