@@ -49,8 +49,12 @@ class AdminFailure implements Exception {
         'not-admin' || 'unauthenticated' => AdminFailureKind.notAdmin,
         'mfa-required' => AdminFailureKind.mfaRequired,
         // Over 8 hours, idle for 15 minutes on the server, or the admin was
-        // disabled (tokens revoked): sign in again.
-        'session-expired' || 'session-idle' || 'session-revoked' => AdminFailureKind.sessionExpired,
+        // disabled (tokens revoked): sign in again. 'reauth-required': a
+        // sensitive action (photos, routes, moderation, admin accounts,
+        // switches) needs a sign-in less than 30 minutes old (security
+        // review, 16 Nov 2026): sign in again with the password and TOTP.
+        'session-expired' || 'session-idle' || 'session-revoked' || 'reauth-required' =>
+          AdminFailureKind.sessionExpired,
         'not-super-admin' => AdminFailureKind.notSuperAdmin,
         'rate-limited' => AdminFailureKind.rateLimited,
         'invalid-request' || 'invalid-decision' => AdminFailureKind.invalid,

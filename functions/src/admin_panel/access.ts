@@ -35,18 +35,20 @@ function millis(value: unknown): number | null {
 
 /**
  * The admin calling, or a permission error with details.reason for the
- * panel. Checks the token (claim, second factor, 8 hours), then the
+ * panel. Checks the token (claim, TOTP second factor, 8 hours; with
+ * recentSignIn, a sign-in less than 30 minutes old), then the
  * admin's record (not disabled, token not revoked, not idle for 15
  * minutes) and records the activity.
  */
 export async function requireAdminCaller(
   request: CallableRequest,
-  options: { superAdmin?: boolean } = {},
+  options: { superAdmin?: boolean; recentSignIn?: boolean } = {},
 ): Promise<AdminCaller> {
   const nowMs = Date.now();
   const result = adminAccess(request.auth as CallerAuth | undefined, Math.floor(nowMs / 1000), {
     requireMfa: mfaRequired(),
     superAdmin: options.superAdmin,
+    recentSignIn: options.recentSignIn,
   });
   if (isRefusal(result)) refuse(result);
 

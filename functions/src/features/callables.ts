@@ -60,7 +60,7 @@ export const adminGetFeatures = onCall(options, (request) =>
 /** { feature, on } -> { features, defaults, keys }. Super admins only; audit log entry. */
 export const adminSetFeature = onCall(options, (request) =>
   run("adminSetFeature", async () => {
-    const caller = await requireAdminCaller(request, { superAdmin: true });
+    const caller = await requireAdminCaller(request, { superAdmin: true, recentSignIn: true });
     return setFeature(deps(), caller, request.data, ipOf(request));
   }),
 );

@@ -6,7 +6,9 @@ import { AdminError, type AdminErrorReason } from "../src/admin_panel/errors";
 import {
   ADMIN_IDLE_MS,
   ADMIN_SESSION_MAX_SECONDS,
+  ADMIN_STEP_UP_SECONDS,
   adminAccess,
+  hasTotpFactor,
   adminRecordAccess,
   adminRoleOf,
   shouldTouch,
@@ -65,6 +67,43 @@ describe("adminAccess", () => {
     const noMfa = { uid: "a", token: { admin: true, auth_time: NOW_S, firebase: { sign_in_provider: "password" } } };
     assert.equal(adminAccess(noMfa, NOW_S, { requireMfa: true }), "mfa-required");
     assert.deepEqual(adminAccess(noMfa, NOW_S, { requireMfa: false }), { uid: "a", role: "admin" });
+  });
+
+  it("accepts only TOTP as the second factor (an SMS factor can be taken over with the SIM)", () => {
+    const sms = { uid: "a", token: { admin: true, auth_time: NOW_S - 60, firebase: { sign_in_provider: "password", sign_in_second_factor: "phone" } } };
+    assert.equal(adminAccess(sms, NOW_S, { requireMfa: true }), "mfa-required");
+    const odd = { uid: "a", token: { admin: true, auth_time: NOW_S - 60, firebase: { sign_in_second_factor: ["totp"] } } };
+    assert.equal(adminAccess(odd, NOW_S, { requireMfa: true }), "mfa-required");
+    assert.equal(hasTotpFactor({ firebase: MFA }), true);
+    assert.equal(hasTotpFactor({ firebase: { sign_in_second_factor: "phone" } }), false);
+    assert.equal(hasTotpFactor({}), false);
+  });
+
+  it("sensitive actions need a sign-in less than 30 minutes old (step-up)", () => {
+    assert.equal(ADMIN_STEP_UP_SECONDS, 30 * 60);
+    const fresh = token({ admin: true, auth_time: NOW_S - ADMIN_STEP_UP_SECONDS });
+    assert.deepEqual(adminAccess(fresh, NOW_S, { requireMfa: true, recentSignIn: true }), { uid: "a", role: "admin" });
+    const older = token({ admin: true, auth_time: NOW_S - ADMIN_STEP_UP_SECONDS - 1 });
+    assert.equal(adminAccess(older, NOW_S, { requireMfa: true, recentSignIn: true }), "reauth-required");
+    assert.deepEqual(adminAccess(older, NOW_S, { requireMfa: true }), { uid: "a", role: "admin" }, "ordinary calls keep the 8-hour session");
+    // The role check comes first: an ordinary admin is told "not-super-admin", not "sign in again".
+    assert.equal(adminAccess(older, NOW_S, { requireMfa: true, superAdmin: true, recentSignIn: true }), "not-super-admin");
+  });
+
+  it("the sensitive callables ask for the step-up", () => {
+    const { readFileSync } = require("node:fs") as typeof import("node:fs");
+    const { join } = require("node:path") as typeof import("node:path");
+    const src = (f: string) => readFileSync(join(__dirname, "..", "..", "src", f), "utf8");
+    const stepUp = (file: string, name: string) => {
+      const text = src(file);
+      const start = text.indexOf(`export const ${name}`);
+      assert.ok(start >= 0, name);
+      const next = text.indexOf("export const ", start + 10);
+      assert.match(text.slice(start, next < 0 ? undefined : next), /recentSignIn: true/, `${name} must require a recent sign-in`);
+    };
+    for (const name of ["adminCreateAdmin", "adminSetAdminDisabled", "adminModerateUser"]) stepUp("admin_panel/callables.ts", name);
+    stepUp("features/callables.ts", "adminSetFeature");
+    for (const name of ["adminOpenUserPhotos", "adminOpenRouteArchive", "adminClearDeviceCheck"]) stepUp("privacy/callables.ts", name);
   });
 
   it("ends the session after 8 hours", () => {

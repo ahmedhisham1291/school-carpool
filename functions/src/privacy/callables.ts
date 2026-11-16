@@ -544,7 +544,7 @@ function reasonOf(raw: Record<string, unknown>) {
  */
 export const adminOpenUserPhotos = onCall({ ...opts, memory: "1GiB", timeoutSeconds: 120 }, (r) =>
   run("adminOpenUserPhotos", async () => {
-    const caller = await requireAdminCaller(r);
+    const caller = await requireAdminCaller(r, { recentSignIn: true });
     const raw = data(r);
     const uid = typeof raw.uid === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(raw.uid) ? raw.uid : null;
     if (!uid) throw new AdminError("invalid-request");
@@ -582,7 +582,7 @@ export const adminOpenUserPhotos = onCall({ ...opts, memory: "1GiB", timeoutSeco
 /** { tripId, reason } -> { meta, points }: one archived route (safety investigations). Logged first. */
 export const adminOpenRouteArchive = onCall(opts, (r) =>
   run("adminOpenRouteArchive", async () => {
-    const caller = await requireAdminCaller(r);
+    const caller = await requireAdminCaller(r, { recentSignIn: true });
     const raw = data(r);
     const tripId = typeof raw.tripId === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(raw.tripId) ? raw.tripId : null;
     if (!tripId) throw new AdminError("invalid-request");
@@ -603,7 +603,7 @@ export const adminOpenRouteArchive = onCall(opts, (r) =>
  */
 export const adminClearDeviceCheck = onCall(opts, (r) =>
   run("adminClearDeviceCheck", async () => {
-    const caller = await requireAdminCaller(r);
+    const caller = await requireAdminCaller(r, { recentSignIn: true });
     const store = new FirestoreDeviceStore(adminDb(), bucket());
     try {
       // Prompt 13: { uid, reason, outcome: approved | confirmedOtherWay }.
