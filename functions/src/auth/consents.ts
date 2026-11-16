@@ -15,7 +15,8 @@ export const CONSENT_VERSIONS = {
   // Prompt 12: new retention (photos kept while active + 1 year, route
   // archive, analytics, chat history) needs the new privacy policy.
   privacy: "2026-11-14",
-  conduct: "2026-11-13",
+  // App Review audit (guideline 1.2): no tolerance for objectionable content.
+  conduct: "2026-11-16",
   whatsapp: "2026-11-13",
 } as const;
 
