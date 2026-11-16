@@ -72,7 +72,7 @@ class LegalPagesTest(unittest.TestCase):
             for must in ("6 working days", "6 أيام عمل", "72 hours", "Storage abroad", "Articles 14 to 16", "Data protection officer",
                          "mailto:help@schoolcarpool.org", "180 days", "explicit consent", "parent or guardian"):
                 self.assertIn(must, privacy)
-            self.assertNotIn("30 days", privacy.replace("up to 30 days", ""))
+            self.assertNotIn("30 days", privacy.replace("up to 30 days", "").replace("30 days after the review decision", ""))
             # R1 (owner, 16 Nov 2026): proof of consent 3 years after closure.
             self.assertIn("then 3 years after it closes, as proof of consent", privacy)
             self.assertIn("ثم 3 سنوات بعد إغلاقه", privacy)
@@ -82,6 +82,8 @@ class LegalPagesTest(unittest.TestCase):
             # R3: written consent (typed name + Face ID / passcode) and a copy on the Privacy screen.
             self.assertIn("your full name typed (it must match your ID)", privacy)
             self.assertIn("open and download a copy on the Privacy screen", privacy)
+            # R12: case images 30 days after the decision.
+            self.assertIn("deleted 30 days after the review decision", privacy)
             # R11: routes 90 days after the run.
             self.assertIn("a compressed route (90 days after the run)", privacy)
             # R6: emergency contact opt-in.

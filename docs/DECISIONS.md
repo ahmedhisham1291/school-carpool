@@ -612,3 +612,12 @@ Where an item replaces an earlier decision, it says so.
   under the 1-year rule go once the run is 90 days old (the daily job
   checks `endedAt`); the Storage lifecycle deletes `routeArchive/` files
   after 120 days as a safety net. DPIA: `docs/legal/dpia-live-location.md`.
+- **R12 - case images deleted 30 days after the review decision**
+  (`ID_IMAGE_DAYS_AFTER_DECISION`; ID front and back, the verification
+  selfies, school ID and licences, with their admin thumbnails); the case
+  keeps the result, the keyed ID hash and the expiry date. **Supersedes,
+  for these images, "photos kept while the account is active" (14 and 16
+  Nov 2026)**; the face reference (needed for the selfie checks before
+  runs), the approved driver photo and the run selfies stay while the
+  account is open and go with it. Cases decided earlier are found by
+  their decision time. The lawyer is told (answers.md 8.1).

@@ -1,4 +1,5 @@
 import { accessReason, thumbPath } from "../privacy/photos";
+import { ID_IMAGE_DAYS_AFTER_DECISION } from "../privacy/retention";
 import { sessionKey } from "../privacy/devices";
 import { consentText } from "../auth/consent_texts";
 import { checkMethod, nameMatches, SignatureError, signatureRecord, type SignatureRecord } from "../auth/signature";
@@ -200,6 +201,8 @@ export interface VerificationStore {
   casesDueForPurge(nowMs: number, limit: number): Promise<Array<{ id: string; uid: string; status: string }>>;
   /** Prompt 12: a decided case keeps its images (clears an old purge date). */
   keepImages(caseId: string): Promise<void>;
+  /** R12: cases decided before [decidedBeforeMs] whose images are still there (cases decided before R12 had no purge date). */
+  decidedCasesWithImages?(decidedBeforeMs: number, limit: number): Promise<Array<{ id: string; uid: string; status: string }>>;
   markPurged(caseId: string, nowMs: number): Promise<void>;
   caseExists(caseId: string): Promise<boolean>;
 }
@@ -431,7 +434,8 @@ export function planDecision(
     note: decision.note,
     nameCheck: decision.approve ? (decision.nameCheck ?? null) : null,
     decidedAtMs: nowMs,
-    purgeAtMs: null,
+    // R12: the case images go 30 days after the decision (the result, ID hash and expiry stay).
+    purgeAtMs: nowMs + ID_IMAGE_DAYS_AFTER_DECISION * DAY_MS,
     userStatus,
     childIds: record.children.map((c) => c.childId),
     vehicle: record.driver !== null,
@@ -575,16 +579,29 @@ export async function purgeVerificationImages(
   const now = deps.now();
   let cases = 0;
   let files = 0;
-  for (const due of await deps.store.casesDueForPurge(now, batchLimit)) {
-    // Prompt 12: decided cases are kept while the account is active (their
-    // purge date from before the owner's decision is cleared); only cases
-    // the parent withdrew are deleted.
-    if (due.status !== "withdrawn") {
-      await deps.store.keepImages(due.id);
+  // R12 (owner decision 16 Nov 2026): the images of every decided or
+  // withdrawn case go when their date comes (30 days after the decision),
+  // with their admin thumbnails; a case still waiting for review is never
+  // touched. Cases decided before R12 (no date) are found by decision time.
+  const due = [
+    ...(await deps.store.casesDueForPurge(now, batchLimit)),
+    ...(deps.store.decidedCasesWithImages ? await deps.store.decidedCasesWithImages(now - ID_IMAGE_DAYS_AFTER_DECISION * DAY_MS, batchLimit) : []),
+  ];
+  const seen = new Set<string>();
+  for (const c of due) {
+    if (seen.has(c.id)) continue;
+    seen.add(c.id);
+    if (c.status === "awaiting_review") {
+      await deps.store.keepImages(c.id);
       continue;
     }
-    files += await deps.files.deletePrefix(casePrefix(due.uid, due.id));
-    await deps.store.markPurged(due.id, now);
+    const prefix = casePrefix(c.uid, c.id);
+    for (const file of await deps.files.list(prefix)) {
+      const thumb = thumbPath(file.path);
+      if (thumb) await deps.files.delete(thumb);
+    }
+    files += await deps.files.deletePrefix(prefix);
+    await deps.store.markPurged(c.id, now);
     cases += 1;
   }
 

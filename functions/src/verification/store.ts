@@ -400,6 +400,17 @@ export class FirestoreVerificationStore implements VerificationStore {
     return snap.docs.map((doc) => ({ id: doc.id, uid: String(doc.get("uid")), status: String(doc.get("status") ?? "") }));
   }
 
+  async decidedCasesWithImages(decidedBeforeMs: number, limit: number): Promise<Array<{ id: string; uid: string; status: string }>> {
+    const snap = await this.db
+      .collection(VERIFICATIONS)
+      .where("status", "in", ["approved", "rejected"])
+      .where("imagesDeletedAt", "==", null)
+      .where("decidedAt", "<=", Timestamp.fromMillis(decidedBeforeMs))
+      .limit(limit)
+      .get();
+    return snap.docs.map((doc) => ({ id: doc.id, uid: String(doc.get("uid")), status: String(doc.get("status") ?? "") }));
+  }
+
   async keepImages(caseId: string): Promise<void> {
     await this.db.collection(VERIFICATIONS).doc(caseId).update({ purgeAt: null });
   }

@@ -113,6 +113,7 @@ export class MemoryVerificationStore implements VerificationStore {
     c.reviewerUid = w.reviewerUid;
     c.reasonCode = w.reasonCode;
     c.purgeAtMs = w.purgeAtMs;
+    this.decidedAt.set(c.id, w.decidedAtMs);
     const user = this.users.get(w.uid);
     if (user) {
       user.caseOpen = false;
@@ -179,6 +180,16 @@ export class MemoryVerificationStore implements VerificationStore {
   async casesDueForPurge(nowMs: number, limit: number): Promise<Array<{ id: string; uid: string; status: string }>> {
     return [...this.cases.values()]
       .filter((c) => c.purgeAtMs !== null && c.purgeAtMs <= nowMs)
+      .slice(0, limit)
+      .map((c) => ({ id: c.id, uid: c.uid, status: c.status }));
+  }
+
+  /** When each case was decided (R12). */
+  readonly decidedAt = new Map<string, number>();
+
+  async decidedCasesWithImages(decidedBeforeMs: number, limit: number): Promise<Array<{ id: string; uid: string; status: string }>> {
+    return [...this.cases.values()]
+      .filter((c) => (c.status === "approved" || c.status === "rejected") && !c.imagesDeleted && (this.decidedAt.get(c.id) ?? Infinity) <= decidedBeforeMs)
       .slice(0, limit)
       .map((c) => ({ id: c.id, uid: c.uid, status: c.status }));
   }

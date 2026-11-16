@@ -43,6 +43,16 @@ export const CONSENT_AFTER_CLOSURE_DAYS = CONSENT_RECORD_YEARS * YEAR_DAYS;
  */
 export const SAFETY_HOLD_DAYS = 30;
 /**
+ * R12 (owner decision 16 Nov 2026, answers.md 8.1): the images of a
+ * decided verification case (ID front and back, the selfies of the check,
+ * school ID, licences) are deleted this long after the decision; the case
+ * keeps the result, the keyed ID hash and the expiry date. The face
+ * reference (faceRefs/, needed for the selfie checks before runs) and the
+ * approved driver photo stay while the account is open and go with it.
+ * Supersedes "photos kept while the account is active" for these images.
+ */
+export const ID_IMAGE_DAYS_AFTER_DECISION = 30;
+/**
  * Archived routes (one per run) are kept this long after the run: 90 days
  * (R11, owner decision 16 Nov 2026; was 1 year). A child's whereabouts are
  * children's data (sensitive); the DPIA (docs/legal/dpia-live-location.md)
@@ -163,7 +173,8 @@ export const RETENTION: readonly RetentionRule[] = [
   {
     id: "idPhotos",
     // With the account; at most SAFETY_HOLD_DAYS later when an open report about the parent exists.
-    where: "Storage verification/{uid}/cases, faceRefs/{uid}, driverPhotos/{uid}, selfieArchive/{uid} (KMS key), verifications/{caseId}",
+    // R12: the case images (verification/{uid}/cases) go ID_IMAGE_DAYS_AFTER_DECISION after the decision.
+    where: "Storage verification/{uid}/cases (30 days after the decision, R12), faceRefs/{uid}, driverPhotos/{uid}, selfieArchive/{uid} (KMS key), verifications/{caseId}",
     days: 0,
     from: "accountClosed",
     enforcedBy: ["accountDeletion", "retentionDaily"],
