@@ -241,7 +241,13 @@ revised list ("implement all your suggestions"):
   inside the other within 100 m, or 300 m when the extra words are not a
   place; a school's KG section within 300 m; same name within 2 km).
   Branches of a chain with a place word in the name, different stages or
-  boys/girls never merge. The survivor: owner list > OSM > Wikidata >
+  boys/girls never merge. A common name (the same core name in 3 or more
+  places of Egypt, e.g. "النور", "Al Nour", "الشهيد أحمد") merges only at
+  the same site: within 150 m (100 m for one name inside the other or a
+  KG and a school), never by the 2 km rule (validator B1). A merge is
+  never final: a review row `separate` keeps two entries apart, and a
+  school an earlier import merged comes back into the list when a later
+  run keeps it apart (validator B2). The survivor: owner list > OSM > Wikidata >
   Overture (higher confidence first), best Arabic and English names, OSM or
   Wikidata position; merged ids in `mergedFrom`, one row each in
   build/schools/merged.csv. Already loaded duplicates get status "merged"
@@ -257,8 +263,8 @@ revised list ("implement all your suggestions"):
   IELTS, دار تحفيظ, كتاب); Overture preschools named for small children
   ("Kids Academy", "Baby Club") are kept.
 - **A reviewer's decisions win:** data/schools/review/decisions.csv
-  (drop, keep, rename_ar, rename_en, set_kind, merge_into) is applied after
-  every automatic rule on every import.
+  (drop, keep, rename_ar, rename_en, set_kind, merge_into, separate) is
+  applied on every import and wins over the automatic rules.
 - **Areas are Egypt's ADM2 units** (qism / markaz / new city; OCHA COD-AB
   on HDX, geoBoundaries as a fallback): OpenStreetMap has almost no
   boundaries below the governorate in Egypt. Districts stay OpenStreetMap

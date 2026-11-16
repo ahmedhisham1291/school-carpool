@@ -187,11 +187,22 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
 
   bool get _notListed => _districtId == kDistrictNotListed;
 
+  /// The city whose area list came back empty (kept: the list's provider is
+  /// disposed once step 1 is off screen, validator B6).
+  String? _noAreasCity;
+
   /// The chosen city has no areas yet (owner, 16 Nov 2026): the parent goes
   /// on without one; the district is typed, and optional.
   bool get _cityWithoutAreas {
     final String? city = _city;
-    return city != null && (ref.read(_areasProvider(city)).value?.isEmpty ?? false);
+    if (city == null) {
+      return false;
+    }
+    final List<PlaceArea>? areas = ref.read(_areasProvider(city)).value;
+    if (areas != null) {
+      _noAreasCity = areas.isEmpty ? city : (_noAreasCity == city ? null : _noAreasCity);
+    }
+    return _noAreasCity == city;
   }
 
   bool get _placeReady {
