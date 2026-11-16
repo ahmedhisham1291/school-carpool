@@ -1002,7 +1002,7 @@ deploy_links() {
   if [ -n "${SUPPORT_EMAIL:-}" ] && [ -n "${OPERATOR_NAME:-}" ]; then
     legal=(--support-email "${SUPPORT_EMAIL}" --operator-name "${OPERATOR_NAME}" --require-legal)
   fi
-  python3 tool/links_site.py --team-id "${APPLE_TEAM_ID}" --bundle-id "${BUNDLE_ID}" "${legal[@]}"
+  python3 tool/links_site.py --team-id "${APPLE_TEAM_ID}" --bundle-id "${BUNDLE_ID}" --env "${ENV_NAME}" "${legal[@]}"
   fb deploy --only hosting:links
 }
 if [ -n "${APPLE_TEAM_ID}" ]; then

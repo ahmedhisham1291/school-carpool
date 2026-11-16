@@ -16,6 +16,7 @@ import {
 } from "../config";
 import { reportError } from "../sentry";
 import { onMessageCreated } from "./fanout";
+import { chatTermMatcher } from "./moderation_callables";
 import { FirestoreChatData } from "./firestore_data";
 import { FirestoreChatStore, FirestoreDrivingPauser } from "./firestore_store";
 import {
@@ -243,6 +244,8 @@ export const onChatMessageCreated = onDocumentCreated(
           },
           now: () => Date.now(),
           log,
+          // The admin-edited word list (config/chatModeration), read at most once a minute.
+          blockedTerm: () => chatTermMatcher.get(),
         },
         params.cid,
         params.messageId,

@@ -8187,7 +8187,7 @@
   "@dataChat": {
     "description": "Data type"
   },
-  "dataChatBody": "رسائلك وصورك في المحادثات، محفوظة عند Stream.",
+  "dataChatBody": "رسائلك وصورك في المحادثات، محفوظة في مشروعنا على Google (Firebase).",
   "@dataChatBody": {
     "description": "Data type details"
   },
@@ -10342,5 +10342,73 @@
   "aboutOpenWebPage": "فتح صفحة الويب",
   "@aboutOpenWebPage": {
     "description": "Button under a document: opens its public web page"
+  },
+  "adminWordFilterTitle": "فلتر كلمات المحادثات",
+  "@adminWordFilterTitle": {
+    "description": "Admin settings: section and row title (one line)"
+  },
+  "adminWordFilterHelper": "تُحذف على الخادم الرسائل التي فيها هذه الكلمات أو العبارات عند إرسالها.",
+  "@adminWordFilterHelper": {
+    "description": "Admin settings: what the chat word filter does"
+  },
+  "adminWordFilterCounts": "{ar} بالعربية، {en} بالإنجليزية",
+  "@adminWordFilterCounts": {
+    "description": "Admin settings: how many blocked words per language",
+    "placeholders": {
+      "ar": {
+        "type": "int",
+        "example": "15"
+      },
+      "en": {
+        "type": "int",
+        "example": "13"
+      }
+    }
+  },
+  "adminWordFilterDefaults": "القائمة المدمجة",
+  "@adminWordFilterDefaults": {
+    "description": "Admin settings: the word filter uses the built-in list (one line)"
+  },
+  "adminWordFilterEdit": "تعديل",
+  "@adminWordFilterEdit": {
+    "description": "Admin settings: edit the word filter (button, one line)"
+  },
+  "adminWordFilterArabic": "كلمات عربية (واحدة في كل سطر)",
+  "@adminWordFilterArabic": {
+    "description": "Word filter editor: Arabic list field label"
+  },
+  "adminWordFilterEnglish": "كلمات إنجليزية (واحدة في كل سطر)",
+  "@adminWordFilterEnglish": {
+    "description": "Word filter editor: English list field label"
+  },
+  "adminWordFilterReset": "القائمة المدمجة",
+  "@adminWordFilterReset": {
+    "description": "Word filter editor: reset button (one line)"
+  },
+  "adminWordFilterResetTitle": "استخدام القائمة المدمجة؟",
+  "@adminWordFilterResetTitle": {
+    "description": "Word filter: reset confirmation title"
+  },
+  "adminWordFilterResetBody": "ستحل القائمة المدمجة بالعربية والإنجليزية محل قائمتك.",
+  "@adminWordFilterResetBody": {
+    "description": "Word filter: reset confirmation body"
+  },
+  "adminWordFilterInvalid": "كل قائمة حتى {max} كلمة، وكل كلمة حتى {length} حرفًا، ولا يمكن أن تكون القائمتان فارغتين.",
+  "@adminWordFilterInvalid": {
+    "description": "Word filter editor: validation message",
+    "placeholders": {
+      "max": {
+        "type": "int",
+        "example": "500"
+      },
+      "length": {
+        "type": "int",
+        "example": "60"
+      }
+    }
+  },
+  "adminWordFilterReadOnly": "يعدّل المشرف الأعلى فقط هذه القائمة.",
+  "@adminWordFilterReadOnly": {
+    "description": "Admin settings: word filter is read only for this admin"
   }
 }

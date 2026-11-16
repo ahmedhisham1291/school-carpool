@@ -20,6 +20,57 @@ abstract interface class AdminFeaturesApi {
   /// One parent's settle-up records. The server logs the access with
   /// [reason] first and never returns an InstaPay address or a note.
   Future<List<AdminSettleRecord>> settleUps({required String uid, required AccessReasonCode reason});
+
+  /// The chat word filter (config/chatModeration; any admin may read it).
+  Future<ChatWordFilter> chatWordFilter();
+
+  /// Saves both lists (super admins only; audit log with counts), or the
+  /// built-in list with [reset]. Returns the lists after the change.
+  Future<ChatWordFilter> setChatWordFilter({List<String> arabic = const <String>[], List<String> english = const <String>[], bool reset = false});
+}
+
+/// The chat word filter (App Review guideline 1.2): words or phrases the
+/// server removes from chat messages when they are sent.
+@immutable
+class ChatWordFilter {
+  const ChatWordFilter({
+    required this.arabic,
+    required this.english,
+    required this.usingDefaults,
+    this.maxTerms = 500,
+    this.maxLength = 60,
+  });
+
+  factory ChatWordFilter.fromJson(Json j) => ChatWordFilter(
+    arabic: _strings(j.map['termsAr']),
+    english: _strings(j.map['termsEn']),
+    usingDefaults: j.flag('usingDefaults'),
+    maxTerms: j.integer('maxTerms', 500),
+    maxLength: j.integer('maxLength', 60),
+  );
+
+  static List<String> _strings(Object? v) =>
+      v is List<Object?> ? <String>[for (final Object? t in v) if (t is String) t] : const <String>[];
+
+  final List<String> arabic;
+  final List<String> english;
+
+  /// True while no admin saved a list (the built-in one applies).
+  final bool usingDefaults;
+  final int maxTerms;
+  final int maxLength;
+
+  /// The words typed in the editor, one per line: trimmed, empty lines out.
+  static List<String> parseLines(String text) =>
+      text.split('\n').map((String l) => l.trim()).where((String l) => l.isNotEmpty).toList();
+
+  /// True when the lists can be saved (the server checks again). Lengths
+  /// in code points, as the server counts.
+  bool fits(List<String> arabic, List<String> english) =>
+      (arabic.isNotEmpty || english.isNotEmpty) &&
+      arabic.length <= maxTerms &&
+      english.length <= maxTerms &&
+      <String>[...arabic, ...english].every((String t) => t.runes.length <= maxLength);
 }
 
 /// One settle-up record as the admin sees it: no address, no note.
@@ -107,6 +158,18 @@ class FirebaseAdminFeaturesApi implements AdminFeaturesApi {
     final Json j = await _call('adminListSettleUps', <String, Object?>{'uid': uid, 'reason': reason.name});
     return j.list('records').map(AdminSettleRecord.fromJson).toList();
   }
+
+  @override
+  Future<ChatWordFilter> chatWordFilter() async => ChatWordFilter.fromJson(await _call('adminGetChatModeration'));
+
+  @override
+  Future<ChatWordFilter> setChatWordFilter({List<String> arabic = const <String>[], List<String> english = const <String>[], bool reset = false}) async =>
+      ChatWordFilter.fromJson(
+        await _call(
+          'adminSetChatModeration',
+          reset ? <String, Object?>{'reset': true} : <String, Object?>{'termsAr': arabic, 'termsEn': english},
+        ),
+      );
 }
 
 final Provider<AdminFeaturesApi> adminFeaturesApiProvider = Provider<AdminFeaturesApi>(

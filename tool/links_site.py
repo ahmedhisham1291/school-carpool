@@ -41,6 +41,14 @@ PLACEHOLDER_EMAIL = re.compile(r"(example\.(com|org|net)|\.test|\.invalid|localh
 OPERATOR = re.compile(r"^[^<>&\"\n\r]{2,80}$")
 LEGAL_PAGES = ("privacy", "terms", "support", "delete-account")
 LEGAL_DOCUMENTS = ROOT / "lib" / "features" / "auth" / "legal_documents.dart"
+# The chat provider the public pages describe: CHAT_PROVIDER in
+# functions/.env.<env>, the same setting the functions run with
+# (functions/src/config.ts; "firestore" when it is not set). One source:
+# the pages, the in-app privacy text and the App Store privacy answers
+# follow it (tool/test_links_site.py checks the last two).
+CHAT_PROVIDERS = ("firestore", "stream")
+ENV_FILES = ROOT / "functions"
+CHAT_BLOCK = re.compile(r"[ \t]*<!-- chat:([a-z]+) -->\n(.*?)[ \t]*<!-- /chat:\1 -->\n", re.S)
 STORE_URL = re.compile(r"^https://(apps\.apple\.com|testflight\.apple\.com)/[A-Za-z0-9/._?=&-]*$")
 
 
@@ -67,11 +75,31 @@ def document_versions() -> dict[str, str]:
     return found
 
 
+def chat_provider(env: str) -> str:
+    """CHAT_PROVIDER of functions/.env.<env>; "fake" (tests only) reads as our own chat."""
+    path = ENV_FILES / f".env.{env}"
+    value = "firestore"
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            match = re.match(r"\s*CHAT_PROVIDER\s*=\s*([A-Za-z]+)", line)
+            if match:
+                value = match.group(1).lower()
+    value = "firestore" if value == "fake" else value
+    if value not in CHAT_PROVIDERS:
+        raise SystemExit(f"links_site: unknown CHAT_PROVIDER {value!r} in {path.name}")
+    return value
+
+
+def for_chat_provider(page: str, provider: str) -> str:
+    """Keeps the <!-- chat:<provider> --> blocks of [provider] and drops the others."""
+    return CHAT_BLOCK.sub(lambda m: m.group(2) if m.group(1) == provider else "", page)
+
+
 def escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
-def build_legal(out: Path, support_email: str, operator_name: str, app_store_url: str) -> None:
+def build_legal(out: Path, support_email: str, operator_name: str, app_store_url: str, provider: str = "firestore") -> None:
     """Privacy policy, terms, support, account deletion and home pages."""
     if not EMAIL.match(support_email) or PLACEHOLDER_EMAIL.search(support_email):
         raise SystemExit("links_site: --support-email must be a real address you read (not an example address)")
@@ -87,7 +115,9 @@ def build_legal(out: Path, support_email: str, operator_name: str, app_store_url
         "__APP_STORE_URL__": app_store_url or "#",
     }
     for name in (*LEGAL_PAGES, "home"):
-        page = (SOURCE / f"{name}.html").read_text(encoding="utf-8")
+        page = for_chat_provider((SOURCE / f"{name}.html").read_text(encoding="utf-8"), provider)
+        if provider != "stream" and "Stream" in page:
+            raise SystemExit(f"links_site: {name}.html names Stream but the chat provider is {provider}")
         for key, value in values.items():
             page = page.replace(key, value)
         if "__" in re.sub(r"https?://\S+", "", page):
@@ -103,6 +133,7 @@ def build(
     support_email: str = "",
     operator_name: str = "",
     require_legal: bool = False,
+    env: str = "prod",
 ) -> Path:
     if not TEAM_ID.match(team_id):
         raise SystemExit("links_site: --team-id must be the 10-character Apple Team ID")
@@ -120,7 +151,7 @@ def build(
     (out / "invite.html").write_text(page, encoding="utf-8")
     (out / "index.html").write_text(page, encoding="utf-8")
     if support_email or operator_name:
-        build_legal(out, support_email, operator_name, app_store_url)
+        build_legal(out, support_email, operator_name, app_store_url, chat_provider(env))
     elif require_legal:
         raise SystemExit("links_site: --require-legal needs --support-email and --operator-name")
     return out
@@ -134,8 +165,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--support-email", default="", help="public support address shown on the pages")
     parser.add_argument("--operator-name", default="", help="legal name of who runs the app")
     parser.add_argument("--require-legal", action="store_true", help="fail when the legal pages are not built (staging, prod)")
+    parser.add_argument("--env", choices=("dev", "staging", "prod"), default="prod", help="whose functions/.env.<env> CHAT_PROVIDER the pages describe")
     args = parser.parse_args(argv)
-    out = build(args.team_id, args.bundle_id, args.app_store_url, OUT, args.support_email, args.operator_name, args.require_legal)
+    out = build(args.team_id, args.bundle_id, args.app_store_url, OUT, args.support_email, args.operator_name, args.require_legal, args.env)
     legal = "with" if (out / "privacy.html").exists() else "WITHOUT"
     print(f"links_site: wrote {out.relative_to(ROOT)} ({legal} the privacy, terms, support and delete-account pages)")
     return 0

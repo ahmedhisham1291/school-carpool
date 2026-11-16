@@ -163,6 +163,8 @@ export {
   unblockChatUser,
   updateChatSettings,
 } from "./chat/callables";
+// Admin panel > Settings > Chat word filter (guideline 1.2): config/chatModeration.
+export { adminGetChatModeration, adminSetChatModeration } from "./chat/moderation_callables";
 // Trips and live location (Prompt 10: F15, F16, F20, F29, F33, F34, F35,
 // F38, F41): start a run (selfie check first on some runs), live points from
 // the phone's location plugin, stops, quick buttons, emergency, handover

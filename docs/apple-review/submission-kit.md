@@ -33,15 +33,16 @@ text to the developer.
    can be verified).
 4. **Prod services:** Google Maps iOS key restricted to
    `org.schoolcarpool.app` (SETUP.md 15.2), Algolia prod keys
-   (docs/algolia-setup.md), Stream prod app then
-   `npm --prefix functions run chat:setup` (this installs the word
-   filter Apple requires), Sentry prod project.
+   (docs/algolia-setup.md), Sentry prod project. Chat needs no outside
+   service (our own, on Firestore); its word filter works from the first
+   deploy with the built-in Arabic and English list, and admins edit it in
+   the admin panel (Settings > Chat word filter).
 5. **A support email address you read every day** (for example
    help@your-domain) and **the legal name** that runs the app.
 6. **Public pages.** Build and deploy the links site of the prod project
    with them (SETUP.md 16.2):
    ```
-   python3 tool/links_site.py --team-id <TEAM ID> --bundle-id org.schoolcarpool.app \
+   python3 tool/links_site.py --team-id <TEAM ID> --bundle-id org.schoolcarpool.app --env prod \
      --support-email <address> --operator-name "<legal name>" --require-legal \
      [--app-store-url https://apps.apple.com/app/id<Apple ID>]
    firebase deploy --only hosting:links --project prod

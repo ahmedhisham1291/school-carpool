@@ -1826,7 +1826,7 @@
   "dataRouteArchive": "Run route",
   "dataRouteArchiveBody": "A compressed route of each run you drove (about one point every 30 s), for safety investigations only. Parents never see it.",
   "dataChat": "Chats",
-  "dataChatBody": "Your messages and photos in chats, kept by Stream.",
+  "dataChatBody": "Your messages and photos in chats, kept in our own Google (Firebase) project.",
   "dataRatings": "Ratings",
   "dataRatingsBody": "Your ratings of others and your summary. Raters stay private.",
   "dataFamilyLinks": "Family links",
@@ -2315,5 +2315,17 @@
   "addressDistrictOptionalHelper": "Optional. Type it if you know it.",
   "aboutLegalSection": "Legal and support",
   "aboutSupport": "Contact support",
-  "aboutOpenWebPage": "Open the web page"
+  "aboutOpenWebPage": "Open the web page",
+  "adminWordFilterTitle": "Chat word filter",
+  "adminWordFilterHelper": "Messages with these words or phrases are removed on the server when they are sent.",
+  "adminWordFilterCounts": "{ar} Arabic, {en} English",
+  "adminWordFilterDefaults": "Built-in list",
+  "adminWordFilterEdit": "Edit",
+  "adminWordFilterArabic": "Arabic words (one per line)",
+  "adminWordFilterEnglish": "English words (one per line)",
+  "adminWordFilterReset": "Use built-in list",
+  "adminWordFilterResetTitle": "Use the built-in list?",
+  "adminWordFilterResetBody": "Your list is replaced by the built-in Arabic and English list.",
+  "adminWordFilterInvalid": "Each list may have up to {max} words of up to {length} characters, and both lists cannot be empty.",
+  "adminWordFilterReadOnly": "Only a super admin can change this list."
 }

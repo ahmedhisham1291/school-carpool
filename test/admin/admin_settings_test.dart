@@ -36,7 +36,7 @@ void main() {
       final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
       await pumpAdminPanel(tester, session: superAdmin, location: AdminRoutes.settings, features: api, locale: 'en');
       await _settle(tester);
-      expect(api.calls, <String>['features']);
+      expect(api.calls, contains('features'));
       expect(_row(tester, AppFeature.wallet).value, isFalse);
       expect(_row(tester, AppFeature.ratingsAndVouching).value, isFalse);
       expect(_row(tester, AppFeature.yearlyChecks).value, isFalse);
@@ -93,7 +93,7 @@ void main() {
         expect(_row(tester, f).onChanged, isNull, reason: f.name);
       }
       expect(find.text('Only a super admin can change these switches.'), findsOneWidget);
-      expect(api.calls, <String>['features']);
+      expect(api.calls, contains('features'));
     });
 
     testWidgets('a refused change shows the reason and leaves the switch as it was', (WidgetTester tester) async {
@@ -118,6 +118,45 @@ void main() {
       await tester.tap(find.byTooltip('Refresh').first);
       await _settle(tester);
       expect(find.byKey(const Key('adminSettings.list')), findsOneWidget);
+    });
+
+    testWidgets('chat word filter: a super admin edits the Arabic and English lists (guideline 1.2)', (WidgetTester tester) async {
+      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
+      await pumpAdminPanel(tester, session: superAdmin, location: AdminRoutes.settings, features: api, locale: 'en', size: const Size(1280, 2400));
+      await _settle(tester);
+      expect(find.byKey(const Key('adminSettings.wordFilter')), findsOneWidget);
+      expect(find.text('Built-in list'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('adminSettings.wordFilter.edit')));
+      await _settle(tester);
+      await tester.enterText(find.byKey(const Key('adminSettings.wordFilter.english')), 'bad word\n\n  rude phrase  ');
+      await _settle(tester);
+      await tester.tap(find.byKey(const Key('adminSettings.wordFilter.save')));
+      await _settle(tester);
+      expect(api.calls, contains('setChatWordFilter:1:2'));
+      expect(api.wordFilter.english, <String>['bad word', 'rude phrase']);
+      expect(find.text('1 Arabic, 2 English'), findsOneWidget);
+    });
+
+    testWidgets('chat word filter: both lists empty cannot be saved', (WidgetTester tester) async {
+      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
+      await pumpAdminPanel(tester, session: superAdmin, location: AdminRoutes.settings, features: api, locale: 'en', size: const Size(1280, 2400));
+      await _settle(tester);
+      await tester.tap(find.byKey(const Key('adminSettings.wordFilter.edit')));
+      await _settle(tester);
+      await tester.enterText(find.byKey(const Key('adminSettings.wordFilter.arabic')), '');
+      await tester.enterText(find.byKey(const Key('adminSettings.wordFilter.english')), '');
+      await _settle(tester);
+      expect(tester.widget<FilledButton>(find.byKey(const Key('adminSettings.wordFilter.save'))).onPressed, isNull);
+      expect(api.calls.where((String c) => c.startsWith('setChatWordFilter')), isEmpty);
+    });
+
+    testWidgets('chat word filter: an ordinary admin sees it but cannot edit', (WidgetTester tester) async {
+      final FakeAdminFeaturesApi api = FakeAdminFeaturesApi();
+      await pumpAdminPanel(tester, session: reviewer, location: AdminRoutes.settings, features: api, locale: 'en', size: const Size(1280, 2400));
+      await _settle(tester);
+      expect(find.byKey(const Key('adminSettings.wordFilter')), findsOneWidget);
+      expect(find.byKey(const Key('adminSettings.wordFilter.edit')), findsNothing);
+      expect(find.text('Only a super admin can change this list.'), findsOneWidget);
     });
 
     test('every admin has the Settings section; the feature-off error has its own words', () {

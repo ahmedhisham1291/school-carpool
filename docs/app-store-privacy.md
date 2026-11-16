@@ -64,7 +64,10 @@ shared with data brokers.
 
 Chat is our own since improvement B (14 Nov 2026): messages and chat photos
 stay in our Firebase project. **Stream Chat no longer receives any data**
-and is not in the app.
+and is not in the app. One setting decides what the public pages, the
+in-app privacy text and these answers say about chat: `CHAT_PROVIDER` in
+`functions/.env.<env>` (`firestore`); `tool/test_links_site.py` fails when
+they disagree with it.
 
 | Partner | In the app or the server | What it receives | Not sent |
 | --- | --- | --- | --- |

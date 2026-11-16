@@ -2,6 +2,26 @@
 
 Decisions the owner has confirmed. Build agents follow these; ask before changing one.
 
+
+## Chat word filter and one chat-provider setting (owner, 16 Nov 2026)
+
+Owner instruction "remove every remaining App Store review risk"
+(review-risks item 9, branch `chat-review-safe`):
+
+- **Word filter (guideline 1.2):** the Arabic and English list of blocked
+  words and phrases is a server setting, `config/chatModeration`, closed
+  to the app; without it the built-in list applies (never an empty
+  filter). Super admins edit it in the admin panel (Settings > Chat word
+  filter; at most 500 terms per language, 60 characters each), audited
+  with counts only. Every text message is checked on the server when it
+  is sent; a match is removed within a second or two and never reaches the
+  chat list or a push. Report and block are unchanged and verified.
+- **One setting for what we tell people about chat:** `CHAT_PROVIDER` in
+  `functions/.env.<env>` (the setting the functions run with). The public
+  privacy page is built for it (`tool/links_site.py --env`), and a tool
+  test fails when the pages, the in-app privacy text or the App Store
+  privacy answers disagree with it.
+
 ## Legal (confirmed by the owner's lawyer, 14 Nov 2026)
 
 The owner reports that the lawyer confirmed all of the following are allowed without issues:

@@ -58,6 +58,8 @@ export interface FanoutDeps {
   limits: FanoutLimits;
   now: () => number;
   log: (message: string, data?: Record<string, unknown>) => void;
+  /** The current blocked-term check (config/chatModeration, admin-edited); the defaults when absent. */
+  blockedTerm?: () => Promise<(text: string) => boolean>;
 }
 
 export interface FanoutResult {
@@ -131,7 +133,10 @@ export async function onMessageCreated(deps: FanoutDeps, cid: string, messageId:
     if (!channel.members.includes(message.senderUid)) return remove("not-member");
     const problem = messageProblem(ref.cid, small, message);
     if (problem) return remove(problem);
-    if (message.kind === "text" && hasBlockedTerm(message.text)) return remove("blocked-term");
+    if (message.kind === "text") {
+      const blocked = deps.blockedTerm ? await deps.blockedTerm() : hasBlockedTerm;
+      if (blocked(message.text)) return remove("blocked-term");
+    }
 
     // The limits are counted ONCE per message: only the delivery that
     // creates the marker counts; a later one reads the verdict.

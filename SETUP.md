@@ -971,7 +971,7 @@ never shows anything about the carpool.
    account > Membership; the bundle id of the flavor is
    `org.schoolcarpool.app.dev`, `.stg` or the prod id):
    ```
-   python3 tool/links_site.py --team-id <TEAM ID> --bundle-id org.schoolcarpool.app.dev \
+   python3 tool/links_site.py --team-id <TEAM ID> --bundle-id org.schoolcarpool.app.dev --env dev \
      [--app-store-url https://apps.apple.com/app/id<numeric id>] \
      [--support-email <address you read> --operator-name "<legal name>" --require-legal]
    firebase deploy --only hosting:links --project dev

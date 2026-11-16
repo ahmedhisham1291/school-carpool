@@ -65,7 +65,7 @@ class LegalPagesTest(unittest.TestCase):
             self.assertIn("School Carpool Foundation", privacy)
             # What guideline 5.1.1(i) asks a policy to say.
             for must in ("Data we collect", "Why we use it", "Companies that process data for us", "How long we keep it",
-                         "withdraw any consent", "Deleting your account", "Belgium", "WhatsApp", "Stream", "Algolia",
+                         "withdraw any consent", "Deleting your account", "Belgium", "WhatsApp", "Chats:", "Algolia",
                          "Sentry", "Google Maps", "never sell", "Personal Data Protection Centre"):
                 self.assertIn(must, privacy)
             terms = (out / "terms.html").read_text(encoding="utf-8")
@@ -133,3 +133,63 @@ class AssociatedDomainsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ChatProviderPagesTest(unittest.TestCase):
+    """The public pages, the in-app privacy text and the App Store privacy
+    answers follow ONE setting: CHAT_PROVIDER in functions/.env.<env>
+    (App Review 5.1.1(i): the policy names who receives the data)."""
+
+    ROOT = Path(__file__).resolve().parent.parent
+
+    def build(self, tmp, provider):
+        out = Path(tmp) / "site"
+        from unittest import mock
+
+        with mock.patch.object(links_site, "chat_provider", lambda env: provider):
+            return links_site.build(
+                "ABCDE12345", ["org.schoolcarpool.app"], "", out,
+                support_email="help@schoolcarpool.org", operator_name="School Carpool Foundation",
+            )
+
+    def test_every_project_uses_one_provider(self):
+        providers = {env: links_site.chat_provider(env) for env in ("dev", "staging", "prod")}
+        self.assertEqual(len(set(providers.values())), 1, providers)
+
+    def test_own_chat_pages_never_name_stream(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self.build(tmp, "firestore")
+            page = (out / "privacy.html").read_text(encoding="utf-8")
+            self.assertNotIn("Stream", page)
+            self.assertNotIn("chat:", page)
+            self.assertIn("no other company receives them", page)
+
+    def test_stream_pages_name_stream(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            page = (self.build(tmp, "stream") / "privacy.html").read_text(encoding="utf-8")
+            self.assertIn("<strong>Stream:</strong>", page)
+            self.assertNotIn("no other company receives them", page)
+
+    def test_unknown_provider_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = Path(tmp) / ".env.prod"
+            env.write_text("CHAT_PROVIDER=othervendor\n", encoding="utf-8")
+            from unittest import mock
+
+            with mock.patch.object(links_site, "ENV_FILES", Path(tmp)):
+                with self.assertRaises(SystemExit):
+                    links_site.chat_provider("prod")
+                env.write_text("# nothing set\n", encoding="utf-8")
+                self.assertEqual(links_site.chat_provider("prod"), "firestore")
+
+    def test_app_text_and_privacy_answers_match_the_provider(self):
+        provider = links_site.chat_provider("prod")
+        arb = {lang: json.loads((self.ROOT / "lib" / "l10n" / f"app_{lang}.arb").read_text(encoding="utf-8")) for lang in ("ar", "en")}
+        answers = (self.ROOT / "docs" / "app-store-privacy.md").read_text(encoding="utf-8")
+        partner_rows = [line for line in answers.splitlines() if line.startswith("| Stream")]
+        if provider == "stream":
+            self.assertTrue(partner_rows, "Stream must be listed as a partner")
+        else:
+            self.assertEqual(partner_rows, [], "Stream is not a partner with our own chat")
+            for lang, data in arb.items():
+                self.assertNotIn("Stream", data["dataChatBody"], lang)

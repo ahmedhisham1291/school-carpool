@@ -96,14 +96,14 @@ staging build is the real test of the native changes.
 
 | Item | Status | Evidence and change |
 | --- | --- | --- |
-| Report a message, a parent, a chat | PASS | `lib/features/chat/chat_sheets.dart`, `conversation_screen.dart:224`; "An admin reviews it within 24 hours" (`app_en.arb:1190`). |
-| Block abusive users | PASS | `blockChatUser` (`functions/src/chat/callables.ts:145`), blocked list in chat settings. |
-| Filter objectionable material | PASS + NEEDS OWNER | Stream block lists and auto-moderation set to block (`functions/src/chat/setup_plan.ts:50`, `:149`). They exist only after `npm run chat:setup` on the prod Stream app. |
+| Report a message, a parent, a chat | PASS (verified on `chat-review-safe`) | `reportChat` (`functions/src/chat/callables.ts`), `lib/features/chat/chat_sheets.dart`; "An admin reviews it within 24 hours". Tests in `functions/test/chat.test.ts`. |
+| Block abusive users | PASS (verified on `chat-review-safe`) | `blockChatUser` / `unblockChatUser`: a blocked parent cannot message the blocker (private chat frozen, requests refused both ways), gets no push to the blocker; blocked list in chat settings. Tests in `functions/test/chat.test.ts` ("blocking (F13)"). |
+| Filter objectionable material | FIXED (branch `chat-review-safe`) | Our own chat: every text message is checked on the server when it is sent (`onChatMessageCreated` > `functions/src/chat/fanout.ts`) against the Arabic and English list in `config/chatModeration` (built-in defaults when unset, `functions/src/chat/moderation.ts`); a match is removed within a second or two and never reaches the chat list or a push. Super admins edit the list in the admin panel (Settings > Chat word filter), audited with counts only. Tests in `functions/test/chat.test.ts`, `test/admin/admin_settings_test.dart`. |
 | Terms with no tolerance for objectionable content | FIXED | The code of conduct accepted at sign-up now says so (`app_en.arb:128`, version 2026-11-16 in `legal_documents.dart` and `functions/src/auth/consents.ts`; deploy functions and app together). Same in the public terms. |
 | Published contact information | FIXED | Support address in About (`about_screen.dart:115`) and on `/support`; set by `SUPPORT_EMAIL`. |
 | Act on reports within 24 hours | NEEDS OWNER | The admin panel has the queue; someone must watch it every day. |
 | Other UGC | PASS | School names typed by parents are reviewed before they are listed; ratings are off; profile shows first names only. |
-| Chat moves to our own Firestore chat | RISK | CLAUDE.md says Stream is being replaced (branch `improve-b-firestore-chat`, not on main). When it merges, the word filter must exist in the new chat, and Stream must come out of the policy page, the privacy answers and the manifest notes. Submit with what is on main. |
+| Chat moves to our own Firestore chat | FIXED (branch `chat-review-safe`) | This branch is the Firestore chat merged with main. The word filter is in the new chat (row above). Stream is out of the public privacy page, the in-app privacy text and the privacy answers, and they follow ONE setting: `CHAT_PROVIDER` in `functions/.env.<env>` (`tool/links_site.py --env`, blocks `<!-- chat:<provider> -->` in `hosting/links/privacy.html`; `tool/test_links_site.py` fails if the pages, the app text or docs/app-store-privacy.md disagree with it). |
 
 ## 6. Payments (3.1, 3.2)
 
@@ -185,7 +185,7 @@ staging build is the real test of the native changes.
 | WhatsApp sender live | NEEDS OWNER | Not needed for the reviewer (demo numbers get no message), needed for every real parent. |
 | ID check provider in prod | NEEDS OWNER | The fake KYC is refused in prod; real parents' verification needs `KYC_PROVIDER=valify` (contract) before the public launch. The demo accounts are verified by the script. |
 | Maps key | NEEDS OWNER | `MAPS_API_KEY_IOS` in `prod_defines`; the prod build refuses to start without it. |
-| School search (Algolia), chat (Stream), Sentry on prod | NEEDS OWNER | Keys and `chat:setup` on the prod apps. |
+| School search (Algolia), Sentry on prod | NEEDS OWNER | Keys on the prod apps. Chat needs no outside service on this branch. |
 | Feature switch defaults | PASS | Missing document reads as pilot defaults (wallet off, Settle up on). |
 | Verification wall | FIXED | The demo accounts are verified by the seed; see section 1. |
 | A run to start on review day | FIXED + NEEDS OWNER | The demo driver drives every school day (Sunday to Thursday); the seed plans this week and the next. Run `seed` again the evening before and each Saturday while in review. Friday and Saturday have no school run: the notes say so. |

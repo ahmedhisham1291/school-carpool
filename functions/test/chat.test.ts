@@ -30,7 +30,18 @@ import {
 } from "../src/chat/model";
 import { parsePhotoPath, photoPathOk } from "../src/chat/data";
 import { chatEventId, DEFAULT_FANOUT_LIMITS, messageFromDoc, onMessageCreated, type FanoutDeps } from "../src/chat/fanout";
-import { BLOCKED_TERMS_AR, BLOCKED_TERMS_EN, hasBlockedTerm } from "../src/chat/moderation";
+import {
+  BLOCKED_TERMS_AR,
+  BLOCKED_TERMS_EN,
+  blockedTermMatcher,
+  cachedTermMatcher,
+  cleanTerms,
+  DEFAULT_BLOCKED_TERMS,
+  hasBlockedTerm,
+  MAX_TERMS_PER_LANGUAGE,
+  termsFrom,
+} from "../src/chat/moderation";
+import { getChatModeration, setChatModeration, type ModerationAdminDeps } from "../src/chat/moderation_admin";
 import { createChatServer, FakeChatServer, FirestoreChatServer, ORPHAN_PHOTOS_MUTE } from "../src/chat/server";
 import { accountFromDoc, chatRelevant, nearestArea, syncAccess, syncCarpoolMember, syncParentGroups } from "../src/chat/sync";
 import { routeFor } from "../src/notifications/catalog";
@@ -610,6 +621,15 @@ describe("new message fan-out (the trigger on chats/{cid}/messages/{id})", () =>
     assert.equal(s.data.summaries.get(`bob|${CP}`)?.unread, 0);
     assert.ok(!JSON.stringify(s.logs).toLowerCase().includes("bitch"));
   });
+  it("blocked terms come from the admin-edited setting (config/chatModeration), Arabic and English", async () => {
+    const s = await fsCarpool();
+    s.fan.blockedTerm = async () => blockedTermMatcher({ ar: ["كلمة ممنوعة"], en: ["rubbish talk"] });
+    assert.equal((await send(s, CP, "m1", "alice", { text: "That is Rubbish   talk." })).reason, "blocked-term");
+    assert.equal((await send(s, CP, "m2", "alice", { text: "هذه كلمة ممنوعة هنا" })).reason, "blocked-term");
+    // A default word the admin took out of the list now passes.
+    assert.equal((await send(s, CP, "m3", "alice", { text: "shit happens" })).removed, false);
+    assert.equal(s.data.messageDocs.get(CP)?.length, 1);
+  });
   it("muted parents get no push; unmuting brings it back", async () => {
     const s = await fsCarpool();
     assert.deepEqual(await setChatMute(s.deps, me("bob"), { cid: CP, muted: true }), { muted: true });
@@ -1034,5 +1054,88 @@ describe("blocked terms", () => {
     assert.equal(hasBlockedTerm(`يا ${BLOCKED_TERMS_AR[1]} يا`), true);
     assert.equal(hasBlockedTerm("صباح الخير"), false);
     assert.equal(hasBlockedTerm(""), false);
+  });
+});
+
+describe("chat word filter setting (guideline 1.2): admin-edited, Arabic and English", () => {
+  const superAdmin = { uid: "admin-1", role: "superAdmin" as const };
+  function world(initial: Record<string, unknown> | null = null) {
+    let doc = initial;
+    const audits: AuditEntry[] = [];
+    let cleared = 0;
+    const deps: ModerationAdminDeps = {
+      store: {
+        read: async () => doc,
+        write: async (terms, adminUid, _nowMs, audit) => {
+          doc = { termsAr: terms.ar, termsEn: terms.en, updatedBy: adminUid };
+          audits.push(audit);
+        },
+      },
+      now: () => T0,
+      changed: () => {
+        cleared += 1;
+      },
+    };
+    return { deps, audits, doc: () => doc, cleared: () => cleared };
+  }
+
+  it("without a saved list the built-in defaults apply, never an empty filter", async () => {
+    const w = world();
+    const view = await getChatModeration(w.deps);
+    assert.equal(view.usingDefaults, true);
+    assert.deepEqual(view.termsAr, DEFAULT_BLOCKED_TERMS.ar);
+    assert.deepEqual(termsFrom({ termsAr: "not a list", termsEn: [1, 2] }), DEFAULT_BLOCKED_TERMS);
+  });
+
+  it("a super admin saves both lists; the audit entry has counts, never the words", async () => {
+    const w = world();
+    const view = await setChatModeration(w.deps, superAdmin, { termsAr: [" كلمة  ممنوعة ", "كلمة ممنوعة", ""], termsEn: ["Bad Word", "bad word"] }, "1.2.3.4");
+    assert.deepEqual(view.termsAr, ["كلمة ممنوعة"]);
+    assert.deepEqual(view.termsEn, ["Bad Word"]);
+    assert.equal(view.usingDefaults, false);
+    assert.equal(w.audits.length, 1);
+    assert.equal(w.audits[0].action, "chat.wordFilter.set");
+    assert.deepEqual(w.audits[0].details, { arabicTerms: 1, englishTerms: 1 });
+    assert.ok(!JSON.stringify(w.audits).toLowerCase().includes("bad word"));
+    assert.equal(w.cleared(), 1, "the trigger reads the new list at once");
+    const reset = await setChatModeration(w.deps, superAdmin, { reset: true }, null);
+    assert.deepEqual(reset.termsEn, DEFAULT_BLOCKED_TERMS.en);
+  });
+
+  it("refuses other admins, broken lists and an empty filter", async () => {
+    const w = world();
+    await assert.rejects(setChatModeration(w.deps, { uid: "a2", role: "admin" as const }, { termsAr: [], termsEn: ["x"] }, null), /invalid-state/);
+    await assert.rejects(setChatModeration(w.deps, superAdmin, { termsAr: [], termsEn: [] }, null), /invalid-request/);
+    await assert.rejects(setChatModeration(w.deps, superAdmin, { termsAr: "x", termsEn: [] }, null), /invalid-request/);
+    await assert.rejects(setChatModeration(w.deps, superAdmin, { termsAr: ["x".repeat(61)], termsEn: [] }, null), /invalid-request/);
+    const tooMany = Array.from({ length: MAX_TERMS_PER_LANGUAGE + 1 }, (_, i) => `word${i}`);
+    assert.equal(cleanTerms(tooMany), null);
+    assert.equal(w.audits.length, 0);
+    assert.equal(w.doc(), null);
+  });
+
+  it("the trigger's list is read at most once a minute and a failed read keeps the last list", async () => {
+    let reads = 0;
+    let fail = false;
+    let now = T0;
+    let doc: Record<string, unknown> | null = { termsAr: [], termsEn: ["alpha"] };
+    const cache = cachedTermMatcher(async () => {
+      reads += 1;
+      if (fail) throw new Error("offline");
+      return doc;
+    }, () => now);
+    assert.equal((await cache.get())("say alpha"), true);
+    assert.equal((await cache.get())("say alpha"), true);
+    assert.equal(reads, 1);
+    doc = { termsAr: [], termsEn: ["beta"] };
+    now += 61_000;
+    assert.equal((await cache.get())("say beta"), true);
+    fail = true;
+    now += 61_000;
+    assert.equal((await cache.get())("say beta"), true, "kept the last list");
+    cache.clear();
+    fail = false;
+    doc = null;
+    assert.equal((await cache.get())("BITCH"), true, "no setting: the defaults");
   });
 });

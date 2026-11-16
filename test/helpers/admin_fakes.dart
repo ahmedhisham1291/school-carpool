@@ -654,4 +654,22 @@ class FakeAdminFeaturesApi implements AdminFeaturesApi {
     await _maybeFail('settleUps:$uid:${reason.name}');
     return records;
   }
+
+  /// Fake words only.
+  ChatWordFilter wordFilter = const ChatWordFilter(arabic: <String>['كلمة سيئة'], english: <String>['bad word'], usingDefaults: true);
+
+  @override
+  Future<ChatWordFilter> chatWordFilter() async {
+    await _maybeFail('chatWordFilter');
+    return wordFilter;
+  }
+
+  @override
+  Future<ChatWordFilter> setChatWordFilter({List<String> arabic = const <String>[], List<String> english = const <String>[], bool reset = false}) async {
+    await _maybeFail(reset ? 'setChatWordFilter:reset' : 'setChatWordFilter:${arabic.length}:${english.length}');
+    wordFilter = reset
+        ? const ChatWordFilter(arabic: <String>['كلمة سيئة'], english: <String>['bad word'], usingDefaults: true)
+        : ChatWordFilter(arabic: arabic, english: english, usingDefaults: false);
+    return wordFilter;
+  }
 }
