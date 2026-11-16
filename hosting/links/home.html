@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>مشوار المدرسة · School Carpool</title>
+<style>
+  /* Same palette as the app (docs/DESIGN.md, direction A). */
+  :root { color-scheme: light dark; --ink: #131A19; --quiet: #525D5A; --page: #F4F7F6; --card: #FFFFFF; --line: #DCE3E0; --accent: #0E5E58; --on-accent: #FFFFFF; }
+  @media (prefers-color-scheme: dark) { :root { --ink: #E5EAE8; --quiet: #A9B4B1; --page: #0F1514; --card: #19211F; --line: #323C3A; --accent: #7FCFC3; --on-accent: #00332D; } }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 480px; margin: 48px auto; padding: 0 24px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  p { margin: 0 0 16px; color: var(--quiet); }
+  a.button { display: block; text-align: center; padding: 14px; border-radius: 12px; background: var(--accent); color: var(--on-accent); text-decoration: none; font-weight: 600; }
+  a.button[hidden] { display: none; }
+  h2 { font-size: 17px; margin: 24px 0 8px; }
+  ul { margin: 0 0 16px; padding-inline-start: 20px; color: var(--quiet); }
+  li { margin-bottom: 6px; }
+  a { color: var(--accent); }
+  nav { font-size: 14px; color: var(--quiet); margin-bottom: 16px; }
+  .wide { max-width: 720px; }
+  .updated { font-size: 14px; }
+</style>
+</head>
+<body>
+<main class="wide">
+  <nav><a href="/">مشوار المدرسة · School Carpool</a> · <a href="/privacy">الخصوصية · Privacy</a> · <a href="/terms">الشروط · Terms</a> · <a href="/support">الدعم · Support</a> · <a href="/delete-account">حذف الحساب · Delete account</a></nav>
+  <section>
+    <h1>مشوار المدرسة</h1>
+    <p>تطبيق مجاني وغير ربحي لأولياء الأمور الموثَّقين في مصر: أولياء أمور المدرسة والمنطقة نفسها يتناوبون توصيل الأبناء، مع جدول واضح، تتبّع مباشر للسيارة أثناء المشوار، وتنبيهات عند الوصول.</p>
+    <a class="button" id="store-ar" href="__APP_STORE_URL__" hidden>تنزيل التطبيق</a>
+  </section>
+  <section dir="ltr" lang="en">
+    <h1>School Carpool</h1>
+    <p>A free, non-profit app for verified parents in Egypt: parents of the same school and area take turns driving, with a clear schedule, the car live on a map during the run, and alerts on arrival.</p>
+    <a class="button" id="store-en" href="__APP_STORE_URL__" hidden>Get the app</a>
+  </section>
+</main>
+<script>
+  // Show the store button only when a store link was configured.
+  for (const id of ["store-ar", "store-en"]) {
+    const a = document.getElementById(id);
+    if (a && a.getAttribute("href").startsWith("https://")) a.hidden = false;
+  }
+</script>
+</body>
+</html>
