@@ -483,3 +483,33 @@ and the F25 "optional contribution per child".
   per km) should stay out of the app even then.
 - Store texts, review notes, the privacy manifest and App Privacy answers
   no longer declare financial data.
+
+## Legal review, Egypt (16 Nov 2026): flags for the owner and the lawyer
+
+The build agent's safe-side review (docs/legal/egypt-legal-review.md, not
+legal advice) found points that **may conflict with earlier "lawyer
+confirmed" items. Nothing below changes those decisions;** the owner takes
+them to the lawyer (questions in section 12 of the memo):
+
+1. "Legal" items 2 and 3 (operating entity and licence; hosting abroad)
+   were confirmed before the PDPC licence regime became enforceable
+   (1 Nov 2026): controller, sensitive-data and transfer-abroad licences
+   and a registered DPO appear to be needed (open item B5).
+2. Item 4 (IDs and children's data with consent screens): the law asks for
+   explicit **written** consent for sensitive data; the app now asks for
+   separate consents (ID + face, guardian declaration, storage abroad),
+   but whether a tick box is "written" is for the lawyer.
+3. Emergency-contact WhatsApp without the contact's opt-in (15 Nov): kept;
+   the lawyer to confirm the legal basis in writing.
+4. Sign-in history deleted with the account (16 Nov) vs. the
+   Anti-Cybercrime Law's 180-day log retention: kept; sign-in history is
+   now 180 days while the account is open.
+
+Changes made on branch `legal-egypt` (reversible, recorded in the memo):
+separate `transferAbroad` consent (required at sign-up); guardian
+declaration separate from the ID/face consent; document versions
+2026-11-16; privacy requests due in 6 working days with an admin queue;
+sign-in history 180 days; public pages with a DPO contact, transfer
+section, 72 h breach promise and "Arabic text prevails"; volunteer
+acknowledgement at create/join; every money feature off (see the owner
+decision above).
