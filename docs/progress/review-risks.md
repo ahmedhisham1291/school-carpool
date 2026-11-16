@@ -81,3 +81,22 @@ verification). So the line was moved in the app only, to match the server:
   fails to load). Inside the window a demo parent's lists load; after it,
   everything but Delete account is refused on purpose.
 - Test: `test/auth/demo_refusal_test.dart` (written, not run here).
+
+### 7. Demo data seeded by `review-access -- on`, runs kept fresh (done)
+
+- `functions/scripts/review_demo_lib.ts`: the seed and the status, shared.
+  `review-demo -- seed|status` use it unchanged in behaviour; status also
+  shows each demo parent's public parent ID (never a number).
+- `review-access -- on` with both demo numbers seeds (or re-seeds) and
+  lists the demo accounts, the carpool and today's runs; with one number
+  it prints one clear "TO DO"; a seed refusal leaves the access on and
+  prints what to fix.
+- `reviewDemoDaily` (18:30 Cairo, `src/auth/review_demo_job.ts`) calls
+  `refreshReviewDemoRuns` (`src/auth/review_demo_refresh.ts`): only while
+  review access is open and every listed account is a demo account in its
+  window; only `review-demo-carpool` at the demo school; plans this week
+  and the next (2 calls) and confirms at most 20 of the driver's runs,
+  through planWeek/confirmRun. Tests: `functions/test/review_demo_refresh.test.ts`
+  (5, run here). Cost: one Cloud Scheduler job (docs/COSTS.md).
+- Not run here: the scripts against a real project (they compile; the
+  Firestore writes are the same code as before, moved).

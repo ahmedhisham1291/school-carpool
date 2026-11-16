@@ -81,8 +81,9 @@ text to the developer.
     choose the build, **Submit for Review**.
 16. **While in review:** do not sign in with the demo driver number on
     your own phone (Apple's phone would be signed out). Check the admin
-    panel's Reports every day. Run the demo `seed` again each Saturday
-    evening (it plans the new week).
+    panel's Reports every day. The demo runs are planned and confirmed by
+    themselves every evening (`reviewDemoDaily`) while review access is
+    on; `review-demo -- status` shows today's runs.
 17. **After approval:** `review-demo -- remove` (the demo accounts are
     signed out, lose "verified" and are refused by the server), then
     `review-access -- off`. To erase the two accounts as well, delete them
@@ -107,7 +108,15 @@ read -s -p "Code 2 (6 digits): " REVIEW_CODE_2; echo
 read -s -p "OTP_HMAC_KEY (Secret Manager): " OTP_HMAC_KEY; echo
 export REVIEW_PHONE REVIEW_CODE REVIEW_PHONE_2 REVIEW_CODE_2 OTP_HMAC_KEY
 GCLOUD_PROJECT=<prod-project-id> npm --prefix functions run review-access -- on 30 <your-super-admin-uid>
-GCLOUD_PROJECT=<prod-project-id> npm --prefix functions run review-demo -- seed <your-super-admin-uid>
+unset REVIEW_PHONE REVIEW_CODE REVIEW_PHONE_2 REVIEW_CODE_2 OTP_HMAC_KEY
+```
+
+`on` with both numbers also seeds the demo data (the same as
+`review-demo -- seed`) and lists the demo parents, the demo carpool and
+today's runs at the end. If it prints "TO DO", do that one thing and run
+it again. To look again later:
+
+```bash
 GCLOUD_PROJECT=<prod-project-id> npm --prefix functions run review-demo -- status <your-super-admin-uid>
 unset REVIEW_PHONE REVIEW_CODE REVIEW_PHONE_2 REVIEW_CODE_2 OTP_HMAC_KEY
 ```
@@ -138,12 +147,15 @@ they never passed an ID check:
   use the wallet. The app shows its normal error message there. Settle up
   and chat work only inside the demo carpool (the server allows them
   only between members of one carpool or school).
-- If you run `review-access -- on` again (new window or new codes), run
-  `review-demo -- seed` again too: the first command starts with no
-  listed demo account.
+- Running `review-access -- on` again (new window or new codes) seeds
+  again by itself, so the demo parents are listed for the new window.
+- While the window is open, the scheduled function `reviewDemoDaily`
+  (18:30 Cairo every day) plans this week and the next for the demo
+  carpool and confirms the demo driver's runs. It touches only the demo
+  carpool at the demo school and does nothing when review access is off.
 - If the reviewer deletes the demo account (they may test Delete
-  account), the number signs in as a new, unverified parent. Run `seed`
-  again to restore it.
+  account), the number signs in as a new, unverified parent. Run
+  `review-demo -- seed` (or `review-access -- on` again) to restore it.
 
 In **App Store Connect > App Review Information > Sign-In Information**:
 tick "Sign-in required"; **User name** = demo phone 1 (as the app shows

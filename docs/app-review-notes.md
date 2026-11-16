@@ -93,9 +93,11 @@ account in **Sign-In Information** (section 2). Attach the run video
   (docs/reviews/apple-review.md, B1 and B2). Signing in on Apple's phone still signs your own
   phones out of that account: do not use the demo driver account on your
   own phone during the review.
-- **Second demo account and demo data:** `REVIEW_PHONE_2` /
-  `REVIEW_CODE_2` and `npm --prefix functions run review-demo -- seed`
-  (docs/apple-review/submission-kit.md section B).
+- **Second demo account and demo data:** add `REVIEW_PHONE_2` /
+  `REVIEW_CODE_2`; `review-access -- on` then seeds the demo data by
+  itself, and `reviewDemoDaily` keeps the demo runs planned and confirmed
+  every evening while the access is on (docs/apple-review/submission-kit.md
+  section B). With one number only, `on` prints the one thing left to do.
 
 ## 3. Review sign-in code (server setting, off by default)
 
