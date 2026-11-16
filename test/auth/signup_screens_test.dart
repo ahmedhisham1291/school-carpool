@@ -242,7 +242,11 @@ void main() {
       await tester.pump();
       await tester.ensureVisible(find.byKey(const Key('terms.accept')));
       await tester.tap(find.byKey(const Key('terms.accept')));
-      await tester.pumpAndSettle();
+      // Not pumpAndSettle: after a success the button keeps its spinner
+      // until the router moves on (the fake session does not change).
+      for (int i = 0; i < 3; i++) {
+        await tester.pump();
+      }
       expect(repository.calls, <String>['acceptConsents']);
       expect(repository.acceptedWhatsApp, isFalse);
       expect(repository.acceptedSignature?.fullName, 'Omar Hassan');

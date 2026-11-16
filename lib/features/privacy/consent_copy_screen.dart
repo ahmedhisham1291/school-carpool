@@ -97,28 +97,33 @@ class _CopyContentState extends ConsumerState<_CopyContent> {
         ],
       ),
     );
-    return ListView(
+    // A short page: built at once (not lazily), so every fact and the
+    // download button exist for screen readers and tests.
+    return SingleChildScrollView(
       key: const Key('consentCopy.list'),
       padding: AppSpacing.screenPadding,
-      children: <Widget>[
-        AppCard(child: SelectableText(c.text, key: const Key('consentCopy.text'), style: context.text.bodyLarge)),
-        const SizedBox(height: AppSpacing.s24),
-        fact('signedBy', l10n.consentCopySignedBy, c.signedName ?? '-'),
-        fact('date', l10n.consentCopyDate, shortDateTime(context, c.acceptedAt)),
-        fact('method', l10n.consentCopyMethod, c.method == SignedWith.deviceAuth ? l10n.consentCopyMethodDevice : l10n.consentCopyMethodSignIn),
-        fact('version', l10n.consentCopyVersion, c.version),
-        fact('app', l10n.consentCopyApp, '${c.appVersion} (${c.platform})'),
-        fact('fingerprint', l10n.consentCopyFingerprint, c.fingerprint),
-        const SizedBox(height: AppSpacing.s8),
-        AppButton(
-          key: const Key('consentCopy.download'),
-          label: l10n.consentCopyDownload,
-          icon: Icons.download_rounded,
-          expand: true,
-          loading: _busy,
-          onPressed: _busy ? null : () => unawaited(_download()),
-        ),
-      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          AppCard(child: SelectableText(c.text, key: const Key('consentCopy.text'), style: context.text.bodyLarge)),
+          const SizedBox(height: AppSpacing.s24),
+          fact('signedBy', l10n.consentCopySignedBy, c.signedName ?? '-'),
+          fact('date', l10n.consentCopyDate, shortDateTime(context, c.acceptedAt)),
+          fact('method', l10n.consentCopyMethod, c.method == SignedWith.deviceAuth ? l10n.consentCopyMethodDevice : l10n.consentCopyMethodSignIn),
+          fact('version', l10n.consentCopyVersion, c.version),
+          fact('app', l10n.consentCopyApp, '${c.appVersion} (${c.platform})'),
+          fact('fingerprint', l10n.consentCopyFingerprint, c.fingerprint),
+          const SizedBox(height: AppSpacing.s8),
+          AppButton(
+            key: const Key('consentCopy.download'),
+            label: l10n.consentCopyDownload,
+            icon: Icons.download_rounded,
+            expand: true,
+            loading: _busy,
+            onPressed: _busy ? null : () => unawaited(_download()),
+          ),
+        ],
+      ),
     );
   }
 }
