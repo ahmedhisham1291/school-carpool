@@ -31,6 +31,7 @@ from schools_import import (  # noqa: E402
     dedupe_lines,
     dropped_by_source_lines,
     load_categories,
+    combine_decisions,
     load_decisions,
     report_markdown,
     review_lines,
@@ -60,6 +61,12 @@ def main(argv: list[str] | None = None) -> int:
         help="review decisions (default: review/decisions.csv in --input, else data/schools/review/decisions.csv)",
     )
     parser.add_argument(
+        "--ai-decisions",
+        type=Path,
+        default=None,
+        help="decisions of the AI name review (build/schools/ai_decisions.csv), applied after the manual ones",
+    )
+    parser.add_argument(
         "--categories",
         type=Path,
         default=None,
@@ -82,6 +89,11 @@ def main(argv: list[str] | None = None) -> int:
         else repo / "data" / "schools" / REVIEW_FOLDER / DECISIONS_FILE
     )
     decisions, decision_problems = load_decisions(decisions_path)
+    if args.ai_decisions is not None:
+        # ai_review.py's decisions (build/schools/ai_decisions.csv); a manual decision on the same entry wins.
+        ai, ai_problems = load_decisions(args.ai_decisions, origin="ai")
+        decisions = combine_decisions(decisions, ai)
+        decision_problems += ai_problems
     result = run(args.input, decisions)
     if result.review is not None:
         result.review.problems = decision_problems + result.review.problems

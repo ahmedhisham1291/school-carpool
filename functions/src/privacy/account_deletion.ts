@@ -144,6 +144,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   placeDistricts: "not personal (public place names; a district an admin added from a request carries no uid)",
   placeIndex: "not personal (the areas' boxes)",
   placeInternal: "not personal (outlines and address counts; the places step takes the parent's address out of the counts)",
+  schoolReview: "not personal (the AI name review's cache: school names and verdicts)",
   placeCache: "not personal (place details)",
   carpools: "the group stays for the other members (the parent's names become initials); a closed carpool is deleted 1 year after it closed",
   carpoolInvites: "carpool links (no personal data)",

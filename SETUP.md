@@ -653,6 +653,18 @@ this section is what it does, for a Mac or for prod.
    (build/schools/dropped_<reason>.csv), applies
    `data/schools/review/decisions.csv` (format: its README) and writes
    build/schools/review_input.csv for the name review.
+   **AI name review (step 12, after the import, before the load):**
+   `python3 tools/import_schools/ai_review.py --project <project>` sends the
+   kept schools' names, kind, category and governorate (never positions) to
+   Vertex AI in your project, 150 at a time, with each school's 5 nearest
+   neighbours' names for duplicates; verdicts at confidence 0.8 or more go to
+   build/schools/ai_decisions.csv, and the import runs again with
+   `--ai-decisions build/schools/ai_decisions.csv` (manual decisions win).
+   All verdicts: build/schools/ai_review.csv. Settings: SCHOOLS_AI=off (skip),
+   SCHOOLS_AI_PROVIDER (gemini-vertex | claude-vertex), SCHOOLS_AI_MODEL,
+   SCHOOLS_AI_LOCATION, SCHOOLS_AI_MIN_CONFIDENCE, SCHOOLS_AI_MAX_CALLS,
+   SCHOOLS_AI_BATCH. Step 1 turns on aiplatform.googleapis.com. For Claude,
+   enable the model once in Vertex AI Model Garden.
    **Why is a school missing?**
    `python3 tools/import_schools/why_missing.py "<name>" ...` (or
    `--file names.txt`) runs the import on the downloads and says, for each

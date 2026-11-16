@@ -233,6 +233,21 @@ revised list ("implement all your suggestions"):
   by default). A language button is on the sign-in and two-step setup
   screens as well as inside the panel.
 
+## Owner decision (16 Nov 2026): automatic AI name review in Cloud Shell
+
+- Every kept school name is reviewed by a model on Vertex AI in the owner's
+  Google Cloud project during step 12 (tools/import_schools/ai_review.py):
+  real school / drop / fix spelling and casing / same school as another /
+  wrong kind. Applied automatically at confidence 0.8 or more (configurable),
+  kept as is below; manual decisions (data/schools/review/decisions.csv)
+  win. Default model gemini-3.8-flash in the "eu" multi-region (europe-west1
+  does not serve it; "global" if eu answers 404); Claude Haiku on Vertex as
+  an option. Only public school names, kinds, categories and governorates are
+  sent, never positions or user data. Results are cached in the server-only
+  Firestore collection schoolReview. Admin-edited and parents' schools are
+  never dropped, renamed or merged away by it (the loader protects them);
+  nothing is deleted, only hidden.
+
 ## Owner decisions (16 Nov 2026, after the first full staging run): a clean list
 
 - **No manual duplicate review:** duplicates are merged automatically

@@ -1144,6 +1144,7 @@ DROP_REASONS = {
     "name_too_long": "Name longer than 120 characters",
     "name_script": "Name not in Arabic or English",
     "review_drop": "Dropped by the review (data/schools/review/decisions.csv)",
+    "ai_drop": "Dropped by the AI name review (build/schools/ai_review.csv)",
     "repeated_source_id": "Same source ID twice in the input",
 }
 
@@ -1606,7 +1607,7 @@ def run(folder: Path, decisions: list["Decision"] | None = None) -> Result:
     separate = [(d.key, d.value) for d in (decisions or []) if d.action == "separate"]
     for d in decisions or []:
         if d.action == "separate":
-            review.count(d.action)
+            review.count(d.action, d.origin)
     merged, groups, likely = find_duplicates(cleaned, links, separate)
     merged, groups = apply_merge_decisions(decisions or [], merged, groups, links, review)
     # A reviewer's kind is final, also after merges.
@@ -1650,6 +1651,7 @@ class Decision:
     value: str
     reason: str
     line: int
+    origin: str = "review"  # "review" (data/schools/review/decisions.csv) or "ai" (ai_review.py)
 
     @property
     def key(self) -> str:
@@ -1662,8 +1664,11 @@ class ReviewOutcome:
     unmatched: list[Decision] = field(default_factory=list)  # key (or merge target) not in this run
     problems: list[str] = field(default_factory=list)  # rows that could not be read
 
-    def count(self, action: str) -> None:
-        self.applied[action] = self.applied.get(action, 0) + 1
+    ai_applied: dict[str, int] = field(default_factory=dict)  # the AI's, counted apart
+
+    def count(self, action: str, origin: str = "review") -> None:
+        target = self.applied if origin == "review" else self.ai_applied
+        target[action] = target.get(action, 0) + 1
 
 
 def normalize_key(source: str, source_id: str) -> tuple[str, str]:
@@ -1677,7 +1682,7 @@ def normalize_key(source: str, source_id: str) -> tuple[str, str]:
     return source, source_id
 
 
-def load_decisions(path: Path) -> tuple[list[Decision], list[str]]:
+def load_decisions(path: Path, origin: str = "review") -> tuple[list[Decision], list[str]]:
     """The review's decisions (UTF-8 CSV, header source,source_id,action,value,reason).
     Rows that cannot be used are reported, never fatal."""
     if not path.exists():
@@ -1707,8 +1712,15 @@ def load_decisions(path: Path) -> tuple[list[Decision], list[str]]:
                 continue
             vs, vi = re.split("[:,]", value, maxsplit=1)
             value = ":".join(normalize_key(vs, vi))
-        out.append(Decision(source, source_id, action, value, (row.get("reason") or "").strip(), n))
+        out.append(Decision(source, source_id, action, value, (row.get("reason") or "").strip(), n, origin))
     return out, problems
+
+
+def combine_decisions(manual: list[Decision], ai: list[Decision]) -> list[Decision]:
+    """The manual review wins: an AI decision on a source key that has any
+    manual decision is left out."""
+    manual_keys = {d.key for d in manual}
+    return manual + [d for d in ai if d.key not in manual_keys]
 
 
 def apply_entry_decisions(decisions: list[Decision], entries: list[RawEntry], review: ReviewOutcome) -> None:
@@ -1725,7 +1737,7 @@ def apply_entry_decisions(decisions: list[Decision], entries: list[RawEntry], re
             continue
         for e in targets:
             if d.action == "drop":
-                e.kind, e.drop_reason, e.review_keep = None, "review_drop", False
+                e.kind, e.drop_reason, e.review_keep = None, f"{d.origin}_drop", False
             elif d.action == "keep":
                 if e.kind is None:
                     e.kind = next((k for k in (name_says_school(n) for n in (e.name, e.name_ar, e.name_en) if n) if k), "school")
@@ -1738,7 +1750,37 @@ def apply_entry_decisions(decisions: list[Decision], entries: list[RawEntry], re
                 e.name_ar = d.value
             elif d.action == "rename_en":
                 e.name_en = d.value
-        review.count(d.action)
+        review.count(d.action, d.origin)
+
+
+AI_MERGE_MAX_M = 2000.0
+AI_MERGE_BLOCKING_KEEPS = ("stage", "one_sided", "people", "branches", "common_name")
+
+
+def ai_merge_blocked(a: School, b: School, separate: set[frozenset[str]], common: frozenset = frozenset()) -> str:
+    """Why an AI merge_into of school [a] into school [b] must not be applied
+    ("" when it may). The AI never overrides the duplicate rules' guards
+    (dedupe.judge: other stage, boys/girls, a person's name, a chain branch,
+    a common name far apart), a kind difference, a manual "separate", or
+    distance (both pinned, within 2 km). A human reviewer's merge_into is
+    not checked."""
+    import dedupe
+
+    if any(frozenset((x, y)) in separate for x in a.source_keys for y in b.source_keys):
+        return "separate"
+    if a.kind != b.kind:
+        return "kind"
+    if (a.stages - {"kg"}) != (b.stages - {"kg"}):
+        return "stage"
+    if a.genders != b.genders:
+        return "boys/girls"
+    if a.lat is None or a.lng is None or b.lat is None or b.lng is None:
+        return "no position"
+    d = distance_m(a.lat, a.lng, b.lat, b.lng)
+    if d > AI_MERGE_MAX_M:
+        return "too far"
+    verdict = dedupe.judge(a, b, d, dedupe.is_common(a, common) or dedupe.is_common(b, common))
+    return verdict.keep if verdict.keep in AI_MERGE_BLOCKING_KEEPS else ""
 
 
 def apply_merge_decisions(
@@ -1749,8 +1791,14 @@ def apply_merge_decisions(
     merges = [d for d in decisions if d.action == "merge_into"]
     if not merges:
         return schools, groups
+    separate = {frozenset((d.key, d.value)) for d in decisions if d.action == "separate" and d.origin == "review"}
     holder: dict[str, School] = {k: s for s in schools for k in s.source_keys}
     out = {s.id: s for s in schools}
+    common: frozenset = frozenset()
+    if any(d.origin != "review" for d in merges):
+        import dedupe
+
+        common = dedupe.common_cores(schools)
     for d in merges:
         a, b = holder.get(d.key), holder.get(d.value)
         if a is None or b is None:
@@ -1758,8 +1806,13 @@ def apply_merge_decisions(
             continue
         a, b = out.get(a.id, a), out.get(b.id, b)
         if a.id == b.id:
-            review.count(d.action)
+            review.count(d.action, d.origin)
             continue
+        if d.origin != "review":
+            why = ai_merge_blocked(a, b, separate, common)
+            if why:
+                review.count(f"merge_into blocked ({why})", d.origin)
+                continue
         combined = _merge([b, a])
         combined = School(**{**combined.__dict__, "id": b.id, "source": b.source, "source_id": b.source_id,
                              "lat": b.lat if b.lat is not None else a.lat, "lng": b.lng if b.lng is not None else a.lng,
@@ -1769,20 +1822,26 @@ def apply_merge_decisions(
         for k in combined.source_keys:
             holder[k] = combined
         links.append(MergeLink(b.id, a.id, "review", None))
-        review.count(d.action)
+        review.count(d.action, d.origin)
     links.sort(key=lambda l: (l.kept_id, l.merged_id))
     return sorted(out.values(), key=lambda s: s.id), groups
 
 
 def review_lines(result: "Result") -> list[str]:
     r = result.review
-    if r is None or not (r.applied or r.unmatched or r.problems):
+    if r is None or not (r.applied or r.ai_applied or r.unmatched or r.problems):
         return []
+    manual_unmatched = [d for d in r.unmatched if d.origin == "review"]
     lines = [
         "Review decisions applied: " + (", ".join(f"{a} {n}" for a, n in sorted(r.applied.items())) or "none")
-        + f"; not matched in this run: {len(r.unmatched)}"
+        + f"; not matched in this run: {len(manual_unmatched)}"
     ]
-    for d in r.unmatched[:20]:
+    if r.ai_applied or len(manual_unmatched) < len(r.unmatched):
+        lines.append(
+            "AI decisions applied: " + (", ".join(f"{a} {n}" for a, n in sorted(r.ai_applied.items())) or "none")
+            + f"; not matched: {len(r.unmatched) - len(manual_unmatched)}"
+        )
+    for d in manual_unmatched[:20]:
         lines.append(f"  not matched: line {d.line} {d.key} {d.action} {d.value}".rstrip())
     lines += [f"  {p}" for p in r.problems[:20]]
     return lines

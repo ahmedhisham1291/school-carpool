@@ -190,3 +190,15 @@ describe("address in a city with no areas yet", () => {
     assert.throws(() => parseAddress({ ...base, placeAreaId: "", placeDistrictId: "osm-n1" }));
   });
 });
+
+describe("the AI name review never removes protected schools", () => {
+  it("hides an imported school the AI dropped, never an admin-edited or a parent's one", () => {
+    const dropped = parseDropped([{ key: "overture:a1", reason: "ai_drop" }, { key: "overture:a2", reason: "ai_drop" }, { key: "overture:a3", reason: "ai_drop" }]);
+    const ex = [
+      existing("overture-a1", { sourceKeys: ["overture:a1"], source: "overture" }),
+      existing("overture-a2", { sourceKeys: ["overture:a2"], source: "overture", adminEdited: true }),
+      existing("p3", { sourceKeys: ["overture:a3"], source: "parent" }),
+    ];
+    assert.deepEqual(planDroppedHiding(dropped, ex, []), [{ id: "overture-a1", reason: "ai_drop" }]);
+  });
+});

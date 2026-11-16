@@ -193,6 +193,7 @@ APIS=(
   compute.googleapis.com logging.googleapis.com
   maps-ios-backend.googleapis.com places.googleapis.com routes.googleapis.com
   apikeys.googleapis.com recaptchaenterprise.googleapis.com billingbudgets.googleapis.com
+  aiplatform.googleapis.com
 )
 # gcloud takes at most 20 services per call.
 gcloud services enable "${APIS[@]:0:20}" --project="${PROJECT}" --quiet
@@ -874,6 +875,38 @@ admin_grams_fill() {
 SCHOOLS_LOADED=""
 if [ "${#REAL_INPUTS[@]}" -gt 0 ]; then
   run_step import_schools
+  # Automatic AI review of every kept name (owner decision 16 Nov 2026):
+  # Vertex AI in this project, applied at confidence >= 0.8, then the import
+  # runs again with its decisions (manual decisions win). Off with SCHOOLS_AI=off.
+  if [ "${STEP_RC}" -eq 0 ] && [ "${SCHOOLS_AI:-on}" != "off" ]; then
+    ai_review() {
+      python3 tools/import_schools/ai_review.py --project "${PROJECT}" | tee "${SCHOOLS_OUT}/ai_review.txt"
+    }
+    run_step ai_review
+    AI_RC="${STEP_RC}"
+    import_with_ai() {
+      python3 tools/import_schools/import_schools.py --ai-decisions build/schools/ai_decisions.csv >"${SCHOOLS_OUT}/import.txt"
+    }
+    if [ "${AI_RC}" -eq 0 ] && [ -f build/schools/ai_decisions.csv ]; then
+      ok "$(sed -n 's/^AI review: \(ok .*\)/AI name review: \1/p' "${SCHOOLS_OUT}/ai_review.txt" | tail -1) (all verdicts: build/schools/ai_review.csv)"
+      if grep -q 'call limit' "${SCHOOLS_OUT}/ai_review.txt"; then
+        todo "AI name review stopped at its call limit (SCHOOLS_AI_MAX_CALLS); run this script again to review the rest."
+      fi
+      if grep -q '^AI review: incomplete' "${SCHOOLS_OUT}/ai_review.txt"; then
+        todo "AI name review stopped part-way (Vertex AI not reachable, model not enabled, or no access; see above). Earlier verdicts are applied; run this script again for the rest."
+      fi
+      if grep -q 'suspicious batches' "${SCHOOLS_OUT}/ai_review.txt"; then
+        todo "AI name review: some batches dropped too many schools and were NOT applied (look for 'suspicious' in build/schools/ai_review.csv); run this script again, or decide those names in data/schools/review/decisions.csv."
+      fi
+      run_step import_with_ai
+    elif [ -f build/schools/ai_decisions.csv ]; then
+      todo "AI name review did not run (no token or the schoolReview cache could not be read; see above). The previous run's AI decisions are applied again; run this script again later."
+      run_step import_with_ai
+    else
+      todo "AI name review did not run (Vertex AI not reachable, model not available, or no access; see above). The list loads without it; run this script again later."
+      STEP_RC=0
+    fi
+  fi
   if [ "${STEP_RC}" -eq 0 ]; then
     ok "import: $(sed -n 's/^Kept /kept /p' "${SCHOOLS_OUT}/import.txt" | head -1) (full report: build/schools/report.md)"
     ok "per source: $(sed -n 's/^Per source (read \/ dropped \/ kept as main entry \/ schools with an entry from it): //p' "${SCHOOLS_OUT}/import.txt" | head -1) (read / dropped / kept as main / schools with an entry)"
