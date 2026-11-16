@@ -71,15 +71,18 @@ class FirestorePlaceRepository implements PlaceRepository {
 
   @override
   Future<List<SchoolOption>> schoolsInArea(String areaId) async {
-    final List<SchoolOption> all = await _read(
+    // Schools taken out of the list by the import (searchHidden: the
+    // sample, names in no usable script, schools no longer in any source)
+    // stay as documents but are not offered.
+    final List<SchoolOption?> all = await _read(
       _db
           .collection('schools')
           .where('status', isEqualTo: 'active')
           .where('placeAreaId', isEqualTo: areaId)
           .limit(kAreaSchoolsLimit),
-      SchoolOption.fromMap,
+      (String id, Map<String, Object?> data) => data['searchHidden'] == true ? null : SchoolOption.fromMap(id, data),
     );
-    return all;
+    return all.whereType<SchoolOption>().toList();
   }
 }
 

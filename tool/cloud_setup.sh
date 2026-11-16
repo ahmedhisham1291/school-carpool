@@ -801,6 +801,15 @@ else
   else
     todo "OpenStreetMap places download failed (servers busy?). Schools get no area until it works; run this script again later."
   fi
+  # Areas: Egypt's ADM2 units (qism / markaz / new city) from the OCHA
+  # COD-AB boundaries on HDX (geoBoundaries as a fallback): OpenStreetMap
+  # has almost no boundaries below the governorate in Egypt.
+  run_step python3 tools/import_schools/fetch_adm2.py --max-age-days 30
+  if [ "${STEP_RC}" -eq 0 ]; then
+    ok "ADM2 areas: $(sed -n 's/^- Units written: //p' data/schools/places/adm2_report.md 2>/dev/null | head -1); $(sed -n 's/^- Source: //p' data/schools/places/adm2_report.md 2>/dev/null | head -1)"
+  else
+    todo "ADM2 areas: download failed (see above). Download the Egypt COD-AB boundaries (HDX cod-ab-egy) by hand, then: python3 tools/import_schools/fetch_adm2.py --file <zip>"
+  fi
   # Wikimedia's User-Agent policy asks for a contact: the admin email
   # argument unless WIKIDATA_CONTACT is set (sent only in the header).
   run_step env WIKIDATA_CONTACT="${WIKIDATA_CONTACT:-${ADMIN_EMAIL}}" \
@@ -868,6 +877,9 @@ if [ "${#REAL_INPUTS[@]}" -gt 0 ]; then
   if [ "${STEP_RC}" -eq 0 ]; then
     ok "import: $(sed -n 's/^Kept /kept /p' "${SCHOOLS_OUT}/import.txt" | head -1) (full report: build/schools/report.md)"
     ok "per source: $(sed -n 's/^Per source (read \/ dropped \/ kept as main entry \/ schools with an entry from it): //p' "${SCHOOLS_OUT}/import.txt" | head -1) (read / dropped / kept as main / schools with an entry)"
+    ok "$(sed -n 's/^Auto-merged duplicates: /auto-merged duplicates: /p' "${SCHOOLS_OUT}/import.txt" | head -1) (one row each: build/schools/merged.csv)"
+    ok "$(sed -n 's/^Left apart on purpose/left apart on purpose/p' "${SCHOOLS_OUT}/import.txt" | head -1)"
+    ok "dropped names per reason: build/schools/dropped_<reason>.csv"
     run_step load_schools --hide-sample ../build/schools-sample/schools.json
     if [ "${STEP_RC}" -eq 0 ]; then
       SCHOOLS_LOADED=1
@@ -905,7 +917,10 @@ if [ "${SEARCH}" = "algolia" ]; then
   if [ -n "${SCHOOLS_LOADED}" ]; then
     run_step algolia_sync
     if [ "${STEP_RC}" -eq 0 ]; then
-      ok "Algolia: $(sed -n 's/^algolia_schools: //p' "${SCHOOLS_OUT}/algolia.txt" | tail -1)"
+      ok "Algolia: $(sed -n 's/^algolia_schools: \(indexed .*\)/\1/p' "${SCHOOLS_OUT}/algolia.txt" | tail -1)"
+      if grep -q '^algolia_schools: warning: ' "${SCHOOLS_OUT}/algolia.txt"; then
+        todo "Algolia: $(sed -n 's/^algolia_schools: warning: //p' "${SCHOOLS_OUT}/algolia.txt" | tail -1)"
+      fi
     else
       todo "Algolia index sync failed (see above; 403 means the Write API key was refused: run again with --replace-algolia). Otherwise run this script again."
     fi
