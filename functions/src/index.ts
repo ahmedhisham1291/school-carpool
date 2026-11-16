@@ -174,6 +174,8 @@ export {
 // (location stopped, child not confirmed, deleting live points).
 export {
   confirmHandover,
+  // R6: the emergency contact's confirm / stop page (links site /ec/**).
+  emergencyContactReply,
   endTrip,
   endTripsOnUserWrite,
   getHandoverAdults,

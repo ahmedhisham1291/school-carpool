@@ -570,3 +570,12 @@ Where an item replaces an earlier decision, it says so.
   always open. A super admin switches it in Admin panel > Settings >
   Launch (sign-in < 30 minutes, the licence numbers are required to open,
   audit entry). Pilot with real families only after it is on.
+- **R6 - emergency contact opt-in** (adds to the 15 Nov "no opt-in needed"
+  answer): saving a contact needs the box "this person agreed"; the
+  contact gets a confirm / stop link (`/ec/<token>` on the links site,
+  function `emergencyContactReply`) that the parent sends from their own
+  phone. Until the contact confirms, alerts STILL go (child safety, as
+  answers.md 1.8 says), but the first one uses the template
+  `cp_emergency_contact_intro` (names the parent, why, how to stop); a
+  contact who tapped "stop" gets nothing. Name, number, status and the
+  link token only; deleted with the account.

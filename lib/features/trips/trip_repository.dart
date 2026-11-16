@@ -72,7 +72,8 @@ abstract interface class TripRepository {
   Future<List<HandoverAdult>> handoverAdults(String childId);
   Future<void> saveHandoverAdults(String childId, List<HandoverAdult> adults);
 
-  Future<void> saveEmergencyContact({required String name, required String phone, required Relation relation});
+  /// R6: [agreed] is the parent's declaration that the person agreed.
+  Future<void> saveEmergencyContact({required String name, required String phone, required Relation relation, required bool agreed});
   Future<void> clearEmergencyContact();
 
   /// Opens the phone dialer or the maps app (F20 emergency screen).
@@ -254,8 +255,8 @@ class FirebaseTripRepository implements TripRepository {
   });
 
   @override
-  Future<void> saveEmergencyContact({required String name, required String phone, required Relation relation}) =>
-      _call('setEmergencyContact', <String, Object?>{'name': name, 'phone': phone, 'relation': relation.name});
+  Future<void> saveEmergencyContact({required String name, required String phone, required Relation relation, required bool agreed}) =>
+      _call('setEmergencyContact', <String, Object?>{'name': name, 'phone': phone, 'relation': relation.name, 'agreed': agreed});
 
   @override
   Future<void> clearEmergencyContact() => _call('setEmergencyContact', <String, Object?>{'clear': true});

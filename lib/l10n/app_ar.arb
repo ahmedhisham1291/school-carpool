@@ -10908,5 +10908,65 @@
   "adminLaunchSaved": "حُفظ إعداد الإطلاق",
   "@adminLaunchSaved": {
     "description": "Admin snack bar (R5). One line."
+  },
+  "emergencyContactAgreeLabel": "هذا الشخص وافق",
+  "@emergencyContactAgreeLabel": {
+    "description": "R6: unticked box before saving the emergency contact. One line."
+  },
+  "emergencyContactAgreeHelper": "أؤكد أن هذا الشخص وافق على أن يكون جهة الطوارئ الخاصة بي وأن تصله رسالة واتساب إذا ضغطت زر الطوارئ. سأرسل له رابط التأكيد.",
+  "@emergencyContactAgreeHelper": {
+    "description": "R6: the parent's declaration (answers.md 1.8)."
+  },
+  "emergencyContactAgreeError": "علّم «هذا الشخص وافق» أولًا.",
+  "@emergencyContactAgreeError": {
+    "description": "R6: server refusal contact-not-agreed."
+  },
+  "emergencyContactPending": "لم يؤكد {name} بعد. أرسل له الرابط. تصل التنبيهات رغم ذلك؛ وأولها يذكر من أنت وكيف يوقفها.",
+  "@emergencyContactPending": {
+    "description": "R6: status line, contact pending.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "emergencyContactConfirmed": "أكّد {name} أنه جهة الطوارئ الخاصة بك.",
+  "@emergencyContactConfirmed": {
+    "description": "R6: status line, contact confirmed.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "emergencyContactStopped": "طلب {name} عدم إرسال رسائل. لن تصله التنبيهات؛ اختر جهة أخرى.",
+  "@emergencyContactStopped": {
+    "description": "R6: status line, contact stopped.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "emergencyContactSendLink": "أرسل الرابط",
+  "@emergencyContactSendLink": {
+    "description": "R6: opens WhatsApp with the confirm link. One line."
+  },
+  "emergencyContactShareText": "أضفتك جهةً للطوارئ في تطبيق «مشوار المدرسة». تصلك رسالة واتساب فقط إذا ضغطت زر الطوارئ أثناء مشوار مدرسي. من فضلك أكّد أو ارفض من هنا: {link}",
+  "@emergencyContactShareText": {
+    "description": "R6: WhatsApp text the parent sends to the contact.",
+    "placeholders": {
+      "link": {
+        "type": "String"
+      }
+    }
+  },
+  "emergencyContactLinkCopied": "نُسخ الرابط. الصقه في رسالة إلى جهة الطوارئ.",
+  "@emergencyContactLinkCopied": {
+    "description": "R6: WhatsApp could not open."
+  },
+  "emergencyContactNoLink": "الرابط غير متاح في هذه النسخة.",
+  "@emergencyContactNoLink": {
+    "description": "R6: no links site configured (dev)."
   }
 }

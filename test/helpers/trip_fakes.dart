@@ -184,9 +184,9 @@ class FakeTripRepository implements TripRepository {
   }
 
   @override
-  Future<void> saveEmergencyContact({required String name, required String phone, required Relation relation}) async {
-    await _maybeFail('saveContact:${relation.name}');
-    contact = EmergencyContact(name: name, phone: phone, relation: relation);
+  Future<void> saveEmergencyContact({required String name, required String phone, required Relation relation, required bool agreed}) async {
+    await _maybeFail('saveContact:${relation.name}:$agreed');
+    contact = EmergencyContact(name: name, phone: phone, relation: relation, token: 'a' * 64);
     emit();
   }
 

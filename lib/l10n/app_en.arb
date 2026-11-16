@@ -2454,5 +2454,15 @@
   "adminLaunchOpenBody": "Only when the PDPC granted the controller, sensitive-data and transfer licences. Type their numbers.",
   "adminLaunchCloseTitle": "Close to new parents?",
   "adminLaunchCloseBody": "New numbers will see \"Opening soon\". Existing accounts keep working.",
-  "adminLaunchSaved": "Launch setting saved"
+  "adminLaunchSaved": "Launch setting saved",
+  "emergencyContactAgreeLabel": "This person agreed",
+  "emergencyContactAgreeHelper": "I confirm this person agreed to be my emergency contact and to get a WhatsApp message if I press the emergency button. I will send them the link to confirm.",
+  "emergencyContactAgreeError": "Tick \"This person agreed\" first.",
+  "emergencyContactPending": "{name} has not confirmed yet. Send them the link. Alerts still go; the first one says who you are and how to stop.",
+  "emergencyContactConfirmed": "{name} confirmed being your emergency contact.",
+  "emergencyContactStopped": "{name} asked for no messages. Alerts will not reach them; choose another contact.",
+  "emergencyContactSendLink": "Send the link",
+  "emergencyContactShareText": "I added you as my emergency contact in School Carpool. You get a WhatsApp message only if I press the emergency button on a school run. Please confirm, or say no, here: {link}",
+  "emergencyContactLinkCopied": "Link copied. Paste it in a message to your contact.",
+  "emergencyContactNoLink": "The link is not available in this build."
 }

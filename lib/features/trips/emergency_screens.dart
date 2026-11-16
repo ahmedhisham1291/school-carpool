@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/about/legal_links.dart';
 import 'package:school_carpool/features/auth/phone_number.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_view.dart';
 import 'package:school_carpool/features/schedule/schedule_labels.dart';
@@ -27,6 +29,14 @@ final _contactProvider = StreamProvider.autoDispose<EmergencyContact?>((Ref ref)
 /// when the driver presses Emergency. Name, mobile number and relation;
 /// checked as the parent types. Removing asks first.
 ///
+/// R6 (docs/legal/answers.md 1.8): saving needs the box "this person
+/// agreed to be my emergency contact" (unticked each time). Once saved, a
+/// status line says whether the contact confirmed, is still asked, or
+/// asked for no messages, and "Send the link" opens WhatsApp with a short
+/// note and the contact's confirm / stop link (sent from the parent's own
+/// phone). Until confirmed, alerts still go; the first one introduces the
+/// parent and says how to stop.
+///
 /// States: loading (skeleton), none saved yet (empty form), error, offline.
 class EmergencyContactScreen extends ConsumerStatefulWidget {
   const EmergencyContactScreen({super.key});
@@ -41,6 +51,7 @@ class _EmergencyContactScreenState extends ConsumerState<EmergencyContactScreen>
   String? _name;
   String? _phone;
   Relation? _relation;
+  bool _agreed = false;
   bool _saving = false;
 
   Future<void> _save(EmergencyContact? current) async {
@@ -54,7 +65,10 @@ class _EmergencyContactScreenState extends ConsumerState<EmergencyContactScreen>
     }
     setState(() => _saving = true);
     try {
-      await ref.read(tripRepositoryProvider).saveEmergencyContact(name: name, phone: phone, relation: relation);
+      await ref.read(tripRepositoryProvider).saveEmergencyContact(name: name, phone: phone, relation: relation, agreed: _agreed);
+      if (mounted) {
+        setState(() => _agreed = false);
+      }
       showAppSnackBarOn(messenger, l10n.emergencyContactSaved);
     } on TripFailure catch (failure) {
       showAppSnackBarOn(messenger, failure.message(l10n));
@@ -62,6 +76,22 @@ class _EmergencyContactScreenState extends ConsumerState<EmergencyContactScreen>
       if (mounted) {
         setState(() => _saving = false);
       }
+    }
+  }
+
+  /// R6: WhatsApp with a short note and the confirm / stop link.
+  Future<void> _sendLink(EmergencyContact current) async {
+    final AppLocalizations l10n = context.l10n;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final Uri? link = ref.read(legalLinksProvider).contactLink(current.token);
+    if (link == null) {
+      showAppSnackBarOn(messenger, l10n.emergencyContactNoLink);
+      return;
+    }
+    final bool opened = await ref.read(linkSharerProvider).shareOnWhatsApp(l10n.emergencyContactShareText(link.toString()));
+    if (!opened) {
+      await ref.read(linkSharerProvider).copy(link.toString());
+      showAppSnackBarOn(messenger, l10n.emergencyContactLinkCopied);
     }
   }
 
@@ -161,14 +191,49 @@ class _EmergencyContactScreenState extends ConsumerState<EmergencyContactScreen>
               ),
           ],
         ),
-        const SizedBox(height: AppSpacing.s32),
+        const SizedBox(height: AppSpacing.s16),
+        AppCheckRow(
+          key: const Key('contact.agreed'),
+          label: l10n.emergencyContactAgreeLabel,
+          helperText: l10n.emergencyContactAgreeHelper,
+          value: _agreed,
+          onChanged: _saving ? null : (bool v) => setState(() => _agreed = v),
+        ),
+        const SizedBox(height: AppSpacing.s24),
         AppButton(
           key: const Key('contact.save'),
           label: l10n.actionSave,
           expand: true,
           loading: _saving,
-          onPressed: !_saving && nameOk && phoneOk && relation != null ? () => unawaited(_save(current)) : null,
+          onPressed: !_saving && nameOk && phoneOk && relation != null && _agreed ? () => unawaited(_save(current)) : null,
         ),
+        if (current != null) ...<Widget>[
+          const SizedBox(height: AppSpacing.s16),
+          AppInlineMessage(
+            key: Key('contact.status.${current.status.name}'),
+            tone: switch (current.status) {
+              ContactStatus.confirmed => AppStateTone.neutral,
+              ContactStatus.stopped => AppStateTone.warning,
+              ContactStatus.pending => AppStateTone.neutral,
+            },
+            message: switch (current.status) {
+              ContactStatus.confirmed => l10n.emergencyContactConfirmed(current.name),
+              ContactStatus.stopped => l10n.emergencyContactStopped(current.name),
+              ContactStatus.pending => l10n.emergencyContactPending(current.name),
+            },
+          ),
+          if (current.status == ContactStatus.pending) ...<Widget>[
+            const SizedBox(height: AppSpacing.s8),
+            AppButton(
+              key: const Key('contact.sendLink'),
+              label: l10n.emergencyContactSendLink,
+              icon: Icons.send_rounded,
+              variant: AppButtonVariant.secondary,
+              expand: true,
+              onPressed: _saving ? null : () => unawaited(_sendLink(current)),
+            ),
+          ],
+        ],
         if (current != null) ...<Widget>[
           const SizedBox(height: AppSpacing.s8),
           AppButton(

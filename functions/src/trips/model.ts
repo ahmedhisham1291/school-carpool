@@ -157,7 +157,43 @@ export interface EmergencyContact {
   /** E.164; never logged in clear. */
   phone: string;
   relation: Relation;
+  /**
+   * R6 (docs/legal/answers.md 1.8): the contact's own opt-in. "pending"
+   * until the contact opens the link and confirms; "stopped" after the
+   * contact asked for no more messages (no alert is sent then). Older
+   * records without a status read as "pending".
+   */
+  status?: ContactStatus;
+  /** When the parent declared the contact agreed (required to save). */
+  attestedAtMs?: number | null;
+  /** Random link token (/ec/<token>): confirm or stop. Readable only by the parent (rules) and the server. */
+  token?: string | null;
+  /** The first alert to an unconfirmed contact introduced the parent and said how to stop. */
+  introSent?: boolean;
 }
+
+export const CONTACT_STATUSES = ["pending", "confirmed", "stopped"] as const;
+export type ContactStatus = (typeof CONTACT_STATUSES)[number];
+
+/**
+ * R6: what the emergency alert sends to the contact: nothing (stopped),
+ * the introduction (first message to a contact who has not confirmed: it
+ * names the parent, says why and how to stop), or the usual alert.
+ */
+export function contactMessage(c: Pick<EmergencyContact, "status" | "introSent">): "none" | "intro" | "alert" {
+  const status = c.status ?? "pending";
+  if (status === "stopped") return "none";
+  if (status === "confirmed" || c.introSent === true) return "alert";
+  return "intro";
+}
+
+/** The reply page path of a contact link (Hosting /ec/** -> emergencyContactReply). */
+export function contactLink(base: string, token: string): string {
+  return `${base.replace(/\/+$/, "")}/ec/${token}`;
+}
+
+/** A link token: 32 random bytes as 64 hex characters. */
+export const CONTACT_TOKEN = /^[0-9a-f]{64}$/;
 
 export interface TripSettings {
   /** No point for this long: "location stopped" (F15). */
@@ -231,6 +267,7 @@ export type TripErrorReason =
   | "no-contact"
   | "no-children"
   | "children-on-board"
+  | "contact-not-agreed"
   | "rate-limited";
 
 export const TRIP_ERROR_CODES: Record<TripErrorReason, string> = {
@@ -252,6 +289,7 @@ export const TRIP_ERROR_CODES: Record<TripErrorReason, string> = {
   "no-contact": "failed-precondition",
   "no-children": "failed-precondition",
   "children-on-board": "failed-precondition",
+  "contact-not-agreed": "failed-precondition",
   "rate-limited": "resource-exhausted",
 };
 

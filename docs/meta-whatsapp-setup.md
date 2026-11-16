@@ -285,6 +285,15 @@ contact a driver saved:
 | Template name | Variables | English body | Arabic body |
 | --- | --- | --- | --- |
 | `cp_emergency_contact` | `{{1}}` the driver's first name, `{{2}}` a map link or "unknown" | {{1}} pressed the emergency button during a school run. Location: {{2}} | ضغط {{1}} زر الطوارئ أثناء مشوار المدرسة. الموقع: {{2}} |
+| `cp_emergency_contact_intro` (R6) | `{{1}}` the parent's first name, `{{2}}` a map link or "unknown", `{{3}}` the contact's confirm / stop link | Hello. {{1}} added you as their emergency contact in School Carpool and pressed the emergency button during a school run. Location: {{2}}. To confirm or to stop these messages, open {{3}} . Thank you. | مرحبًا. أضافك {{1}} جهةً للطوارئ في تطبيق مشوار المدرسة وضغط زر الطوارئ أثناء مشوار مدرسي. الموقع: {{2}}. للتأكيد أو لإيقاف هذه الرسائل افتح {{3}} . شكرًا. |
+
+R6 (owner decision 16 Nov 2026): the FIRST alert to a contact who has not
+confirmed uses `cp_emergency_contact_intro` (it names the parent, says why
+and how to stop); later alerts use `cp_emergency_contact`. A contact who
+tapped "stop" on the link page gets nothing. If Meta has not approved the
+intro template yet, the server falls back to `cp_emergency_contact` so the
+alert still goes. The parent also sends the link from their own phone when
+saving the contact (the contact's own opt-in, Meta's rule).
 
 Samples: `{{1}}` = `Ahmed` / `أحمد`; `{{2}}` =
 `https://maps.google.com/?q=30.0444,31.2357`.
@@ -298,9 +307,9 @@ answers):**
    do not invent new wording yourself: the developer must change the text
    in SETUP.md 20.3 and the code comment together.
 2. Meta requires that people agree to receive your messages before you
-   send them templates. This contact agreed only through the driver. Ask
-   the lawyer whether that is enough, or whether the app should send this
-   one by another route.
+   send them templates. R6: the parent declares the contact agreed and
+   sends the contact a confirm / stop link from their own phone; the
+   contact's answer is recorded (`emergencyContacts/{uid}.status`).
 
 ### G.2 Create these next (sent only to parents who switch WhatsApp on)
 

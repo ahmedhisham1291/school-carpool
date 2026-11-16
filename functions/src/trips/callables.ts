@@ -27,6 +27,7 @@ import {
   WHATSAPP_PROVIDER,
   WHATSAPP_TEMPLATE_LANG_AR,
   WHATSAPP_TEMPLATE_LANG_EN,
+  INVITE_LINK_BASE,
   appEnv,
 } from "../config";
 import { CAIRO_TZ } from "../schedule/cairo";
@@ -36,6 +37,7 @@ import { faceMatcher } from "../verification/face_match";
 import { CloudStorageFiles } from "../verification/store";
 import { createWhatsAppSender } from "../whatsapp/sender";
 import {
+  answerContactLink,
   confirmHandover as confirmFlow,
   endDriverTrips,
   endTrip as endFlow,
@@ -57,6 +59,7 @@ import {
   type TripDeps,
 } from "./flow";
 import { TRIP_ERROR_CODES, TripError, tripSettings } from "./model";
+import { contactReplyPage } from "./contact_page";
 import { createRoutesProvider } from "./routes";
 import { FirestoreTripStore } from "./store";
 import { gatedCall, sessionCall } from "../privacy/device_gate";
@@ -107,6 +110,8 @@ export function tripDeps(): TripDeps {
     releaseRuns: async (uid) => (await pauseDriverRuns(carpools, uid)).runs,
     now: () => Date.now(),
     newToken: () => randomBytes(32).toString("base64url"),
+    newContactToken: () => randomBytes(32).toString("hex"),
+    linkBase: INVITE_LINK_BASE.value(),
     roll: () => randomInt(0, 100),
     settings: tripSettings(TRIP_STALE_SEC.value(), TRIP_SELFIE_PERCENT.value(), TRIP_HANDOVER_MIN.value()),
     log: (message, data) => logger.info(message, data ?? {}),
@@ -240,6 +245,37 @@ export const tripLocation = onRequest({ minInstances: MIN_INSTANCES, timeoutSeco
     await reportError(error);
     // 500: the plugin keeps the points and tries again later.
     res.status(500).json({ error: "internal" });
+  }
+});
+
+/**
+ * R6: the emergency contact's link page, served on the links site
+ * (Hosting rewrite /ec/** -> this function). GET /ec/<token> shows who
+ * asked and two plain links; GET /ec/<token>/yes confirms and
+ * /ec/<token>/stop ends every message. The bare page changes nothing, so a
+ * WhatsApp link preview cannot answer for the contact. No phone number,
+ * no location; only the parent's first name. Unknown tokens get the same
+ * "link not valid" page.
+ */
+export const emergencyContactReply = onRequest({ minInstances: MIN_INSTANCES, timeoutSeconds: 15, maxInstances: 5, concurrency: 80 }, async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.set("Content-Type", "text/html; charset=utf-8");
+  try {
+    if (req.method !== "GET") {
+      res.status(405).send("");
+      return;
+    }
+    const parts = String(req.path ?? "").split("/").filter((p) => p.length > 0);
+    const at = parts.indexOf("ec");
+    const token = at >= 0 ? parts[at + 1] : undefined;
+    const action = at >= 0 ? parts[at + 2] : undefined;
+    const answer = action === "yes" ? "yes" : action === "stop" ? "stop" : "view";
+    const result = await answerContactLink(tripDeps(), token, answer);
+    res.status(result.found ? 200 : 404).send(contactReplyPage(result, token ?? ""));
+  } catch (error) {
+    logger.error("emergencyContactReply failed", { message: error instanceof Error ? error.message : "unknown" });
+    await reportError(error);
+    res.status(500).send(contactReplyPage({ found: false, status: "pending", parentFirstName: "" }, ""));
   }
 });
 

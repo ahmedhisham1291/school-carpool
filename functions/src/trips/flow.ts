@@ -37,6 +37,10 @@ import {
   QUICK_KINDS,
   record,
   relationOf,
+  contactLink,
+  contactMessage,
+  CONTACT_TOKEN,
+  type ContactStatus,
   requestIdOf,
   routeAhead,
   selfieRequired,
@@ -148,6 +152,10 @@ export interface TripStore {
   handoverEntries(childId: string): Promise<HandoverEntry[]>;
   putHandover(childId: string, ownerUid: string, adults: HandoverEntry[], nowMs: number): Promise<void>;
   emergencyContact(uid: string): Promise<EmergencyContact | null>;
+  /** R6: the contact holding this link token, and the parent's first name. */
+  contactByToken(token: string): Promise<{ uid: string; contact: EmergencyContact; parentFirstName: string } | null>;
+  setContactStatus(uid: string, status: ContactStatus, nowMs: number): Promise<void>;
+  markContactIntroduced(uid: string): Promise<void>;
   putEmergencyContact(uid: string, contact: EmergencyContact | null, nowMs: number): Promise<void>;
   /** carpools/{id}/emergencies/{new id}; returns the ID. */
   addEmergency(carpoolId: string, e: { tripId: string; runId: string; driverUid: string; driverFirstName: string; point: LatLng | null; atMs: number; expiresAtMs: number }): Promise<string>;
@@ -199,12 +207,16 @@ export interface TripDeps {
   now: () => number;
   /** A new upload token (random, URL safe). */
   newToken: () => string;
+  /** R6: a new contact link token (32 random bytes, hex). */
+  newContactToken: () => string;
   /** Uniform in [0, 100). */
   roll: () => number;
   settings?: Partial<TripSettings>;
   log: (message: string, data?: Record<string, unknown>) => void;
   /** The carpool chat (absent in tests that do not need it). */
   chat?: QuickChatPoster;
+  /** R6: start of the contact's confirm/stop link (INVITE_LINK_BASE). */
+  linkBase?: string;
 }
 
 export interface Caller {
@@ -218,6 +230,13 @@ export const selfiePath = (uid: string, id: string): string => `selfieChecks/${u
 /** The identity selfie kept as the face reference when the account was approved (F38). */
 export { faceRefPath };
 export const EMERGENCY_TEMPLATE = "cp_emergency_contact";
+/**
+ * R6: the first alert to a contact who has not confirmed yet. Body:
+ * "{{1}} added you as their emergency contact in School Carpool and pressed
+ * the emergency button during a school run. Location: {{2}}. To stop these
+ * messages: {{3}}" (docs/meta-whatsapp-setup.md).
+ */
+export const EMERGENCY_INTRO_TEMPLATE = "cp_emergency_contact_intro";
 
 const settingsOf = (deps: TripDeps): TripSettings => ({ ...DEFAULT_TRIP_SETTINGS, ...(deps.settings ?? {}) });
 
@@ -772,14 +791,33 @@ export async function emergency(deps: TripDeps, caller: Caller, data: unknown): 
   ]);
   let contactSent = false;
   const contact = await deps.store.emergencyContact(caller.uid);
-  if (contact) {
+  // R6: a stopped contact gets nothing; the first message to one who has
+  // not confirmed names the parent, says why and how to stop (safety first:
+  // the alert still goes before the confirmation).
+  const kind = contact ? contactMessage(contact) : "none";
+  if (contact && kind !== "none") {
     const where = point ? mapsLink(point) : account.language === "ar" ? "غير معروف" : "unknown";
+    const stop = contact.token && deps.linkBase ? contactLink(deps.linkBase, contact.token) : null;
     try {
-      // Template body: "{{1}} pressed the emergency button during a school run. Location: {{2}}".
-      await deps.whatsapp.sendTemplate(contact.phone, EMERGENCY_TEMPLATE, account.language, [account.firstName, where], "emergency alert to the saved contact");
+      if (kind === "intro" && stop) {
+        await deps.whatsapp.sendTemplate(contact.phone, EMERGENCY_INTRO_TEMPLATE, account.language, [account.firstName, where, stop], "first emergency alert to an unconfirmed contact");
+        await deps.store.markContactIntroduced(caller.uid);
+      } else {
+        // Template body: "{{1}} pressed the emergency button during a school run. Location: {{2}}".
+        await deps.whatsapp.sendTemplate(contact.phone, EMERGENCY_TEMPLATE, account.language, [account.firstName, where], "emergency alert to the saved contact");
+      }
       contactSent = true;
     } catch (error) {
       deps.log("emergency contact message failed", { message: error instanceof Error ? error.message : "unknown" });
+      if (kind === "intro") {
+        // The intro template may not be approved by Meta yet: the alert itself still goes (safety).
+        try {
+          await deps.whatsapp.sendTemplate(contact.phone, EMERGENCY_TEMPLATE, account.language, [account.firstName, where], "emergency alert to the saved contact");
+          contactSent = true;
+        } catch (inner) {
+          deps.log("emergency contact message failed", { message: inner instanceof Error ? inner.message : "unknown" });
+        }
+      }
     }
   }
   deps.log("emergency alert", { members: members.length, contact: contact !== null, contactSent, withPoint: point !== null });
@@ -996,20 +1034,55 @@ export async function getHandoverAdults(deps: TripDeps, caller: Caller, data: un
   return { adults: await deps.store.handoverEntries(childId) };
 }
 
-/** F20: { name, phone, relation } saves; { clear: true } removes. */
-export async function setEmergencyContact(deps: TripDeps, caller: Caller, data: unknown): Promise<{ saved: boolean }> {
+/**
+ * F20: { name, phone, relation, agreed: true } saves; { clear: true } removes.
+ * R6: the parent declares the person agreed (required); a new contact (or
+ * a new number) starts "pending" with a fresh link the parent sends from
+ * their own phone: { saved, link }.
+ */
+export async function setEmergencyContact(deps: TripDeps, caller: Caller, data: unknown): Promise<{ saved: boolean; link: string | null }> {
   await requireVerified(deps, caller);
   const raw = record(data);
   await take(deps, caller.uid, "emergencyContact", 86_400_000, 20);
   if (raw.clear === true) {
     await deps.store.putEmergencyContact(caller.uid, null, deps.now());
-    return { saved: false };
+    return { saved: false, link: null };
   }
   const phone = toEgyptE164(raw.phone);
   if (!phone) throw new TripError("invalid-request");
   const relation: Relation = relationOf(raw.relation);
-  await deps.store.putEmergencyContact(caller.uid, { name: nameOf(raw.name), phone, relation }, deps.now());
-  return { saved: true };
+  if (raw.agreed !== true) throw new TripError("contact-not-agreed");
+  const before = await deps.store.emergencyContact(caller.uid);
+  const same = before !== null && before.phone === phone && typeof before.token === "string" && CONTACT_TOKEN.test(before.token);
+  const nowMs = deps.now();
+  const contact: EmergencyContact = {
+    name: nameOf(raw.name),
+    phone,
+    relation,
+    attestedAtMs: nowMs,
+    // The same number keeps its answer (confirmed or stopped) and link.
+    status: same ? (before.status ?? "pending") : "pending",
+    token: same ? (before.token as string) : deps.newContactToken(),
+    introSent: same ? before.introSent === true : false,
+  };
+  await deps.store.putEmergencyContact(caller.uid, contact, nowMs);
+  return { saved: true, link: deps.linkBase && contact.token ? contactLink(deps.linkBase, contact.token) : null };
+}
+
+/**
+ * R6: the contact answers on the link page (/ec/<token>): "yes" confirms,
+ * "stop" ends every message. Unknown or malformed tokens answer not-found
+ * (no hint whether a token existed). Returns the parent's first name for
+ * the page.
+ */
+export async function answerContactLink(deps: Pick<TripDeps, "store" | "now">, token: unknown, answer: "view" | "yes" | "stop"): Promise<{ found: boolean; status: ContactStatus; parentFirstName: string }> {
+  if (typeof token !== "string" || !CONTACT_TOKEN.test(token)) return { found: false, status: "pending", parentFirstName: "" };
+  const hit = await deps.store.contactByToken(token);
+  if (!hit) return { found: false, status: "pending", parentFirstName: "" };
+  const current = hit.contact.status ?? "pending";
+  const next: ContactStatus = answer === "yes" ? "confirmed" : answer === "stop" ? "stopped" : current;
+  if (next !== current) await deps.store.setContactStatus(hit.uid, next, deps.now());
+  return { found: true, status: next, parentFirstName: hit.parentFirstName };
 }
 
 export interface DriverCard {

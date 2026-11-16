@@ -81,6 +81,13 @@
         {
           "source": "/c/**",
           "destination": "/invite.html"
+        },
+        {
+          "source": "/ec/**",
+          "function": {
+            "functionId": "emergencyContactReply",
+            "region": "europe-west1"
+          }
         }
       ],
       "headers": [

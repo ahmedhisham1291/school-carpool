@@ -195,6 +195,9 @@ describe("trips: checks, handover list, emergency contact and emergencies", () =
     await assertSucceeds(as("alice").firestore().doc("emergencyContacts/alice").get());
     await assertFails(as("bob").firestore().doc("emergencyContacts/alice").get());
     await assertFails(as("alice").firestore().doc("emergencyContacts/alice").set({ name: "X", phone: "+201000000002" }));
+    // R6: the contact's answer and link token are written by the server only; nobody lists contacts by token.
+    await assertFails(as("alice").firestore().doc("emergencyContacts/alice").update({ status: "confirmed" }));
+    await assertFails(as("alice").firestore().collection("emergencyContacts").where("token", "==", "a".repeat(64)).get());
   });
 
   it("emergencies: approved members of the carpool (also those without a child on the run)", async () => {
