@@ -68,7 +68,14 @@ class LegalPagesTest(unittest.TestCase):
                          "withdraw any consent", "Deleting your account", "Belgium", "WhatsApp", "Stream", "Algolia",
                          "Sentry", "Google Maps", "never sell", "Personal Data Protection Centre"):
                 self.assertIn(must, privacy)
+            # Legal review (16 Nov 2026, docs/legal/egypt-legal-review.md).
+            for must in ("6 working days", "6 أيام عمل", "72 hours", "Storage abroad", "Articles 14 to 16", "Data protection officer",
+                         "mailto:help@schoolcarpool.org", "180 days", "explicit consent", "parent or guardian"):
+                self.assertIn(must, privacy)
+            self.assertNotIn("30 days", privacy.replace("up to 30 days", ""))
             terms = (out / "terms.html").read_text(encoding="utf-8")
+            for must in ("Arabic text prevails", "النص العربي", "Law No. 87 of 2018", "gross negligence", "compulsory insurance"):
+                self.assertIn(must, terms)
             for must in ("no tolerance for objectionable content", "within 24 hours", "122", "123", "does not replace", "no commission",
                          "free volunteer turns", "No parent pays another parent for a ride"):
                 self.assertIn(must, terms)
@@ -80,6 +87,17 @@ class LegalPagesTest(unittest.TestCase):
             # The invite page is still there for /c/<code>.
             self.assertIn("carpool invite", (out / "invite.html").read_text(encoding="utf-8"))
             self.assertIn("https://apps.apple.com/app/id1234567890", (out / "index.html").read_text(encoding="utf-8"))
+
+    def test_data_protection_officer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool Foundation",
+                             dpo_email="privacy@schoolcarpool.org", dpo_name="Mona Adel")
+            privacy = (out / "privacy.html").read_text(encoding="utf-8")
+            self.assertIn("mailto:privacy@schoolcarpool.org", privacy)
+            self.assertIn("Mona Adel", privacy)
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(SystemExit):
+                self.build(tmp, support_email="help@schoolcarpool.org", operator_name="School Carpool Foundation", dpo_email="dpo@example.com")
 
     def test_without_contact_details_no_legal_pages(self):
         with tempfile.TemporaryDirectory() as tmp:
