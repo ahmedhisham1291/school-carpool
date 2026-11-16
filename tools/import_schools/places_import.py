@@ -40,6 +40,10 @@ AREA_MIN_COVERAGE = 0.5
 DISTRICT_MIN_COVERAGE = 0.3
 POINT_DISTRICT_KM = 1.5
 PLACES_FOLDER = "places"
+# Areas from the ADM2 file (fetch_adm2.py), when present, replace the OSM
+# area levels: OpenStreetMap has almost no qism/markaz boundaries in Egypt.
+ADM2_FILE = "egypt_adm2.geojson"
+ADM2_LEVEL = 7  # the level stored with the area (the server checks finer levels first)
 PLACES_FORMAT = "school-carpool-places/1"
 
 
@@ -123,6 +127,23 @@ def load(folder: Path) -> tuple[list[Shape], list[PlacePoint]]:
     return shapes, points
 
 
+def load_adm2(folder: Path) -> tuple[list[Shape], str]:
+    """The ADM2 areas (fetch_adm2.py) and their source line; ([], "") without the file."""
+    path = folder / ADM2_FILE
+    if not path.exists():
+        return [], ""
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    shapes: list[Shape] = []
+    for f in doc.get("features") or []:
+        props = f.get("properties") or {}
+        rings = [poly[0] for poly in ((f.get("geometry") or {}).get("coordinates") or []) if poly and len(poly[0]) >= 4]
+        ar = str(props.get("name:ar") or "").strip()
+        en = str(props.get("name:en") or "").strip()
+        if rings and (ar or en) and props.get("id"):
+            shapes.append(Shape(str(props["id"]), ADM2_LEVEL, ar or en, en or ar, rings))
+    return shapes, f"{doc.get('source', '?')}; licence {doc.get('license', '?')}"
+
+
 def coverage(shapes: list[Shape], located: list[tuple[float, float]]) -> dict[int, float]:
     """Share of [located] points inside some polygon of each admin level."""
     by_level: dict[int, list[Shape]] = {}
@@ -195,14 +216,29 @@ class Places:
     district_counts: dict[str, int] = field(default_factory=dict)
     no_area: int = 0
     no_district: int = 0
+    area_source: str = "osm"  # "adm2" when the areas come from fetch_adm2.py
+    adm2_note: str = ""
+    adm2_cover: float = 0.0
 
 
-def build(shapes: list[Shape], points: list[PlacePoint], schools: list[School], boundaries: Boundaries | None) -> Places:
+def build(
+    shapes: list[Shape],
+    points: list[PlacePoint],
+    schools: list[School],
+    boundaries: Boundaries | None,
+    adm2: list[Shape] | None = None,
+    adm2_note: str = "",
+) -> Places:
     located = [(s.lat, s.lng) for s in schools if s.lat is not None and s.lng is not None]
     cover = coverage(shapes, located)  # type: ignore[arg-type]
     area_order = level_order(AREA_LEVELS, cover, AREA_MIN_COVERAGE)
     district_order = level_order(DISTRICT_LEVELS, cover, DISTRICT_MIN_COVERAGE)
-    areas = choose_layer([s for s in shapes if s.level in AREA_LEVELS], area_order)
+    if adm2:
+        # ADM2 units are the areas (they tile the country); OSM levels 5-7 are not used.
+        areas = list(adm2)
+        area_order = []
+    else:
+        areas = choose_layer([s for s in shapes if s.level in AREA_LEVELS], area_order)
     for a in areas:
         a.governorate = _gov_of(*_representative(a), boundaries)
     districts: list[Shape] = []
@@ -226,7 +262,12 @@ def build(shapes: list[Shape], points: list[PlacePoint], schools: list[School], 
             continue
         seen_names.add(key)
         point_districts.append((p, area.id))
-    return Places(areas, districts, point_districts, area_order, district_order, cover, district_area)
+    places = Places(areas, districts, point_districts, area_order, district_order, cover, district_area)
+    if adm2:
+        places.area_source = "adm2"
+        places.adm2_note = adm2_note
+        places.adm2_cover = coverage(adm2, located).get(ADM2_LEVEL, 0.0) if located else 0.0  # type: ignore[arg-type]
+    return places
 
 
 def assign(places: Places, schools: list[School]) -> None:
@@ -362,7 +403,8 @@ def summary_lines(places: Places, schools: list[School], top: int = 15) -> list[
     cover = ", ".join(f"{lv}: {places.cover.get(lv, 0.0):.0%}" for lv in sorted(places.cover))
     lines = [
         f"Places: admin_level coverage of the schools {cover or 'none (no boundaries downloaded)'}; "
-        f"Area levels in order {places.area_order or '-'}, District levels {places.district_order or '-'}.",
+        f"Area levels in order {places.area_order or '-'}, District levels {places.district_order or '-'}."
+        + (f" Areas: ADM2 units ({len(places.areas)}, holding {places.adm2_cover:.0%} of the schools; {places.adm2_note})." if places.area_source == "adm2" else ""),
         f"Places: {len(places.areas)} areas, {len(places.districts)} district boundaries, "
         f"{len(places.point_districts)} named places as districts; schools with no area {places.no_area}, "
         f"with an area but no district {places.no_district}.",
@@ -391,6 +433,9 @@ def report_lines(places: Places) -> list[str]:
         out.append(f"| {lv} | {places.cover[lv]:.1%} |")
     out.append("")
     out.append(f"Area levels, in order of use: {places.area_order or 'none'}. District levels: {places.district_order or 'none'}.")
+    if places.area_source == "adm2":
+        out.append("")
+        out.append(f"Areas are the {len(places.areas)} ADM2 units ({places.adm2_note}); they hold {places.adm2_cover:.1%} of the located schools.")
     out.append("")
     return out
 
