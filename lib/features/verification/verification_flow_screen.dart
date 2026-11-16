@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
+import 'package:school_carpool/features/auth/consent_signature.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/verification/capture_screen.dart';
 import 'package:school_carpool/features/verification/child_form_screen.dart';
@@ -149,17 +150,36 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
     }
     final VerificationRepository repository = ref.read(verificationRepositoryProvider);
     final VerificationDraft draft = ref.read(verificationDraftProvider);
+    final AppLocalizations l10n = context.l10n;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     setState(() {
       _busy = true;
       _failure = null;
       _progress = 0;
     });
+    // R3: Face ID / passcode right before sending signs the consents.
+    final SignOutcome outcome = await signConsent(
+      ref,
+      fullName: draft.signedName,
+      reason: l10n.signAuthReason,
+      language: Localizations.localeOf(context).languageCode == 'en' ? 'en' : 'ar',
+    );
+    if (outcome is! Signed) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _progress = null;
+        });
+      }
+      showAppSnackBarOn(messenger, l10n.signCancelled);
+      return;
+    }
     try {
       await uploadAndSubmit(
         repository: repository,
         uid: session.uid,
         files: draft.files(),
-        payload: draft.toPayload(),
+        payload: draft.toPayload(outcome.signature),
         isUploaded: (String name) => ref.read(verificationDraftProvider).uploaded.contains(name),
         markUploaded: _draft.markUploaded,
         forgetUploads: _draft.forgetUploads,
@@ -294,12 +314,21 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
       VerificationStep.review => <Widget>[
         _ReviewSummary(draft: draft),
         const SizedBox(height: AppSpacing.s16),
+        // R3: one unticked box per purpose (ID, face matching, children),
+        // then the typed name and Face ID / passcode on "Send for review".
         AppCheckRow(
-          key: const Key('verify.consent'),
-          label: l10n.verifyConsentLabel,
-          helperText: l10n.verifyConsentHelper,
-          value: draft.consent,
-          onChanged: _busy ? null : (bool v) => _draft.update((VerificationDraft d) => d.copyWith(consent: v)),
+          key: const Key('verify.consentId'),
+          label: l10n.verifyConsentIdLabel,
+          helperText: l10n.verifyConsentIdHelper,
+          value: draft.consentId,
+          onChanged: _busy ? null : (bool v) => _draft.update((VerificationDraft d) => d.copyWith(consentId: v)),
+        ),
+        AppCheckRow(
+          key: const Key('verify.consentFace'),
+          label: l10n.verifyConsentFaceLabel,
+          helperText: l10n.verifyConsentFaceHelper,
+          value: draft.consentFace,
+          onChanged: _busy ? null : (bool v) => _draft.update((VerificationDraft d) => d.copyWith(consentFace: v)),
         ),
         // Separate from the ID consent: the guardian's declaration for the
         // children's data (sensitive data, Law 151 of 2020).
@@ -310,6 +339,29 @@ class _VerificationFlowScreenState extends ConsumerState<VerificationFlowScreen>
           value: draft.guardianConsent,
           onChanged: _busy ? null : (bool v) => _draft.update((VerificationDraft d) => d.copyWith(guardianConsent: v)),
         ),
+        const SizedBox(height: AppSpacing.s16),
+        Semantics(header: true, child: OneLineText(l10n.signTitle, style: context.text.titleSmall)),
+        const SizedBox(height: AppSpacing.s8),
+        AppTextField(
+          key: const Key('verify.signName'),
+          initialValue: draft.signedName,
+          label: l10n.signNameLabel,
+          helperText: l10n.signNameHelperId,
+          errorText: draft.signedName.trim().isEmpty
+              ? null
+              : !nameLooksFull(draft.signedName)
+              ? l10n.signNameError
+              : draft.signatureMatches
+              ? null
+              : l10n.signNameMismatch('${draft.firstName.trim()} ${draft.lastName.trim()}'),
+          textInputAction: TextInputAction.done,
+          enabled: !_busy,
+          onChanged: (String v) => _draft.update((VerificationDraft d) => d.copyWith(signedName: v)),
+        ),
+        if (!draft.readyToSubmit(_today)) ...<Widget>[
+          const SizedBox(height: AppSpacing.s8),
+          AppInlineMessage(message: l10n.signHint),
+        ],
         if (progress != null) ...<Widget>[
           const SizedBox(height: AppSpacing.s16),
           Semantics(

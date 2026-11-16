@@ -219,11 +219,18 @@ void main() {
       // The ID number is shown masked, never in full.
       expect(find.textContaining('3456'), findsOneWidget);
       expect(find.textContaining('29001150123456'), findsNothing);
-      await tester.tap(find.byKey(const Key('verify.consent')));
+      // R3: separate unticked boxes, then the typed ID name (signature).
+      for (final String key in <String>['verify.consentId', 'verify.consentFace', 'verify.consentChild']) {
+        await tester.ensureVisible(find.byKey(Key(key)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key(key)));
+        await tester.pumpAndSettle();
+      }
+      await tester.ensureVisible(find.byKey(const Key('verify.signName')));
+      await tester.enterText(find.descendant(of: find.byKey(const Key('verify.signName')), matching: find.byType(TextFormField)), 'Hoda Ali');
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const Key('verify.consentChild')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('verify.consentChild')));
+      expect(find.textContaining('Type the name on your ID'), findsOneWidget);
+      await tester.enterText(find.descendant(of: find.byKey(const Key('verify.signName')), matching: find.byType(TextFormField)), 'Mona Hassan');
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.byKey(const Key('verify.next')));
       await tester.pumpAndSettle();
@@ -233,6 +240,9 @@ void main() {
       expect(repository.uploads, <String>['id_front.jpg', 'id_back.jpg', 'selfie.jpg', 'selfie_turn.jpg', 'school_id_c1.jpg']);
       expect(repository.submissions, hasLength(1));
       expect((repository.submissions.single['identity']! as Map<String, Object?>)['nationalId'], '29001150123456');
+      // R3: the signature (typed name, Face ID / passcode) goes with the consents.
+      expect((repository.submissions.single['signature']! as Map<String, Object?>)['fullName'], 'Mona Hassan');
+      expect((repository.submissions.single['signature']! as Map<String, Object?>)['method'], 'deviceAuth');
       expect(router.routerDelegate.currentConfiguration.uri.path, AuthRoutes.verifyAccount);
       expect(container.read(verificationDraftProvider).idFront, isNull, reason: 'captures are dropped after sending');
     });
@@ -264,8 +274,10 @@ void main() {
           children: <ChildDraft>[
             ChildDraft(ref: 'c1', firstName: 'Omar', age: 8, grade: Grade.g3, schoolId: 'nile', schoolName: 'Nile', schoolIdPhoto: fakePhoto),
           ],
-          consent: true,
+          consentId: true,
+          consentFace: true,
           guardianConsent: true,
+          signedName: 'Mona Hassan',
         ),
       );
       // Rebuild first: until then the button still has the disabled state of

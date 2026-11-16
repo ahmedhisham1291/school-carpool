@@ -26,10 +26,13 @@ import {
   VerificationError,
 } from "../src/verification/submission";
 import { MemoryClaims, MemoryFiles, MemoryVerificationStore } from "./helpers/memory_verification";
+import { SignatureError } from "../src/auth/signature";
 
 const KEY = "test-national-id-key";
 const NOW = Date.parse("2026-11-13T10:00:00Z");
 const NID = "29001150123456";
+
+const SIGNED = { fullName: "Mona Hassan", method: "deviceAuth", deviceId: "0123456789abcdef", platform: "ios", appVersion: "1.0.0+1", language: "ar" };
 
 function submission(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -43,6 +46,8 @@ function submission(overrides: Record<string, unknown> = {}): Record<string, unk
     children: [{ ref: "c1", firstName: "Omar", age: 8, grade: "g3", schoolId: "nile", schoolName: "Nile School" }],
     driver: null,
     consents: { ...VERIFICATION_CONSENT_VERSIONS },
+    // R3: the written signature (the typed ID name and a device check).
+    signature: SIGNED,
     ...overrides,
   };
 }
@@ -342,6 +347,46 @@ describe("decideVerification", () => {
   });
 });
 
+describe("written consent (R3)", () => {
+  it("each consent is recorded with the signature; the typed name only on the user record", async () => {
+    uploadAll("alice");
+    await submitVerification(deps, "alice", submission());
+    const mine = store.consents.filter((c) => c.uid === "alice");
+    assert.deepEqual(mine.map((c) => c.type), ["id", "face", "childData"], "separate records per purpose");
+    for (const c of mine) {
+      const sig = c.signature as Record<string, unknown>;
+      assert.equal(sig.method, "deviceAuth");
+      assert.equal(sig.nameMatched, true);
+      assert.match(String(sig.textHash), /^[0-9a-f]{64}$/);
+      assert.ok(!JSON.stringify(sig).includes("Mona"), "no name in the kept record");
+    }
+    assert.notEqual((mine[0].signature as Record<string, unknown>).textHash, (mine[1].signature as Record<string, unknown>).textHash, "each its own text");
+    assert.equal(store.signedNames.get("alice"), "Mona Hassan");
+  });
+
+  it("the typed name must match the ID name (normalised); longer Egyptian names are fine", async () => {
+    uploadAll("alice");
+    await assert.rejects(
+      submitVerification(deps, "alice", submission({ signature: { ...SIGNED, fullName: "Hoda Ali" } })),
+      (e: unknown) => e instanceof SignatureError && e.reason === "signature-name-mismatch",
+    );
+    await submitVerification(deps, "alice", submission({ signature: { ...SIGNED, fullName: "mona  ahmed HASSAN" } }));
+  });
+
+  it("no signature, a one-word name, or an old sign-in without a phone passcode is refused", async () => {
+    uploadAll("alice");
+    await assert.rejects(submitVerification(deps, "alice", submission({ signature: undefined })), (e: unknown) => e instanceof SignatureError && e.reason === "signature-required");
+    await assert.rejects(submitVerification(deps, "alice", submission({ signature: { ...SIGNED, fullName: "Mona" } })), (e: unknown) => e instanceof SignatureError && e.reason === "signature-name");
+    const recent = { ...SIGNED, method: "recentSignIn" };
+    await assert.rejects(
+      submitVerification(deps, "alice", submission({ signature: recent }), (NOW - 11 * 60_000) / 1000),
+      (e: unknown) => e instanceof SignatureError && e.reason === "reauth-required",
+    );
+    await submitVerification(deps, "alice", submission({ signature: recent }), (NOW - 60_000) / 1000);
+    assert.equal((store.consents.find((c) => c.uid === "alice")?.signature as Record<string, unknown>).method, "recentSignIn");
+  });
+});
+
 describe("verified parent updates (F3)", () => {
   async function verifiedAlice(): Promise<string> {
     uploadAll("alice");
@@ -360,6 +405,7 @@ describe("verified parent updates (F3)", () => {
         { ref: "c3", childId, firstName: "Omar", age: 9, grade: "g4", schoolId: "nile", schoolName: "Nile School" },
       ],
       consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
+      signature: SIGNED,
     });
     assert.equal(store.children.get(childId)?.status, "pending");
     assert.equal(store.users.get("alice")?.status, "verified");
@@ -385,6 +431,7 @@ describe("verified parent updates (F3)", () => {
       submitVerification(deps, "carol", {
         children: [{ ref: "c1", childId, firstName: "Omar", age: 9, grade: "g4", schoolId: "nile", schoolName: "Nile School" }],
         consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
+        signature: SIGNED,
       }),
       expectReason("not-found"),
     );
@@ -559,6 +606,7 @@ describe("claim before status (review fix)", () => {
     const update = await submitVerification(deps, "alice", {
       children: [{ ref: "c2", firstName: "Laila", age: 5, grade: "kg2", schoolId: "nile", schoolName: "Nile School" }],
       consents: { childData: VERIFICATION_CONSENT_VERSIONS.childData },
+      signature: SIGNED,
     });
     await decideVerification(deps, "admin1", { caseId: update.caseId, decision: "approve", nameCheck: "match" });
     assert.deepEqual(store.events, ["status:unchanged"]);

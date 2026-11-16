@@ -59,4 +59,5 @@ Open questions (none block; recorded for the owner and the lawyer):
 ## Progress
 
 - R1: done.
+- R3: done (the server texts in `functions/src/auth/consent_texts.ts` must be regenerated from the ARB files whenever a signed consent text changes; the test fails otherwise).
 - R2: done (owner action: `SIGNIN_LOG_KEY` secret and the `signInLog` TTL policy in staging and prod; `tool/cloud_setup.sh` and `tool/setup_retention.sh` do both).

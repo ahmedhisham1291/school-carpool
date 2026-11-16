@@ -36,6 +36,19 @@ DeviceList sampleDevices() => DeviceList(
 );
 
 /// Records calls; [failure] is thrown by every call when set, [failOnce] by the next call of that name.
+/// A signed copy (fake data only).
+ConsentCopy sampleConsentCopy() => ConsentCopy(
+  kind: ConsentKind.face,
+  version: '2026-11-17',
+  text: 'I agree to face matching\n\nI give my explicit written consent to process my face images (biometric data).',
+  acceptedAt: privacyNow,
+  method: SignedWith.deviceAuth,
+  platform: 'ios',
+  appVersion: '1.0.0+1',
+  fingerprint: '0123456789ab',
+  signedName: 'Mona Hassan',
+);
+
 class FakePrivacyRepository implements PrivacyRepository {
   PrivacyOverview overviewValue = sampleOverview();
   DeviceList devicesValue = sampleDevices();
@@ -79,6 +92,21 @@ class FakePrivacyRepository implements PrivacyRepository {
   Future<ExportLink> exportData() async {
     await _maybeFail('exportData');
     return ExportLink(url: 'https://storage.example/export.json', expiresAt: privacyNow.add(const Duration(hours: 1)));
+  }
+
+  /// R3: the copy returned for every kind (null: the empty state).
+  ConsentCopy? copyValue = sampleConsentCopy();
+
+  @override
+  Future<ConsentCopy?> consentCopy(ConsentKind kind) async {
+    await _maybeFail('consentCopy:${kind.name}');
+    return copyValue;
+  }
+
+  @override
+  Future<ExportLink> downloadConsentCopy(ConsentKind kind) async {
+    await _maybeFail('downloadConsentCopy:${kind.name}');
+    return ExportLink(url: 'https://storage.example/consent-${kind.name}.txt', expiresAt: privacyNow.add(const Duration(hours: 1)));
   }
 
   @override

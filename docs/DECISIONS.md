@@ -542,3 +542,16 @@ Where an item replaces an earlier decision, it says so.
   super-admin callable `adminDiscloseSignInLog` (judicial-order reference,
   authority and date required, sign-in < 30 minutes, audit entry first).
   Reason: Law 175/2018 Art. 2 and Decree 1699/2020 (answers.md 4.2).
+- **R3 - written consent for sensitive data.** Storage abroad (sign-up),
+  the ID, face matching and the guardian's declaration (verification and
+  every child added later) are each a separate unticked box, signed with
+  the typed full name (must match the ID name after Arabic normalisation;
+  at sign-up there is no ID name yet, so only its form is checked) and a
+  fresh Face ID / passcode check (a phone without a lock: a sign-in less
+  than 10 minutes old). Each record keeps the method, a keyed hash of the
+  name, a SHA-256 of the exact text, device key, platform and app version
+  (`functions/src/auth/signature.ts`; texts in `consent_texts.ts`, tested
+  equal to the ARB files). The typed name sits on `users/{uid}.signedNames`
+  and goes with the account. The parent opens and downloads a copy under
+  Privacy (`getConsentCopy`). The ID and face consents are now two boxes.
+  Versions: transferAbroad, id, face, childData `2026-11-17`.

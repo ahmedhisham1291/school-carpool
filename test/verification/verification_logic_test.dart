@@ -43,8 +43,10 @@ VerificationDraft completeDraft() => VerificationDraft(
       schoolIdPhoto: fakePhoto,
     ),
   ],
-  consent: true,
+  consentId: true,
+  consentFace: true,
   guardianConsent: true,
+  signedName: 'Mona Ahmed Hassan',
 );
 
 Account account(AccountStatus status, {VerificationSummary? verification}) => Account(
@@ -89,7 +91,13 @@ void main() {
     });
 
     test('needs consent, a child, both selfies and a valid expiry', () {
-      expect(completeDraft().copyWith(consent: false).readyToSubmit(today), isFalse);
+      // R3: one unticked box per purpose, and the typed ID name.
+      expect(completeDraft().readyToSubmit(today), isTrue);
+      expect(completeDraft().copyWith(consentId: false).readyToSubmit(today), isFalse);
+      expect(completeDraft().copyWith(consentFace: false).readyToSubmit(today), isFalse);
+      expect(completeDraft().copyWith(signedName: 'Mona').readyToSubmit(today), isFalse);
+      expect(completeDraft().copyWith(signedName: 'Hoda Hassan').readyToSubmit(today), isFalse, reason: 'must match the ID name');
+      expect(completeDraft().copyWith(signedName: 'منى حسن').readyToSubmit(today), isFalse);
       // The guardian's consent for the children is separate and required too.
       expect(completeDraft().copyWith(guardianConsent: false).readyToSubmit(today), isFalse);
       expect(completeDraft().copyWith(children: <ChildDraft>[]).readyToSubmit(today), isFalse);

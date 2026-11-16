@@ -35,9 +35,11 @@ import 'package:school_carpool/features/onboarding/terms_screen.dart';
 import 'package:school_carpool/features/onboarding/verify_account_screen.dart';
 import 'package:school_carpool/features/onboarding/welcome_screen.dart';
 import 'package:school_carpool/features/places/address_screen.dart';
+import 'package:school_carpool/features/privacy/consent_copy_screen.dart';
 import 'package:school_carpool/features/privacy/delete_account_screen.dart';
 import 'package:school_carpool/features/privacy/devices_screen.dart';
 import 'package:school_carpool/features/privacy/new_device_screen.dart';
+import 'package:school_carpool/features/privacy/privacy_models.dart';
 import 'package:school_carpool/features/privacy/privacy_screen.dart';
 import 'package:school_carpool/features/profile/profile_screen.dart';
 import 'package:school_carpool/features/schedule/balance_screen.dart';
@@ -129,6 +131,10 @@ abstract final class PrivacyRoutes {
 
   /// The fresh selfie after a sign-in from a new phone.
   static const String newDevice = '$privacy/$newDeviceSegment';
+
+  /// R3: the copy of a signed consent (kind = the server's consent type).
+  static const String consentCopySegment = 'consent/:kind';
+  static String consentCopyOf(String kind) => '$privacy/consent/$kind';
 }
 
 /// Wallet screens under Profile > Wallet (Prompt 11B). Verified parents
@@ -579,6 +585,12 @@ GoRouter buildAppRouter({
                           GoRoute(
                             path: PrivacyRoutes.newDeviceSegment,
                             builder: (BuildContext context, GoRouterState state) => const NewDeviceScreen(),
+                          ),
+                          // R3: the copy of a signed consent.
+                          GoRoute(
+                            path: PrivacyRoutes.consentCopySegment,
+                            builder: (BuildContext context, GoRouterState state) =>
+                                ConsentCopyScreen(kind: ConsentKind.fromName(state.pathParameters['kind']) ?? ConsentKind.transferAbroad),
                           ),
                         ],
                       ),

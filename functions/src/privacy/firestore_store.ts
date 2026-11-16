@@ -29,6 +29,7 @@ import type { ExportSource } from "./export";
 import { PLACE_INTERNAL, internalId } from "../places/catalog";
 import type { RetentionReport, RetentionStore } from "./jobs";
 import { responseDueAt, type ConsentRow, type PrivacyRequest } from "./requests";
+import type { SignatureRecord } from "../auth/signature";
 import { ABUSE_COUNTER_DAYS, consentPurgeAt, DAY_MS, DEVICE_STALE_DAYS, LOGIN_HISTORY_DAYS, type DataTypeId } from "./retention";
 
 /**
@@ -654,6 +655,23 @@ async function applyTripRetention(db: Firestore, docs: QueryDocumentSnapshot[], 
   return deleted;
 }
 
+/** A stored consent signature (R3), or null for an unsigned record. */
+function signatureFrom(value: unknown): SignatureRecord | null {
+  if (typeof value !== "object" || value === null) return null;
+  const v = value as Record<string, unknown>;
+  if ((v.method !== "deviceAuth" && v.method !== "recentSignIn") || typeof v.textHash !== "string") return null;
+  return {
+    method: v.method,
+    nameHash: text(v.nameHash),
+    nameMatched: typeof v.nameMatched === "boolean" ? v.nameMatched : null,
+    textHash: v.textHash,
+    language: v.language === "en" ? "en" : "ar",
+    deviceKey: typeof v.deviceKey === "string" ? v.deviceKey : null,
+    platform: v.platform === "android" || v.platform === "web" ? v.platform : "ios",
+    appVersion: text(v.appVersion) || "unknown",
+  };
+}
+
 function closedFromDoc(uid: string, d: DocumentData): ClosedAccount {
   return {
     uid,
@@ -874,7 +892,16 @@ export class FirestorePrivacyStore {
       version: text(d.get("version")) || null,
       acceptedAtMs: millis(d.get("acceptedAt")),
       withdrawnAtMs: d.get("withdrawnAt") ? millis(d.get("withdrawnAt")) : null,
+      signature: signatureFrom(d.get("signature")),
     }));
+  }
+
+  /** R3: the typed name of the latest signature of [type] (users/{uid}.signedNames; gone with the account). */
+  async signedName(uid: string, type: string): Promise<string | null> {
+    const snap = await this.db.collection(USERS).doc(uid).get();
+    const names: unknown = snap.get("signedNames");
+    const name = typeof names === "object" && names !== null ? (names as Record<string, unknown>)[type] : null;
+    return typeof name === "string" ? name : null;
   }
 
   /** A new consent record (given), or withdrawnAt on the open ones of [type] (withdrawn). */

@@ -9,6 +9,7 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/account.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/auth_repository.dart';
+import 'package:school_carpool/features/auth/consent_signature.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/onboarding/onboarding_layout.dart';
 import 'package:school_carpool/l10n/l10n.dart';
@@ -18,6 +19,11 @@ import 'package:school_carpool/router/app_router.dart';
 /// consent to storage abroad (each must be accepted; Law 151 of 2020),
 /// plus optional WhatsApp alerts. The server saves one consent
 /// record per accepted document.
+///
+/// R3 (written consent): storage abroad is sensitive, so under the boxes
+/// the parent types the full name (checked as typed: first and family
+/// name), and "Agree and continue" asks for Face ID or the passcode before
+/// anything is sent. Cancelling sends nothing.
 ///
 /// States: empty (nothing ticked: the button is off and a line says why),
 /// loading (button spinner), error and offline (a message under the list).
@@ -41,20 +47,44 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
   bool _whatsapp = false;
   bool _saving = false;
   AuthFailure? _failure;
+  final TextEditingController _name = TextEditingController();
 
-  bool get _ready => _terms && _privacy && _conduct && _transfer;
+  bool get _nameOk => nameLooksFull(_name.text);
+  bool get _ready => _terms && _privacy && _conduct && _transfer && _nameOk;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
 
   Future<void> _accept() async {
     if (!_ready || _saving) {
       return;
     }
     final AuthRepository repository = ref.read(authRepositoryProvider);
+    final AppLocalizations l10n = context.l10n;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     setState(() {
       _saving = true;
       _failure = null;
     });
+    // R3: a fresh Face ID / passcode check signs the storage-abroad consent.
+    final SignOutcome outcome = await signConsent(
+      ref,
+      fullName: _name.text,
+      reason: l10n.signAuthReason,
+      language: Localizations.localeOf(context).languageCode == 'en' ? 'en' : 'ar',
+    );
+    if (outcome is! Signed) {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+      showAppSnackBarOn(messenger, l10n.signCancelled);
+      return;
+    }
     try {
-      await repository.acceptConsents(whatsapp: _whatsapp);
+      await repository.acceptConsents(whatsapp: _whatsapp, signature: outcome.signature);
       // The account record changes and the router opens the next screen.
     } on AuthFailure catch (failure) {
       if (mounted) {
@@ -151,6 +181,20 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
           actionLabel: l10n.termsRead,
           onAction: () => _read(l10n.termsDocTransfer, l10n.termsTransferText),
         ),
+        const SizedBox(height: AppSpacing.s16),
+        Semantics(header: true, child: OneLineText(l10n.signTitle, style: context.text.titleSmall)),
+        const SizedBox(height: AppSpacing.s8),
+        AppTextField(
+          key: const Key('terms.signName'),
+          controller: _name,
+          label: l10n.signNameLabel,
+          helperText: l10n.signNameHelper,
+          errorText: _name.text.trim().isEmpty || _nameOk ? null : l10n.signNameError,
+          textInputAction: TextInputAction.done,
+          autofillHints: const <String>[AutofillHints.name],
+          enabled: enabled,
+          onChanged: (_) => setState(() {}),
+        ),
         const Divider(height: AppSpacing.s32),
         AppCheckRow(
           key: const Key('terms.whatsapp'),
@@ -161,7 +205,7 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
         ),
         if (!_ready) ...<Widget>[
           const SizedBox(height: AppSpacing.s16),
-          AppInlineMessage(message: l10n.termsRequiredHint),
+          AppInlineMessage(message: _terms && _privacy && _conduct && _transfer ? l10n.signHint : l10n.termsRequiredHint),
         ],
         if (failure != null) FailureMessage(message: failure.message(l10n), offline: failure.isOffline),
       ],

@@ -265,6 +265,7 @@ export {
   deleteMyAccount,
   exportMyData,
   getPrivacyOverview,
+  getConsentCopy,
   listDevices,
   makePhotoThumbnail,
   requestCorrection,

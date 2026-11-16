@@ -39,6 +39,9 @@ import { afterSignIn } from "../privacy/callables";
 import { logSignIn, SIGNIN_LOG_SECRETS } from "../privacy/signin_log_callables";
 import { toEgyptE164 } from "./phone";
 import { classesMapper, requireUid, runCallable } from "../common/callable";
+import { sessionKey } from "../privacy/devices";
+import { consentText } from "./consent_texts";
+import { authTimeOf, checkMethod, SIGNATURE_ERROR_CODES, SignatureError, signatureRecord } from "./signature";
 
 /**
  * Callable functions for sign-up and sign-in (F1). App Check is enforced in
@@ -70,6 +73,9 @@ export function toHttpsError(error: unknown): HttpsError {
   if (error instanceof ConsentError) {
     const code: FunctionsErrorCode = error.reason === "outdated-terms" ? "failed-precondition" : "invalid-argument";
     return new HttpsError(code, error.reason, { reason: error.reason });
+  }
+  if (error instanceof SignatureError) {
+    return new HttpsError(SIGNATURE_ERROR_CODES[error.reason] as FunctionsErrorCode, error.reason, { reason: error.reason });
   }
   return new HttpsError("internal", "Something went wrong.");
 }
@@ -153,7 +159,7 @@ function field(request: CallableRequest, name: string): unknown {
 
 /** Logs unexpected errors (never the request data) and converts them. */
 function run<T>(name: string, body: () => Promise<T>): Promise<T> {
-  return runCallable(name, body, { map: [classesMapper([OtpError, ConsentError], toHttpsError)] });
+  return runCallable(name, body, { map: [classesMapper([OtpError, ConsentError, SignatureError], toHttpsError)] });
 }
 
 const signInOptions = {
@@ -250,11 +256,18 @@ export const confirmEmail = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (requ
   }),
 );
 
-/** { documents: { terms, privacy, conduct: version }, whatsapp } -> { ok } */
-export const acceptConsents = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+/**
+ * { documents: { terms, privacy, conduct, transferAbroad: version }, whatsapp,
+ *   signature: { fullName, method, deviceId, platform, appVersion, language } } -> { ok }
+ * R3: the storage-abroad consent is signed (typed full name + Face ID /
+ * passcode on the phone, or a sign-in less than 10 minutes old).
+ */
+export const acceptConsents = onCall({ enforceAppCheck: ENFORCE_APP_CHECK, secrets: [OTP_HMAC_KEY] }, (request) =>
   run("acceptConsents", async () => {
     const uid = requireUid(request);
     const parsed = parseConsentRequest(request.data);
+    const nowMs = Date.now();
+    checkMethod(parsed.signature.method, authTimeOf(request), nowMs);
     const snap = await adminDb().collection(USERS).doc(uid).get();
     if (!snap.exists) throw new HttpsError("failed-precondition", "No account record.");
     // Prompt 12 (review 2, item 7): the email step comes first on the
@@ -262,7 +275,12 @@ export const acceptConsents = onCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (re
     // nothing again (consent changes later go through the privacy screen).
     if (snap.get("emailVerified") !== true) throw new HttpsError("failed-precondition", "email-first", { reason: "email-first" });
     if (snap.get("termsAcceptedAt") && snap.get("termsVersion") === CONSENT_VERSIONS.terms) return { ok: true };
-    await recordConsents(adminDb(), uid, parsed);
+    const key = otpHmacKey();
+    const text = consentText("transferAbroad", CONSENT_VERSIONS.transferAbroad, parsed.signature.language);
+    if (text === null) throw new Error("no consent text for transferAbroad");
+    const deviceKey = parsed.signature.deviceId ? sessionKey(key, parsed.signature.deviceId) : null;
+    // No ID name yet at sign-up: the typed name is checked for form only (nameMatched null).
+    await recordConsents(adminDb(), uid, parsed, signatureRecord(key, uid, parsed.signature, text, null, deviceKey));
     return { ok: true };
   }),
 );

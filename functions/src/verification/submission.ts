@@ -1,3 +1,4 @@
+import { parseSignature, type SignatureInput } from "../auth/signature";
 import { isRealDate, parseNationalId } from "./national_id";
 
 /**
@@ -56,9 +57,12 @@ export const VERIFICATION_CONSENT_VERSIONS = {
   // written (explicit) consent; the child consent is the guardian's
   // declaration and covers the child's whereabouts during runs (children's
   // data is sensitive under Law 151 of 2020, Art. 1 and Art. 12).
-  id: "2026-11-16",
-  face: "2026-11-16",
-  childData: "2026-11-16",
+  // 2026-11-17 (R3): separate unticked boxes for the ID and the face
+  // matching, each signed with the typed full name (must match the ID
+  // name) and a fresh device check; "written" consent wording.
+  id: "2026-11-17",
+  face: "2026-11-17",
+  childData: "2026-11-17",
 } as const;
 
 export type VerificationConsent = keyof typeof VERIFICATION_CONSENT_VERSIONS;
@@ -115,6 +119,8 @@ export interface Submission {
   children: ChildSubmission[];
   driver: DriverSubmission | null;
   consents: VerificationConsent[];
+  /** R3: the written signature of the consents (null when none is needed: a car-only update). */
+  signature: SignatureInput | null;
 }
 
 /** Upload names in verification/{uid}/pending/ (storage.rules allows only these). */
@@ -287,7 +293,8 @@ export function parseSubmission(data: unknown, options: { today: string; verifie
     ...(children.length > 0 ? (["childData"] as const) : []),
   ];
   const consents = parseConsents(raw.consents, needed);
-  return { identity, children, driver, consents };
+  const signature = needed.length > 0 ? parseSignature(raw.signature) : null;
+  return { identity, children, driver, consents, signature };
 }
 
 /** Reasons an admin can give (codes shared with the app, which translates them). */

@@ -1,5 +1,6 @@
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { USERS } from "./accounts";
+import { parseSignature, type SignatureInput, type SignatureRecord } from "./signature";
 
 /**
  * Consent records (spec section 9, "Consent record"; Law 151 of 2020).
@@ -32,7 +33,8 @@ export const CONSENT_VERSIONS = {
    * Art. 15 exceptions. Safe side: ask for it on its own line, record it,
    * AND apply for the licence (docs/legal/owner-actions.md).
    */
-  transferAbroad: "2026-11-16",
+  // 2026-11-17 (R3): signed with the typed full name and a device check.
+  transferAbroad: "2026-11-17",
 } as const;
 
 export type ConsentType = keyof typeof CONSENT_VERSIONS;
@@ -51,9 +53,16 @@ export class ConsentError extends Error {
 export interface ConsentRequest {
   accepted: ConsentType[];
   whatsapp: boolean;
+  /** The written signature of the storage-abroad consent (R3). */
+  signature: SignatureInput;
 }
 
-/** Validates { documents: { terms: version, ... }, whatsapp: boolean }. */
+/**
+ * Validates { documents: { terms: version, ... }, whatsapp: boolean,
+ * signature: { fullName, method, deviceId, platform, appVersion, language } }.
+ * The signature (R3) is checked last, so an old app build gets
+ * "outdated-terms" (update the app) rather than a signature error.
+ */
 export function parseConsentRequest(data: unknown): ConsentRequest {
   if (typeof data !== "object" || data === null) throw new ConsentError("invalid-request");
   const { documents, whatsapp } = data as { documents?: unknown; whatsapp?: unknown };
@@ -68,10 +77,20 @@ export function parseConsentRequest(data: unknown): ConsentRequest {
   return {
     accepted: whatsapp ? [...REQUIRED_CONSENTS, "whatsapp"] : [...REQUIRED_CONSENTS],
     whatsapp,
+    signature: parseSignature((data as { signature?: unknown }).signature),
   };
 }
 
-export async function recordConsents(db: Firestore, uid: string, request: ConsentRequest): Promise<void> {
+/** The sensitive consents of sign-up that carry the written signature (R3). */
+export const SIGNED_AT_SIGNUP: readonly ConsentType[] = ["transferAbroad"];
+
+/**
+ * One record per accepted document; the storage-abroad record also holds
+ * the signature (method, keyed name hash, text hash, device, platform,
+ * app version; R3). The typed name goes on the user record
+ * (signedNames), which is deleted with the account.
+ */
+export async function recordConsents(db: Firestore, uid: string, request: ConsentRequest, signature: SignatureRecord): Promise<void> {
   const userRef = db.collection(USERS).doc(uid);
   const batch = db.batch();
   for (const type of request.accepted) {
@@ -81,9 +100,11 @@ export async function recordConsents(db: Firestore, uid: string, request: Consen
       acceptedAt: FieldValue.serverTimestamp(),
       withdrawnAt: null,
       source: "signup",
+      ...(SIGNED_AT_SIGNUP.includes(type) ? { signature } : {}),
     });
   }
   batch.update(userRef, {
+    "signedNames.transferAbroad": request.signature.fullName,
     termsAcceptedAt: FieldValue.serverTimestamp(),
     termsVersion: CONSENT_VERSIONS.terms,
     whatsappOptIn: request.whatsapp,

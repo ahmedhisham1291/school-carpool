@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_carpool/features/auth/consent_signature.dart';
 import 'package:school_carpool/features/auth/legal_documents.dart';
 import 'package:school_carpool/features/verification/national_id.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
@@ -144,8 +145,10 @@ class VerificationDraft {
     this.children = const <ChildDraft>[],
     this.drives = false,
     this.driver = const DriverDraft(),
-    this.consent = false,
+    this.consentId = false,
+    this.consentFace = false,
     this.guardianConsent = false,
+    this.signedName = '',
     this.uploaded = const <String>{},
   });
 
@@ -169,9 +172,20 @@ class VerificationDraft {
   final bool drives;
   final DriverDraft driver;
 
-  /// Explicit consent to process the ID and the face images (biometric
-  /// data; Law 151 of 2020, Art. 12).
-  final bool consent;
+  /// Explicit written consent to process the national ID (R3: its own
+  /// unticked box; Law 151 of 2020, Art. 12).
+  final bool consentId;
+
+  /// Explicit written consent to process the face images (biometric data;
+  /// R3: its own unticked box).
+  final bool consentFace;
+
+  /// R3: the typed full name that signs the consents; it must match the
+  /// ID name typed in the details step. Never saved on the phone.
+  final String signedName;
+
+  /// The typed signature matches the ID name (same rule as the server).
+  bool get signatureMatches => nameMatches(signedName, firstName, lastName);
 
   /// The separate guardian declaration and consent for the children's data
   /// (children's data is sensitive data; Law 151 of 2020, Arts. 1 and 12).
@@ -197,8 +211,10 @@ class VerificationDraft {
       selfieComplete &&
       childrenComplete &&
       drivingComplete(today) &&
-      consent &&
-      guardianConsent;
+      consentId &&
+      consentFace &&
+      guardianConsent &&
+      signatureMatches;
 
   /// Every image to upload, by upload name.
   Map<String, Uint8List> files() => <String, Uint8List>{
@@ -212,8 +228,9 @@ class VerificationDraft {
     if (drives) VerificationDocument.driverPhoto.fileName: ?driver.driverPhoto,
   };
 
-  /// Body of the submitVerification call.
-  Map<String, Object?> toPayload() => <String, Object?>{
+  /// Body of the submitVerification call; [signature] comes from the
+  /// device check right before sending (R3).
+  Map<String, Object?> toPayload([ConsentSignature? signature]) => <String, Object?>{
     'identity': <String, Object?>{
       'firstName': firstName.trim(),
       'lastName': lastName.trim(),
@@ -224,6 +241,7 @@ class VerificationDraft {
     'children': <Map<String, Object?>>[for (final ChildDraft c in children) c.toPayload()],
     'driver': drives ? driver.toPayload() : null,
     'consents': LegalDocuments.verification,
+    'signature': ?signature?.toPayload(),
   };
 
   VerificationDraft copyWith({
@@ -239,8 +257,10 @@ class VerificationDraft {
     List<ChildDraft>? children,
     bool? drives,
     DriverDraft? driver,
-    bool? consent,
+    bool? consentId,
+    bool? consentFace,
     bool? guardianConsent,
+    String? signedName,
     Set<String>? uploaded,
   }) => VerificationDraft(
     firstName: firstName ?? this.firstName,
@@ -255,8 +275,10 @@ class VerificationDraft {
     children: children ?? this.children,
     drives: drives ?? this.drives,
     driver: driver ?? this.driver,
-    consent: consent ?? this.consent,
+    consentId: consentId ?? this.consentId,
+    consentFace: consentFace ?? this.consentFace,
     guardianConsent: guardianConsent ?? this.guardianConsent,
+    signedName: signedName ?? this.signedName,
     uploaded: uploaded ?? this.uploaded,
   );
 }

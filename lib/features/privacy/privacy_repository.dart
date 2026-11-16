@@ -25,6 +25,12 @@ abstract interface class PrivacyRepository {
   /// A link to a JSON file with every data type, valid 1 hour.
   Future<ExportLink> exportData();
 
+  /// R3: the copy of a signed consent (null: given before signed copies).
+  Future<ConsentCopy?> consentCopy(ConsentKind kind);
+
+  /// R3: a one-hour link to the copy as a text file.
+  Future<ExportLink> downloadConsentCopy(ConsentKind kind);
+
   /// Deletes the account (after the app's confirmation and Face ID check).
   Future<void> deleteAccount();
 
@@ -81,6 +87,14 @@ class FirebasePrivacyRepository implements PrivacyRepository {
 
   @override
   Future<ExportLink> exportData() async => ExportLink.fromMap(await _call('exportMyData'));
+
+  @override
+  Future<ConsentCopy?> consentCopy(ConsentKind kind) async =>
+      ConsentCopy.fromMap((await _call('getConsentCopy', <String, Object?>{'kind': kind.name}))['copy']);
+
+  @override
+  Future<ExportLink> downloadConsentCopy(ConsentKind kind) async =>
+      ExportLink.fromMap(await _call('getConsentCopy', <String, Object?>{'kind': kind.name, 'download': true}));
 
   @override
   Future<void> deleteAccount() async {

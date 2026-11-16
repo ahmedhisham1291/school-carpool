@@ -17,7 +17,8 @@ abstract final class LegalDocuments {
 
   /// Separate explicit consent to storage and processing outside Egypt
   /// (Law 151 of 2020, Arts. 14 to 16; docs/legal/egypt-legal-review.md).
-  static const String transferAbroad = '2026-11-16';
+  // R3 (2026-11-17): signed with the typed full name and a device check.
+  static const String transferAbroad = '2026-11-17';
 
   /// Sent to acceptConsents as `documents`.
   static const Map<String, String> required = <String, String>{
@@ -33,7 +34,9 @@ abstract final class LegalDocuments {
   /// functions/src/verification/submission.ts.
   // Legal review (16 Nov 2026): biometric wording, guardian declaration,
   // the child's whereabouts during runs.
-  static const String verificationConsent = '2026-11-16';
+  // R3 (2026-11-17): separate ID and face boxes, signed (typed ID name and
+  // a device check).
+  static const String verificationConsent = '2026-11-17';
 
   /// Sent to submitVerification as `consents`.
   static const Map<String, String> verification = <String, String>{

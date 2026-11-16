@@ -40,6 +40,7 @@ import {
   type DeviceDeps,
 } from "./devices";
 import { buildExport, EXPORT_LINK_MS, exportPath } from "./export";
+import { consentCopy, consentCopyFile, consentCopyPath } from "./consent_copy";
 import {
   FirestoreDeletionRunner,
   FirestoreDeviceStore,
@@ -261,6 +262,30 @@ export const getPrivacyOverview = gatedCall(opts, (r) =>
       consents: consentViews(rows, { showOnMap: await store.showOnMap(uid), analytics }),
       requests: (await store.requests(uid, 30)).map(viewRequest),
     };
+  }),
+);
+
+/**
+ * R3: the parent's copy of a signed consent. { kind, download? } ->
+ * { copy } or { copy, url, expiresAtMs } (a plain-text file in the exports
+ * folder, the link works 1 hour). copy is null for a consent given before
+ * signed copies began (the app shows its empty state).
+ */
+export const getConsentCopy = gatedCall(opts, (r) =>
+  run("getConsentCopy", async () => {
+    const uid = uidOf(r);
+    const data = typeof r.data === "object" && r.data !== null ? (r.data as Record<string, unknown>) : {};
+    const kind = consentKind(data.kind);
+    if (!kind) fail("invalid-request");
+    const store = new FirestorePrivacyStore(adminDb());
+    const copy = consentCopy(await store.consents(uid), kind, await store.signedName(uid, kind));
+    if (!copy || data.download !== true) return { copy };
+    const nowMs = Date.now();
+    const path = consentCopyPath(uid, copy.kind, nowMs);
+    await bucket().file(path).save(Buffer.from(consentCopyFile(copy), "utf8"), { contentType: "text/plain; charset=utf-8", resumable: false });
+    const expiresAtMs = nowMs + EXPORT_LINK_MS;
+    const [url] = await bucket().file(path).getSignedUrl({ version: "v4", action: "read", expires: expiresAtMs, responseDisposition: `attachment; filename="consent-${copy.kind}.txt"` });
+    return { copy, url, expiresAtMs };
   }),
 );
 

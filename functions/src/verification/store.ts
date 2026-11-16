@@ -77,6 +77,8 @@ export class FirestoreVerificationStore implements VerificationStore {
       emailVerified: data.emailVerified === true,
       termsAccepted: data.termsAcceptedAt != null,
       caseOpen: verification?.status === "pending",
+      firstName: typeof data.firstName === "string" ? data.firstName : null,
+      lastName: typeof data.lastName === "string" ? data.lastName : null,
     };
   }
 
@@ -183,15 +185,21 @@ export class FirestoreVerificationStore implements VerificationStore {
       // Admin search by name (F14): normalized full name and its words.
       Object.assign(userUpdate, nameSearchFields(c.identity.firstName, c.identity.lastName));
     }
+    // R3: the typed names (deleted with the user record); the kept consent records hold only a keyed hash.
+    if (write.signedName) {
+      for (const type of write.consents) userUpdate[`signedNames.${type}`] = write.signedName;
+    }
     tx.update(userRef, userUpdate);
 
     for (const type of write.consents) {
+      const signature = write.signatures[type];
       tx.create(userRef.collection("consents").doc(), {
         type,
         version: VERIFICATION_CONSENT_VERSIONS[type],
         acceptedAt: now,
         withdrawnAt: null,
         source: "verification",
+        ...(signature ? { signature } : {}),
       });
     }
     });

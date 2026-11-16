@@ -985,14 +985,6 @@
   "@verifyReviewNoDriving": {
     "description": "Summary"
   },
-  "verifyConsentLabel": "أوافق على التحقق",
-  "@verifyConsentLabel": {
-    "description": "Consent checkbox"
-  },
-  "verifyConsentHelper": "أوافق صراحةً على معالجة بطاقة الرقم القومي وصور وجهي (بيانات بيومترية) للتحقق مني ولفحص السيلفي أثناء المشاوير. تُحفظ الصور ما دام حسابي مفتوحًا وتُحذف عند حذفه. يمكنني سحب الموافقة من شاشة الخصوصية، وهذا يغلق الحساب.",
-  "@verifyConsentHelper": {
-    "description": "Consent helper (ID and face: explicit consent to sensitive data)"
-  },
   "verifySubmit": "أرسل للمراجعة",
   "@verifySubmit": {
     "description": "Submit button"
@@ -10443,13 +10435,9 @@
   "@verifyGuardianLabel": {
     "description": "Checkbox and dialog title: guardian declaration for children's data. One line."
   },
-  "verifyGuardianHelper": "أقرّ بأنني الوالد أو الولي القانوني للأطفال الذين أضيفهم، وأوافق صراحةً على معالجة بياناتهم (الاسم الأول والسن والصف والمدرسة وصورة كارنيه المدرسة) ومكانهم أثناء المشاوير، فقط لتنظيم مشاويرهم المدرسية وحمايتها. يمكنني سحب ذلك بحذف الأطفال.",
+  "verifyGuardianHelper": "أقرّ بأنني الوالد أو الولي القانوني للأطفال الذين أضيفهم، وأوافق صراحةً وكتابةً على معالجة بياناتهم (الاسم الأول والسن والصف والمدرسة وصورة كارنيه المدرسة) ومكانهم أثناء المشاوير، فقط لتنظيم مشاويرهم المدرسية وحمايتها. يمكنني سحب ذلك بحذف الأطفال.",
   "@verifyGuardianHelper": {
-    "description": "Guardian declaration (children's data is sensitive data, Law 151/2020)"
-  },
-  "verifyGuardianConfirm": "أؤكد",
-  "@verifyGuardianConfirm": {
-    "description": "Dialog button. One line."
+    "description": "Guardian declaration text (legal text, part of the signed record, R3)."
   },
   "keepDays180": "180 يومًا (حسب القانون)",
   "@keepDays180": {
@@ -10715,5 +10703,138 @@
   "keepThreeYearsAfterClosure": "ما دام مفتوحًا و3 سنوات بعده",
   "@keepThreeYearsAfterClosure": {
     "description": "Retention label (privacy screen): the proof of consent is kept while the account is open and 3 years after it closes (R1). One line."
+  },
+  "verifyConsentIdLabel": "أوافق على فحص البطاقة",
+  "@verifyConsentIdLabel": {
+    "description": "Verification review: separate unticked box for the national ID consent (R3). One line."
+  },
+  "verifyConsentIdHelper": "أوافق صراحةً وكتابةً على معالجة بطاقة الرقم القومي (صورتا الوجهين؛ ويُحفظ الرقم رمزًا مشفّرًا فقط مع تاريخ الانتهاء) للتحقق مني. تُحفظ ما دام حسابي مفتوحًا وتُحذف عند حذفه. سحب الموافقة يغلق الحساب.",
+  "@verifyConsentIdHelper": {
+    "description": "Verification review: what the ID consent covers (R3; legal text, part of the signed record)."
+  },
+  "verifyConsentFaceLabel": "أوافق على مطابقة الوجه",
+  "@verifyConsentFaceLabel": {
+    "description": "Verification review: separate unticked box for the biometric consent (R3). One line."
+  },
+  "verifyConsentFaceHelper": "أوافق صراحةً وكتابةً على معالجة صور وجهي (بيانات بيومترية): تُقارن صورة السيلفي بصورة البطاقة وتُحفظ مرجعًا لفحص السيلفي قبل المشاوير. تُحفظ ما دام حسابي مفتوحًا وتُحذف عند حذفه. سحب الموافقة يغلق الحساب.",
+  "@verifyConsentFaceHelper": {
+    "description": "Verification review: what the face consent covers (R3; legal text, part of the signed record)."
+  },
+  "signTitle": "توقيعك",
+  "@signTitle": {
+    "description": "Section header above the typed-name signature (R3). One line."
+  },
+  "signNameLabel": "اكتب اسمك الكامل",
+  "@signNameLabel": {
+    "description": "Field label: the typed full name that signs the sensitive-data consents (R3). One line."
+  },
+  "signNameHelper": "اسمك المكتوب هو توقيعك الكتابي.",
+  "@signNameHelper": {
+    "description": "Helper under the signature field at sign-up."
+  },
+  "signNameHelperId": "كما في بطاقتك. اسمك المكتوب هو توقيعك الكتابي.",
+  "@signNameHelperId": {
+    "description": "Helper under the signature field at verification."
+  },
+  "signNameError": "اكتب اسمك الأول واسم العائلة، بالحروف فقط.",
+  "@signNameError": {
+    "description": "Error: the typed name is not a full name."
+  },
+  "signNameMismatch": "اكتب الاسم الموجود في بطاقتك: {name}",
+  "@signNameMismatch": {
+    "description": "Error: the typed name does not match the ID name; shows the name to type.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "signAuthReason": "أكّد موافقتك الموقّعة",
+  "@signAuthReason": {
+    "description": "Face ID / passcode prompt reason when signing a consent (R3)."
+  },
+  "signCancelled": "لم يتم التوقيع. لم يُرسل شيء.",
+  "@signCancelled": {
+    "description": "Snack bar: the device check was cancelled."
+  },
+  "signReauth": "للتوقيع، سجّل الدخول من جديد أو ضع رمز قفل للهاتف.",
+  "@signReauth": {
+    "description": "Error: the phone has no passcode and the sign-in is older than 10 minutes."
+  },
+  "signHint": "علّم كل خانة واكتب اسمك ثم أكّد ببصمة الوجه أو رمز الهاتف.",
+  "@signHint": {
+    "description": "Hint under the boxes while something is missing (R3)."
+  },
+  "consentCopyOpen": "عرض النسخة",
+  "@consentCopyOpen": {
+    "description": "Action on a signed consent row in Privacy: opens the copy (R3). One line."
+  },
+  "consentCopyTitle": "نسخة الموافقة",
+  "@consentCopyTitle": {
+    "description": "App bar title of the consent copy screen (R3). One line."
+  },
+  "consentCopySignedBy": "وقّعها",
+  "@consentCopySignedBy": {
+    "description": "Copy screen label. One line."
+  },
+  "consentCopyDate": "التاريخ والوقت",
+  "@consentCopyDate": {
+    "description": "Copy screen label. One line."
+  },
+  "consentCopyMethod": "طريقة التأكيد",
+  "@consentCopyMethod": {
+    "description": "Copy screen label. One line."
+  },
+  "consentCopyMethodDevice": "بصمة الوجه أو رمز الهاتف",
+  "@consentCopyMethodDevice": {
+    "description": "Copy screen value. One line."
+  },
+  "consentCopyMethodSignIn": "تسجيل دخول حديث",
+  "@consentCopyMethodSignIn": {
+    "description": "Copy screen value. One line."
+  },
+  "consentCopyVersion": "النسخة",
+  "@consentCopyVersion": {
+    "description": "Copy screen label. One line."
+  },
+  "consentCopyApp": "نسخة التطبيق",
+  "@consentCopyApp": {
+    "description": "Copy screen label. One line."
+  },
+  "consentCopyFingerprint": "بصمة النص",
+  "@consentCopyFingerprint": {
+    "description": "Copy screen label: the first characters of the text hash. One line."
+  },
+  "consentCopyDownload": "تنزيل النسخة",
+  "@consentCopyDownload": {
+    "description": "Primary action on the copy screen. One line."
+  },
+  "consentCopyReady": "فُتحت النسخة. يعمل الرابط ساعة واحدة.",
+  "@consentCopyReady": {
+    "description": "Snack bar after the download link opened."
+  },
+  "consentCopyNotOpened": "تعذّر فتح النسخة. حاول مرة أخرى.",
+  "@consentCopyNotOpened": {
+    "description": "Snack bar: the link did not open."
+  },
+  "consentCopyEmptyTitle": "لا توجد نسخة بعد",
+  "@consentCopyEmptyTitle": {
+    "description": "Empty state title. One line."
+  },
+  "consentCopyEmptyBody": "أُعطيت هذه الموافقة قبل بدء النسخ الموقّعة. أعطها من جديد لتحصل على نسخة.",
+  "@consentCopyEmptyBody": {
+    "description": "Empty state body."
+  },
+  "signNameMismatchShort": "يجب أن يطابق الاسم المكتوب الاسم الموجود في بطاقتك.",
+  "@signNameMismatchShort": {
+    "description": "Error from the server: the signature name does not match the ID name (R3)."
+  },
+  "guardianSignTitle": "وقّع الإقرار",
+  "@guardianSignTitle": {
+    "description": "Sheet title when a verified parent adds or edits a child (R3). One line."
+  },
+  "guardianSignAction": "وقّع وأرسل",
+  "@guardianSignAction": {
+    "description": "Sheet primary action (R3). One line."
   }
 }

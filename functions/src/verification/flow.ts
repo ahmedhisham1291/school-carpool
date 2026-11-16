@@ -1,4 +1,7 @@
 import { accessReason, thumbPath } from "../privacy/photos";
+import { sessionKey } from "../privacy/devices";
+import { consentText } from "../auth/consent_texts";
+import { checkMethod, nameMatches, SignatureError, signatureRecord, type SignatureRecord } from "../auth/signature";
 import type { KycImages, KycOutcome, KycProvider } from "./kyc";
 import { runKyc } from "./kyc";
 import { nationalIdHash } from "./national_id";
@@ -17,6 +20,7 @@ import {
   type RejectionReason,
   type Submission,
   type VerificationConsent,
+  VERIFICATION_CONSENT_VERSIONS,
 } from "./submission";
 
 /**
@@ -35,6 +39,9 @@ export type CaseScope = "identity" | "update";
 
 export interface UserSnapshot {
   status: AccountStatus;
+  /** The ID name of a verified parent (null before the ID check). */
+  firstName?: string | null;
+  lastName?: string | null;
   emailVerified: boolean;
   termsAccepted: boolean;
   /** True while a case of this parent waits for review. */
@@ -75,6 +82,12 @@ export interface SubmissionWrite {
   /** Children to delete first (a parent who is not verified resubmits all). */
   replaceChildIds: string[];
   consents: VerificationConsent[];
+  /**
+   * R3: the signature of each consent (same method, name and device; the
+   * text hash per type) and the typed name for users/{uid}.signedNames.
+   */
+  signatures: Partial<Record<VerificationConsent, SignatureRecord>>;
+  signedName: string | null;
 }
 
 export interface DecisionWrite {
@@ -213,6 +226,8 @@ export interface VerificationDeps {
   kyc: KycProvider;
   claims: ClaimsService;
   nationalIdKey: string;
+  /** R3: keys the typed-name hash and the device key of a signature (OTP_HMAC_KEY). */
+  signatureKey?: string;
   now: () => number;
   reportError: (error: unknown) => void;
 }
@@ -232,7 +247,37 @@ export function casePrefix(uid: string, caseId: string): string {
 }
 
 /** Submits documents for review: checks, copies the images, runs the automated check, queues the case. */
-export async function submitVerification(deps: VerificationDeps, uid: string, data: unknown): Promise<{ caseId: string }> {
+/**
+ * R3: the typed name must match the ID name (the identity part of this
+ * submission, or the verified parent's stored name), and a "recentSignIn"
+ * signature needs a sign-in less than 10 minutes old. Returns the signature
+ * of each consent (the text hash is of the text the parent read).
+ */
+export function signSubmission(
+  key: string,
+  uid: string,
+  submission: Submission,
+  user: Pick<UserSnapshot, "firstName" | "lastName">,
+  authTimeSeconds: number | null,
+  nowMs: number,
+): Partial<Record<VerificationConsent, SignatureRecord>> {
+  const s = submission.signature;
+  if (!s) return {};
+  checkMethod(s.method, authTimeSeconds, nowMs);
+  const first = submission.identity?.firstName ?? user.firstName ?? null;
+  const last = submission.identity?.lastName ?? user.lastName ?? null;
+  if (!first || !last || !nameMatches(s.fullName, first, last)) throw new SignatureError("signature-name-mismatch");
+  const deviceKey = s.deviceId ? sessionKey(key, s.deviceId) : null;
+  const out: Partial<Record<VerificationConsent, SignatureRecord>> = {};
+  for (const type of submission.consents) {
+    const text = consentText(type, VERIFICATION_CONSENT_VERSIONS[type], s.language);
+    if (text === null) throw new Error(`no consent text for ${type}`);
+    out[type] = signatureRecord(key, uid, s, text, true, deviceKey);
+  }
+  return out;
+}
+
+export async function submitVerification(deps: VerificationDeps, uid: string, data: unknown, authTimeSeconds: number | null = null): Promise<{ caseId: string }> {
   const user = await deps.store.getUser(uid);
   if (!user) throw new VerificationError("no-account");
   if (user.status === "suspended") throw new VerificationError("suspended");
@@ -259,6 +304,8 @@ export async function submitVerification(deps: VerificationDeps, uid: string, da
     if (!own) throw new VerificationError("not-found", { ref: child.ref });
     if (own.status === "pending") throw new VerificationError("case-open");
   }
+  // R3: the written signature (typed ID name, device check) of the consents.
+  const signatures = signSubmission(deps.signatureKey ?? deps.nationalIdKey, uid, submission, user, authTimeSeconds, deps.now());
 
   const schools = new Map<string, SchoolChoice>();
   for (const child of submission.children) {
@@ -327,6 +374,8 @@ export async function submitVerification(deps: VerificationDeps, uid: string, da
     },
     replaceChildIds: verified ? [] : existing.map((c) => c.id),
     consents: submission.consents,
+    signatures,
+    signedName: submission.signature?.fullName ?? null,
   });
   try {
     await save;
