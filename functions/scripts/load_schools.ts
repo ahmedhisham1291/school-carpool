@@ -33,7 +33,17 @@ import { dirname, join, resolve } from "node:path";
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, Timestamp, getFirestore, type DocumentData, type QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { SCHOOLS } from "../src/admin_panel/store";
-import { parseImportedSchool, planImport, planSampleHiding, type ImportedSchool } from "../src/schools/catalog";
+import {
+  parseDropped,
+  parseImportedSchool,
+  planAutoMerges,
+  planDroppedHiding,
+  planImport,
+  planSampleHiding,
+  planUnhide,
+  type MergedImport,
+} from "../src/schools/catalog";
+import { readAll } from "../src/schools/paged";
 import { importedFields, newImportedDoc, readExistingSchools } from "../src/schools/store";
 import {
   PLACE_AREAS,
@@ -85,15 +95,15 @@ const placesFile = option("--places") ?? join(dirname(file), "places.json");
 /** Firestore allows 500 writes per batch; 400 leaves room. */
 const BATCH_SIZE = 400;
 
-function readSchoolsFile(path: string): { usable: ImportedSchool[]; refused: string[] } {
-  let doc: { format?: unknown; schools?: unknown };
+function readSchoolsFile(path: string): { usable: MergedImport[]; refused: string[]; dropped: Array<{ key: string; reason: string }> } {
+  let doc: { format?: unknown; schools?: unknown; dropped?: unknown };
   try {
     doc = JSON.parse(readFileSync(path, "utf-8"));
   } catch {
     refuse(`cannot read ${path}; run python3 tools/import_schools/import_schools.py first`);
   }
   if (doc.format !== "school-carpool-schools/1" || !Array.isArray(doc.schools)) refuse(`${path} is not a schools.json`);
-  const usable: ImportedSchool[] = [];
+  const usable: MergedImport[] = [];
   const refused: string[] = [];
   for (const raw of doc.schools as unknown[]) {
     try {
@@ -102,7 +112,7 @@ function readSchoolsFile(path: string): { usable: ImportedSchool[]; refused: str
       refused.push(error instanceof Error ? error.message : String(error));
     }
   }
-  return { usable, refused };
+  return { usable, refused, dropped: parseDropped(doc.dropped) };
 }
 
 const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
@@ -123,7 +133,7 @@ async function commitWithRetry(commit: () => Promise<unknown>, label: string): P
 }
 
 async function main(): Promise<void> {
-  const { usable: incoming, refused: bad } = readSchoolsFile(file);
+  const { usable: incoming, refused: bad, dropped } = readSchoolsFile(file);
   const sampleKeys = sampleFile ? readSchoolsFile(resolve(sampleFile)).usable.flatMap((s) => s.sourceKeys) : [];
 
   initializeApp({ projectId });
@@ -131,6 +141,14 @@ async function main(): Promise<void> {
   const existing = await readExistingSchools(db);
   const plan = planImport(incoming, existing);
   const hide = sampleFile ? planSampleHiding(existing, sampleKeys, incoming) : [];
+  // Duplicates the import merged (dedupe.py): their earlier documents are
+  // hidden into the survivor (status "merged", never deleted).
+  const merges = planAutoMerges(incoming, existing, plan);
+  // Schools loaded earlier that the rules now drop (names not in Arabic or
+  // English, tutoring centres, ...): out of the list, kept as documents.
+  const mergedAway = new Set(merges.hide.map((m) => m.id));
+  const nowDropped = planDroppedHiding(dropped, existing, incoming).filter((d) => !mergedAway.has(d.id));
+  const unhide = planUnhide(existing, incoming);
 
   console.log(`load_schools: ${projectId}, ${file}`);
   console.log(`  already in the project: ${existing.length} (read once)`);
@@ -141,6 +159,18 @@ async function main(): Promise<void> {
   for (const [reason, count] of skipped) console.log(`  left alone (${reason}): ${count}`);
   console.log(`  imported earlier, not in this file (kept): ${plan.notInInput.length}`);
   if (sampleFile) console.log(`  sample schools taken out of search (kept as documents): ${hide.length}`);
+  console.log(`  duplicates merged by the import, hidden now (kept as documents): ${merges.hide.length}`);
+  const droppedReasons = new Map<string, number>();
+  for (const d of nowDropped) droppedReasons.set(d.reason, (droppedReasons.get(d.reason) ?? 0) + 1);
+  console.log(`  loaded earlier, dropped by the rules now, taken out of the list (kept as documents): ${nowDropped.length}`
+    + (nowDropped.length ? ` (${[...droppedReasons].map(([r, n]) => `${r} ${n}`).join(", ")})` : ""));
+  if (unhide.length) console.log(`  hidden earlier, kept by the rules now, back in the list: ${unhide.length}`);
+  if (merges.cancelled.length) console.log(`  import writes skipped because an admin-edited school keeps the group: ${merges.cancelled.length}`);
+  if (merges.editedKept.length) console.log(`  admin-edited schools left alone in a merged group: ${merges.editedKept.length}`);
+  if (merges.parentLookalikes.length) {
+    console.log(`  parents' schools that look like an imported one (not merged; check in the admin panel): ${merges.parentLookalikes.length}`);
+    for (const l of merges.parentLookalikes.slice(0, 20)) console.log(`    ${l.id} ~ ${l.like}`);
+  }
   for (const message of bad.slice(0, 20)) console.log(`  refused: ${message}`);
   if (flag("--dry-run")) {
     console.log("  dry run: nothing written");
@@ -159,6 +189,21 @@ async function main(): Promise<void> {
     ...hide.map((id) => (batch: Batch) => {
       batch.update(db.collection(SCHOOLS).doc(id), { searchHidden: true, updatedAt: FieldValue.serverTimestamp() });
     }),
+    ...unhide.map((id) => (batch: Batch) => {
+      batch.update(db.collection(SCHOOLS).doc(id), { searchHidden: false, hiddenReason: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() });
+    }),
+    ...nowDropped.map((d) => (batch: Batch) => {
+      batch.update(db.collection(SCHOOLS).doc(d.id), { searchHidden: true, hiddenReason: d.reason, updatedAt: FieldValue.serverTimestamp() });
+    }),
+    ...merges.hide.map((m) => (batch: Batch) => {
+      batch.update(db.collection(SCHOOLS).doc(m.id), {
+        status: "merged",
+        mergedInto: m.into,
+        mergedBy: "import",
+        mergedAt: importedAt,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }),
   ];
   const started = Date.now();
   for (let i = 0; i < writes.length; i += BATCH_SIZE) {
@@ -174,7 +219,7 @@ async function main(): Promise<void> {
       console.log(`  written ${done} of ${writes.length} (${Math.round((Date.now() - started) / 1000)} s)`);
     }
   }
-  console.log(`load_schools: done. created ${plan.creates.length}, updated ${plan.updates.length}, hidden ${hide.length}`);
+  console.log(`load_schools: done. created ${plan.creates.length}, updated ${plan.updates.length}, hidden ${hide.length + nowDropped.length}, merged ${merges.hide.length}`);
 
   // City -> Area -> District -------------------------------------------
   if (!existsSync(placesFile)) {
@@ -189,6 +234,8 @@ async function main(): Promise<void> {
   for (const c of plan.creates) final.set(c.id, { areaId: c.placeAreaId || null, districtId: c.placeDistrictId ?? null });
   for (const u of plan.updates) final.set(u.id, { areaId: u.school.placeAreaId || null, districtId: u.school.placeDistrictId ?? null });
   for (const id of hide) final.delete(id);
+  for (const m of merges.hide) final.delete(m.id);
+  for (const d of nowDropped) final.delete(d.id);
   await loadPlaces(db, placesFile, countSchools([...final.values()]));
 }
 
@@ -198,11 +245,15 @@ async function loadPlaces(
   counts: { areas: Map<string, number>; districts: Map<string, number> },
 ): Promise<void> {
   const places = parsePlacesFile(JSON.parse(readFileSync(path, "utf-8")));
-  const [areaSnap, districtSnap, internalSnap] = await Promise.all([
-    db.collection(PLACE_AREAS).get(),
-    db.collection(PLACE_DISTRICTS).get(),
-    db.collection(PLACE_INTERNAL).get(),
+  // Paged reads (thousands of districts; one answer must stay small).
+  const [areaDocs, districtDocs, internalDocs] = await Promise.all([
+    readAll(db, PLACE_AREAS),
+    readAll(db, PLACE_DISTRICTS),
+    readAll(db, PLACE_INTERNAL, { pageSize: 200 }),
   ]);
+  const areaSnap = { docs: areaDocs };
+  const districtSnap = { docs: districtDocs };
+  const internalSnap = { docs: internalDocs };
   // Outlines, boxes, address counts and admin fields are in placeInternal
   // (server only, spec section 9); the app's documents hold names, centre,
   // school count and state.
@@ -222,6 +273,12 @@ async function loadPlaces(
   console.log(`load_places: ${path}`);
   console.log(`  areas: new ${areaPlan.creates.length}, changed ${areaPlan.updates.length}, unchanged ${areaPlan.unchanged}, admin-edited kept ${areaPlan.skipped}`);
   console.log(`  districts: new ${districtPlan.creates.length}, changed ${districtPlan.updates.length}, unchanged ${districtPlan.unchanged}, admin-edited kept ${districtPlan.skipped}`);
+  // A district whose area is retired goes with it.
+  const retiredAreas = new Set(areaPlan.retires);
+  const districtRetires = [
+    ...new Set([...districtPlan.retires, ...existingDistricts.filter((d) => retiredAreas.has(d.areaId) && d.active && !d.adminEdited).map((d) => d.id)]),
+  ].filter((id) => !places.districts.some((d) => d.id === id));
+  console.log(`  replaced by this file, set inactive (kept as documents): areas ${areaPlan.retires.length}, districts ${districtRetires.length}`);
   if (places.refused) console.log(`  refused entries: ${places.refused}`);
   if (flag("--dry-run")) return;
 
@@ -263,7 +320,7 @@ async function loadPlaces(
     ...legacy,
     ...areaPlan.creates.map((a) => (b: Batch) => {
       b.create(db.collection(PLACE_AREAS).doc(a.id), { ...areaFields(a), schoolCount: 0, active: true, mergedInto: null, createdAt: now });
-      b.set(internalRef("area", a.id), { ...areaInternal(a), source: "osm", addressCount: 0, adminEdited: false });
+      b.set(internalRef("area", a.id), { ...areaInternal(a), source: a.id.startsWith("cod-") ? "cod" : "osm", addressCount: 0, adminEdited: false });
     }),
     ...areaPlan.updates.map((a) => (b: Batch) => {
       b.update(db.collection(PLACE_AREAS).doc(a.id), areaFields(a));
@@ -278,6 +335,8 @@ async function loadPlaces(
       b.set(internalRef("district", d.id), districtInternal(d), { merge: true });
     }),
   ];
+  for (const id of areaPlan.retires) writes.push((b: Batch) => b.update(db.collection(PLACE_AREAS).doc(id), { active: false, updatedAt: now }));
+  for (const id of districtRetires) writes.push((b: Batch) => b.update(db.collection(PLACE_DISTRICTS).doc(id), { active: false, updatedAt: now }));
   // School counts: written only where they changed.
   const allAreaIds = new Set([...existingAreas.map((a) => a.id), ...places.areas.map((a) => a.id)]);
   const oldAreaCount = new Map(existingAreas.map((a) => [a.id, a.schoolCount]));
@@ -303,11 +362,11 @@ async function loadPlaces(
     }, `places batch ${i / PLACE_BATCH + 1}`);
   }
   // The index: every active area with a shape (the server's first read for a point).
-  const byId = new Map<string, PlaceArea>(existingAreas.map((a) => [a.id, a]));
+  const byId = new Map<string, PlaceArea>(existingAreas.filter((a) => !retiredAreas.has(a.id)).map((a) => [a.id, a]));
   for (const a of places.areas) {
     const old = byId.get(a.id);
     if (!old || !(old.adminEdited || old.mergedInto)) {
-      const base: PlaceArea = old ?? { ...a, source: "osm", schoolCount: 0, addressCount: 0, active: true, mergedInto: null, adminEdited: false };
+      const base: PlaceArea = old ?? { ...a, source: a.id.startsWith("cod-") ? "cod" : "osm", schoolCount: 0, addressCount: 0, active: true, mergedInto: null, adminEdited: false };
       byId.set(a.id, { ...base, ...a });
     }
   }

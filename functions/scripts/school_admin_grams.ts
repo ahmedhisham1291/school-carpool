@@ -16,10 +16,11 @@
  * Prints counts only, never names.
  */
 import { initializeApp } from "firebase-admin/app";
-import { FieldPath, getFirestore, type QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { getFirestore, type QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { gramsToWrite } from "../src/admin_panel/school_search";
 import { ADMIN_SEARCH_GRAMS } from "../src/admin_panel/school_search_store";
 import { SCHOOLS } from "../src/admin_panel/store";
+import { forEachPage, withRetries } from "../src/schools/paged";
 
 function refuse(reason: string): never {
   console.error(`school_admin_grams: refusing to run: ${reason}`);
@@ -37,33 +38,34 @@ if (cloudProject) {
   if (!emulatorProject.startsWith("demo-")) refuse(`project "${emulatorProject}" is not a demo- project`);
 }
 
-const PAGE = 2000;
+const PAGE = 500;
 /** Firestore allows 500 writes per batch; 400 leaves room. */
 const BATCH = 400;
 
 async function main(): Promise<void> {
   initializeApp({ projectId: cloudProject || emulatorProject });
   const db = getFirestore();
-  let read = 0;
   let written = 0;
-  let last: QueryDocumentSnapshot | undefined;
-  for (;;) {
-    let query = db.collection(SCHOOLS).orderBy(FieldPath.documentId()).limit(PAGE);
-    if (last) query = query.startAfter(last);
-    const page = await query.get();
-    read += page.docs.length;
-    const todo = page.docs
-      .map((doc) => ({ doc, grams: gramsToWrite(doc.data()) }))
-      .filter((t): t is { doc: QueryDocumentSnapshot; grams: string[] } => t.grams !== null);
-    for (let i = 0; i < todo.length && !dryRun; i += BATCH) {
-      const batch = db.batch();
-      for (const t of todo.slice(i, i + BATCH)) batch.update(t.doc.ref, { [ADMIN_SEARCH_GRAMS]: t.grams });
-      await batch.commit();
-    }
-    written += todo.length;
-    if (page.docs.length < PAGE) break;
-    last = page.docs[page.docs.length - 1];
-  }
+  // Pages of 500 with only the fields the grams need, each page retried.
+  const read = await forEachPage(
+    db,
+    SCHOOLS,
+    async (docs) => {
+      const todo = docs
+        .map((doc) => ({ doc, grams: gramsToWrite(doc.data()) }))
+        .filter((t): t is { doc: QueryDocumentSnapshot; grams: string[] } => t.grams !== null);
+      for (let i = 0; i < todo.length && !dryRun; i += BATCH) {
+        const chunk = todo.slice(i, i + BATCH);
+        await withRetries(() => {
+          const batch = db.batch();
+          for (const t of chunk) batch.update(t.doc.ref, { [ADMIN_SEARCH_GRAMS]: t.grams });
+          return batch.commit();
+        });
+      }
+      written += todo.length;
+    },
+    { pageSize: PAGE, select: ["nameAr", "nameEn", ADMIN_SEARCH_GRAMS] },
+  );
   // One machine-readable line.
   console.log(`school_admin_grams: read ${read}, ${dryRun ? "would write" : "wrote"} ${written}`);
 }

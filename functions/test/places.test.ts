@@ -204,7 +204,7 @@ describe("places: import file and plan", () => {
     const first = planPlaces(parsed.areas, []);
     assert.equal(first.creates.length, 1);
     const stored = parsed.areas.map((a) => ({ ...area(a.id, 0, 0, 1), ...a }));
-    assert.deepEqual(planPlaces(parsed.areas, stored), { creates: [], updates: [], unchanged: 1, skipped: 0 });
+    assert.deepEqual(planPlaces(parsed.areas, stored), { creates: [], updates: [], unchanged: 1, skipped: 0, retires: [] });
     const renamed = [{ ...stored[0], nameEn: "Old" }];
     assert.equal(planPlaces(parsed.areas, renamed).updates.length, 1);
     assert.equal(planPlaces(parsed.areas, [{ ...renamed[0], adminEdited: true }]).skipped, 1);

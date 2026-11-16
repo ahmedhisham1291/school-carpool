@@ -10,7 +10,8 @@
  *
  *   SCHOOLS_PROJECT=<project-id> ALGOLIA_APP_ID=... ALGOLIA_WRITE_KEY=... ALGOLIA_INDEX=... \
  *     npm --prefix functions run schools:algolia -- sync
- *       Settings, then every active school sent again (1,000 per call) and
+ *       Settings, then every active school sent again (read 500 at a time,
+ *       sent 1,000 per call) and
  *       every other school (merged, awaiting review, hidden sample) removed.
  *       Never empties the index first, so search keeps working during the
  *       run. Works with the dashboard's Write API key. Used by
@@ -29,10 +30,11 @@
  * (free plan: 50,000) and search requests, not these indexing calls.
  */
 import { initializeApp } from "firebase-admin/app";
-import { FieldPath, getFirestore, type QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 import { SCHOOLS } from "../src/admin_panel/store";
 import { AlgoliaRestClient } from "../src/schools/algolia";
-import { planIndexSync } from "../src/schools/catalog";
+import { SEARCH_RECORD_FIELDS, planIndexSync, recordWarning } from "../src/schools/catalog";
+import { forEachPage } from "../src/schools/paged";
 
 function refuse(reason: string): never {
   console.error(`algolia_schools: refusing to run: ${reason}`);
@@ -48,6 +50,7 @@ if (apiKey === "unused") refuse("the Algolia key is the placeholder 'unused'; se
 const client = new AlgoliaRestClient(appId, apiKey, indexName);
 
 const BATCH = 1000;
+const PAGE = 500;
 const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
 
 async function withRetry(label: string, call: () => Promise<void>): Promise<void> {
@@ -65,40 +68,47 @@ async function withRetry(label: string, call: () => Promise<void>): Promise<void
   }
 }
 
-async function readSchools(): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+/**
+ * Reads the schools 500 at a time (only the fields the index needs) and
+ * sends each page to Algolia before reading the next: no single Firestore
+ * answer is large (one query for 7,000+ schools hit the 300 s deadline,
+ * 16 Nov 2026), and a stopped run has sent what it read (run it again:
+ * the same records are sent again, nothing is doubled).
+ */
+async function sync(clearFirst: boolean): Promise<void> {
   const projectId = process.env.SCHOOLS_PROJECT ?? "";
   if (!projectId) refuse("set SCHOOLS_PROJECT to the Firebase project to read");
   initializeApp({ projectId });
   const db = getFirestore();
-  const out: Array<{ id: string; data: Record<string, unknown> }> = [];
-  let last: QueryDocumentSnapshot | undefined;
-  for (;;) {
-    let query = db.collection(SCHOOLS).orderBy(FieldPath.documentId()).limit(5000);
-    if (last) query = query.startAfter(last);
-    const page = await query.get();
-    for (const doc of page.docs) out.push({ id: doc.id, data: doc.data() });
-    if (page.docs.length < 5000) break;
-    last = page.docs[page.docs.length - 1];
-  }
-  return out;
-}
-
-async function sync(clearFirst: boolean): Promise<void> {
   await withRetry("settings", () => client.setSettings());
-  const { records, remove } = planIndexSync(await readSchools());
   if (clearFirst) await withRetry("clear", () => client.clear());
-  for (let i = 0; i < records.length; i += BATCH) {
-    await withRetry(`records ${i + 1}+`, () => client.saveMany(records.slice(i, i + BATCH)));
-    const done = Math.min(i + BATCH, records.length);
-    if (done === records.length || (i / BATCH) % 5 === 0) console.log(`  sent ${done} of ${records.length}`);
-  }
-  if (!clearFirst) {
-    for (let i = 0; i < remove.length; i += BATCH) {
-      await withRetry(`removals ${i + 1}+`, () => client.removeMany(remove.slice(i, i + BATCH)));
-    }
-  }
-  // One machine-readable line for tool/cloud_setup.sh.
-  console.log(`algolia_schools: indexed ${records.length}, not in search ${remove.length}, index ${indexName}`);
+  let indexed = 0;
+  let removed = 0;
+  let read = 0;
+  await forEachPage(
+    db,
+    SCHOOLS,
+    async (docs) => {
+      read += docs.length;
+      const { records, remove } = planIndexSync(docs.map((doc) => ({ id: doc.id, data: doc.data() })));
+      for (let i = 0; i < records.length; i += BATCH) {
+        await withRetry(`records ${indexed + i + 1}+`, () => client.saveMany(records.slice(i, i + BATCH)));
+      }
+      if (!clearFirst) {
+        for (let i = 0; i < remove.length; i += BATCH) {
+          await withRetry(`removals ${removed + i + 1}+`, () => client.removeMany(remove.slice(i, i + BATCH)));
+        }
+      }
+      indexed += records.length;
+      removed += remove.length;
+      if ((read / PAGE) % 5 === 0) console.log(`  read ${read}, sent ${indexed}`);
+    },
+    { pageSize: PAGE, select: SEARCH_RECORD_FIELDS },
+  );
+  // Machine-readable lines for tool/cloud_setup.sh.
+  console.log(`algolia_schools: indexed ${indexed}, not in search ${removed}, index ${indexName}`);
+  const warning = recordWarning(indexed, Number(process.env.ALGOLIA_RECORD_WARN ?? "8000") || 8000);
+  if (warning) console.log(`algolia_schools: warning: ${warning}`);
 }
 
 async function main(): Promise<void> {

@@ -316,16 +316,29 @@ export interface PlacePlan<T> {
   unchanged: number;
   /** Edited by an admin (or merged): never overwritten by an import. */
   skipped: number;
+  /**
+   * Imported earlier (source osm or cod), active, not admin-edited, and
+   * not in this file: set inactive (never deleted), so a better source
+   * replaces them (the OpenStreetMap areas of 16 Nov 2026 -> COD-AB ADM2).
+   * Empty when the file would retire more places than it brings (a broken
+   * download must not empty the list).
+   */
+  retires: string[];
 }
 
+export const IMPORTED_PLACE_SOURCES = ["osm", "cod", "osm-boundary", "osm-place"] as const;
+
 /** Idempotent: unchanged places are not written, admin edits are kept, nothing is deleted. */
-export function planPlaces<T extends Comparable & { id: string }, E extends Comparable & { id: string; adminEdited: boolean; mergedInto: string | null }>(
+export function planPlaces<
+  T extends Comparable & { id: string },
+  E extends Comparable & { id: string; adminEdited: boolean; mergedInto: string | null; active?: boolean; source?: string },
+>(
   incoming: T[],
   existing: E[],
   extraSame: (a: T, b: E) => boolean = () => true,
 ): PlacePlan<T> {
   const byId = new Map(existing.map((e) => [e.id, e]));
-  const plan: PlacePlan<T> = { creates: [], updates: [], unchanged: 0, skipped: 0 };
+  const plan: PlacePlan<T> = { creates: [], updates: [], unchanged: 0, skipped: 0, retires: [] };
   for (const p of incoming) {
     const e = byId.get(p.id);
     if (!e) plan.creates.push(p);
@@ -333,6 +346,19 @@ export function planPlaces<T extends Comparable & { id: string }, E extends Comp
     else if (sameShape(p, e) && extraSame(p, e)) plan.unchanged++;
     else plan.updates.push(p);
   }
+  const incomingIds = new Set(incoming.map((p) => p.id));
+  const retires = existing
+    .filter(
+      (e) =>
+        !incomingIds.has(e.id) &&
+        e.active !== false &&
+        !e.adminEdited &&
+        !e.mergedInto &&
+        (IMPORTED_PLACE_SOURCES as readonly string[]).includes(e.source ?? "osm"),
+    )
+    .map((e) => e.id)
+    .sort();
+  plan.retires = incoming.length >= retires.length ? retires : [];
   return plan;
 }
 
