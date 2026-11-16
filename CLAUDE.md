@@ -35,6 +35,9 @@ quality)
   one interface (WalletProvider). The partner holds the money. Our database
   keeps a copy of balances and a record of transfers, never the money.
 - Errors: Sentry in the app, the website and Cloud Functions.
+- Activity carpools (F39) are switched off until the lawyer's opinion
+  covers them; prod is closed to new real parents until the PDPC licences
+  are granted (config/launch.pdpcLicensed).
 - Pilot feature switches: server settings turn features on or off without a
   new build; the wallet and other non-core features start off (docs/DECISIONS.md).
 - Money: OFF (owner decision 16 Nov 2026). Rides are free volunteer turns
@@ -159,10 +162,17 @@ PRIVACY (never skip)
   message text, and never send them to Sentry or Algolia.
 - Only fake data in dev and staging. Never copy production data.
 - ID, selfie, school ID, licence and driver photos go to a private bucket,
-  encrypted with our KMS key, kept while the account is active and deleted
-  with the account (at most 30 days later only while an open report or
-  safety case needs them; owner decision 16 Nov 2026, docs/DECISIONS.md,
-  lawyer to confirm). Admins read them only through a logged reason.
+  encrypted with our KMS key. Verification case images (ID front/back,
+  verification selfies, school ID, licences) are deleted 30 days after the
+  review decision (the result, keyed ID hash and expiry are kept). The face
+  reference and approved driver photo are kept while the account is active
+  and deleted with it (30-day safety hold only with an open report). Admins
+  read them only through a logged reason (owner decisions 16 Nov 2026,
+  docs/DECISIONS.md, lawyer to confirm).
+- The Anti-Cybercrime sign-in log (signInLog) keeps each sign-in 180 days,
+  also after account deletion; server-only; disclosed only on a judicial
+  order through adminDiscloseSignInLog. Consent records are kept 3 years
+  after closure; routes 90 days after the run.
 - Other parents get rounded home coordinates only. Exact pickup points are
   readable only by approved members of that carpool.
 
