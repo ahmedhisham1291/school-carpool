@@ -1299,7 +1299,7 @@
   "notifGroupTripAlerts": "Trip alerts",
   "notifGroupTrips": "Run updates",
   "emergencyContactTitle": "Emergency contact",
-  "emergencyContactIntro": "If you press Emergency during a run, this person gets a WhatsApp message with the car's location.",
+  "emergencyContactIntro": "If you press Emergency during a run, this person gets a WhatsApp message with the car's location. It does not replace calling 122 or 123.",
   "emergencyContactPhoneLabel": "Mobile number",
   "emergencyContactPhoneHelper": "An Egyptian mobile number with WhatsApp.",
   "emergencyContactSaved": "Contact saved",
@@ -1375,7 +1375,7 @@
   "tripQuickSent": "Message sent",
   "tripEmergency": "Emergency",
   "tripEmergencyTitle": "Send emergency alert?",
-  "tripEmergencyBody": "Every parent of the carpool and your emergency contact get an alert with the car's location.",
+  "tripEmergencyBody": "Every parent of the carpool and your emergency contact get an alert with the car's location. It does not call the police or an ambulance: in danger, call 122 or 123.",
   "tripEmergencySend": "Send alert",
   "tripEmergencySentAll": "Alert sent to all",
   "tripEmergencySentGroup": "Alert sent to group",
@@ -2312,5 +2312,8 @@
   "placeChooseAreaFirst": "Choose an area first",
   "placeNoAreasForCity": "No areas for this city yet",
   "placeNoDistrictsForArea": "No districts for this area yet",
-  "addressDistrictOptionalHelper": "Optional. Type it if you know it."
+  "addressDistrictOptionalHelper": "Optional. Type it if you know it.",
+  "aboutLegalSection": "Legal and support",
+  "aboutSupport": "Contact support",
+  "aboutOpenWebPage": "Open the web page"
 }

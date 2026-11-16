@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:school_carpool/config/flavor.dart';
 import 'package:school_carpool/design/components/components.dart';
 import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
@@ -63,8 +64,12 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            AppInlineMessage(message: l10n.termsDraftNotice),
-            const SizedBox(height: AppSpacing.s16),
+            // Testers only: the store build never shows a "draft" note
+            // (App Review guideline 2.1, no placeholder text).
+            if (!ref.read(flavorConfigProvider).isProd) ...<Widget>[
+              AppInlineMessage(key: const Key('terms.draftNotice'), message: l10n.termsDraftNotice),
+              const SizedBox(height: AppSpacing.s16),
+            ],
             Text(text),
           ],
         ),
