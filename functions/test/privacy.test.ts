@@ -16,8 +16,13 @@ import {
   newClosedAccount,
   NOT_DELETED,
   pathFor,
+  EVIDENCE_TARGETS,
+  PURGE_STEPS,
   PURGE_TARGETS,
+  evidenceSteps,
+  nextWorkAt,
   purgeSteps,
+  type EvidenceStep,
   SUBCOLLECTIONS,
   type ClosedAccount,
   type DeletionRunner,
@@ -53,6 +58,10 @@ import { accessReason, selfieArchivePath, thumbOwner, thumbPath } from "../src/p
 import { consentViews, needsAdmin, withdrawEffect } from "../src/privacy/requests";
 import {
   AFTER_CLOSURE_DAYS,
+  DELETED_WITH_ACCOUNT,
+  KEPT_AFTER_DELETION,
+  SAFETY_HOLD_DAYS,
+  evidencePurgeAt,
   chatPurgeAt,
   DATA_TYPES,
   DAY_MS,
@@ -76,7 +85,7 @@ const NOW = Date.UTC(2026, 10, 14, 8);
 describe("retention schedule", () => {
   it("has one rule per data type, and the dates of the owner's decision", () => {
     assert.deepEqual(RETENTION.map((r) => r.id), [...DATA_TYPES]);
-    assert.equal(rule("idPhotos").days, 365);
+    assert.equal(rule("idPhotos").days, 0, "owner decision 16 Nov 2026: photos go with the account");
     assert.equal(rule("idPhotos").from, "accountClosed");
     assert.equal(rule("trips").from, "accountClosed");
     assert.equal(rule("routeArchive").days, 365);
@@ -438,7 +447,7 @@ class FakeRunner implements DeletionRunner {
   closedMap = new Map<string, ClosedAccount>();
   ran: string[] = [];
   failing = new Set<string>();
-  factsValue = { exists: true, wallet: null as { balance: number; pending: number } | null, drivingNow: false, parentId: "ABCD2345", banned: false };
+  factsValue = { exists: true, wallet: null as { balance: number; pending: number } | null, drivingNow: false, parentId: "ABCD2345", banned: false, openCase: false };
   walletLog: string[] = [];
   async facts() {
     const { wallet: _wallet, ...rest } = this.factsValue;
@@ -474,7 +483,7 @@ class FakeRunner implements DeletionRunner {
     this.step(t);
     return 1;
   }
-  async runPurgeStep(_uid: string, step: PurgeStep) {
+  async runPurgeStep(_uid: string, step: PurgeStep | EvidenceStep) {
     this.step(`purge:${step}`);
   }
 }
@@ -512,7 +521,7 @@ describe("account deletion", () => {
   });
 
   it("every collection in firestore.rules is deleted at once, purged after a year, or kept for a stated reason", () => {
-    const covered = new Set([...IMMEDIATE_TARGETS, ...PURGE_TARGETS].map((t) => t.collection));
+    const covered = new Set([...IMMEDIATE_TARGETS, ...EVIDENCE_TARGETS, ...PURGE_TARGETS].map((t) => t.collection));
     const found = rulesCollections().filter((c) => !c.includes("/") || c.startsWith("users/"));
     assert.ok(found.length > 40, `parsed ${found.length} collections`);
     const missing = found.filter((c) => !covered.has(c) && NOT_DELETED[c] === undefined);
@@ -584,7 +593,9 @@ describe("account deletion", () => {
     const r = new FakeRunner();
     const res = await deleteAccount(r, "u1", NOW, () => undefined);
     assert.equal(res.failed, 0);
-    assert.equal(res.purgeAtMs, NOW + 365 * DAY_MS);
+    assert.equal(res.held, false);
+    assert.equal(res.evidenceAtMs, NOW, "photos go with the account");
+    assert.equal(res.purgeAtMs, NOW + 365 * DAY_MS, "only the kept records wait a year");
     assert.deepEqual(r.ran.slice(0, 6), ["flow:trips", "flow:carpools", "flow:anonymise", "flow:chat", "flow:trust", "flow:identity"]);
     assert.ok(r.ran.includes("homes/u1"));
     // F46: the address leaves the place counts before the home is deleted.
@@ -593,11 +604,71 @@ describe("account deletion", () => {
     assert.ok(r.ran.includes("ratings.rateeUid"));
     assert.ok(r.ran.includes("guardianLinks.guardianUid"));
     assert.ok(r.ran.includes("users/u1/notifications"));
-    assert.equal(r.ran[r.ran.length - 1], "flow:auth");
-    assert.equal(r.ran[r.ran.length - 2], "users/u1", "the user record goes last before Auth");
+    assert.ok(r.ran.includes("users/u1/devices") && r.ran.includes("pushTokens.uid"), "devices and push tokens");
+    assert.ok(r.ran.indexOf("users/u1") < r.ran.indexOf("flow:auth"), "the user record goes before Auth");
     assert.ok(!r.ran.some((s) => s.startsWith("bannedIds") || s.startsWith("transfers") || s.startsWith("reports")));
-    assert.ok(!r.ran.some((s) => s.includes("faceRefs") || s.includes("verifications")), "photos wait for the purge");
     assert.deepEqual(r.closedMap.get("u1")?.failed, []);
+  });
+
+  it("owner decision 16 Nov 2026: photos, face reference, case records and routes go in the same call (guideline 5.1.1(v))", async () => {
+    const r = new FakeRunner();
+    await deleteAccount(r, "u1", NOW, () => undefined);
+    for (const gone of ["verification/u1/", "faceRefs/u1/", "driverPhotos/u1/", "selfieArchive/u1/", "thumbs/u1/", "verifications.uid", "purge:routes"]) {
+      assert.ok(r.ran.includes(gone), `${gone} deleted with the account`);
+    }
+    assert.ok(r.ran.indexOf("flow:auth") < r.ran.indexOf("faceRefs/u1/"), "after the account itself is closed");
+    const c = r.closedMap.get("u1")!;
+    assert.equal(c.hold, false);
+    assert.equal(c.evidenceDoneAtMs, NOW);
+    assert.equal(c.purgedAtMs, null);
+    assert.equal(nextWorkAt(c), NOW + 365 * DAY_MS, "next: the kept records, a year later");
+    // Kept for a year: the proof of consent and the parent's part of shared trips.
+    assert.ok(!r.ran.includes("users/u1/consents") && !r.ran.includes("purge:trips"));
+    assert.deepEqual(PURGE_TARGETS.map((t) => t.collection), ["users/consents"]);
+    assert.deepEqual([...PURGE_STEPS], ["trips"]);
+    assert.ok(!(PURGE_STEPS as readonly string[]).includes("stream"), "chat messages no longer wait a year (the chat step deletes them)");
+    assert.equal(SAFETY_HOLD_DAYS, 30);
+    assert.equal(rule("idPhotos").days, 0);
+    assert.ok(rule("idPhotos").enforcedBy.includes("accountDeletion"));
+    assert.ok(DELETED_WITH_ACCOUNT.some((x) => x.includes("face reference")) && DELETED_WITH_ACCOUNT.some((x) => x.includes("chat message")));
+    assert.ok(!KEPT_AFTER_DELETION.some((k) => /photos, trip summaries/.test(k.what)), "the 1-year photo rule is gone");
+  });
+
+  it("safety hold: with an open report about the parent the evidence waits 30 days at most, everything else still goes at once", async () => {
+    const r = new FakeRunner();
+    r.factsValue.openCase = true;
+    const res = await deleteAccount(r, "u1", NOW, () => undefined);
+    assert.equal(res.held, true);
+    assert.equal(res.evidenceAtMs, NOW + 30 * DAY_MS);
+    assert.ok(r.ran.includes("flow:chat") && r.ran.includes("homes/u1") && r.ran.includes("users/u1/devices") && r.ran.includes("flow:auth"));
+    assert.ok(!r.ran.some((s) => s.includes("faceRefs") || s === "verification/u1/" || s === "verifications.uid" || s === "purge:routes"), "evidence held");
+    let c = r.closedMap.get("u1")!;
+    assert.equal(c.evidenceDoneAtMs, null);
+    assert.equal(nextWorkAt(c), NOW + 30 * DAY_MS);
+    // Day 29: still held.
+    r.ran.length = 0;
+    assert.equal((await continueDeletion(r, c, NOW + 29 * DAY_MS, () => undefined)).evidenceDeleted, false);
+    assert.equal(r.ran.length, 0);
+    // Day 30: deleted whatever the state of the report.
+    c = r.closedMap.get("u1")!;
+    const done = await continueDeletion(r, c, NOW + 30 * DAY_MS, () => undefined);
+    assert.equal(done.evidenceDeleted, true);
+    assert.equal(done.purged, false);
+    for (const gone of ["verification/u1/", "faceRefs/u1/", "driverPhotos/u1/", "selfieArchive/u1/", "thumbs/u1/", "verifications.uid", "purge:routes"]) assert.ok(r.ran.includes(gone), gone);
+    assert.equal(r.closedMap.get("u1")?.evidenceDoneAtMs, NOW + 30 * DAY_MS);
+    assert.equal(evidencePurgeAt(NOW, false), NOW);
+    assert.equal(evidencePurgeAt(NOW, true), NOW + 30 * DAY_MS);
+  });
+
+  it("an account closed under the older 1-year rule loses its photos at the next daily run", async () => {
+    const r = new FakeRunner();
+    // As firestore_store reads an old record: no evidence date -> due since the closure.
+    const old: ClosedAccount = { ...newClosedAccount("u1", "ABCD2345", false, NOW - 40 * DAY_MS), failed: ["purge:stream", "ptarget:6"] };
+    const done = await continueDeletion(r, old, NOW, () => undefined);
+    assert.equal(done.evidenceDeleted, true);
+    assert.deepEqual(done.failed, [], "step names of the older version are dropped, not failed for ever");
+    assert.ok(r.ran.includes("faceRefs/u1/") && r.ran.includes("purge:routes"));
+    assert.ok(!r.ran.includes("purge:stream"));
   });
 
   it("refuses with money in the wallet before touching anything", async () => {
@@ -612,12 +683,15 @@ describe("account deletion", () => {
   it("a failed step is recorded, retried by the daily job, and the purge waits for it", async () => {
     const r = new FakeRunner();
     r.failing.add("flow:chat");
+    r.failing.add("faceRefs/u1/");
     const errors: string[] = [];
     const res = await deleteAccount(r, "u1", NOW, (s) => errors.push(s));
-    assert.equal(res.failed, 1);
-    assert.deepEqual(errors, ["flow:chat"]);
-    assert.deepEqual(r.closedMap.get("u1")?.failed, ["flow:chat"]);
+    assert.equal(res.failed, 2);
+    assert.deepEqual(errors, ["flow:chat", "etarget:1"]);
+    assert.deepEqual(r.closedMap.get("u1")?.failed, ["flow:chat", "etarget:1"]);
+    assert.equal(r.closedMap.get("u1")?.evidenceDoneAtMs, null, "a photo delete failed: not done, retried tomorrow");
     assert.ok(r.ran.includes("users/u1"), "the other steps still ran");
+    assert.ok(r.ran.includes("selfieArchive/u1/"), "the other photos still went");
     // A year later the chat step still fails: no purge yet.
     const later = NOW + 366 * DAY_MS;
     let c = r.closedMap.get("u1")!;
@@ -628,22 +702,22 @@ describe("account deletion", () => {
     c = r.closedMap.get("u1")!;
     const done = await continueDeletion(r, c, later, () => undefined);
     assert.equal(done.purged, true);
-    assert.ok(r.ran.includes("faceRefs/u1/"));
-    assert.ok(r.ran.includes("selfieArchive/u1/"));
-    assert.ok(r.ran.includes("verifications.uid"));
+    assert.equal(done.evidenceDeleted, true);
+    assert.ok(r.ran.includes("faceRefs/u1/"), "the failed photo delete is retried");
+    assert.ok(!r.ran.includes("selfieArchive/u1/"), "what already went is not run twice");
     assert.ok(r.ran.includes("purge:trips"));
     assert.ok(r.ran.includes("users/u1/consents"));
-    assert.ok(r.ran.includes("purge:stream"));
     assert.equal(r.closedMap.get("u1")?.purgedAtMs, later);
   });
 
-  it("nothing is purged before the year is over", async () => {
+  it("the kept records (consents, the parent's part of trips) are not purged before the year is over", async () => {
     const r = new FakeRunner();
-    const c = newClosedAccount("u1", "ABCD2345", false, NOW);
+    const c = { ...newClosedAccount("u1", "ABCD2345", false, NOW), evidenceDoneAtMs: NOW };
     assert.equal((await continueDeletion(r, c, NOW + 364 * DAY_MS, () => undefined)).purged, false);
     assert.deepEqual(r.ran, []);
     assert.equal(immediateSteps().length, IMMEDIATE_TARGETS.length + 9); // 9 flow steps besides "records" (F46 added "places")
-    assert.equal(purgeSteps().length, PURGE_TARGETS.length + 3);
+    assert.equal(evidenceSteps().length, EVIDENCE_TARGETS.length + 1);
+    assert.equal(purgeSteps().length, PURGE_TARGETS.length + 1);
   });
 });
 
@@ -800,7 +874,7 @@ describe("retention job", () => {
   it("runs every task, writes a report, and alerts on failures without stopping", async () => {
     const store = new MemoryRetention();
     const runner = new FakeRunner();
-    store.closed = [{ ...newClosedAccount("u1", "ABCD2345", false, NOW - 400 * DAY_MS) }];
+    store.closed = [{ ...newClosedAccount("u1", "ABCD2345", false, NOW - 400 * DAY_MS, true) }];
     store.failArchives = true;
     const reported: unknown[] = [];
     const deletedChannels: string[] = [];
@@ -815,7 +889,8 @@ describe("retention job", () => {
       now: () => NOW,
       reportError: (e) => reported.push(e),
     });
-    assert.equal(report.tasks.closedAccounts.deleted, 1, "purged after a year");
+    assert.equal(report.tasks.closedAccounts.deleted, 1, "held evidence deleted, then the kept records purged after a year");
+    assert.ok(runner.ran.includes("users/u1/consents"));
     assert.ok(runner.ran.includes("faceRefs/u1/"));
     assert.deepEqual(report.tasks.routeArchives, { deleted: 0, failed: 1 });
     assert.deepEqual(report.tasks.chats, { deleted: 1, failed: 1 });

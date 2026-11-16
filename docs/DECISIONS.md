@@ -42,7 +42,8 @@ periods with the lawyer** (as the legal section above requires for longer retent
 
 - **Photos** (national ID front/back, identity selfie, child school ID, driver's and car
   licence, driver photo, live selfie checks): kept while the account is active and deleted
-  1 year after the account closes. Stored in the private bucket, encrypted with our own key
+  1 year after the account closes (**superseded 16 Nov 2026: deleted WITH the account**,
+  see "Data after account deletion" below). Stored in the private bucket, encrypted with our own key
   (Cloud KMS), compressed on the phone, readable only by admins through a logged reason.
   The identity selfie is the face reference for the random driver selfie checks.
 - **Usage analytics:** collected (screens, features used, crashes) without names, phone
@@ -59,6 +60,43 @@ periods with the lawyer** (as the legal section above requires for longer retent
   after 30 days, Coldline after 180 days), compressed route archives, and per-collection TTLs.
 - Every new data type is listed on the privacy screen, in the consent records and in the
   App Store privacy answers.
+
+## Data after account deletion (owner, 16 Nov 2026)
+
+Owner instruction: "All risks you're seeing, update the code and plan to be
+no risk at all." This **supersedes "photos kept 1 year after the account
+closes"** (and the same year for the verification records, the deleted
+parent's chat messages and the routes of runs they drove) in the section
+above. Reason: App Review guideline 5.1.1(v) and Apple's account-deletion
+rules allow keeping only what the law requires, and the parent must be told
+what is kept. **The lawyer is to confirm** the list of kept records
+(docs/open-items.md B13).
+
+- **Deleted with the account, in the same request:** profile, phone and
+  email; ID, selfie, school ID, licence and driver photos; the face
+  reference; the verification case records; children, car, home address and
+  exact pin; every chat message the parent wrote (private and group chats);
+  devices, sign-in history and push tokens; the archived routes of the runs
+  the parent drove.
+- **Safety hold:** only when an open report or rating flag about the parent
+  exists at deletion, the photos, case records and routes wait 30 days
+  (`SAFETY_HOLD_DAYS`) so the admins can finish the case; then they are
+  deleted whatever its state. Nothing else is held.
+- **Kept, minimised and detached from the profile** (no name, phone,
+  address, photo or ID number): run summaries shared with other families
+  (the parent as an initial; their part anonymised 1 year after closure),
+  the consent records (1 year), Settle up records (1 year, an initial),
+  transfer records (5 years), reports about the parent, the admin audit
+  log (2 years), the keyed ID hash on the ban list (banned parents only),
+  the reserved parent ID.
+- While an account is OPEN nothing changes: photos are kept (the face
+  reference is needed for the driver checks), routes 1 year after the run,
+  chat for the chat's life + 1 year.
+- Accounts already closed under the older rule: run
+  `npm --prefix functions run deletions:reapply` once after the deploy; the
+  next daily job deletes their photos, case records, routes and messages.
+- The privacy policy and the verification consent changed version
+  (2026-11-16): functions and app are deployed together.
 
 ## Owner updates (14 Nov 2026, 12:30)
 

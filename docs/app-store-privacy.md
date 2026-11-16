@@ -16,6 +16,35 @@ Valify, the wallet partner). "Linked to you" = tied to the parent's
 account. "Tracking" = combined with other companies' data for ads or
 shared with data brokers.
 
+## 0. Data after account deletion (owner decision 16 Nov 2026)
+
+Guideline 5.1.1(v) and Apple's page "Offering account deletion in your
+app": deleting the account removes it "along with any data associated
+with the account that the developer isn't legally required to maintain",
+and "If you're legally required to retain some user information, let
+people know what information will and won't be retained." The app does
+this (`functions/src/privacy/account_deletion.ts`, `retention.ts`):
+
+- **Deleted with the account, in the same request:** profile, phone,
+  email; ID, selfie, school ID, licence and driver photos, the face
+  reference and the verification case records; children, car, home
+  address and exact pin; every chat message the parent wrote; devices,
+  sign-in history and push tokens; the archived routes of runs the parent
+  drove. A step that fails is retried by the daily job (within 24 hours)
+  and reported to the admins.
+- **Safety hold, 30 days at most:** only when an open report or rating
+  flag about the parent exists at deletion, the photos, case records and
+  routes wait 30 days, then are deleted whatever the state of the case.
+- **Kept, minimised and detached from the profile** (no name, phone,
+  address, photo or ID number): summaries of runs shared with other
+  families (an initial; 1 year), the consent record (1 year), Settle up
+  records for the other parent (an initial; 1 year), transfer records
+  (5 years), reports, the admin audit log (2 years), the keyed ID hash on
+  the ban list (banned accounts only).
+- The Delete account screen, `/delete-account` and the privacy policy say
+  the same. **The lawyer confirms that the kept records are the ones the
+  law requires (open item B13).**
+
 ## 1. Short answers
 
 - **Do you or your third-party partners collect data from this app?** Yes.

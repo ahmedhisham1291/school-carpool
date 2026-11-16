@@ -43,6 +43,7 @@ to 13, docs/DECISIONS.md.
 | B10 | **Feature switches after the pilot:** when to turn on ratings and vouching, and the yearly check (first checked school year is 2027-28) | Both off |
 
 | B11 | **Notifications required to start a run** (the driver gate): App Review guideline 4.5.4 says push must not be required. Make it a warning instead of a block? | Required (owner decision 14 Nov, 13:05); audit recommends a warning |
+| B13 | **Lawyer to confirm the 16 Nov 2026 deletion rule** (DECISIONS.md "Data after account deletion"): that deleting photos, case records, routes and the parent's messages WITH the account is allowed (no law asks us to keep them longer), that the kept records (shared run summaries with an initial, consent record 1 year, Settle up 1 year, transfers 5 years, reports, audit log 2 years, ban-list hash) are the ones the law or child safety requires, and that a 30-day safety hold on photos and routes while a report about the parent is open is acceptable | Built as described; the public pages say so |
 | B12 | **App icon**: keep the default drawing (`tool/ios/AppIcon/icon_1024.png`) or supply a designer's icon | Default drawing |
 
 ## C. Accepted limitations (decided, not bugs)

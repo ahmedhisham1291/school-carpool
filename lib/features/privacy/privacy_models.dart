@@ -77,7 +77,9 @@ enum Keep {
 Keep keepOf(DataType t) => switch (t) {
   // Settle up records: same rule as trips (while either parent's account
   // is open, and 1 year after).
-  DataType.consents || DataType.idPhotos || DataType.trips || DataType.settleUp => Keep.yearAfterClosure,
+  // Owner decision 16 Nov 2026 (App Review 5.1.1(v)): ID photos, selfies
+  // and the face reference go with the account (Keep.untilDeletion).
+  DataType.consents || DataType.trips || DataType.settleUp => Keep.yearAfterClosure,
   DataType.liveLocation => Keep.oneDay,
   DataType.routeArchive => Keep.yearAfterRun,
   DataType.chat => Keep.yearAfterChat,

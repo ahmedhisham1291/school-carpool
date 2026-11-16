@@ -11,7 +11,19 @@ import type { AbuseCounter, AbuseKind, AbuseStore, SecurityAlert } from "./abuse
 import { alertFor } from "./abuse";
 import { DELETED_ID, anonymiseBalance, anonymiseCarpool, anonymiseRun, anonymiseSwap, anonymiseTrip } from "./anonymise";
 import { keepForClosedParent, participantsOf, planTripRetention, type AccountState } from "./trip_retention";
-import { CLOSING_REASON, pathFor, type ClosedAccount, type DeletionFacts, type DeletionRunner, type FlowStep, type PurgeStep, type Target, type WalletLock } from "./account_deletion";
+import {
+  CLOSING_REASON,
+  nextWorkAt,
+  pathFor,
+  type AccountFacts,
+  type ClosedAccount,
+  type DeletionRunner,
+  type EvidenceStep,
+  type FlowStep,
+  type PurgeStep,
+  type Target,
+  type WalletLock,
+} from "./account_deletion";
 import type { DeviceAccount, DeviceRecord, DeviceStore, Platform, SignInPlan, SignOutReason } from "./devices";
 import type { ExportSource } from "./export";
 import { PLACE_INTERNAL, internalId } from "../places/catalog";
@@ -294,15 +306,34 @@ export class FirestoreDeletionRunner implements DeletionRunner {
     private readonly hooks: DeletionHooks,
   ) {}
 
-  async facts(uid: string): Promise<Omit<DeletionFacts, "wallet"> & { parentId: string; banned: boolean }> {
+  async facts(uid: string): Promise<AccountFacts> {
     const user = await this.db.collection(USERS).doc(uid).get();
     const driving = await this.db.collection("trips").where("driverUid", "==", uid).where("status", "==", "active").limit(1).get();
     return {
+      openCase: await this.openCase(uid),
       exists: user.exists,
       drivingNow: !driving.empty,
       parentId: text(user.get("parentId")),
       banned: user.get("banned") === true,
     };
+  }
+
+  /**
+   * Safety hold: an open report about the parent (reported as a user, or
+   * the author of a reported message or chat) or an open rating flag.
+   * Single-field queries, filtered here (no extra index).
+   */
+  private async openCase(uid: string): Promise<boolean> {
+    const queries = [
+      this.db.collection(REPORTS).where("targetId", "==", uid).limit(100),
+      this.db.collection(REPORTS).where("subjectUid", "==", uid).limit(100),
+      this.db.collection("ratingFlags").where("rateeUid", "==", uid).limit(100),
+    ];
+    for (const q of queries) {
+      const snap = await q.get();
+      if (snap.docs.some((d: QueryDocumentSnapshot) => d.get("status") === "open")) return true;
+    }
+    return false;
   }
 
   async lockWallet(uid: string, nowMs: number): Promise<WalletLock | null> {
@@ -383,7 +414,13 @@ export class FirestoreDeletionRunner implements DeletionRunner {
       // The parent ID is dropped once the purge is done (the reservation stays in parentIds).
       parentId: c.purgedAtMs === null ? c.parentId : null,
       closedAt: ts(c.closedAtMs),
-      purgeAt: ts(c.purgeAtMs),
+      // The next date the daily job has work here (closedAccountsToWork):
+      // the evidence date, then the 1-year date of the kept records.
+      purgeAt: ts(nextWorkAt(c) ?? c.purgeAtMs),
+      recordsPurgeAt: ts(c.purgeAtMs),
+      hold: c.hold,
+      evidenceAt: ts(c.evidenceAtMs),
+      evidenceDoneAt: c.evidenceDoneAtMs === null ? null : ts(c.evidenceDoneAtMs),
       banned: c.banned,
       failed: c.failed,
       failedCount: c.failed.length,
@@ -414,8 +451,9 @@ export class FirestoreDeletionRunner implements DeletionRunner {
       case "chat": {
         await this.hooks.chat.revokeTokens(uid, nowMs + 1000);
         await this.hooks.chat.deactivateUser(uid);
-        // Private chats end now (frozen; deleted 1 year later). Group chats
-        // drop the parent through the chat sync when the record goes.
+        // Private chats end now (frozen; what the OTHER parent wrote is
+        // deleted 1 year later). Group chats drop the parent through the
+        // chat sync when the record goes.
         const snap = await this.db.collection("chatChannels").where("members", "array-contains", uid).limit(500).get();
         for (const d of snap.docs) {
           if (d.get("kind") !== "private") continue;
@@ -423,6 +461,10 @@ export class FirestoreDeletionRunner implements DeletionRunner {
           await this.hooks.chat.setFrozen(type, id, true);
           await d.ref.update({ frozen: true, endedAt: ts(nowMs), updatedAt: ts(nowMs) });
         }
+        // Owner decision 16 Nov 2026 (guideline 5.1.1(v)): the chat user
+        // and EVERY message the parent wrote (private and group chats) are
+        // hard-deleted now, not a year later. Reports keep their own copy.
+        await this.hooks.chat.deleteUser(uid);
         return;
       }
       case "trust": {
@@ -557,11 +599,7 @@ export class FirestoreDeletionRunner implements DeletionRunner {
     }
   }
 
-  async runPurgeStep(uid: string, step: PurgeStep): Promise<void> {
-    if (step === "stream") {
-      await this.hooks.chat.deleteUser(uid);
-      return;
-    }
+  async runPurgeStep(uid: string, step: PurgeStep | EvidenceStep): Promise<void> {
     if (step === "trips") {
       // Owner answer 14 Nov 13:29: the trips this parent drove stay while
       // another participant's data is kept; this parent's part is anonymised.
@@ -618,7 +656,13 @@ function closedFromDoc(uid: string, d: DocumentData): ClosedAccount {
     uid,
     parentId: text(d.parentId),
     closedAtMs: millis(d.closedAt),
-    purgeAtMs: millis(d.purgeAt),
+    hold: d.hold === true,
+    // A record written under the older rule (photos kept 1 year) has no
+    // evidence date: its evidence is due since the closure, so the next
+    // daily run deletes it (`deletions:reapply` makes that run find it).
+    evidenceAtMs: d.evidenceAt ? millis(d.evidenceAt) : millis(d.closedAt),
+    evidenceDoneAtMs: d.evidenceDoneAt ? millis(d.evidenceDoneAt) : null,
+    purgeAtMs: d.recordsPurgeAt ? millis(d.recordsPurgeAt) : millis(d.purgeAt),
     banned: d.banned === true,
     failed: Array.isArray(d.failed) ? d.failed.filter((x: unknown): x is string => typeof x === "string") : [],
     purgedAtMs: d.purgedAt ? millis(d.purgedAt) : null,

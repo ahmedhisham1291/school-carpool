@@ -12,9 +12,10 @@ import { USERS } from "./accounts";
  */
 export const CONSENT_VERSIONS = {
   terms: "2026-11-13",
-  // Prompt 12: new retention (photos kept while active + 1 year, route
-  // archive, analytics, chat history) needs the new privacy policy.
-  privacy: "2026-11-14",
+  // 16 Nov 2026 (owner, App Review 5.1.1): photos, messages, address and
+  // routes are deleted with the account; usage statistics only with the
+  // parent's yes. Deploy functions and app together.
+  privacy: "2026-11-16",
   // App Review audit (guideline 1.2): no tolerance for objectionable content.
   conduct: "2026-11-16",
   whatsapp: "2026-11-13",

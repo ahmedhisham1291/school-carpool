@@ -370,9 +370,12 @@ export const exportMyData = gatedCall({ ...opts, secrets: [STREAM_API_SECRET], t
 );
 
 /**
- * {} -> { closed, purgeAtMs }: deletes the account (the app asked for
- * confirmation and a fresh Face ID check). Refused with money in the
- * wallet, a pending transfer, or a run being driven.
+ * {} -> { closed, held, evidenceAtMs, purgeAtMs }: deletes the account
+ * (the app asked for confirmation and a fresh Face ID check). Photos, the
+ * face reference, case records, routes and chat messages go in this call;
+ * `held` says a safety hold (an open report about the parent) keeps the
+ * photos and routes until `evidenceAtMs` (at most 30 days). Refused with
+ * money in the wallet, a pending transfer, or a run being driven.
  */
 export const deleteMyAccount = gatedCallAlsoClosedDemo({ ...opts, secrets: [STREAM_API_SECRET], timeoutSeconds: 300, memory: "512MiB" }, (r) =>
   run("deleteMyAccount", async () => {
@@ -386,7 +389,7 @@ export const deleteMyAccount = gatedCallAlsoClosedDemo({ ...opts, secrets: [STRE
         void reportError(error);
       });
       await store.putRequest({ ...request, status: result.failed > 0 ? "open" : "done", reason: result.failed > 0 ? "steps-retried" : null, doneAtMs: Date.now() });
-      return { closed: true, purgeAtMs: result.purgeAtMs };
+      return { closed: true, held: result.held, evidenceAtMs: result.evidenceAtMs, purgeAtMs: result.purgeAtMs };
     } catch (error) {
       if (error instanceof DeletionError) await store.putRequest({ ...request, status: "refused", reason: error.reason, doneAtMs: Date.now() });
       throw error;
