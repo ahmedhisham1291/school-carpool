@@ -8,7 +8,9 @@ import { GeoPoint, Timestamp, type Firestore } from "firebase-admin/firestore";
 import { schoolSearchGrams } from "../src/admin_panel/school_search";
 import type { FirestoreListsStore } from "../src/admin_panel/store";
 import { FirebaseAccountService } from "../src/auth/accounts";
+import { CONSENT_TEXT_KEYS, consentText } from "../src/auth/consent_texts";
 import { CONSENT_VERSIONS, REQUIRED_CONSENTS } from "../src/auth/consents";
+import { textHash } from "../src/auth/signature";
 import { isReviewPhone } from "../src/auth/otp_flow";
 import { REVIEW_ACCESS_DOC, isReviewDemoAccount, readReviewAccess, reviewDemoState } from "../src/auth/review_access";
 import { DEMO_IDS, demoPlan, demoWindowMs } from "../src/auth/review_demo";
@@ -104,6 +106,8 @@ export async function seedReviewDemo(ctx: SeedContext): Promise<void> {
         ...nameSearchFields(String(u.fields.firstName), String(u.fields.lastName)),
         termsAcceptedAt: now,
         termsVersion: CONSENT_VERSIONS.terms,
+        // R3: the typed names of the signed consents (the copy under Privacy shows them).
+        signedNames: Object.fromEntries(Object.keys(CONSENT_TEXT_KEYS).map((t) => [t, `${String(u.fields.firstName)} ${String(u.fields.lastName)}`])),
         updatedAt: now,
       },
       { merge: true },
@@ -116,13 +120,20 @@ export async function seedReviewDemo(ctx: SeedContext): Promise<void> {
       ...REQUIRED_CONSENTS.map((t): [string, string] => [t, CONSENT_VERSIONS[t]]),
       ...(Object.entries(VERIFICATION_CONSENT_VERSIONS) as Array<[string, string]>),
     ];
+    const language = u.fields.language === "en" ? "en" : "ar";
     for (const [type, version] of consents) {
+      // R3: the sensitive-data consents carry a signature like a real one
+      // (the exact text's hash), marked as the demo's (no key, no device).
+      const text = type in CONSENT_TEXT_KEYS ? consentText(type, version, language) : null;
       batch.set(db.collection("users").doc(u.uid).collection("consents").doc(`review-demo-${type}`), {
         type,
         version,
         acceptedAt: now,
         withdrawnAt: null,
         source: "reviewDemo",
+        ...(text === null
+          ? {}
+          : { signature: { method: "deviceAuth", nameHash: "review-demo", nameMatched: true, textHash: textHash(text), language, deviceKey: null, platform: "ios", appVersion: "review-demo" } }),
       });
     }
   }

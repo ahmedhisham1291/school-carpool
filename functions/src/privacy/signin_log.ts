@@ -100,9 +100,15 @@ export function openText(secret: string, sealed: string): string | null {
   }
 }
 
+/** The lookup-hash key: derived separately from the encryption key (one secret, two purposes, two keys). */
+function lookupKeyBytes(secret: string): Buffer {
+  if (secret.length < 16) throw new Error("sign-in log key too short");
+  return createHash("sha256").update(`signin-log-lookup:${secret}`).digest();
+}
+
 /** Keyed hash of an E.164 number (its own purpose string; not the sign-in limits' key). */
 export function signInPhoneKey(secret: string, phoneE164: string): string {
-  return `l_${createHmac("sha256", keyBytes(secret)).update(`phone:${phoneE164}`).digest("hex").slice(0, 48)}`;
+  return `l_${createHmac("sha256", lookupKeyBytes(secret)).update(`phone:${phoneE164}`).digest("hex").slice(0, 48)}`;
 }
 
 /** One line for a sign-in that just happened. */
