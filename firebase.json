@@ -31,7 +31,15 @@
             },
             {
               "key": "Content-Security-Policy",
-              "value": "frame-ancestors 'none'"
+              "value": "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'none'"
+            },
+            {
+              "key": "Content-Security-Policy-Report-Only",
+              "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com https://www.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://storage.googleapis.com https://firebasestorage.googleapis.com; connect-src 'self' https://*.googleapis.com https://*.cloudfunctions.net https://*.run.app https://*.sentry.io https://www.gstatic.com https://fonts.gstatic.com https://www.google.com https://*.google-analytics.com; frame-src https://www.google.com https://recaptcha.google.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'none'"
+            },
+            {
+              "key": "Strict-Transport-Security",
+              "value": "max-age=31536000; includeSubDomains"
             },
             {
               "key": "X-Content-Type-Options",
@@ -43,7 +51,11 @@
             },
             {
               "key": "Permissions-Policy",
-              "value": "camera=(), microphone=(), geolocation=()"
+              "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), clipboard-read=()"
+            },
+            {
+              "key": "Cross-Origin-Opener-Policy",
+              "value": "same-origin"
             },
             {
               "key": "X-Robots-Tag",
@@ -94,7 +106,11 @@
             },
             {
               "key": "Content-Security-Policy",
-              "value": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'"
+              "value": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+            },
+            {
+              "key": "Strict-Transport-Security",
+              "value": "max-age=31536000; includeSubDomains"
             },
             {
               "key": "X-Content-Type-Options",
@@ -103,6 +119,14 @@
             {
               "key": "Referrer-Policy",
               "value": "no-referrer"
+            },
+            {
+              "key": "Permissions-Policy",
+              "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+            },
+            {
+              "key": "Cross-Origin-Opener-Policy",
+              "value": "same-origin"
             },
             {
               "key": "X-Robots-Tag",
