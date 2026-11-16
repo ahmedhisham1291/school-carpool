@@ -279,12 +279,16 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Verify your account'), findsWidgets);
-    expect(find.text('National ID'), findsOneWidget);
-    expect(find.text('Front and back'), findsOneWidget);
-    expect(find.byKey(const Key('verify.later')), findsOneWidget);
     // Owner decision 16 Nov 2026: why we check, before asking.
     expect(find.byKey(const Key('verify.why')), findsOneWidget);
     expect(find.byKey(const Key('verify.neededFor')), findsNothing);
+    // The "why" card pushes the steps down the lazy list: scroll to them.
+    final Finder list = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('National ID'), 200, scrollable: list);
+    expect(find.text('National ID'), findsOneWidget);
+    expect(find.text('Front and back'), findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('verify.later')), 200, scrollable: list);
+    expect(find.byKey(const Key('verify.later')), findsOneWidget);
   });
 
   testWidgets('opened from a closed place: says why, and Later goes back to that tab', (WidgetTester tester) async {
@@ -296,6 +300,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byKey(const Key('verify.neededFor')), findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('verify.later')), 200, scrollable: find.byType(Scrollable).first);
     await tester.tap(find.byKey(const Key('verify.later')));
     await tester.pump(const Duration(milliseconds: 100));
     expect(router.routerDelegate.currentConfiguration.uri.path, AppTab.profile.path);
