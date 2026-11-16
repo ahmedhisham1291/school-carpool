@@ -16,7 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// run the driving gate (location_gate.dart) checks Location Services, the
 /// permission ("While Using the App" is enough; "Always" is never
 /// required, only offered once as an optional step for run recovery),
-/// Precise Location and notifications.
+/// and Precise Location. Notifications are never required.
 
 /// Where the background location permission stands.
 enum TrackerPermission {

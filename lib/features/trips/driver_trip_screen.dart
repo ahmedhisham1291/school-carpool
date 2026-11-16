@@ -49,8 +49,8 @@ class _Pending {
 /// Before the run: a quick live selfie when the server asks for one (F38),
 /// then Start run. Start run first passes the driving gate
 /// (location_gate.dart, Prompt 13): Location Services, "While Using the
-/// App", Precise Location and notifications, with blocking steps for what
-/// is missing ("Always" is never required; the optional run-recovery step
+/// App" and Precise Location, with blocking steps for what is missing
+/// (notifications off only warn, they never block; "Always" is never required; the optional run-recovery step
 /// may follow, always_location_screen.dart). During the run: one card per
 /// child with large buttons (Arrived, Picked up, Dropped), the three quick
 /// buttons and the emergency button, and a one-line hint to keep the app
@@ -130,7 +130,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     }
     final DrivingCheck check = await ref.read(drivingReadinessProvider).check();
     if (!check.locationReady && mounted) {
-      await _lost(check.items(locationOnly: true).first);
+      await _lost(check.items.first);
     }
   }
 
@@ -146,10 +146,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     unawaited(
       ref.read(tripRepositoryProvider).reportTrackingLost(widget.carpoolId, widget.runId, item.name).then((_) {}, onError: (Object _) {}),
     );
-    // Location items only: notifications are required before a run starts,
-    // never to go on with one.
+    // Location items only (notifications are never required).
     final DrivingReadiness readiness = ref.read(drivingReadinessProvider);
-    final bool back = await showLocationSteps(context, blocking: true, locationOnly: true);
+    final bool back = await showLocationSteps(context, blocking: true, running: true);
     _lostShown = false;
     // Closed by hand after fixing it in Settings counts too.
     final bool ready = back || (await readiness.check()).locationReady;

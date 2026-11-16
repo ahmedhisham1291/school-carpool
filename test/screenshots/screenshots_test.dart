@@ -937,7 +937,7 @@ void main() {
       testWidgets(gate, skip: skip, (WidgetTester tester) async {
         final FakeTripRepository trips = FakeTripRepository(trip: testTrip());
         final FakeDrivingReadiness readiness = FakeDrivingReadiness(
-          current: const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.permission, GateItem.precise, GateItem.notifications}),
+          current: const DrivingCheck(missing: <GateItem>{GateItem.service, GateItem.permission, GateItem.precise}, notificationsOff: true),
         );
         addTearDown(trips.dispose);
         addTearDown(readiness.dispose);
@@ -985,7 +985,7 @@ void main() {
         final String banner = steps ? 'home_location_steps_${locale}_$mode' : 'home_location_banner_${locale}_$mode';
         testWidgets(banner, skip: skip, (WidgetTester tester) async {
           final FakeDrivingReadiness readiness = FakeDrivingReadiness(
-            current: const DrivingCheck(missing: <GateItem>{GateItem.permission, GateItem.notifications}),
+            current: const DrivingCheck(missing: <GateItem>{GateItem.permission}, notificationsOff: true),
           );
           addTearDown(readiness.dispose);
           await _pumpScreen(

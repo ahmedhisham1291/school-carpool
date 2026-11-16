@@ -8754,18 +8754,6 @@
   "@gatePreciseStep": {
     "description": "Step: Precise Location (iOS label)"
   },
-  "gateNotificationsTitle": "الإشعارات",
-  "@gateNotificationsTitle": {
-    "description": "Missing item: notifications are off"
-  },
-  "gateNotificationsStep1": "اضغط الإشعارات.",
-  "@gateNotificationsStep1": {
-    "description": "Step: notifications (iOS label)"
-  },
-  "gateNotificationsStep2": "شغّل السماح بالإشعارات.",
-  "@gateNotificationsStep2": {
-    "description": "Step: notifications (iOS label)"
-  },
   "gateRecheck": "تُغلق هذه الصفحة وحدها عند اكتمال الخطوات.",
   "@gateRecheck": {
     "description": "Hint under the steps"
@@ -10342,5 +10330,17 @@
   "aboutOpenWebPage": "فتح صفحة الويب",
   "@aboutOpenWebPage": {
     "description": "Button under a document: opens its public web page"
+  },
+  "gateNotifWarnTitle": "الإشعارات متوقفة",
+  "@gateNotifWarnTitle": {
+    "description": "Title of the skippable warning before a run when notifications are off (one line)"
+  },
+  "gateNotifWarnBody": "قد تفوتك تنبيهات المشوار، مثل «المشوار ما زال مفتوحًا». يمكنك بدء المشوار الآن، أو تشغيل الإشعارات من الإعدادات.",
+  "@gateNotifWarnBody": {
+    "description": "Body of the warning: the driver may go on without notifications"
+  },
+  "gateNotifWarnContinue": "ابدأ الآن",
+  "@gateNotifWarnContinue": {
+    "description": "Button: start the run without notifications (one line)"
   }
 }

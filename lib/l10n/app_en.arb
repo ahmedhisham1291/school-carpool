@@ -1964,9 +1964,6 @@
   "gatePermissionStep": "Choose While Using the App.",
   "gatePreciseTitle": "Precise Location",
   "gatePreciseStep": "Turn on Precise Location.",
-  "gateNotificationsTitle": "Notifications",
-  "gateNotificationsStep1": "Tap Notifications.",
-  "gateNotificationsStep2": "Turn on Allow Notifications.",
   "gateRecheck": "This page closes by itself when all is set.",
   "gateStepNumber": "Step {number}",
   "locationBannerTitle": "Location is off",
@@ -2315,5 +2312,8 @@
   "addressDistrictOptionalHelper": "Optional. Type it if you know it.",
   "aboutLegalSection": "Legal and support",
   "aboutSupport": "Contact support",
-  "aboutOpenWebPage": "Open the web page"
+  "aboutOpenWebPage": "Open the web page",
+  "gateNotifWarnTitle": "Notifications are off",
+  "gateNotifWarnBody": "You may miss alerts for this run, such as “Run still on”. You can start now, or turn notifications on in Settings.",
+  "gateNotifWarnContinue": "Start anyway"
 }
