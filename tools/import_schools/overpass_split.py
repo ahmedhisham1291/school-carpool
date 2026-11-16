@@ -61,12 +61,45 @@ STATUS_SKIPPED = "skipped"  # the time budget ran out; older file used if any
 
 @dataclass(frozen=True)
 class Part:
-    """One search area: a governorate (code "EG-C", ...) or all of Egypt."""
+    """One query: a governorate (code "EG-C", ...), a piece of one
+    ("EG-C.tags", "EG-C.named.q2", see sub_parts) or all of Egypt."""
 
     code: str
     governorate: str  # internal key ("cairo"); "" for all of Egypt
     area: str  # Overpass statement that sets the named set (".g")
     label: str
+    gov_code: str = ""  # "EG-C" for every piece of Cairo
+    kind: str = ""  # what the piece asks for (the caller's query builder decides)
+    bbox: tuple[float, float, float, float] | None = None  # (south, west, north, east) of this piece
+
+
+# Governorates whose name queries are split into four quadrants (the most
+# mapped ones: the 16 Nov 2026 run timed out in Alexandria, Cairo and Giza).
+BIG_GOVERNORATES = frozenset({"EG-ALX", "EG-C", "EG-GZ", "EG-KB", "EG-SHR", "EG-DK", "EG-BH", "EG-GH", "EG-MNF"})
+
+
+def quadrants(bbox: tuple[float, float, float, float]) -> list[tuple[float, float, float, float]]:
+    """Four boxes (south-west, south-east, north-west, north-east) that
+    cover [bbox] exactly; an object on a shared edge comes back twice and
+    is merged by its OSM id."""
+    s, w, n, e = bbox
+    ms, mw = round((s + n) / 2, 6), round((w + e) / 2, 6)
+    return [(s, w, ms, mw), (s, mw, ms, e), (ms, w, n, mw), (ms, mw, n, e)]
+
+
+def sub_parts(governorates: list[Part], kinds: tuple[str, ...], split_kinds: tuple[str, ...] = (), big: frozenset[str] = BIG_GOVERNORATES) -> list[Part]:
+    """Each governorate's pieces: one per kind ("EG-C.tags"); a kind in
+    [split_kinds] is asked per quadrant in a big governorate whose bbox is
+    known ("EG-C.named.q1" ... q4)."""
+    out: list[Part] = []
+    for g in governorates:
+        for kind in kinds:
+            if kind in split_kinds and g.code in big and g.bbox:
+                for i, box in enumerate(quadrants(g.bbox), start=1):
+                    out.append(Part(f"{g.code}.{kind}.q{i}", g.governorate, g.area, f"{g.label} {kind} q{i}", g.code, kind, box))
+            else:
+                out.append(Part(f"{g.code}.{kind}", g.governorate, g.area, f"{g.label} {kind}", g.code, kind, g.bbox))
+    return out
 
 
 @dataclass
@@ -102,6 +135,7 @@ def governorate_areas(boundaries_path: Path | None, set_name: str = "g") -> list
     """The 27 governorates, sorted by code. Uses the relation ids in the
     governorates download (fetch_osm_schools.py) when it has them."""
     relation_of: dict[str, int] = {}
+    bbox_of: dict[str, tuple[float, float, float, float]] = {}
     if boundaries_path is not None:
         try:
             doc = json.loads(boundaries_path.read_text(encoding="utf-8"))
@@ -110,8 +144,14 @@ def governorate_areas(boundaries_path: Path | None, set_name: str = "g") -> list
                 code, rid = str(props.get("ISO3166-2") or ""), props.get("osm_id")
                 if code in ISO_3166_2 and isinstance(rid, int) and rid > 0:
                     relation_of[code] = rid
-        except (OSError, ValueError, AttributeError):
-            relation_of = {}
+                pts = [pt for poly in ((feature.get("geometry") or {}).get("coordinates") or []) for pt in (poly[0] if poly else [])]
+                if code in ISO_3166_2 and pts:
+                    bbox_of[code] = (
+                        round(min(p[1] for p in pts), 6), round(min(p[0] for p in pts), 6),
+                        round(max(p[1] for p in pts), 6), round(max(p[0] for p in pts), 6),
+                    )
+        except (OSError, ValueError, AttributeError, TypeError, IndexError):
+            relation_of, bbox_of = {}, {}
     parts: list[Part] = []
     for code in sorted(ISO_3166_2):
         rid = relation_of.get(code)
@@ -119,7 +159,7 @@ def governorate_areas(boundaries_path: Path | None, set_name: str = "g") -> list
             area = f"area(id:{AREA_ID_OFFSET + rid})->.{set_name};"
         else:
             area = f'area["ISO3166-2"="{code}"]["admin_level"="4"]->.{set_name};'
-        parts.append(Part(code, ISO_3166_2[code], area, f"{code} {ISO_3166_2[code]}"))
+        parts.append(Part(code, ISO_3166_2[code], area, f"{code} {ISO_3166_2[code]}", code, "", bbox_of.get(code)))
     return parts
 
 
@@ -166,13 +206,22 @@ def fetch_parts(
     log: Callable[[str], None] = print,
     write: Callable[[Path, dict], None] | None = None,
     min_features: Callable[[Part], int] = lambda _p: 1,
+    refine: Callable[[Part, dict], dict] | None = None,
 ) -> SplitResult:
     """Downloads each part (see the module docstring). [fetch] asks the
     servers once each (overpass(..., rounds=1)); the second pass here is
     the retry. A part answering with fewer than min_features(part)
     features counts as failed (an empty area means the area lookup or the
-    server went wrong, not that a governorate has no school)."""
-    from fetch_osm_schools import FetchError, write_json_atomic  # local: no import cycle
+    server went wrong, not that a governorate has no school). [refine]
+    filters a part's collection before it is stored (fetch_osm_schools.py
+    keeps only school-like features of the "named" pieces).
+
+    ANY error while asking for a part (not only FetchError: when this runs
+    from `python3 fetch_osm_schools.py` the script is the module __main__,
+    and its FetchError is a different class from fetch_osm_schools.FetchError
+    imported here, which is how the 16 Nov 2026 run crashed on the first
+    part) is recorded for that part; the other parts go on."""
+    from fetch_osm_schools import write_json_atomic  # local: no import cycle
 
     write = write or write_json_atomic
     now = now or dt.datetime.now(dt.timezone.utc)
@@ -217,12 +266,16 @@ def fetch_parts(
             try:
                 answer, server = fetch(make_query(part), endpoint_list, result.last_server)
                 collection = convert(answer, stamp, server)
+                if refine is not None:
+                    collection = refine(part, collection)
                 n = len(collection["features"])
                 if n < min_features(part):
-                    raise FetchError(f"only {n} features came back (the area lookup or the server went wrong)")
-            except FetchError as error:
+                    raise PartError(f"only {n} features came back (the area lookup or the server went wrong)")
+            except Exception as error:  # noqa: BLE001 (any failure of one part: record it, go on)
                 failed.append(part)
-                status_of[part.code] = PartStatus(part.code, STATUS_MISSING, error=str(error).splitlines()[0][:200])
+                first_line = (str(error).splitlines() or [type(error).__name__])[0]
+                status_of[part.code] = PartStatus(part.code, STATUS_MISSING, error=first_line[:200])
+                log(f"    failed: {first_line[:200]}")
                 continue
             collection["query"] = query_id
             collection["part"] = part.code
@@ -246,6 +299,10 @@ def fetch_parts(
         status_of[part.code] = status
     result.statuses = [status_of[p.code] for p in parts]
     return result
+
+
+class PartError(Exception):
+    """A part's answer was not usable."""
 
 
 def feature_key(feature: dict) -> str:
@@ -283,19 +340,26 @@ def status_lines(result: SplitResult) -> list[str]:
             word = "not asked (time budget), NO data"
         date = f" {s.fetched_at[:10]}" if s.fetched_at else ""
         why = f" ({s.error})" if s.error and s.status in (STATUS_OLD, STATUS_MISSING) else ""
-        lines.append(f"- {s.code} {ISO_3166_2.get(s.code, 'Egypt')}: {word}{date}, {s.features} features{why}")
+        gov = ISO_3166_2.get(s.code.split(".")[0], "Egypt")
+        lines.append(f"- {s.code} {gov}: {word}{date}, {s.features} features{why}")
     return lines
 
 
 def summary_line(result: SplitResult) -> str:
-    """"27 governorates: 25 downloaded, 1 recent, 1 older file (2026-11-09), 0 missing"."""
-    count = {k: 0 for k in (STATUS_NEW, STATUS_RECENT, STATUS_OLD, STATUS_MISSING, STATUS_SKIPPED)}
+    """"27 governorates: 25 complete (downloaded or recent), 1 partly from
+    older files (oldest 2026-11-09), 1 with pieces missing (EG-C); 81 queries"
+    (a governorate is the sum of its pieces)."""
+    by_gov: dict[str, list[PartStatus]] = {}
     for s in result.statuses:
-        count[s.status] += 1
+        by_gov.setdefault(s.code.split(".")[0], []).append(s)
+    complete = [g for g, ss in by_gov.items() if all(s.status in (STATUS_NEW, STATUS_RECENT) for s in ss)]
+    holes = sorted(g for g, ss in by_gov.items() if any(not s.fetched_at for s in ss))
     stale = [s for s in result.statuses if s.status in (STATUS_OLD, STATUS_SKIPPED) and s.fetched_at]
+    stale_govs = {s.code.split(".")[0] for s in stale} - set(holes)
     oldest = f" (oldest {min(s.fetched_at for s in stale)[:10]})" if stale else ""
-    missing = sum(1 for s in result.statuses if not s.fetched_at)
     return (
-        f"{len(result.statuses)} governorates: {count[STATUS_NEW]} downloaded, {count[STATUS_RECENT]} recent,"
-        f" {len(stale)} older file{oldest}, {missing} with no data"
+        f"{len(by_gov)} governorates: {len(complete)} complete (downloaded or recent), "
+        f"{len(stale_govs)} partly from older files{oldest}, {len(holes)} with pieces missing"
+        + (f" ({', '.join(holes)})" if holes else "")
+        + f"; {len(result.statuses)} queries"
     )

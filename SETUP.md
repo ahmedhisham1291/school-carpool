@@ -639,6 +639,20 @@ this section is what it does, for a Mac or for prod.
    place into the OSM or Wikidata school with the same name within 300 m.
    Licence: CDLA Permissive 2.0 (most providers), Apache 2.0 (Foursquare),
    CC0 (AllThePlaces); the attribution is open item D24.
+   **Areas (ADM2):** `python3 tools/import_schools/fetch_adm2.py --max-age-days 30`
+   downloads Egypt's 2nd-level units (qism / markaz / new city) from the
+   OCHA COD-AB dataset on HDX (`cod-ab-egy`, Arabic and English names), or
+   geoBoundaries EGY ADM2 (English names only) when HDX gives none; or
+   `--file <zip or geojson>` for a file you downloaded. They become the Areas
+   (City -> Area -> District); the report lists which unit holds each big
+   new city. Areas loaded earlier from OpenStreetMap that this replaces are
+   set inactive (kept as documents).
+   **Duplicates, names, review:** the import merges duplicates itself
+   (build/schools/merged.csv, one row per merged entry), drops names that
+   are in neither Arabic nor Latin letters, writes one CSV per drop reason
+   (build/schools/dropped_<reason>.csv), applies
+   `data/schools/review/decisions.csv` (format: its README) and writes
+   build/schools/review_input.csv for the name review.
    **Why is a school missing?**
    `python3 tools/import_schools/why_missing.py "<name>" ...` (or
    `--file names.txt`) runs the import on the downloads and says, for each

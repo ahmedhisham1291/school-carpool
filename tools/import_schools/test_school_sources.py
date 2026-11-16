@@ -123,7 +123,7 @@ class PartialSuccessTest(unittest.TestCase):
             self.assertEqual(sorted(f["properties"]["osm_id"] for f in merged), [1, 2, 3, 9])
             lines = sp.status_lines(result)
             self.assertIn("- EG-GZ giza: download failed, older file used 2026-11-09, 1 features (no Overpass server gave a complete answer)", lines)
-            self.assertIn("1 older file (oldest 2026-11-09), 0 with no data", sp.summary_line(result))
+            self.assertIn("1 partly from older files (oldest 2026-11-09), 0 with pieces missing", sp.summary_line(result))
             # Each new part is on disk with its own date.
             self.assertEqual(json.loads(sp.part_path(folder, "EG-C").read_text())["fetched_at"], "2026-11-16T12:00:00Z")
 

@@ -254,7 +254,11 @@ export function buildPublicLocation(
     announced: previous?.announced ?? false,
     updatedAtMs: nowMs,
     ...(home.address
-      ? { governorate: home.address.governorate, placeAreaId: home.address.placeAreaId, placeDistrictId: home.address.placeDistrictId }
+      ? {
+          governorate: home.address.governorate,
+          ...(home.address.placeAreaId ? { placeAreaId: home.address.placeAreaId } : {}),
+          placeDistrictId: home.address.placeDistrictId,
+        }
       : {}),
   };
 }

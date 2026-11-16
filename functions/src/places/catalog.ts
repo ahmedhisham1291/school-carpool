@@ -150,13 +150,21 @@ export interface Located {
   districtId: string | null;
 }
 
+/** Area of a bbox in square degrees (Infinity without one): smaller first. */
+export function boxSize(b: BBox | null): number {
+  return b ? (b.maxLat - b.minLat) * (b.maxLng - b.minLng) : Infinity;
+}
+
 /**
- * The area holding [p] (active areas only; the first of [areas] wins, so
- * pass them finest level first) and the district: the boundary holding
+ * The area holding [p] (active areas only; finest level first, then the
+ * smallest box: a city's qism inside its markaz wins, as the outlines keep
+ * outer rings only, validator B4) and the district: the boundary holding
  * it, else the nearest named place of that area within POINT_DISTRICT_KM.
  */
 export function locate(p: LatLng, areas: PlaceArea[], districts: PlaceDistrict[]): Located {
-  const sorted = [...areas].filter((a) => a.active).sort((a, b) => b.level - a.level || a.id.localeCompare(b.id));
+  const sorted = [...areas]
+    .filter((a) => a.active)
+    .sort((a, b) => b.level - a.level || boxSize(a.bbox) - boxSize(b.bbox) || a.id.localeCompare(b.id));
   const area = sorted.find((a) => shapeContains(a, p));
   if (!area) return { governorate: null, areaId: null, districtId: null };
   const mine = districts.filter((d) => d.active && d.areaId === area.id);
@@ -171,9 +179,12 @@ export function locate(p: LatLng, areas: PlaceArea[], districts: PlaceDistrict[]
   return { governorate: area.governorate, areaId: area.id, districtId: best?.id ?? null };
 }
 
-/** Candidate area IDs for [p] from the index (bbox only). */
+/** Candidate area IDs for [p] from the index (bbox only), smallest box first. */
 export function candidates(index: IndexEntry[], p: LatLng): string[] {
-  return index.filter((e) => inBox(p, e.bbox)).map((e) => e.id);
+  return index
+    .filter((e) => inBox(p, e.bbox))
+    .sort((a, b) => boxSize(a.bbox) - boxSize(b.bbox) || a.id.localeCompare(b.id))
+    .map((e) => e.id);
 }
 
 // --------------------------------------------------------------------------
@@ -316,16 +327,29 @@ export interface PlacePlan<T> {
   unchanged: number;
   /** Edited by an admin (or merged): never overwritten by an import. */
   skipped: number;
+  /**
+   * Imported earlier (source osm or cod), active, not admin-edited, and
+   * not in this file: set inactive (never deleted), so a better source
+   * replaces them (the OpenStreetMap areas of 16 Nov 2026 -> COD-AB ADM2).
+   * Empty when the file would retire more places than it brings (a broken
+   * download must not empty the list).
+   */
+  retires: string[];
 }
 
+export const IMPORTED_PLACE_SOURCES = ["osm", "cod", "osm-boundary", "osm-place"] as const;
+
 /** Idempotent: unchanged places are not written, admin edits are kept, nothing is deleted. */
-export function planPlaces<T extends Comparable & { id: string }, E extends Comparable & { id: string; adminEdited: boolean; mergedInto: string | null }>(
+export function planPlaces<
+  T extends Comparable & { id: string },
+  E extends Comparable & { id: string; adminEdited: boolean; mergedInto: string | null; active?: boolean; source?: string },
+>(
   incoming: T[],
   existing: E[],
   extraSame: (a: T, b: E) => boolean = () => true,
 ): PlacePlan<T> {
   const byId = new Map(existing.map((e) => [e.id, e]));
-  const plan: PlacePlan<T> = { creates: [], updates: [], unchanged: 0, skipped: 0 };
+  const plan: PlacePlan<T> = { creates: [], updates: [], unchanged: 0, skipped: 0, retires: [] };
   for (const p of incoming) {
     const e = byId.get(p.id);
     if (!e) plan.creates.push(p);
@@ -333,6 +357,19 @@ export function planPlaces<T extends Comparable & { id: string }, E extends Comp
     else if (sameShape(p, e) && extraSame(p, e)) plan.unchanged++;
     else plan.updates.push(p);
   }
+  const incomingIds = new Set(incoming.map((p) => p.id));
+  const retires = existing
+    .filter(
+      (e) =>
+        !incomingIds.has(e.id) &&
+        e.active !== false &&
+        !e.adminEdited &&
+        !e.mergedInto &&
+        (IMPORTED_PLACE_SOURCES as readonly string[]).includes(e.source ?? "osm"),
+    )
+    .map((e) => e.id)
+    .sort();
+  plan.retires = incoming.length >= retires.length ? retires : [];
   return plan;
 }
 

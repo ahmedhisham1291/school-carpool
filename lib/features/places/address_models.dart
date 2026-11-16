@@ -35,7 +35,8 @@ class HomeAddress {
     }
 
     final String area = s('placeAreaId');
-    if (area.isEmpty) {
+    // A city with no areas yet: no area, but a governorate and a street.
+    if (area.isEmpty && (s('governorate').isEmpty || s('street').isEmpty)) {
       return null;
     }
     final String district = s('placeDistrictId');

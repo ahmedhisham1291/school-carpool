@@ -45,6 +45,10 @@ function obj(data: unknown): Record<string, unknown> {
 
 async function checked(deps: Pick<AddressDeps, "places">, data: unknown): Promise<HomeAddress> {
   const input = parseAddress(data);
+  if (input.placeAreaId === "") {
+    const has = deps.places.cityHasAreas ? await deps.places.cityHasAreas(input.governorate) : true;
+    return checkAddress(input, null, null, has);
+  }
   const [area, district] = await Promise.all([
     deps.places.area(input.placeAreaId),
     input.placeDistrictId ? deps.places.district(input.placeDistrictId) : Promise.resolve(null),
@@ -72,7 +76,7 @@ export async function setHomeAddressFlow(deps: AddressDeps, uid: string, data: u
   const address = await checked(deps, raw.address);
   // The pin must be in the chosen area (N3). A pin that is not a point in
   // Egypt is refused by the home flow below with its own reason.
-  if (isValidPoint(raw.location) && inEgypt(raw.location)) {
+  if (address.placeAreaId && isValidPoint(raw.location) && inEgypt(raw.location)) {
     const area = await deps.places.area(address.placeAreaId);
     if (area) checkPinInArea(area, raw.location);
   }
@@ -81,7 +85,7 @@ export async function setHomeAddressFlow(deps: AddressDeps, uid: string, data: u
   await deps.moveCounts(countMoves(before, address));
   await deps.districtRequest(
     uid,
-    address.placeDistrictId ? null : { areaId: address.placeAreaId, governorate: address.governorate, text: address.districtText },
+    address.placeDistrictId || !address.placeAreaId ? null : { areaId: address.placeAreaId, governorate: address.governorate, text: address.districtText },
   );
   return result;
 }
@@ -125,13 +129,13 @@ export async function geocodeAddressFlow(
   if (!token) throw new AddressError("invalid-request");
   const address = await checked(deps, raw.address);
   const [area, district] = await Promise.all([
-    deps.places.area(address.placeAreaId),
+    address.placeAreaId ? deps.places.area(address.placeAreaId) : Promise.resolve(null),
     address.placeDistrictId ? deps.places.district(address.placeDistrictId) : Promise.resolve(null),
   ]);
-  if (!area) throw new AddressError("invalid-area");
+  if (!area && address.placeAreaId) throw new AddressError("invalid-area");
   await deps.beforeSearch();
   let found: LatLng | null = null;
-  const near = district?.centre ?? area.centre;
+  const near = district?.centre ?? area?.centre ?? null;
   const suggestions = await deps.provider.autocomplete(geocodeQuery(address, language, deps.cityName(address.governorate, language)), token, language, near);
   if (suggestions.length > 0) {
     try {
@@ -140,6 +144,8 @@ export async function geocodeAddressFlow(
       if (!(error instanceof MapError)) throw error;
     }
   }
+  // A city without areas: the found point as it is (the parent confirms it on the map).
+  if (!area) return { location: found, approximate: found === null };
   return startPoint(found, area, district);
 }
 

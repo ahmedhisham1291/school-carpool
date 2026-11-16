@@ -59,7 +59,7 @@ void main() {
     expect(find.byKey(const Key('browse.empty')), findsOneWidget);
 
     await pickFromDropdown(tester, const Key('browse.city'), 'Luxor');
-    expect(find.text('No areas for this city yet. Use search.'), findsOneWidget);
+    expect(find.text('No areas for this city yet'), findsOneWidget);
 
     places.failure = const PlaceFailure(PlaceFailureKind.offline);
     await pickFromDropdown(tester, const Key('browse.city'), 'Aswan');

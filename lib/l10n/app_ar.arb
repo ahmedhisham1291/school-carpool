@@ -10310,5 +10310,25 @@
   "adminSchoolsNoMatchBody": "جرّب كتابة أخرى، أو امسح الفلاتر.",
   "@adminSchoolsNoMatchBody": {
     "description": "Admin schools list: empty body when filtered"
+  },
+  "placeChooseCityFirst": "اختر المدينة أولاً",
+  "@placeChooseCityFirst": {
+    "description": "Helper under an Area menu while no city is chosen"
+  },
+  "placeChooseAreaFirst": "اختر المنطقة أولاً",
+  "@placeChooseAreaFirst": {
+    "description": "Helper under a District menu while no area is chosen"
+  },
+  "placeNoAreasForCity": "لا توجد مناطق لهذه المدينة بعد",
+  "@placeNoAreasForCity": {
+    "description": "Helper under an Area menu when the chosen city has no areas"
+  },
+  "placeNoDistrictsForArea": "لا توجد أحياء لهذه المنطقة بعد",
+  "@placeNoDistrictsForArea": {
+    "description": "Helper under a District menu when the chosen area has no districts"
+  },
+  "addressDistrictOptionalHelper": "اختياري. اكتبه إن كنت تعرفه.",
+  "@addressDistrictOptionalHelper": {
+    "description": "Address form: helper of the typed district in a city with no areas"
   }
 }

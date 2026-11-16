@@ -6,6 +6,9 @@
 !.gitignore
 !README.md
 !categories.json
+!review/
+!review/decisions.csv
+!review/README.md
 !check_names.example.txt
 !sample/
 !sample/**

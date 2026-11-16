@@ -44,6 +44,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -141,13 +142,84 @@ def schools_query(
     return f"[out:json][timeout:{timeout_s}];\n{area}\n(\n{body}\n);\nout center;\n"
 
 
+# --- Pieces per governorate (since the 16 Nov 2026 staging run) -------------
+#
+# The per-governorate broad query still timed out in Alexandria, Cairo and
+# Giza: maps.mail.ru stopped it at line 16, the case-insensitive Latin name
+# regex (`nwr["name"~"school|kindergarten",i]`). An unanchored,
+# case-insensitive value regex cannot use Overpass' tag index and has to look
+# at every name value; the anchored Arabic regex on line 15 finished. So
+# each governorate is now asked in three pieces, each failing on its own:
+#
+#   tags   amenity/education values, and named building=school, school=*,
+#          isced:level=*: exact tag lookups only, cheap;
+#   names  the anchored Arabic regexes on name and name:ar (no Latin regex);
+#   named  every NAMED feature with an amenity, building, office, landuse,
+#          education or school key, no regex at all (in the big
+#          governorates per quadrant of its bbox); the Latin and KG name
+#          rules run HERE in Python (refine_named), so only school-like
+#          features are stored.
+#
+# Not measured here (no Overpass access from the build workspace): the cost
+# of each piece on the public servers; the per-part status in the report
+# shows which pieces finish.
+PIECES = ("tags", "names", "named")
+NAMED_KEYS = ("amenity", "building", "office", "landuse", "education", "school")
+_LATIN_SCHOOL = re.compile(LATIN_NAME_RE, re.I)
+_KG = re.compile(KG_NAME_RE)
+
+
+def piece_query(kind: str, area: str, bbox: tuple[float, float, float, float] | None, values: tuple[str, ...],
+                timeout_s: int, set_name: str = "g") -> str:
+    """The Overpass query of one piece of a governorate (see PIECES)."""
+    a = f"(area.{set_name})"
+    if kind == "named" and bbox is not None:
+        a += f"({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]})"
+    v = "|".join(values)
+    if kind == "tags":
+        clauses = [f'nwr["amenity"~"^({v})$"]{a};', f'nwr["education"~"^({v})$"]{a};']
+        for key in NAME_KEYS:
+            clauses.append(f'nwr["building"~"^(school|kindergarten)$"]["{key}"]{a};')
+            clauses.append(f'nwr["school"]["{key}"]{a};')
+            clauses.append(f'nwr["isced:level"]["{key}"]{a};')
+    elif kind == "names":
+        clauses = [f'nwr["{key}"~"{ARABIC_NAME_RE}"][!"highway"]{a};' for key in ("name", "name:ar")]
+    elif kind == "named":
+        clauses = [f'nwr["{key}"]["name"]{a};' for key in NAMED_KEYS]
+    else:
+        raise ValueError(kind)
+    body = "\n".join(f"  {c}" for c in clauses)
+    return f"[out:json][timeout:{timeout_s}];\n{area}\n(\n{body}\n);\nout center;\n"
+
+
+def school_like(props: dict) -> bool:
+    """A named feature worth storing from a "named" piece: a name that reads
+    like a school's in Arabic or English (the rules of schools_import, plus
+    the Latin and KG patterns the broad query used)."""
+    from schools_import import name_says_school  # local: keeps this module light to import
+
+    for key in NAME_KEYS:
+        n = str(props.get(key) or "")
+        if n and (name_says_school(n) or _LATIN_SCHOOL.search(n) or _KG.search(n)):
+            return True
+    return False
+
+
+def refine_named(part, collection: dict) -> dict:
+    """Keeps only school-like features of a "named" piece."""
+    if getattr(part, "kind", "") != "named":
+        return collection
+    collection["features"] = [f for f in collection["features"] if school_like(f.get("properties") or {})]
+    return collection
+
+
 SCHOOLS_QUERY = schools_query()  # all of Egypt in one query: kept for reference and tests
 # Stored in the download: a download made by another query (the narrow one
 # of the first version, a fallback, or a split run that had to use older
 # files for some governorates) is never reused as "recent".
 QUERY_ID = "split-1"
 PARTIAL_QUERY_ID = "split-1-partial"
-PART_QUERY_ID = "broad-3"  # per-governorate files (overpass_split.py); + extra amenity values
+PART_QUERY_ID = "pieces-1"  # per-governorate pieces (overpass_split.py); + extra amenity values
 NATIONAL_QUERY_ID = "narrow-2"
 NARROW_SCHOOLS_QUERY = schools_query(broad=False)
 PARTS_FOLDER = "governorates"  # data/schools/osm/governorates/EG-xx.geojson (not read by the importer)
@@ -543,6 +615,7 @@ def main(argv: list[str] | None = None) -> int:
         PART_TIMEOUT_S,
         Part,
         fetch_parts,
+        sub_parts,
         governorate_areas,
         merge_features,
         status_lines,
@@ -596,16 +669,20 @@ def main(argv: list[str] | None = None) -> int:
         else:
             boundary_note, server = fetch_boundaries(tuple(ordered_endpoints(endpoints, prefer)), fetched_at, boundaries_path)
             prefer = server or prefer
-    parts = governorate_areas(boundaries_path if boundaries_path.exists() else None)
+    governorates = governorate_areas(boundaries_path if boundaries_path.exists() else None)
+    parts = sub_parts(governorates, PIECES, split_kinds=("named",))
 
     def ask(query: str, eps: list[str], first: str | None) -> tuple[dict, str]:
         return overpass(query, eps, rounds=1, prefer=first, timeout_s=PART_TIMEOUT_S)
 
     print("OpenStreetMap schools: amenity/education values asked for: " + ", ".join(values))
-    print(f"OpenStreetMap schools: downloading the broad query per governorate ({len(parts)} parts, [timeout:{PART_TIMEOUT_S}] each)...")
+    print(
+        f"OpenStreetMap schools: {len(governorates)} governorates in {len(parts)} queries "
+        f"(tags, Arabic names, named features; [timeout:{PART_TIMEOUT_S}] each)..."
+    )
     split = fetch_parts(
         parts,
-        lambda part: schools_query(PART_TIMEOUT_S, True, part.area, "g", values),
+        lambda part: piece_query(part.kind, part.area, part.bbox, values, PART_TIMEOUT_S),
         lambda answer, stamp, server: schools_geojson(answer, stamp, server, part_id),
         parts_dir,
         query_id=part_id,
@@ -615,6 +692,10 @@ def main(argv: list[str] | None = None) -> int:
         max_age_days=args.max_age_days,
         budget_s=budget_s,
         now=now,
+        refine=refine_named,
+        # Only the tags piece must find something (every governorate has
+        # amenity=school); a piece of names may be empty.
+        min_features=lambda part: 1 if part.kind == "tags" else 0,
     )
     # Safety net: the narrow amenity-only query for all of Egypt (it
     # finished on 16 Nov 2026 when the broad one did not). It also catches

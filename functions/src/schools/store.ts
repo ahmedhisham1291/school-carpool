@@ -1,17 +1,16 @@
 import {
-  FieldPath,
   FieldValue,
   GeoPoint,
   Timestamp,
   type DocumentData,
   type Firestore,
-  type QueryDocumentSnapshot,
 } from "firebase-admin/firestore";
 import { USERS } from "../auth/accounts";
 import { SCHOOLS } from "../admin_panel/store";
 import { schoolSearchGrams } from "../admin_panel/school_search";
 import { searchKeysFor, type ExistingSchool, type ImportedSchool } from "./catalog";
 import type { OtherSchoolsStore, PendingSchool } from "./other";
+import { readAll } from "./paged";
 
 function point(value: unknown): { lat: number; lng: number } | null {
   const p = value as { latitude?: unknown; longitude?: unknown } | null | undefined;
@@ -85,43 +84,47 @@ export class FirestoreOtherSchoolsStore implements OtherSchoolsStore {
   }
 }
 
+/** The fields readExistingSchools asks for (no grams, no timestamps). */
+export const EXISTING_SCHOOL_FIELDS = [
+  "status", "adminEdited", "sourceKeys", "nameAr", "nameEn", "kind", "governorate", "city", "cityAr", "location",
+  "searchHidden", "placeAreaId", "placeAreaNameAr", "placeAreaNameEn", "placeDistrictId", "source", "hiddenReason",
+  "mergedInto", "mergedBy",
+] as const;
+
 /**
  * Every school, as the import loader needs it: one read per school (about
  * 20,000 to 30,000 reads per run on staging, inside the free 50,000 a day),
- * read in pages so a large collection never needs one huge answer.
+ * read in pages of 1,000 with only the fields above, each page retried (a
+ * single large answer ran into Firestore's 300 s deadline, 16 Nov 2026).
  */
-export async function readExistingSchools(db: Firestore, pageSize = 5000): Promise<ExistingSchool[]> {
-  const docs: QueryDocumentSnapshot[] = [];
-  let last: QueryDocumentSnapshot | undefined;
-  for (;;) {
-    let query = db.collection(SCHOOLS).orderBy(FieldPath.documentId()).limit(pageSize);
-    if (last) query = query.startAfter(last);
-    const page = await query.get();
-    docs.push(...page.docs);
-    if (page.docs.length < pageSize) break;
-    last = page.docs[page.docs.length - 1];
-  }
-  return docs.map((doc) => {
-    const d = doc.data();
-    return {
-      id: doc.id,
-      status: text(d.status) || "active",
-      adminEdited: d.adminEdited === true,
-      sourceKeys: Array.isArray(d.sourceKeys) ? d.sourceKeys.filter((k: unknown): k is string => typeof k === "string") : [],
-      nameAr: text(d.nameAr),
-      nameEn: text(d.nameEn),
-      kind: text(d.kind) || "school",
-      governorate: text(d.governorate),
-      city: text(d.city),
-      cityAr: text(d.cityAr),
-      location: point(d.location),
-      searchHidden: d.searchHidden === true,
-      placeAreaId: text(d.placeAreaId),
-      placeAreaNameAr: text(d.placeAreaNameAr),
-      placeAreaNameEn: text(d.placeAreaNameEn),
-      placeDistrictId: typeof d.placeDistrictId === "string" ? d.placeDistrictId : null,
-    };
-  });
+export async function readExistingSchools(db: Firestore, pageSize = 1000): Promise<ExistingSchool[]> {
+  const docs = await readAll(db, SCHOOLS, { pageSize, select: EXISTING_SCHOOL_FIELDS });
+  return docs.map((doc) => existingSchoolFrom(doc.id, doc.data()));
+}
+
+export function existingSchoolFrom(id: string, d: DocumentData): ExistingSchool {
+  return {
+    id,
+    status: text(d.status) || "active",
+    adminEdited: d.adminEdited === true,
+    sourceKeys: Array.isArray(d.sourceKeys) ? d.sourceKeys.filter((k: unknown): k is string => typeof k === "string") : [],
+    nameAr: text(d.nameAr),
+    nameEn: text(d.nameEn),
+    kind: text(d.kind) || "school",
+    governorate: text(d.governorate),
+    city: text(d.city),
+    cityAr: text(d.cityAr),
+    location: point(d.location),
+    searchHidden: d.searchHidden === true,
+    placeAreaId: text(d.placeAreaId),
+    placeAreaNameAr: text(d.placeAreaNameAr),
+    placeAreaNameEn: text(d.placeAreaNameEn),
+    placeDistrictId: typeof d.placeDistrictId === "string" ? d.placeDistrictId : null,
+    source: text(d.source),
+    hiddenReason: text(d.hiddenReason),
+    mergedInto: text(d.mergedInto),
+    mergedBy: text(d.mergedBy),
+  };
 }
 
 /** Fields the import writes. The status is set only when the school is created. */

@@ -126,6 +126,15 @@ describe("places: geometry and lookup", () => {
     assert.deepEqual(index.map((e) => e.id), ["osm-r1", "osm-r9"]);
     assert.deepEqual(candidates(index, { lat: 29.96, lng: 31.25 }).sort(), ["osm-r1", "osm-r9"]);
     assert.deepEqual(candidates(index, { lat: 25, lng: 33 }), []);
+    // Smallest box first (it is read first when more than 16 boxes hold a point).
+    assert.deepEqual(candidates(index, { lat: 29.96, lng: 31.25 }), ["osm-r1", "osm-r9"]);
+  });
+
+  it("an area inside another of the same level wins (a qism inside its markaz, validator B4)", () => {
+    const markaz = area("cod-EG1801", 31.0, 30.45, 0.15, { level: 7 });
+    const qism = area("cod-EG1899", 31.04, 30.47, 0.02, { level: 7 });
+    assert.equal(locate({ lat: 31.04, lng: 30.47 }, [markaz, qism], []).areaId, "cod-EG1899");
+    assert.equal(locate({ lat: 31.1, lng: 30.35 }, [qism, markaz], []).areaId, "cod-EG1801");
   });
 
   it("rings go to Firestore as flat number lists (no nested arrays) and back", () => {
@@ -204,7 +213,7 @@ describe("places: import file and plan", () => {
     const first = planPlaces(parsed.areas, []);
     assert.equal(first.creates.length, 1);
     const stored = parsed.areas.map((a) => ({ ...area(a.id, 0, 0, 1), ...a }));
-    assert.deepEqual(planPlaces(parsed.areas, stored), { creates: [], updates: [], unchanged: 1, skipped: 0 });
+    assert.deepEqual(planPlaces(parsed.areas, stored), { creates: [], updates: [], unchanged: 1, skipped: 0, retires: [] });
     const renamed = [{ ...stored[0], nameEn: "Old" }];
     assert.equal(planPlaces(parsed.areas, renamed).updates.length, 1);
     assert.equal(planPlaces(parsed.areas, [{ ...renamed[0], adminEdited: true }]).skipped, 1);

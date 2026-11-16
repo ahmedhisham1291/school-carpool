@@ -66,8 +66,9 @@ class BroadQueryTest(unittest.TestCase):
             finally:
                 osm.overpass = original
             self.assertEqual(code, 1)  # it tried to download again: nothing came back, the old file is kept
-            # governorates (1) + 27 governorates + the national safety net (1)
-            self.assertEqual(len(calls), 29)
+            # borders (1) + 27 governorates x 3 pieces + the national safety net (1);
+            # no governorate bbox here, so no quadrants
+            self.assertEqual(len(calls), 83)
             osm.write_json_atomic(out / osm.SCHOOLS_FILE, osm.schools_geojson({"elements": []}, recent, "x"))
             self.assertEqual(osm.query_of(out / osm.SCHOOLS_FILE), osm.QUERY_ID)
 
@@ -115,7 +116,7 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(cls({"building": "school", "name": "مدرسة كفر الشيخ الإعدادية بمركز دسوق"}), ("school", "building"))
         self.assertEqual(cls({"name": "مدرسة الشهيد أحمد مركز طوخ"}), ("school", "name"))
         self.assertEqual(cls({"building": "school", "name": "مركز تدريب"})[1], "not_school_courses")
-        self.assertEqual(cls({"building": "school", "name": "سنتر النور"})[1], "not_school_courses")
+        self.assertEqual(cls({"building": "school", "name": "سنتر النور"})[1], "not_school_tutoring")
         # Religious schools: a named school building keeps its religion tag.
         self.assertEqual(cls({"building": "school", "religion": "christian", "name": "مدرسة الراهبات"}), ("school", "building"))
         self.assertEqual(cls({"building": "yes", "religion": "muslim", "name": "مدرسة السلطان"})[1], "not_school_feature")
