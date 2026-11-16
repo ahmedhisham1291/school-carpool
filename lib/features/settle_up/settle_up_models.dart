@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/wallet/wallet_models.dart' show Money;
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -394,11 +395,16 @@ enum SettleFailureKind {
 /// A settle-up problem with one sentence that says what to do. Built from
 /// `details.reason` of our functions.
 class SettleFailure implements Exception {
-  const SettleFailure(this.kind, {this.amount});
+  const SettleFailure(this.kind, {this.demo, this.amount});
 
   factory SettleFailure.from(Object error) {
     if (error is SettleFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return SettleFailure(SettleFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
@@ -436,12 +442,17 @@ class SettleFailure implements Exception {
 
   final SettleFailureKind kind;
 
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
+
   /// The largest amount allowed (piastres), when the server said.
   final int? amount;
 
   bool get isOffline => kind == SettleFailureKind.offline;
 
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     SettleFailureKind.offline => l10n.errorOfflineShort,
     SettleFailureKind.featureOff => l10n.featureOffBody,
     SettleFailureKind.invalidAddress => l10n.settleAddressInvalid,

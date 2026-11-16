@@ -10378,5 +10378,13 @@
   "verifyCardPendingAction": "عرض الحالة",
   "@verifyCardPendingAction": {
     "description": "Card button while pending: open the verification status (one line)"
+  },
+  "demoAccountRefused": "هذا الحساب التجريبي لا يمكنه فعل ذلك. يعمل فقط مع المدرسة والمشوار التجريبيين.",
+  "@demoAccountRefused": {
+    "description": "Shown when App Review's demo account tries something it is not allowed to do (server reason demo-account)"
+  },
+  "demoAccountClosed": "انتهت فترة هذا الحساب التجريبي. يمكنك حذفه من حسابي > الخصوصية.",
+  "@demoAccountClosed": {
+    "description": "Shown when App Review's demo account is used after the review window (server reason demo-closed)"
   }
 }

@@ -2324,5 +2324,7 @@
   "verifyCardAction": "Why and how",
   "verifyCardPendingTitle": "Checking your ID",
   "verifyCardPendingBody": "Carpools and chat open when they are approved. We will let you know.",
-  "verifyCardPendingAction": "See status"
+  "verifyCardPendingAction": "See status",
+  "demoAccountRefused": "This demo account can't do that. It works only with the demo school and carpool.",
+  "demoAccountClosed": "This demo account has ended. You can delete it in Profile > Privacy."
 }

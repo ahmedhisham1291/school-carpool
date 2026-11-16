@@ -63,3 +63,21 @@ verification). So the line was moved in the app only, to match the server:
   (`test/auth/auth_logic_test.dart`, `test/auth/signup_screens_test.dart`,
   `test/onboarding/verify_prompt_card_test.dart`, one-line and screenshot
   entries).
+
+### 6. "This demo account can't do that" (done)
+
+- `lib/features/auth/demo_refusal.dart`: `demoRefusalOf(error)` reads the
+  server reasons `demo-account` and `demo-closed`
+  (`functions/src/privacy/device_gate.ts`); `demoRefusalText` gives the
+  sentence.
+- All 13 parent-app failure types (auth, verification, address, trips,
+  wallet, chat, notifications, maps, carpools, trust, other school,
+  privacy, Settle up) carry an optional `demo` and their `message` asks
+  `demoRefusalText` first, so every snackbar and inline error that used
+  the generic text now says "This demo account can't do that. It works
+  only with the demo school and carpool." / "This demo account has ended.
+  You can delete it in Profile > Privacy." (Arabic and English).
+- Not covered: full-screen error views that show no message (a list that
+  fails to load). Inside the window a demo parent's lists load; after it,
+  everything but Delete account is refused on purpose.
+- Test: `test/auth/demo_refusal_test.dart` (written, not run here).

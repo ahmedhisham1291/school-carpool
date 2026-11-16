@@ -2,6 +2,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import 'package:flutter/foundation.dart';
 import 'package:school_carpool/features/auth/auth_failure.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -378,11 +379,16 @@ enum TrustFailureKind {
 }
 
 class TrustFailure implements Exception {
-  const TrustFailure(this.kind, {this.auth});
+  const TrustFailure(this.kind, {this.demo, this.auth});
 
   factory TrustFailure.from(Object error) {
     if (error is TrustFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return TrustFailure(TrustFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
@@ -423,12 +429,17 @@ class TrustFailure implements Exception {
   }
 
   final TrustFailureKind kind;
+
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
   final AuthFailure? auth;
 
   bool get isOffline => kind == TrustFailureKind.offline;
 
   /// One short sentence that says what happened and what to do.
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     TrustFailureKind.notVerified => l10n.trustErrorNotVerified,
     TrustFailureKind.suspended => l10n.errorSuspended,
     TrustFailureKind.notFound => l10n.trustErrorNotFound,

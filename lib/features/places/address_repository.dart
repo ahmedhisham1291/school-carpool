@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/places/address_models.dart';
@@ -10,11 +11,16 @@ enum AddressFailureKind { area, district, street, building, extra, pinOutsideAre
 
 /// Why an address call failed (functions/src/places/address.ts and the maps reasons).
 class AddressFailure implements Exception {
-  const AddressFailure(this.kind, {this.areaNameAr = '', this.areaNameEn = ''});
+  const AddressFailure(this.kind, {this.demo, this.areaNameAr = '', this.areaNameEn = ''});
 
   factory AddressFailure.from(Object error) {
     if (error is AddressFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return AddressFailure(AddressFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
@@ -50,13 +56,18 @@ class AddressFailure implements Exception {
 
   final AddressFailureKind kind;
 
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
+
   /// pinOutsideArea: the chosen area's names (from the server).
   final String areaNameAr;
   final String areaNameEn;
 
   bool get isOffline => kind == AddressFailureKind.offline;
 
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     AddressFailureKind.area => l10n.addressErrorArea,
     AddressFailureKind.district => l10n.addressErrorDistrict,
     AddressFailureKind.street => l10n.addressStreetError,

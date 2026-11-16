@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 enum AuthFailureKind {
@@ -24,12 +25,17 @@ enum AuthFailureKind {
 /// A sign-up or sign-in problem the parent can act on. Built from the
 /// `details.reason` that our Cloud Functions send (functions/src/auth).
 class AuthFailure implements Exception {
-  const AuthFailure(this.kind, {this.attemptsLeft, this.retryAfter});
+  const AuthFailure(this.kind, {this.demo, this.attemptsLeft, this.retryAfter});
 
   /// Maps any error from Firebase or our functions to a failure.
   factory AuthFailure.from(Object error) {
     if (error is AuthFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return AuthFailure(AuthFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       return _fromFunctions(error);
@@ -55,6 +61,9 @@ class AuthFailure implements Exception {
   }
 
   final AuthFailureKind kind;
+
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
   final int? attemptsLeft;
   final Duration? retryAfter;
 
@@ -95,6 +104,10 @@ class AuthFailure implements Exception {
 
   /// What to tell the parent, including how to fix it.
   String message(AppLocalizations l10n) {
+    final String? demoText = demoRefusalText(l10n, demo);
+    if (demoText != null) {
+      return demoText;
+    }
     final int seconds = retryAfter?.inSeconds ?? 60;
     final int minutes = seconds <= 60 ? 1 : (seconds + 59) ~/ 60;
     return switch (kind) {
