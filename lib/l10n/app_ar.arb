@@ -10454,5 +10454,254 @@
   "keepDays180": "180 يومًا (حسب القانون)",
   "@keepDays180": {
     "description": "Retention label: sign-in history (Anti-Cybercrime Law 175/2018). One line."
+  },
+  "adminNavIncidents": "الحوادث",
+  "@adminNavIncidents": {
+    "description": "Admin rail: breach register. One line."
+  },
+  "incidentsTitle": "حوادث البيانات",
+  "@incidentsTitle": {
+    "description": "Admin page title. One line."
+  },
+  "incidentsRule": "أي تسريب أو اختراق أو فقد لبيانات شخصية: سجّله هنا فورًا. يجب إبلاغ مركز حماية البيانات الشخصية خلال 72 ساعة (فورًا إذا شمل بيانات الأطفال أو صور الوجه أو الأمن القومي)، ثم الأهالي خلال 3 أيام عمل.",
+  "@incidentsRule": {
+    "description": "Admin incidents intro"
+  },
+  "incidentsEmpty": "لا توجد حوادث",
+  "@incidentsEmpty": {
+    "description": "Empty state. One line."
+  },
+  "incidentReportButton": "تسجيل حادثة",
+  "@incidentReportButton": {
+    "description": "Button. One line."
+  },
+  "incidentReportTitle": "تسجيل حادثة",
+  "@incidentReportTitle": {
+    "description": "Sheet title. One line."
+  },
+  "incidentReportSend": "ابدأ العدّ",
+  "@incidentReportSend": {
+    "description": "Form button. One line."
+  },
+  "incidentReported": "سُجّلت الحادثة وظهرت المواعيد",
+  "@incidentReported": {
+    "description": "Snack bar"
+  },
+  "incidentNoPersonalData": "صف ما حدث دون أسماء أو أرقام هواتف أو أرقام بطاقات أو أماكن.",
+  "@incidentNoPersonalData": {
+    "description": "Form note"
+  },
+  "incidentAwareLabel": "متى علمنا؟",
+  "@incidentAwareLabel": {
+    "description": "Select label. One line."
+  },
+  "incidentAwareNow": "الآن",
+  "@incidentAwareNow": {
+    "description": "Option. One line."
+  },
+  "incidentAwareHoursAgo": "منذ {hours} ساعة",
+  "@incidentAwareHoursAgo": {
+    "description": "Option. One line.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "incidentKindLabel": "ما الذي حدث",
+  "@incidentKindLabel": {
+    "description": "Select label. One line."
+  },
+  "incidentKindAccess": "دخول غير مصرّح",
+  "@incidentKindAccess": {
+    "description": "Option. One line."
+  },
+  "incidentKindDisclosure": "كشف بيانات",
+  "@incidentKindDisclosure": {
+    "description": "Option. One line."
+  },
+  "incidentKindLoss": "فقد بيانات",
+  "@incidentKindLoss": {
+    "description": "Option. One line."
+  },
+  "incidentKindAlteration": "تغيير بيانات",
+  "@incidentKindAlteration": {
+    "description": "Option. One line."
+  },
+  "incidentKindUnavailable": "تعذّر الوصول",
+  "@incidentKindUnavailable": {
+    "description": "Option. One line."
+  },
+  "incidentKindOther": "أخرى",
+  "@incidentKindOther": {
+    "description": "Option. One line."
+  },
+  "incidentCategoriesLabel": "البيانات المتأثرة",
+  "@incidentCategoriesLabel": {
+    "description": "Section header. One line."
+  },
+  "incidentCatAccount": "الحسابات",
+  "@incidentCatAccount": {
+    "description": "Chip. One line."
+  },
+  "incidentCatContact": "الهواتف والبريد",
+  "@incidentCatContact": {
+    "description": "Chip. One line."
+  },
+  "incidentCatIdImages": "صور البطاقات",
+  "@incidentCatIdImages": {
+    "description": "Chip. One line."
+  },
+  "incidentCatBiometric": "بيانات الوجه",
+  "@incidentCatBiometric": {
+    "description": "Chip. One line."
+  },
+  "incidentCatChildren": "الأطفال",
+  "@incidentCatChildren": {
+    "description": "Chip. One line."
+  },
+  "incidentCatLocation": "المواقع",
+  "@incidentCatLocation": {
+    "description": "Chip. One line."
+  },
+  "incidentCatHome": "عناوين المنازل",
+  "@incidentCatHome": {
+    "description": "Chip. One line."
+  },
+  "incidentCatChat": "المحادثات",
+  "@incidentCatChat": {
+    "description": "Chip. One line."
+  },
+  "incidentCatDevices": "الأجهزة",
+  "@incidentCatDevices": {
+    "description": "Chip. One line."
+  },
+  "incidentCatOther": "أخرى",
+  "@incidentCatOther": {
+    "description": "Chip. One line."
+  },
+  "incidentSourceLabel": "أين",
+  "@incidentSourceLabel": {
+    "description": "Select label. One line."
+  },
+  "incidentSourceUs": "تطبيقنا أو خوادمنا",
+  "@incidentSourceUs": {
+    "description": "Option. One line."
+  },
+  "incidentSourceEmail": "مزوّد البريد",
+  "@incidentSourceEmail": {
+    "description": "Option. One line."
+  },
+  "incidentSourceOther": "جهة أخرى",
+  "@incidentSourceOther": {
+    "description": "Option. One line."
+  },
+  "incidentPeople": "عدد المتأثرين (تقريبًا)",
+  "@incidentPeople": {
+    "description": "Field label. One line."
+  },
+  "incidentRecords": "عدد السجلات (تقريبًا)",
+  "@incidentRecords": {
+    "description": "Field label. One line."
+  },
+  "incidentSummaryLabel": "ما حدث",
+  "@incidentSummaryLabel": {
+    "description": "Field label. One line."
+  },
+  "incidentMeasuresLabel": "ما فعلناه حتى الآن",
+  "@incidentMeasuresLabel": {
+    "description": "Field label. One line."
+  },
+  "incidentNationalSecurity": "قد يمس الأمن القومي",
+  "@incidentNationalSecurity": {
+    "description": "Checkbox. One line."
+  },
+  "incidentSensitive": "بيانات أطفال أو وجه: أبلغ المركز فورًا ولا تنتظر 72 ساعة.",
+  "@incidentSensitive": {
+    "description": "Warning"
+  },
+  "incidentErrorCategories": "اختر نوع بيانات واحدًا على الأقل.",
+  "@incidentErrorCategories": {
+    "description": "Form error"
+  },
+  "incidentErrorCounts": "أدخل العدد التقريبي للأشخاص والسجلات (0 إن لم يُعرف بعد).",
+  "@incidentErrorCounts": {
+    "description": "Form error"
+  },
+  "incidentErrorSummary": "اكتب بكلمات قليلة ما حدث.",
+  "@incidentErrorSummary": {
+    "description": "Form error"
+  },
+  "incidentAwareAt": "وقت العلم",
+  "@incidentAwareAt": {
+    "description": "Fact label. One line."
+  },
+  "incidentPdpcBy": "إبلاغ المركز قبل",
+  "@incidentPdpcBy": {
+    "description": "Fact label. One line."
+  },
+  "incidentParentsBy": "إبلاغ الأهالي قبل",
+  "@incidentParentsBy": {
+    "description": "Fact label. One line."
+  },
+  "incidentImmediately": "فورًا",
+  "@incidentImmediately": {
+    "description": "Deadline value. One line."
+  },
+  "incidentStateDone": "تم",
+  "@incidentStateDone": {
+    "description": "Badge. One line."
+  },
+  "incidentStateNow": "الآن",
+  "@incidentStateNow": {
+    "description": "Badge. One line."
+  },
+  "incidentStateOnTime": "في الموعد",
+  "@incidentStateOnTime": {
+    "description": "Badge. One line."
+  },
+  "incidentStateDueSoon": "قريبًا",
+  "@incidentStateDueSoon": {
+    "description": "Badge. One line."
+  },
+  "incidentStateOverdue": "متأخر",
+  "@incidentStateOverdue": {
+    "description": "Badge. One line."
+  },
+  "incidentStepContained": "تم الاحتواء",
+  "@incidentStepContained": {
+    "description": "Button and dialog title. One line."
+  },
+  "incidentStepContainedBody": "سجّل أن التسريب توقف. يُحفظ الوقت.",
+  "@incidentStepContainedBody": {
+    "description": "Dialog body"
+  },
+  "incidentStepPdpc": "أُبلغ المركز",
+  "@incidentStepPdpc": {
+    "description": "Button and dialog title. One line."
+  },
+  "incidentStepPdpcBody": "سجّل أن مركز حماية البيانات أُبلغ الآن (البوابة أو الخط الساخن). يبدأ هذا مهلة 3 أيام عمل لإبلاغ الأهالي ولا يمكن التراجع عنه.",
+  "@incidentStepPdpcBody": {
+    "description": "Dialog body"
+  },
+  "incidentStepParents": "أُبلغ الأهالي",
+  "@incidentStepParents": {
+    "description": "Button and dialog title. One line."
+  },
+  "incidentStepParentsBody": "سجّل أن كل ولي أمر متأثر أُبلغ الآن. لا يمكن التراجع عن ذلك.",
+  "@incidentStepParentsBody": {
+    "description": "Dialog body"
+  },
+  "incidentStepClose": "إغلاق",
+  "@incidentStepClose": {
+    "description": "Button and dialog title. One line."
+  },
+  "incidentStepCloseBody": "أغلق الحادثة بعد إصلاح السبب. يبقى السجل محفوظًا.",
+  "@incidentStepCloseBody": {
+    "description": "Dialog body"
+  },
+  "incidentConfirm": "تسجيل",
+  "@incidentConfirm": {
+    "description": "Dialog button. One line."
   }
 }

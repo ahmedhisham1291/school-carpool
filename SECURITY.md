@@ -137,19 +137,15 @@ starting point. That test is **open** (owner: choose and pay a tester).
      events for the window.
 4. **Assess** within 24 hours: which data types (privacy screen list),
    how many parents and children, which outside services.
-5. **Report to the PDPC within 72 hours** of becoming aware (Executive
-   Regulations of Law 151 of 2020): the DPO files the notification with
-   - the nature of the breach and the data types and approximate numbers
-     of people and records,
-   - the likely consequences,
-   - the measures taken and proposed,
-   - the DPO's contact.
-   If not everything is known by then, report what is known and send the
-   rest as it comes. Keep a copy and the time sent.
-6. **Tell the parents** affected without undue delay when there is a risk
-   to them (in Arabic and English): what happened, what data, what we did,
-   what they should do (for example watch for calls asking for codes), and
-   how to reach us.
+5. **Legal clock: follow [docs/legal/breach-runbook.md](docs/legal/breach-runbook.md)**
+   (the legal timeline lives there, not here). In short: record the
+   incident in the admin panel > Incidents at once (starts the clock); the
+   DPO notifies the PDPC within 72 hours of awareness (immediately for
+   national security, children's or face data); every affected parent is
+   told within 3 working days of the PDPC notice (no "low risk" exception
+   in Egyptian law); a crime is reported to the authorities (Law 175/2018
+   Art. 35) and the evidence is preserved.
+6. **Parents' notice:** templates in the legal runbook (Arabic and English).
 7. **Recover**: restore from backup or PITR if data was damaged
    (`docs/restore-test.md`), check the retention job and rules, and confirm
    with the outside services involved.

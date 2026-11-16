@@ -49,6 +49,8 @@ List<AdminSection> adminSections({required bool superAdmin, bool wallet = false}
     ),
   AdminSection(AdminRoutes.trust, Icons.shield_outlined, Icons.shield, (AppLocalizations l) => l.adminNavTrust),
   AdminSection(AdminRoutes.audit, Icons.history_outlined, Icons.history, (AppLocalizations l) => l.adminNavAudit),
+  // Breach register (Law 151 of 2020): every admin can report an incident.
+  AdminSection(AdminRoutes.incidents, Icons.report_outlined, Icons.report, (AppLocalizations l) => l.adminNavIncidents),
   // Pilot feature switches: every admin sees them, a super admin changes them.
   AdminSection(AdminRoutes.settings, Icons.tune_outlined, Icons.tune, (AppLocalizations l) => l.adminNavSettings),
   if (superAdmin)

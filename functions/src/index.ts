@@ -275,6 +275,10 @@ export {
   touchDevice,
 } from "./privacy/callables";
 
+// Personal data breach register (Law 151 of 2020 Art. 7, Decree 816/2025
+// Art. 5; docs/legal/breach-runbook.md): admin panel > Incidents.
+export { adminListIncidents, adminReportIncident, adminUpdateIncident } from "./privacy/breach_callables";
+
 // Pilot feature switches (owner decision 14 Nov 2026): config/features,
 // changed by super admins from the admin panel's Settings (audit log).
 // Off for the pilot: wallet, ratings and vouching, yearly checks. On:

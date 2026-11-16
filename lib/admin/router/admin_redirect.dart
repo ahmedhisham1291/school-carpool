@@ -27,6 +27,9 @@ abstract final class AdminRoutes {
   /// Pilot feature switches (wallet, ratings, yearly checks, Settle up).
   static const String settings = '/settings';
 
+  /// Personal data breach register (Law 151 of 2020, Art. 7).
+  static const String incidents = '/incidents';
+
   /// Dev flavor only: the admin components gallery.
   static const String gallery = '/dev/admin-gallery';
 
