@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/core/app_failure.dart';
 import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -266,7 +267,7 @@ class NotificationSettings {
 
 enum NotificationFailureKind { offline, rateLimited, unknown }
 
-class NotificationFailure implements Exception {
+class NotificationFailure implements AppFailure {
   const NotificationFailure(this.kind, {this.demo});
 
   factory NotificationFailure.from(Object error) {
@@ -296,8 +297,10 @@ class NotificationFailure implements Exception {
   /// Set when the server refused an App Review demo parent.
   final DemoRefusal? demo;
 
+  @override
   bool get isOffline => kind == NotificationFailureKind.offline;
 
+  @override
   String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
 
   String _kindMessage(AppLocalizations l10n) => switch (kind) {

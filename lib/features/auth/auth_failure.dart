@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:school_carpool/core/app_failure.dart';
 import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -24,7 +25,7 @@ enum AuthFailureKind {
 
 /// A sign-up or sign-in problem the parent can act on. Built from the
 /// `details.reason` that our Cloud Functions send (functions/src/auth).
-class AuthFailure implements Exception {
+class AuthFailure implements AppFailure {
   const AuthFailure(this.kind, {this.demo, this.attemptsLeft, this.retryAfter});
 
   /// Maps any error from Firebase or our functions to a failure.
@@ -67,6 +68,7 @@ class AuthFailure implements Exception {
   final int? attemptsLeft;
   final Duration? retryAfter;
 
+  @override
   bool get isOffline => kind == AuthFailureKind.offline;
 
   static AuthFailure _fromFunctions(FirebaseFunctionsException error) {
@@ -103,6 +105,7 @@ class AuthFailure implements Exception {
   }
 
   /// What to tell the parent, including how to fix it.
+  @override
   String message(AppLocalizations l10n) {
     final String? demoText = demoRefusalText(l10n, demo);
     if (demoText != null) {

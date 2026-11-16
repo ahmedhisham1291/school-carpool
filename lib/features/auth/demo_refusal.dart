@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:school_carpool/firebase/callable_error.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// Why the server refused an App Review demo parent
@@ -13,9 +14,7 @@ DemoRefusal? demoRefusalOf(Object? error) {
   if (error is! FirebaseFunctionsException) {
     return null;
   }
-  final Object? details = error.details;
-  final Object? reason = details is Map<Object?, Object?> ? details['reason'] : null;
-  return switch (reason ?? error.message) {
+  return switch (callableReason(error) ?? error.message) {
     'demo-account' => DemoRefusal.account,
     'demo-closed' => DemoRefusal.closed,
     _ => null,

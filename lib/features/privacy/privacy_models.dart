@@ -1,7 +1,9 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/core/app_failure.dart';
 import 'package:school_carpool/features/auth/demo_refusal.dart';
+import 'package:school_carpool/firebase/callable_error.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// Privacy and security (Prompt 12, spec section 7). Same codes as the
@@ -303,7 +305,7 @@ enum PrivacyFailureKind {
   unknown,
 }
 
-class PrivacyFailure implements Exception {
+class PrivacyFailure implements AppFailure {
   const PrivacyFailure(this.kind, {this.demo});
 
   factory PrivacyFailure.from(Object error) {
@@ -316,8 +318,7 @@ class PrivacyFailure implements Exception {
       return PrivacyFailure(PrivacyFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
-      final Object? details = error.details;
-      final Object? reason = details is Map<Object?, Object?> ? details['reason'] : null;
+      final String? reason = callableReason(error);
       return PrivacyFailure(switch (reason) {
         'wallet-not-empty' => PrivacyFailureKind.walletNotEmpty,
         'wallet-pending' => PrivacyFailureKind.walletPending,
@@ -349,9 +350,11 @@ class PrivacyFailure implements Exception {
   /// Set when the server refused an App Review demo parent.
   final DemoRefusal? demo;
 
+  @override
   bool get isOffline => kind == PrivacyFailureKind.offline;
 
   /// One short sentence that says what happened and what to do.
+  @override
   String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
 
   String _kindMessage(AppLocalizations l10n) => switch (kind) {

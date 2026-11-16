@@ -1,16 +1,18 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_carpool/core/app_failure.dart';
 import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_models.dart';
 import 'package:school_carpool/features/places/address_models.dart';
+import 'package:school_carpool/firebase/callable_error.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 enum AddressFailureKind { area, district, street, building, extra, pinOutsideArea, outsideEgypt, rateLimited, offline, unknown }
 
 /// Why an address call failed (functions/src/places/address.ts and the maps reasons).
-class AddressFailure implements Exception {
+class AddressFailure implements AppFailure {
   const AddressFailure(this.kind, {this.demo, this.areaNameAr = '', this.areaNameEn = ''});
 
   factory AddressFailure.from(Object error) {
@@ -23,8 +25,7 @@ class AddressFailure implements Exception {
       return AddressFailure(AddressFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
-      final Object? details = error.details;
-      final Object? reason = details is Map<Object?, Object?> ? details['reason'] : null;
+      final String? reason = callableReason(error);
       switch (reason) {
         case 'invalid-city' || 'invalid-area':
           return const AddressFailure(AddressFailureKind.area);
@@ -63,8 +64,10 @@ class AddressFailure implements Exception {
   final String areaNameAr;
   final String areaNameEn;
 
+  @override
   bool get isOffline => kind == AddressFailureKind.offline;
 
+  @override
   String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
 
   String _kindMessage(AppLocalizations l10n) => switch (kind) {
