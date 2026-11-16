@@ -50,6 +50,21 @@ What is already in the repository (`codemagic.yaml`, workflow
    **Integrations > Developer Portal > Connect**. Name: `CodemagicASC`
    (exactly; `codemagic.yaml` uses it). Paste the **Issuer ID** and **Key
    ID**, upload the `.p8`. Save. Codemagic stores it encrypted.
+1b. Signing files (needed because `ios_signing` uses Codemagic's code
+   signing identities):
+   - Codemagic > **Team settings > codemagic.yaml settings > Code signing
+     identities > iOS certificates > Generate certificate**: type **Apple
+     Distribution**, reference name `stg_distribution`. (If Apple says you
+     already have the maximum number of distribution certificates, revoke an
+     unused one at developer.apple.com > Certificates first.)
+   - developer.apple.com > **Certificates, Identifiers & Profiles > Profiles >
+     +** > **App Store Connect** (Distribution) > App ID
+     `org.schoolcarpool.app.stg` > the certificate just generated > name
+     `School Carpool Stg App Store` > Generate.
+   - Codemagic > **Code signing identities > iOS provisioning profiles >
+     Fetch profiles** > tick that profile, reference name
+     `stg_app_store` > Download selected. The Certificate column should
+     show a green tick.
 2. Codemagic > the app > **Environment variables**. Group
    **`staging_defines`** (create it if missing). Add, each with **Secret**
    ticked:
