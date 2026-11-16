@@ -133,3 +133,20 @@ verification). So the line was moved in the app only, to match the server:
   Not run: a real `flutter create` + build; the first Codemagic staging
   build and docs/test-iphone.md T1-T6 on a real iPhone are the real test
   (launch, push tap, universal link, background run, resume after close).
+
+### 10. Prod build stops for a listed SDK without a privacy manifest (done)
+
+- Apple's list (developer.apple.com/support/third-party-SDK-requirements,
+  read 16 Nov 2026, 86 names) is `APPLE_LISTED_SDKS` in
+  `tool/check_ios_app.py`, with the framework names each takes in the app
+  (CocoaPods module names, repackaged plugins such as
+  path_provider_foundation and shared_preferences_foundation).
+- A listed SDK in Runner.app without PrivacyInfo.xcprivacy (in its
+  framework, or a `<name>_*.bundle` at the app root) is a PROBLEM for
+  `--flavor prod` (the `ios-prod` workflow stops) and a WARNING on staging.
+  Tracking declared by any bundle stays a problem everywhere.
+- The audit lists the listed SDKs we link with the versions locked in
+  `pubspec.lock`; native pod versions are what the plugins pin (read
+  `ios/Podfile.lock` after a build).
+- Tests: `tool/test_check_ios_app.py` (run here). Not run: on a real built
+  app (first Codemagic build).

@@ -79,8 +79,39 @@ staging build is the real test of the native changes.
 | App privacy manifest | FIXED | There was none. `tool/ios/PrivacyInfo.xcprivacy`: no tracking, no tracking domains, required-reason APIs (UserDefaults CA92.1, file timestamp C617.1, system boot time 35F9.1, disk space E174.1), collected data types as in docs/app-store-privacy.md. Copied by `tool/patch_native.py:229`, added to the Runner target by `tool/ios/configure_xcode.rb`. The file-timestamp, boot-time and disk-space reasons are declared for the Dart/Flutter runtime as most Flutter apps do; our own code uses UserDefaults only. |
 | Reason codes checked | PASS | Validator review: CA92.1 (UserDefaults, the app's own data), C617.1 (file timestamps inside the app container), 35F9.1 (boot time, to measure elapsed time), E174.1 (disk space, to check there is room to write) are the standard codes of their categories. Apple's article "Describing use of required reason API" was opened (it now keeps the code list on the pages of the two manifest keys, which this workspace could not open). |
 | Our own plugin | FIXED | `packages/run_recovery` uses UserDefaults: manifest in `ios/Resources/PrivacyInfo.xcprivacy`, shipped through the podspec's `resource_bundles`. |
-| Third-party SDK manifests | RISK (low) | The lock file pins current packages (firebase_core 5.1, sentry_flutter 10.4, google_maps_flutter_ios 2.18, geolocator_apple 2.4, shared_preferences_foundation 2.6, url_launcher_ios 6.4, image_picker_ios 0.8.13, path_provider_foundation 2.6, connectivity_plus 7.3, device_info_plus 13.3, package_info_plus 10.2). All of these have shipped manifests since 2024, but the pods cannot be opened here. `tool/check_ios_app.py` lists any listed SDK without a manifest on the built app (warning), and fails if any SDK declares tracking. Also check Xcode's privacy report once, or the email Apple sends after upload (ITMS-91053/91061). |
+| Third-party SDK manifests | FIXED (review-risks item 10) | Apple's list of commonly used SDKs (86 names, read 16 Nov 2026) is in `tool/check_ios_app.py` (`APPLE_LISTED_SDKS`, with the framework names they take in the app and the repackaged plugins). On the built app, a listed SDK without a privacy manifest (in its framework or its resource bundle) now **stops the prod build** (`ios-prod`, `--flavor prod`) and is a warning on staging; an SDK that declares tracking stops every build. Tests: `tool/test_check_ios_app.py`. The listed SDKs we link are in the table below. |
 | Collected data matches the nutrition label | PASS | The manifest test compares the types with docs/app-store-privacy.md section 2. |
+
+Listed SDKs in the app (Apple's name; where it comes from; version locked
+in `pubspec.lock` on 16 Nov 2026). Native pod versions (Firebase iOS SDK
+and its Google dependencies) are the ones the Flutter plugin pins; read
+them in `ios/Podfile.lock` after a build. Every one of these has shipped a
+privacy manifest since 2024; the prod build now proves it per build.
+
+| Apple-listed SDK | Comes from | Locked version |
+| --- | --- | --- |
+| Flutter | Flutter engine | Flutter 3.50.0 (`codemagic.yaml`) |
+| FirebaseCore, FirebaseCoreInternal, FirebaseCoreExtension, FirebaseInstallations | firebase_core | 5.1.0 (pods: as pinned by the plugin) |
+| FirebaseAuth | firebase_auth | 7.0.1 |
+| FirebaseFirestore, Abseil, grpcpp, BoringSSL / openssl_grpc, leveldb | cloud_firestore | 7.1.0 |
+| FirebaseMessaging | firebase_messaging | 17.0.1 |
+| GoogleUtilities, GoogleDataTransport, nanopb, FBLPromises, Promises, GTMSessionFetcher | Firebase dependencies (also firebase_storage 14.0.1, firebase_analytics 13.0.1, firebase_app_check 0.5.1, cloud_functions 7.0.1) | as pinned by the plugins |
+| connectivity_plus | connectivity_plus | 7.3.1 |
+| device_info_plus | device_info_plus | 13.3.0 |
+| flutter_local_notifications | flutter_local_notifications | 19.5.0 |
+| geolocator_apple | geolocator 14.1.2 | 2.4.3 |
+| image_picker_ios | image_picker 1.2.4 | 0.8.13+15 |
+| package_info_plus | package_info_plus | 10.2.2 |
+| path_provider (repackaged as path_provider_foundation) | path_provider 2.1.6 | 2.6.0 |
+| shared_preferences_ios (repackaged as shared_preferences_foundation) | shared_preferences 2.5.6 | 2.6.2 |
+| url_launcher_ios | url_launcher 6.3.3 | 6.4.2 |
+
+Not on Apple's list but linked (checked for tracking only): Sentry
+(sentry_flutter 10.4.0), Google Maps (google_maps_flutter_ios 2.18.7),
+local_auth_darwin 2.0.5, camera_avfoundation 0.11.1, flutter_image_compress
+2.5.1, screen_protector 1.5.3, sqlite3_flutter_libs 0.5.42 (stream_chat_persistence
+10.7.0, Stream chat on main), FirebaseAnalytics, FirebaseAppCheck,
+FirebaseStorage, our run_recovery (own manifest).
 
 ## 4. Background location (2.5.4, 5.1.5)
 
