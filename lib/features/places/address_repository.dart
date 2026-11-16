@@ -25,6 +25,7 @@ class AddressFailure implements AppFailure {
       return AddressFailure(AddressFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
+      final Object? details = error.details;
       final String? reason = callableReason(error);
       switch (reason) {
         case 'invalid-city' || 'invalid-area':
