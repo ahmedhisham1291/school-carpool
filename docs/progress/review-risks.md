@@ -170,3 +170,25 @@ verification). So the line was moved in the app only, to match the server:
 - Small fix found while auditing: the phones list said "Android" for a
   parent's own non-iPhone device (2.3.10 wording); now "Other phone" /
   "هاتف آخر" (test updated, written, not run here).
+
+### 9. Branch `chat-review-safe` (done, separate worktree)
+
+`/home/claude/wt-chat-review-safe`, from `origin/improve-b-firestore-chat`
+(0cdcfcd): merge of main 495b1e8 (82ecb6f, three conflicts), then 3667dd8:
+admin-editable Arabic and English word filter in `config/chatModeration`
+applied by the server to every text message at send, report and block
+verified, and the public privacy page, in-app privacy text and App Store
+privacy answers following `CHAT_PROVIDER` in `functions/.env.<env>`.
+Notes: docs/progress/chat-review-safe.md on that branch. It does not
+contain this branch: merge `review-risks` into main first, then main into
+`chat-review-safe` (expect conflicts in the privacy page, open items, the
+audit, the kit and the ARB files).
+
+## Tests (whole branch)
+
+- Run here: Functions `node --test` (881 pass; the workspace's stub
+  typings make `tsc` print the same 164 typing errors as main), tool
+  tests `python3 -m unittest discover -s tool -p 'test_*.py'` (66 pass,
+  including the Ruby script against the xcodeproj stub), `ruby -c`.
+- Written, not run here: every Flutter test, analyzer and golden; rules
+  tests (no rule changed on this branch); any iOS build.
