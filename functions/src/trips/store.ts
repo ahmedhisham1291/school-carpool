@@ -1,5 +1,5 @@
 import { FieldValue, GeoPoint, Timestamp, type DocumentData, type Firestore } from "firebase-admin/firestore";
-import { REVIEW_DEMO_FIELD, reviewDemoActive } from "../auth/review_access";
+import { readReviewDemoState } from "../auth/review_access";
 import { USERS } from "../auth/accounts";
 import { REPORTS, SCHOOLS } from "../admin_panel/store";
 import { takeFromWindow, type WindowCounter } from "../maps/limits";
@@ -232,7 +232,8 @@ export class FirestoreTripStore implements TripStore {
       firstName: text(d.firstName),
       drivingPaused: d.drivingPaused != null && d.drivingPaused !== false,
       language: asLanguage(d.language),
-      reviewDemo: reviewDemoActive(d[REVIEW_DEMO_FIELD], Date.now()),
+      // Only a demo parent listed in the open review access (reviewDemoState).
+      reviewDemo: (await readReviewDemoState(this.db, uid, d, Date.now())) === "open",
     };
   }
 

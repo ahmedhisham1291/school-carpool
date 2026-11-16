@@ -83,9 +83,12 @@ text to the developer.
     your own phone (Apple's phone would be signed out). Check the admin
     panel's Reports every day. Run the demo `seed` again each Saturday
     evening (it plans the new week).
-17. **After approval:** `review-demo -- remove`, delete the two demo
-    accounts in the app (Profile > Privacy > Delete account) and
-    `review-access -- off`. For every later update that Apple reviews,
+17. **After approval:** `review-demo -- remove` (the demo accounts are
+    signed out, lose "verified" and are refused by the server), then
+    `review-access -- off`. To erase the two accounts as well, delete them
+    in the admin panel, or sign in to each once more and use Profile >
+    Privacy > Delete account (the only thing a closed demo account can
+    still do). For every later update that Apple reviews,
     turn them on again first.
 
 ## B. Demo accounts for the reviewer
@@ -118,6 +121,29 @@ cannot find, one carpool, one child each, a car, and runs for this week
 and the next. Because Apple's phone is always "a new phone", the two demo
 parents skip the new-phone selfie and the driver's face check until the
 30 days end. Real parents are never affected.
+
+**The demo accounts are locked to the demo school and carpool** (validator
+review, 16 Nov 2026), because their code is known outside the team and
+they never passed an ID check:
+
+- The skip applies only to the two accounts the seed lists in the server
+  settings, and only while review access is on. `review-access -- off`,
+  the end of the window or `review-demo -- remove` ends it at once, and
+  from then on the server refuses those accounts everything except
+  Delete account.
+- A demo parent cannot add driving schools (so cannot search real
+  parents or real carpools), join another carpool, open an invite link,
+  post "looking for a carpool", create an activity carpool, add a child
+  or documents, add a school, link a guardian, change the phone number or
+  use the wallet. The app shows its normal error message there. Settle up
+  and chat work only inside the demo carpool (the server allows them
+  only between members of one carpool or school).
+- If you run `review-access -- on` again (new window or new codes), run
+  `review-demo -- seed` again too: the first command starts with no
+  listed demo account.
+- If the reviewer deletes the demo account (they may test Delete
+  account), the number signs in as a new, unverified parent. Run `seed`
+  again to restore it.
 
 In **App Store Connect > App Review Information > Sign-In Information**:
 tick "Sign-in required"; **User name** = demo phone 1 (as the app shows
@@ -226,7 +252,9 @@ app's privacy manifest (a test checks that). Short form:
 > driver) in a demo carpool with a second demo parent ("Karim Demo").
 > All data is fake. Please use this account: a new account cannot join a
 > carpool until our team has verified the parent's identity document,
-> which is the app's core safety rule.
+> which is the app's core safety rule. For the same reason the demo
+> account is limited to its demo school and carpool: it cannot join
+> other carpools, add a child or change its phone number.
 > To see the main feature: Carpools tab > Demo School carpool > Schedule
 > > today's run > Start run. Allow location "While Using the App" with
 > Precise Location, and notifications, when asked. School runs are

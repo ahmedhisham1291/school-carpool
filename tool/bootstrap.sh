@@ -75,8 +75,19 @@ python3 tool/patch_native.py \
   --flavor "$FLAVOR"
 
 if [[ "$(uname)" == "Darwin" && -d ios ]]; then
+  # The gem comes with CocoaPods. On a build machine (Codemagic sets CI and
+  # CM_BUILD_ID) a missing gem is installed, and a build without it is
+  # refused: it would upload an app with no push or App Attest entitlement
+  # and no privacy manifest (docs/reviews/apple-review.md, B4).
+  if ! ruby -e "require 'xcodeproj'" 2>/dev/null && [[ -n "${CI:-}${CM_BUILD_ID:-}" ]]; then
+    echo "bootstrap: installing the xcodeproj Ruby gem"
+    gem install xcodeproj --no-document >/dev/null 2>&1 || gem install xcodeproj --no-document --user-install >/dev/null 2>&1 || true
+  fi
   if ruby -e "require 'xcodeproj'" 2>/dev/null; then
     ruby tool/ios/configure_xcode.rb
+  elif [[ -n "${CI:-}${CM_BUILD_ID:-}" ]]; then
+    echo "bootstrap: ERROR the xcodeproj Ruby gem is missing on this build machine (gem install xcodeproj)." >&2
+    exit 1
   else
     cat <<'EOF'
 bootstrap: WARNING the xcodeproj Ruby gem is missing (install CocoaPods, or

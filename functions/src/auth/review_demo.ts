@@ -1,6 +1,6 @@
 import type { CarpoolRecord, MembershipRecord } from "../carpools/model";
 import { REVIEW_ACCESS_MAX_DAYS } from "./otp_flow";
-import { REVIEW_DEMO_FIELD } from "./review_access";
+import { REVIEW_DEMO_FIELD, REVIEW_DEMO_MARK } from "./review_access";
 
 /**
  * Demo data for Apple's App Review (docs/apple-review/audit.md, guideline
@@ -92,6 +92,8 @@ export function demoPlan(input: DemoInput): DemoPlan {
       whatsappOptIn: false,
       newDeviceCheck: null,
       [REVIEW_DEMO_FIELD]: untilMs,
+      // Permanent: a demo account stays confined for as long as it exists.
+      [REVIEW_DEMO_MARK]: true,
     } as Record<string, unknown>,
   }));
   const children = people.map((p) => ({

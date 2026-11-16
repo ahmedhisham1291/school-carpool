@@ -74,6 +74,8 @@ async function main(): Promise<void> {
   await lists.audit({ actorUid, action: "auth.reviewAccess.on", target: REVIEW_ACCESS_DOC, reasonCode: "appReview", ip: null, details: { days, phones: 1 + extra.length } });
   await ref.set({ ...reviewAccessFor(key, phone, code, expiresAtMs), extra, updatedAt: new Date() });
   console.log(`review access is on for ${days} days for ${1 + extra.length} demo phone(s) (numbers and codes not shown)`);
+  // Turning the access on again starts with no listed demo account: the seed lists them.
+  console.log("Now run `review-demo -- seed` (again): it lists the demo accounts for this window and renews their exemption.");
 }
 
 main().catch((error: unknown) => {

@@ -73,6 +73,8 @@ shared with data brokers.
 | Google Maps Platform | App (map tiles) and server (Places, Routes) | Map views, typed address searches, car and stop points during a run | Who the parent is |
 | Valify | Server only (fake until the pilot) | ID images, selfie | n/a |
 | Wallet partner | Server only (fake until the pilot) | Wallet holder reference, amounts, the two parties | Children's data, chats |
+| Vertex AI (Google Cloud) | Owner's import tool only (`tools/import_schools/ai_review.py`), never the app or the functions | Public school names from the school list, to check spelling and duplicates | Anything about parents or children; names a parent types under "Other" (admins review those) |
+| Email delivery (Firebase "Trigger Email" extension with the owner's SMTP provider) | Server only | The parent's confirmed email address and the new-phone alert text | Anything else |
 | Apple Push (via FCM) | Server | Push token, short alert texts | Phone, coordinates, message text |
 
 ## 4. App Store Connect, step by step

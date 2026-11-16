@@ -27,7 +27,7 @@ import {
 import { createKycProvider, kycConfigProblem, type KycProvider } from "./kyc";
 import { CloudStorageFiles, FirebaseClaimsService, FirestoreVerificationStore, readFakeKycSetting } from "./store";
 import { VerificationError, type VerificationErrorReason } from "./submission";
-import { gatedCall } from "../privacy/device_gate";
+import { gatedCall, realParentCall } from "../privacy/device_gate";
 
 /**
  * Callable functions for verification (F2, F3, F18) and the daily
@@ -177,7 +177,8 @@ const options = { enforceAppCheck: ENFORCE_APP_CHECK, secrets: [NATIONAL_ID_HMAC
  * { identity?, children: [...], driver?, consents } -> { caseId }
  * The images must already be in verification/{uid}/pending/.
  */
-export const submitVerification = gatedCall(options, (request) =>
+// Not for App Review demo parents: they hold fake data only and are never sent to the ID review.
+export const submitVerification = realParentCall(options, (request) =>
   run("submitVerification", () => submitFlow(deps(true), requireUid(request), request.data)),
 );
 

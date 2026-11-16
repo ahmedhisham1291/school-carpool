@@ -18,7 +18,7 @@ import { addOtherSchool as addOtherFlow, OTHER_SCHOOL_ERROR_CODES, OtherSchoolEr
 import { consumeKeyQuotaFirestore, issueSearchKey, SEARCH_KEY_ERROR_CODES, SearchKeyError } from "./search_key";
 import { FirestoreOtherSchoolsStore } from "./store";
 import { FirestorePlaceLocator, placeOfPoint } from "../places/store";
-import { sessionCall } from "../privacy/device_gate";
+import { realParentSessionCall, sessionCall } from "../privacy/device_gate";
 import { gramsToWrite } from "../admin_panel/school_search";
 import { ADMIN_SEARCH_GRAMS } from "../admin_panel/school_search_store";
 
@@ -55,7 +55,7 @@ async function run<T>(name: string, body: () => Promise<T>): Promise<T> {
  * Parent: a school missing from the list ("Other").
  * { name, governorate, location?: { lat, lng } } -> { id, nameAr, nameEn, governorate, status }
  */
-export const addOtherSchool = sessionCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
+export const addOtherSchool = realParentSessionCall({ enforceAppCheck: ENFORCE_APP_CHECK }, (request) =>
   run("addOtherSchool", () =>
     addOtherFlow(
       { store: new FirestoreOtherSchoolsStore(adminDb()), now: () => Date.now(), placeOf: (p) => placeOfPoint(new FirestorePlaceLocator(adminDb()), p) },

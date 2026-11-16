@@ -57,7 +57,7 @@ import { dropThumb, ensureThumb } from "./thumbs";
 import { consentKind, consentViews, correctionField, needsAdmin, newRequest, withdrawEffect, type PrivacyRequest } from "./requests";
 import { routeArchivePurgeAt } from "./retention";
 import { archivePath, packArchive, unpackArchive, type TrackPoint } from "./route_archive";
-import { gatedCall, sessionCall } from "./device_gate";
+import { gatedCall, gatedCallAlsoClosedDemo, sessionCall } from "./device_gate";
 import { featureOn } from "../features/gate";
 
 /**
@@ -374,7 +374,7 @@ export const exportMyData = gatedCall({ ...opts, secrets: [STREAM_API_SECRET], t
  * confirmation and a fresh Face ID check). Refused with money in the
  * wallet, a pending transfer, or a run being driven.
  */
-export const deleteMyAccount = gatedCall({ ...opts, secrets: [STREAM_API_SECRET], timeoutSeconds: 300, memory: "512MiB" }, (r) =>
+export const deleteMyAccount = gatedCallAlsoClosedDemo({ ...opts, secrets: [STREAM_API_SECRET], timeoutSeconds: 300, memory: "512MiB" }, (r) =>
   run("deleteMyAccount", async () => {
     const uid = uidOf(r);
     const store = new FirestorePrivacyStore(adminDb());

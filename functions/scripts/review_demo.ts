@@ -20,13 +20,24 @@
  * driver's car, records the second parent's consent to the driver, plans
  * this week and the next and confirms the driver's runs.
  *
- * remove: ends the exemption, deletes the demo carpool, children, car,
- * homes and school. Close the two accounts with Delete account in the app
- * (or the admin panel); this script does not delete accounts.
+ * remove: ends the exemption, takes "verified" away from the two demo
+ * accounts, signs their phones out and deletes the demo carpool,
+ * children, car, homes and school. After it the server refuses the demo
+ * accounts everything except Delete account. Close the two accounts with
+ * Delete account in the app (sign in again first) or in the admin panel;
+ * this script does not delete accounts.
  *
  * The numbers come from the environment, are never printed and never
  * stored by this script. Refuses numbers that are not both on the review
  * allow-list (config/reviewAccess), so it cannot mark a real parent.
+ *
+ * Demo accounts are confined by the server (src/privacy/device_gate.ts,
+ * src/auth/review_access.ts): the exemption from the new-phone selfie and
+ * the face reference applies only to the two accounts listed in
+ * config/reviewAccess while that access is on; they cannot add driving
+ * schools, join or search carpools outside the demo school, change phone
+ * number, link a guardian, submit documents or use the wallet; outside the
+ * window every function refuses them.
  * Written to the admin audit log.
  */
 import { initializeApp } from "firebase-admin/app";
@@ -38,7 +49,7 @@ import { FirebaseAccountService } from "../src/auth/accounts";
 import { CONSENT_VERSIONS } from "../src/auth/consents";
 import { isReviewPhone } from "../src/auth/otp_flow";
 import { toEgyptE164 } from "../src/auth/phone";
-import { REVIEW_ACCESS_DOC, REVIEW_DEMO_FIELD, readReviewAccess, reviewDemoActive } from "../src/auth/review_access";
+import { REVIEW_ACCESS_DOC, REVIEW_DEMO_FIELD, REVIEW_DEMO_MARK, isReviewDemoAccount, readReviewAccess, reviewDemoState } from "../src/auth/review_access";
 import { DEMO_IDS, demoPlan, demoWindowMs } from "../src/auth/review_demo";
 import { newInviteCode } from "../src/carpools/callables";
 import { DEFAULT_CARPOOL_LIMITS, setDriverConsent, type CarpoolDeps } from "../src/carpools/flow";
@@ -85,7 +96,8 @@ async function main(): Promise<void> {
       const members = await db.collection("carpools").doc(DEMO_IDS.carpool).collection("members").get();
       for (const m of members.docs) {
         const user = await db.collection("users").doc(m.id).get();
-        console.log(`demo parent ${m.get("role")}: status ${user.get("status")}, exemption ${reviewDemoActive(user.get(REVIEW_DEMO_FIELD), nowMs) ? "on" : "off"}`);
+        const state = reviewDemoState(user.data(), m.id, review, nowMs);
+        console.log(`demo parent ${m.get("role")}: status ${user.get("status")}, demo access ${state === "open" ? "open (exemption on)" : "CLOSED (run seed again after review-access on)"}`);
       }
     }
     return;
@@ -106,9 +118,20 @@ async function main(): Promise<void> {
         // Already deleted in the app.
       }
     }
+    // No account is listed for the exemption any more.
+    const accessRef = db.doc(REVIEW_ACCESS_DOC);
+    if ((await accessRef.get()).exists) await accessRef.update({ demoUids: [] });
     for (const uid of uids) {
       const ref = db.collection("users").doc(uid);
-      if ((await ref.get()).exists) await ref.update({ [REVIEW_DEMO_FIELD]: FieldValue.delete() });
+      const user = await ref.get();
+      // Only accounts this script marked: never a real parent who now owns the number.
+      if (!user.exists || !isReviewDemoAccount(user.data())) continue;
+      // The exemption ends, the account is no longer "verified" (it never
+      // passed an ID check) and every phone is signed out. The demo mark
+      // stays, so the server keeps refusing the account until it is deleted.
+      await ref.update({ [REVIEW_DEMO_FIELD]: FieldValue.delete(), [REVIEW_DEMO_MARK]: true, status: "unverified", sessionsValidAfter: Math.ceil(nowMs / 1000) + 1 });
+      await auth.setCustomUserClaims(uid, {});
+      await auth.revokeRefreshTokens(uid);
     }
     const [a, b] = [uids[0] ?? "gone-1", uids[1] ?? "gone-2"];
     const plan = demoPlan({ driverUid: a, parentUid: b, nowMs, untilMs: nowMs, today: cairoDate(nowMs) });
@@ -118,7 +141,8 @@ async function main(): Promise<void> {
       if (path.includes("gone-")) continue;
       await db.doc(path).delete();
     }
-    console.log("demo data removed. Now close the two demo accounts with Delete account in the app, and turn review access off.");
+    console.log("demo data removed; the demo accounts are signed out, no longer verified and refused by the server.");
+    console.log("Now turn review access off (`review-access -- off`). To erase the two accounts too: Delete account in the app (sign in again first) or the admin panel.");
     return;
   }
 
@@ -137,7 +161,7 @@ async function main(): Promise<void> {
   const parent = await accounts.signInWithPhone(phoneB, "en");
   for (const uid of [driver.uid, parent.uid]) {
     const user = await db.collection("users").doc(uid).get();
-    const isDemo = user.get(REVIEW_DEMO_FIELD) !== undefined || user.get("lastName") === "Demo";
+    const isDemo = isReviewDemoAccount(user.data());
     // A number that already belongs to a real parent is never turned into a demo account.
     if (user.get("status") !== "unverified" && !isDemo) refuse("one of the numbers already has a real account; use numbers that are only for the demo accounts");
   }
@@ -216,6 +240,8 @@ async function main(): Promise<void> {
       memberToDoc({ uid: m.uid, role: m.role, firstName: m.firstName, children: m.children, car: m.car, drivingDays: m.drivingDays, pickupShared: false, joinedAtMs: nowMs }),
     );
   }
+  // Only these two accounts get the exemption, and only while the access is on (reviewDemoState).
+  batch.update(db.doc(REVIEW_ACCESS_DOC), { demoUids: [driver.uid, parent.uid] });
   await batch.commit();
   console.log("demo accounts, school and carpool written");
 

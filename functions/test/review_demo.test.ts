@@ -205,3 +205,146 @@ describe("App Review: demo data plan (fake data only)", () => {
     assert.ok(!plan.removePaths.some((p) => p.startsWith("users/")), "accounts are closed through account deletion, not by path");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Validator review (docs/reviews/apple-review.md, B1 and B2): the demo
+// accounts are no backdoor.
+// ---------------------------------------------------------------------------
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { isReviewDemoAccount, REVIEW_DEMO_MARK, REVIEW_DEMO_MAX_UIDS, reviewDemoState } from "../src/auth/review_access";
+import { reviewWindowOpen } from "../src/auth/otp_flow";
+
+describe("App Review: the exemption is bound to the two listed accounts and the open window", () => {
+  const now = 1_800_000_000_000;
+  const open: ReviewAccess = { ...reviewAccessFor(KEY, PHONE_1, CODE_1, now + 7 * DAY), demoUids: ["uA", "uB"] };
+  const demoUser = { [REVIEW_DEMO_FIELD]: now + 7 * DAY, [REVIEW_DEMO_MARK]: true, status: "verified" };
+
+  it("a real parent is never a demo account, whatever the review access says", () => {
+    assert.equal(reviewDemoState({ status: "verified" }, "uReal", open, now), "none");
+    assert.equal(reviewDemoState(undefined, "uReal", open, now), "none");
+    // Listed by mistake but not marked: still nothing.
+    assert.equal(reviewDemoState({ status: "verified" }, "uA", open, now), "none");
+  });
+
+  it("open only for a listed, marked account with a live date while the access is on", () => {
+    assert.equal(reviewDemoState(demoUser, "uA", open, now), "open");
+    assert.equal(reviewDemoState(demoUser, "uB", open, now), "open");
+  });
+
+  it("the exemption date on an account that is not listed does nothing (closed, not open)", () => {
+    assert.equal(reviewDemoState(demoUser, "uOther", open, now), "closed");
+    assert.equal(reviewDemoState({ [REVIEW_DEMO_FIELD]: now + DAY }, "uOther", open, now), "closed");
+    assert.equal(reviewDemoState(demoUser, "uA", { ...open, demoUids: [] }, now), "closed");
+    const { demoUids: _none, ...unlisted } = open;
+    assert.equal(reviewDemoState(demoUser, "uA", unlisted, now), "closed");
+  });
+
+  it("ends at once when the access is switched off, expires or is missing", () => {
+    assert.equal(reviewDemoState(demoUser, "uA", { ...open, enabled: false }, now), "closed");
+    assert.equal(reviewDemoState(demoUser, "uA", { ...open, expiresAtMs: now - 1 }, now), "closed");
+    assert.equal(reviewDemoState(demoUser, "uA", { ...open, expiresAtMs: now + (REVIEW_ACCESS_MAX_DAYS + 1) * DAY }, now), "closed");
+    assert.equal(reviewDemoState(demoUser, "uA", null, now), "closed");
+    // The account's own date passed while the access is still on.
+    assert.equal(reviewDemoState({ ...demoUser, [REVIEW_DEMO_FIELD]: now - 1 }, "uA", open, now), "closed");
+    // After `remove` the date is gone and the mark stays: closed for good.
+    assert.equal(reviewDemoState({ [REVIEW_DEMO_MARK]: true, status: "unverified" }, "uA", open, now), "closed");
+  });
+
+  it("at most two accounts are ever listed", () => {
+    assert.equal(REVIEW_DEMO_MAX_UIDS, 2);
+    assert.equal(reviewDemoState(demoUser, "uC", { ...open, demoUids: ["uA", "uB", "uC"] }, now), "closed");
+  });
+
+  it("the mark is permanent: an account stays a demo account without the date", () => {
+    assert.equal(isReviewDemoAccount({ [REVIEW_DEMO_MARK]: true }), true);
+    assert.equal(isReviewDemoAccount({ [REVIEW_DEMO_FIELD]: 1 }), true);
+    assert.equal(isReviewDemoAccount({ [REVIEW_DEMO_MARK]: "true" }), false);
+    assert.equal(isReviewDemoAccount({}), false);
+    assert.equal(isReviewDemoAccount(null), false);
+  });
+
+  it("a malformed access document is closed", () => {
+    for (const bad of [{ ...open, phoneKey: "p_short" }, { ...open, codeHash: "zz" }, { ...open, expiresAtMs: Number.NaN }, { ...open, expiresAtMs: "soon" as unknown as number }]) {
+      assert.equal(reviewWindowOpen(bad, now), false);
+      assert.equal(reviewDemoState(demoUser, "uA", bad, now), "closed");
+    }
+  });
+
+  it("the seed plan marks both demo parents", () => {
+    const plan = demoPlan({ driverUid: "uA", parentUid: "uB", nowMs: now, untilMs: now + 7 * DAY, today: "2027-01-17" });
+    for (const u of plan.users) assert.equal(u.fields[REVIEW_DEMO_MARK], true);
+  });
+});
+
+describe("App Review: demo parents are confined by the server (wiring)", () => {
+  // Compiled tests run from functions/lib/test: the sources are two folders up.
+  const src = (file: string) => readFileSync(join(__dirname, "..", "..", "src", file), "utf8");
+  const wrapperOf = (text: string, name: string): string => {
+    const m = new RegExp(`export const ${name} = (\\w+)\\(`).exec(text);
+    assert.ok(m, `${name} not found`);
+    return m[1];
+  };
+
+  it("callables that reach real parents or leave the demo school refuse a demo parent", () => {
+    const expected: Array<[string, string[], string]> = [
+      ["maps/callables.ts", ["setDrivingSchools"], "realParentCall"],
+      ["carpools/callables.ts", ["requestToJoinCarpool", "openCarpoolInvite", "saveCarpoolWanted"], "realParentCall"],
+      ["trust/callables.ts", ["requestGuardianLink", "answerGuardianRequest", "requestPhoneChange", "confirmPhoneChange"], "realParentCall"],
+      ["verification/callables.ts", ["submitVerification"], "realParentCall"],
+      ["schools/callables.ts", ["addOtherSchool"], "realParentSessionCall"],
+    ];
+    for (const [file, names, wrapper] of expected) {
+      const text = src(file);
+      for (const name of names) assert.equal(wrapperOf(text, name), wrapper, `${file}: ${name}`);
+    }
+  });
+
+  it("creating and searching carpools is school-only for a demo parent", () => {
+    const text = src("carpools/callables.ts");
+    for (const name of ["createCarpool", "searchCarpools"]) {
+      const start = text.indexOf(`export const ${name} = `);
+      const body = text.slice(start, text.indexOf("\n);", start));
+      assert.ok(body.includes("schoolKindOnlyForReviewDemo(r)"), name);
+    }
+  });
+
+  it("every wallet callable refuses a demo parent; the gate runs for every parent callable", () => {
+    const gate = src("features/gate.ts");
+    assert.ok(/REAL_PARENTS_ONLY[^\n]*\["wallet"\]/.test(gate));
+    assert.equal((gate.match(/if \(REAL_PARENTS_ONLY\.has\(key\)\) refuseReviewDemo\(request\);/g) ?? []).length, 2);
+    const wallet = src("wallet/callables.ts");
+    for (const name of ["getWallet", "openWallet", "lookupParentId", "walletContacts", "sendMoney", "addMoney", "withdrawMoney", "listWalletHistory", "getTransfer"]) {
+      assert.equal(wrapperOf(wallet, name), "featureGatedCall", name);
+    }
+    assert.equal(wrapperOf(wallet, "reportTransfer"), "featureSessionCall");
+  });
+
+  it("outside the window the gate refuses a demo parent everything but deleting the account", () => {
+    const gate = src("privacy/device_gate.ts");
+    assert.ok(gate.includes('if (demo === "closed") throw new HttpsError("permission-denied", "demo-closed"'));
+    assert.equal(wrapperOf(src("privacy/callables.ts"), "deleteMyAccount"), "gatedCallAlsoClosedDemo");
+    // No other callable uses the exception.
+    for (const file of ["carpools/callables.ts", "maps/callables.ts", "trips/callables.ts", "chat/callables.ts", "trust/callables.ts", "schedule/callables.ts", "settle_up/callables.ts", "wallet/callables.ts"]) {
+      assert.ok(!src(file).includes("gatedCallAlsoClosedDemo"), file);
+    }
+  });
+
+  it("the stores take the exemption from reviewDemoState, never from the date alone", () => {
+    for (const file of ["privacy/firestore_store.ts", "trips/store.ts"]) {
+      const text = src(file);
+      assert.ok(text.includes('readReviewDemoState(this.db, uid,'), file);
+      assert.ok(!text.includes("reviewDemoActive("), file);
+    }
+  });
+});
+
+describe("App Review: real parents never pick the demo school", () => {
+  it("a driving-schools request naming the demo school is recognised", () => {
+    // Read from the source: importing maps/callables would start the Admin SDK.
+    const text = readFileSync(join(__dirname, "..", "..", "src", "maps", "callables.ts"), "utf8");
+    assert.ok(text.includes('if (namesReviewDemoSchool(request.data)) throw new HttpsError("invalid-argument", "invalid-school"'));
+    assert.ok(text.includes("ids.includes(DEMO_IDS.school)"));
+    assert.equal(DEMO_IDS.school, "review-demo-school");
+  });
+});

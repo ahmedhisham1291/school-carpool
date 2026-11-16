@@ -80,3 +80,12 @@ a site; a link that cannot open is copied with a snackbar.
 6. Demo accounts on staging: docs/apple-review/submission-kit.md section B
    with the staging project id; sign in on a second phone with the demo
    driver number: no selfie check, the demo run starts.
+
+## Validator review (16 Nov 2026)
+
+docs/reviews/apple-review.md. Fixed there: demo accounts confined by the
+server and closed outside the window (B1), the selfie skip bound to the
+two listed accounts and the open access (B2), email provider and Vertex
+AI named on the privacy page (B3), a build machine without the xcodeproj
+gem now fails (B4). Data model: `users/{uid}.reviewDemo` (permanent
+mark, server only), `config/reviewAccess.demoUids` (at most two).

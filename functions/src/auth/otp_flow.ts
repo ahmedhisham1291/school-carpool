@@ -121,6 +121,12 @@ export interface ReviewAccess {
    * hash. At most REVIEW_ACCESS_MAX_EXTRA; same window and limits.
    */
   extra?: ReadonlyArray<{ phoneKey: string; codeHash: string }>;
+  /**
+   * Account IDs of the demo parents (scripts/review_demo.ts seed). Only
+   * these accounts get the demo exemptions, and only while this access is
+   * on (auth/review_access.ts, reviewDemoState).
+   */
+  demoUids?: ReadonlyArray<string>;
 }
 
 /** How many demo phones may be allow-listed besides the first. */
@@ -129,11 +135,18 @@ export const REVIEW_ACCESS_MAX_EXTRA = 1;
 /** The longest a review window may be open (the script refuses more). */
 export const REVIEW_ACCESS_MAX_DAYS = 30;
 
+/** The review access is switched on, well formed, not expired and not open for longer than the limit. */
+export function reviewWindowOpen(review: ReviewAccess | null | undefined, nowMs: number): review is ReviewAccess {
+  if (!review || review.enabled !== true) return false;
+  if (typeof review.phoneKey !== "string" || typeof review.codeHash !== "string") return false;
+  if (!/^p_[0-9a-f]{64}$/.test(review.phoneKey) || !/^[0-9a-f]{64}$/.test(review.codeHash)) return false;
+  if (typeof review.expiresAtMs !== "number" || !Number.isFinite(review.expiresAtMs)) return false;
+  return review.expiresAtMs > nowMs && review.expiresAtMs - nowMs <= REVIEW_ACCESS_MAX_DAYS * DAY_MS;
+}
+
 /** The review code applies to this phone key now, or null. */
 export function activeReview(review: ReviewAccess | null | undefined, pKey: string, nowMs: number): ReviewAccess | null {
-  if (!review || review.enabled !== true) return null;
-  if (!/^p_[0-9a-f]{64}$/.test(review.phoneKey) || !/^[0-9a-f]{64}$/.test(review.codeHash)) return null;
-  if (!(review.expiresAtMs > nowMs) || review.expiresAtMs - nowMs > REVIEW_ACCESS_MAX_DAYS * DAY_MS) return null;
+  if (!reviewWindowOpen(review, nowMs)) return null;
   if (review.phoneKey === pKey) return review;
   const extra = Array.isArray(review.extra) ? review.extra.slice(0, REVIEW_ACCESS_MAX_EXTRA) : [];
   for (const e of extra) {

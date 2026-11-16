@@ -88,7 +88,12 @@ account in **Sign-In Information** (section 2). Attach the run video
   for this account. The demo parents made by `review-demo -- seed` skip
   the new-phone selfie and the driver's face reference until the review
   window ends (`reviewDemoUntilMs`, server only), so nobody has to watch
-  the admin panel. Signing in on Apple's phone still signs your own
+  the admin panel. The skip applies only to the two accounts listed in
+  `config/reviewAccess` (`demoUids`, written by the seed) while the
+  access is on; the accounts carry a permanent `reviewDemo` mark and the
+  server confines them to the demo school and carpool, and refuses them
+  everything except Delete account outside the window
+  (docs/reviews/apple-review.md, B1 and B2). Signing in on Apple's phone still signs your own
   phones out of that account: do not use the demo driver account on your
   own phone during the review.
 - **Second demo account and demo data:** `REVIEW_PHONE_2` /
