@@ -15,6 +15,7 @@ import {
   REGION,
   STREAM_API_KEY,
   STREAM_API_SECRET,
+  appEnv,
 } from "../config";
 import { reportError } from "../sentry";
 import { FirestoreChatStore, FirestoreDrivingPauser } from "./firestore_store";
@@ -58,7 +59,7 @@ function secretValue(): string {
 }
 
 export function server(): ChatServer {
-  return createChatServer(CHAT_PROVIDER.value(), process.env.APP_ENV ?? "dev", STREAM_API_KEY.value(), secretValue(), (m) => logger.info(m));
+  return createChatServer(CHAT_PROVIDER.value(), appEnv(), STREAM_API_KEY.value(), secretValue(), (m) => logger.info(m));
 }
 
 const log = (message: string, data?: Record<string, unknown>) => logger.info(message, data ?? {});

@@ -27,6 +27,7 @@ import {
   WHATSAPP_PROVIDER,
   WHATSAPP_TEMPLATE_LANG_AR,
   WHATSAPP_TEMPLATE_LANG_EN,
+  appEnv,
 } from "../config";
 import { CAIRO_TZ } from "../schedule/cairo";
 import { pauseDriverRuns } from "../schedule/pause";
@@ -68,7 +69,7 @@ import { gatedCall, sessionCall } from "../privacy/device_gate";
 
 export function tripDeps(): TripDeps {
   const db = adminDb();
-  const appEnv = process.env.APP_ENV ?? "dev";
+  const env = appEnv();
   // The project's face match (Valify in prod), built per match.
   const kyc = faceMatcher();
   const phoneNumberId = WHATSAPP_PHONE_NUMBER_ID.value();
@@ -82,14 +83,14 @@ export function tripDeps(): TripDeps {
     routes: {
       kind: ROUTES_PROVIDER.value() === "google" ? "google" : "fake",
       legs: (origin, waypoints) =>
-        createRoutesProvider(ROUTES_PROVIDER.value(), appEnv, () => MAPS_SERVER_KEY.value(), ROUTES_TRAFFIC.value()).legs(origin, waypoints),
+        createRoutesProvider(ROUTES_PROVIDER.value(), env, () => MAPS_SERVER_KEY.value(), ROUTES_TRAFFIC.value()).legs(origin, waypoints),
     },
     whatsapp: {
       sendTemplate: (to, template, language, params, preview) =>
         createWhatsAppSender(
           {
             provider: WHATSAPP_PROVIDER.value(),
-            appEnv,
+            appEnv: env,
             meta: {
               accessToken: WHATSAPP_ACCESS_TOKEN.value(),
               phoneNumberId: phoneNumberId === "none" ? "" : phoneNumberId,
@@ -113,7 +114,7 @@ export function tripDeps(): TripDeps {
     chat: {
       post: (carpoolId, messageId, text, extra) => {
         const ref = channelRef("carpool", groupChannelId("carpool", carpoolId));
-        return createChatServer(CHAT_PROVIDER.value(), appEnv, STREAM_API_KEY.value(), streamSecret(), (m) => logger.info(m)).postSystemMessage(
+        return createChatServer(CHAT_PROVIDER.value(), env, STREAM_API_KEY.value(), streamSecret(), (m) => logger.info(m)).postSystemMessage(
           ref.type,
           ref.id,
           messageId,

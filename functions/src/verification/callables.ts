@@ -14,6 +14,7 @@ import {
   VALIFY_ENABLED,
   VALIFY_PASSWORD_NAME,
   VALIFY_USERNAME,
+  appEnv,
 } from "../config";
 import { reportError } from "../sentry";
 import {
@@ -79,7 +80,7 @@ export function toVerificationHttpsError(error: unknown): HttpsError {
 // error and reports to Sentry on every cold start, and submissions answer
 // "failed-precondition" instead of a generic error.
 onInit(async () => {
-  const problem = kycConfigProblem(KYC_PROVIDER.value(), process.env.APP_ENV ?? "dev");
+  const problem = kycConfigProblem(KYC_PROVIDER.value(), appEnv());
   if (problem) {
     logger.error(`CONFIGURATION ERROR: ${problem}`);
     await reportError(new Error(problem));
@@ -124,7 +125,7 @@ function deps(forSubmit: boolean): VerificationDeps {
     files: new CloudStorageFiles(adminStorage().bucket()),
     kyc: !forSubmit ? NO_KYC : kycProvider({
       provider: KYC_PROVIDER.value(),
-      appEnv: process.env.APP_ENV ?? "dev",
+      appEnv: appEnv(),
       fakeSetting: () => readFakeKycSetting(db),
       valify: {
         enabled: VALIFY_ENABLED.value(),

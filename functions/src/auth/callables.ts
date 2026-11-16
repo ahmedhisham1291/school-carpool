@@ -17,6 +17,7 @@ import {
   WHATSAPP_PROVIDER,
   WHATSAPP_TEMPLATE_LANG_AR,
   WHATSAPP_TEMPLATE_LANG_EN,
+  appEnv,
 } from "../config";
 import { reportError } from "../sentry";
 import { asLanguage, createWhatsAppSender, type WhatsAppSender } from "../whatsapp/sender";
@@ -83,7 +84,7 @@ function whatsAppSender(): WhatsAppSender {
   return createWhatsAppSender(
     {
       provider: WHATSAPP_PROVIDER.value(),
-      appEnv: process.env.APP_ENV ?? "dev",
+      appEnv: appEnv(),
       meta: {
         accessToken: WHATSAPP_ACCESS_TOKEN.value(),
         phoneNumberId: phoneNumberId === "none" ? "" : phoneNumberId,
@@ -183,7 +184,7 @@ export const requestCode = onCall({ ...signInOptions, consumeAppCheckToken: true
   run("requestCode", async () => {
     const deps = otpDeps();
     const ip = clientIp(request.rawRequest.headers, request.rawRequest.ip, CLIENT_IP_HOP.value());
-    if (process.env.APP_ENV !== "prod") {
+    if (appEnv() !== "prod") {
       // A hash prefix, not the IP: lets the owner check that two networks
       // give two different keys (SETUP.md 11.7).
       logger.info("requestCode", { ipKeyPrefix: ipKey(deps.hmacKey, ip).slice(0, 10) });
