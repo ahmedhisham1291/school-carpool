@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { contactReplyPage } from "../src/trips/contact_page";
+import { contactReplyPage, contactRequest, WindowLimiter } from "../src/trips/contact_page";
 import { TEXTS } from "../src/notifications/texts";
 import { routeFor, TYPES } from "../src/notifications/catalog";
 import { cairoToUtcMs } from "../src/schedule/cairo";
@@ -953,6 +953,9 @@ describe("R6: the emergency contact's page", () => {
   it("asks first (the bare page changes nothing), escapes the name, never shows a number", () => {
     const page = contactReplyPage({ found: true, status: "pending", parentFirstName: "<Mona>" }, token);
     assert.ok(page.includes(`/ec/${token}/yes`) && page.includes(`/ec/${token}/stop`));
+    // Answers are buttons that POST; there is no GET link that changes anything.
+    assert.ok(page.includes(`<form method="post" action="/ec/${token}/yes">`));
+    assert.ok(!page.includes("<a "), "no links: a GET never answers");
     assert.ok(page.includes("&lt;Mona&gt;") && !page.includes("<Mona>"));
     assert.ok(!/\+20\d+/.test(page));
     assert.ok(page.indexOf("أوافق") < page.indexOf("I agree"), "Arabic first");
@@ -961,5 +964,25 @@ describe("R6: the emergency contact's page", () => {
     const hosting = JSON.parse(readFileSync(join(__dirname, "..", "..", "..", "firebase.json"), "utf8")) as { hosting: Array<{ target: string; rewrites: Array<{ source: string; function?: { functionId: string } }> }> };
     const links = hosting.hosting.find((h) => h.target === "links")!;
     assert.equal(links.rewrites.find((r) => r.source === "/ec/**")?.function?.functionId, "emergencyContactReply");
+  });
+
+  it("only a POST answers; GET of /yes or /stop just shows the page; other methods are refused", () => {
+    assert.deepEqual(contactRequest("GET", `/ec/${token}`), { token, answer: "view" });
+    assert.deepEqual(contactRequest("GET", `/ec/${token}/yes`), { token, answer: "view" });
+    assert.deepEqual(contactRequest("HEAD", `/ec/${token}/stop`), { token, answer: "view" });
+    assert.deepEqual(contactRequest("POST", `/ec/${token}/yes`), { token, answer: "yes" });
+    assert.deepEqual(contactRequest("POST", `/ec/${token}/stop`), { token, answer: "stop" });
+    assert.deepEqual(contactRequest("POST", `/ec/${token}/other`), { token, answer: "view" });
+    assert.equal(contactRequest("PUT", `/ec/${token}/yes`), null);
+    assert.equal(contactRequest("DELETE", `/ec/${token}`), null);
+  });
+
+  it("limits requests per address and per instance in each window", () => {
+    const limiter = new WindowLimiter(2, 3, 60_000);
+    assert.ok(limiter.take("a", 0) && limiter.take("a", 1));
+    assert.ok(!limiter.take("a", 2), "per address");
+    assert.ok(limiter.take("b", 3));
+    assert.ok(!limiter.take("c", 4), "per instance");
+    assert.ok(limiter.take("a", 60_000), "a new window");
   });
 });
