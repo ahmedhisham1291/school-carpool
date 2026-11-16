@@ -44,6 +44,7 @@ VerificationDraft completeDraft() => VerificationDraft(
     ),
   ],
   consent: true,
+  guardianConsent: true,
 );
 
 Account account(AccountStatus status, {VerificationSummary? verification}) => Account(
@@ -89,6 +90,8 @@ void main() {
 
     test('needs consent, a child, both selfies and a valid expiry', () {
       expect(completeDraft().copyWith(consent: false).readyToSubmit(today), isFalse);
+      // The guardian's consent for the children is separate and required too.
+      expect(completeDraft().copyWith(guardianConsent: false).readyToSubmit(today), isFalse);
       expect(completeDraft().copyWith(children: <ChildDraft>[]).readyToSubmit(today), isFalse);
       expect(
         const VerificationDraft(challenge: LivenessChallenge.left).copyWith(selfie: fakePhoto).selfieComplete,
@@ -125,7 +128,7 @@ void main() {
       expect(identity['idExpiry'], '2030-05-01');
       expect(identity['livenessChallenge'], 'right');
       expect(payload['driver'], isNull);
-      expect(payload['consents'], <String, String>{'id': '2026-11-14', 'face': '2026-11-14', 'childData': '2026-11-14'});
+      expect(payload['consents'], <String, String>{'id': '2026-11-16', 'face': '2026-11-16', 'childData': '2026-11-16'});
       final List<Map<String, Object?>> children = payload['children']! as List<Map<String, Object?>>;
       expect(children.single, <String, Object?>{
         'ref': 'c1',

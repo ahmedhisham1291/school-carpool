@@ -16,7 +16,7 @@ import type { DeviceAccount, DeviceRecord, DeviceStore, Platform, SignInPlan, Si
 import type { ExportSource } from "./export";
 import { PLACE_INTERNAL, internalId } from "../places/catalog";
 import type { RetentionReport, RetentionStore } from "./jobs";
-import type { ConsentRow, PrivacyRequest } from "./requests";
+import { responseDueAt, type ConsentRow, type PrivacyRequest } from "./requests";
 import { ABUSE_COUNTER_DAYS, DAY_MS, LOGIN_HISTORY_DAYS, type DataTypeId } from "./retention";
 
 /**
@@ -797,6 +797,7 @@ export class FirestorePrivacyStore {
       createdAt: ts(r.createdAtMs),
       doneAt: r.doneAtMs === null ? null : ts(r.doneAtMs),
       expiresAt: ts(r.expiresAtMs),
+      dueAt: ts(r.dueAtMs ?? responseDueAt(r.createdAtMs)),
     });
   }
 
@@ -860,6 +861,7 @@ function requestFromDoc(id: string, d: DocumentData): PrivacyRequest {
     createdAtMs: millis(d.createdAt),
     doneAtMs: d.doneAt ? millis(d.doneAt) : null,
     expiresAtMs: millis(d.expiresAt),
+    dueAtMs: d.dueAt ? millis(d.dueAt) : responseDueAt(millis(d.createdAt)),
   };
 }
 

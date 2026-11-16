@@ -58,6 +58,18 @@ class _ChildrenScreenState extends ConsumerState<ChildrenScreen> {
     if (child == null || photo == null || !mounted) {
       return;
     }
+    // A fresh guardian declaration for this child's data (sensitive data,
+    // Law 151 of 2020; docs/legal/egypt-legal-review.md).
+    final AppLocalizations l10n = context.l10n;
+    final bool guardian = await showConfirmDialog(
+      context: context,
+      title: l10n.verifyGuardianLabel,
+      body: l10n.verifyGuardianHelper,
+      confirmLabel: l10n.verifyGuardianConfirm,
+    );
+    if (!guardian || !mounted) {
+      return;
+    }
     await _send(<String, Uint8List>{schoolIdFileName(_slot): photo}, <String, Object?>{
       'children': <Map<String, Object?>>[child.toPayload()],
       'driver': null,

@@ -29,8 +29,17 @@ export const TRIP_STOPS_DAYS = 1;
 export const PRIVACY_REQUEST_DAYS = 3 * YEAR_DAYS;
 /** Admin audit log. */
 export const AUDIT_LOG_DAYS = 2 * YEAR_DAYS;
-/** Sign-in history shown under "Recent sign-ins". */
-export const LOGIN_HISTORY_DAYS = 90;
+/**
+ * Sign-in history shown under "Recent sign-ins" (device, platform, time).
+ * 180 days (was 90): Anti-Cybercrime Law No. 175 of 2018, Art. 2 asks a
+ * "service provider" to keep information-system logs (user identity,
+ * traffic data, device) for 180 continuous days. Whether the app is a
+ * service provider in that sense is a question for the lawyer
+ * (docs/legal/egypt-legal-review.md section 4); keeping 180 days is the
+ * safe side. NOTE: these records still go at once when the parent deletes
+ * the account (lawyer question 4.2).
+ */
+export const LOGIN_HISTORY_DAYS = 180;
 /** A device signed out (or not seen) this long is dropped from the list. */
 export const DEVICE_STALE_DAYS = 180;
 /** Data export files (the signed link works for 1 hour). */

@@ -52,9 +52,13 @@ export const VERIFICATION_CONSENT_VERSIONS = {
   // Prompt 12: photos are now kept while the account is active and 1 year
   // after it closes (DECISIONS.md, data retention), so the consent text and
   // its version changed.
-  id: "2026-11-14",
-  face: "2026-11-14",
-  childData: "2026-11-14",
+  // 16 Nov 2026 (legal review): the face consent says biometric data and
+  // written (explicit) consent; the child consent is the guardian's
+  // declaration and covers the child's whereabouts during runs (children's
+  // data is sensitive under Law 151 of 2020, Art. 1 and Art. 12).
+  id: "2026-11-16",
+  face: "2026-11-16",
+  childData: "2026-11-16",
 } as const;
 
 export type VerificationConsent = keyof typeof VERIFICATION_CONSENT_VERSIONS;

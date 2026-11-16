@@ -64,6 +64,10 @@ enum Keep {
   /// 90 days.
   ninetyDays,
 
+  /// 180 days (sign-in history: Anti-Cybercrime Law 175/2018, Art. 2;
+  /// LOGIN_HISTORY_DAYS on the server).
+  days180,
+
   /// As long as the law requires: transfer records, 5 years
   /// (TRANSFER_RECORD_YEARS on the server; confirmed by the lawyer and the
   /// owner, DECISIONS.md 14 Nov 2026 13:29).
@@ -82,7 +86,8 @@ Keep keepOf(DataType t) => switch (t) {
   DataType.routeArchive => Keep.yearAfterRun,
   DataType.chat => Keep.yearAfterChat,
   DataType.notifications || DataType.analytics => Keep.sixtyDays,
-  DataType.devices || DataType.crashReports => Keep.ninetyDays,
+  DataType.devices => Keep.days180,
+  DataType.crashReports => Keep.ninetyDays,
   DataType.wallet => Keep.law,
   DataType.reports => Keep.untilHandled,
   _ => Keep.untilDeletion,
@@ -93,6 +98,7 @@ enum ConsentKind {
   terms,
   privacy,
   conduct,
+  transferAbroad,
   whatsapp,
   id,
   face,

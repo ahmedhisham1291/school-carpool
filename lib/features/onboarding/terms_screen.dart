@@ -10,8 +10,9 @@ import 'package:school_carpool/features/auth/auth_repository.dart';
 import 'package:school_carpool/features/onboarding/onboarding_layout.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
-/// Step 4: terms of use, privacy policy and code of conduct (each must be
-/// accepted), plus optional WhatsApp alerts. The server saves one consent
+/// Step 4: terms of use, privacy policy, code of conduct and the separate
+/// consent to storage abroad (each must be accepted; Law 151 of 2020),
+/// plus optional WhatsApp alerts. The server saves one consent
 /// record per accepted document.
 ///
 /// States: empty (nothing ticked: the button is off and a line says why),
@@ -27,11 +28,12 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
   bool _terms = false;
   bool _privacy = false;
   bool _conduct = false;
+  bool _transfer = false;
   bool _whatsapp = false;
   bool _saving = false;
   AuthFailure? _failure;
 
-  bool get _ready => _terms && _privacy && _conduct;
+  bool get _ready => _terms && _privacy && _conduct && _transfer;
 
   Future<void> _accept() async {
     if (!_ready || _saving) {
@@ -118,6 +120,15 @@ class _TermsScreenState extends ConsumerState<TermsScreen> {
           onChanged: enabled ? (bool v) => setState(() => _conduct = v) : null,
           actionLabel: l10n.termsRead,
           onAction: () => _read(l10n.termsDocConduct, l10n.termsConductText),
+        ),
+        AppCheckRow(
+          key: const Key('terms.transfer'),
+          label: l10n.termsAcceptTransfer,
+          helperText: l10n.termsTransferHelper,
+          value: _transfer,
+          onChanged: enabled ? (bool v) => setState(() => _transfer = v) : null,
+          actionLabel: l10n.termsRead,
+          onAction: () => _read(l10n.termsDocTransfer, l10n.termsTransferText),
         ),
         const Divider(height: AppSpacing.s32),
         AppCheckRow(
