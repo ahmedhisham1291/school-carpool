@@ -78,7 +78,7 @@ dependencies:
   # time and cancelled when the parent opens it. The standard Flutter
   # plugin for local notifications; free. Java/Swift (no Kotlin fix); on
   # Android it needs core library desugaring (tool/patch_native.py).
-  flutter_local_notifications: ^19.4.0
+  flutter_local_notifications: ^20.1.0
   # Time zone type for scheduling the alarm above (we schedule in UTC, so
   # no time zone database is loaded). Same author's package the plugin
   # already depends on.
