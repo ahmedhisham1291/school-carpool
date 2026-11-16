@@ -7,6 +7,7 @@ import 'package:school_carpool/features/about/legal_links.dart';
 import 'package:school_carpool/features/onboarding/terms_screen.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
+import '../helpers/fonts.dart';
 import '../helpers/one_line.dart';
 import '../helpers/test_app.dart';
 
@@ -14,6 +15,9 @@ import '../helpers/test_app.dart';
 /// terms are reachable in the app (5.1.1(i)), the support address is
 /// published (1.2), and the store build shows no "draft" note (2.1).
 void main() {
+  // Real fonts, so text has its true width (the test font draws squares).
+  setUpAll(loadAppFonts);
+
   const LegalLinks configured = LegalLinks(siteUrl: 'https://school-carpool-links.web.app', supportEmail: 'help@schoolcarpool.org');
 
   group('LegalLinks', () {
@@ -60,6 +64,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text(l10n.termsPrivacyText), findsOneWidget);
         expect(find.text(l10n.termsDraftNotice), findsNothing);
+        // The sheet scrolls when the text is long: bring the button into view.
+        await tester.ensureVisible(find.byKey(const Key('about.documentPage')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('about.documentPage')));
         await tester.pumpAndSettle();
         expect(opened.single.toString(), 'https://school-carpool-links.web.app/privacy');
