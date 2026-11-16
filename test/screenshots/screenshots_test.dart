@@ -214,6 +214,8 @@ void main() {
     'email': (AuthRoutes.email, testEmailStageSession),
     'terms': (AuthRoutes.terms, testTermsStageSession),
     'verify_account': (AuthRoutes.verifyAccount, testUnverifiedSession),
+    // Owner decision 16 Nov 2026: opened from a place that needs the check.
+    'verify_needed': ('/verify-account?from=/carpools/search', testUnverifiedSession),
     'profile_unverified': ('/profile', testUnverifiedSession),
   };
   for (final MapEntry<String, (String, SessionState)> screen in signupScreens.entries) {

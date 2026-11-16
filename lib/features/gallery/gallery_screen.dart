@@ -10,6 +10,7 @@ import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/maps/map_view.dart';
+import 'package:school_carpool/features/onboarding/verify_prompt_card.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/features/settle_up/settle_up_models.dart';
 import 'package:school_carpool/features/settle_up/settle_up_screen.dart';
@@ -97,6 +98,8 @@ class GalleryScreen extends ConsumerWidget {
           const _Padded(child: _SignupSamples()),
           AppSectionHeader(l10n.gallerySectionVerification),
           const _Padded(child: _VerificationSamples()),
+          // Shown only while the gallery's account is not verified yet.
+          const VerifyPromptCard(),
           AppSectionHeader(l10n.gallerySectionCards),
           _Padded(
             child: Column(

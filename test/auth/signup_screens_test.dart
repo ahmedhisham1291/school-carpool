@@ -281,6 +281,23 @@ void main() {
     expect(find.text('Verify your account'), findsWidgets);
     expect(find.text('National ID'), findsOneWidget);
     expect(find.text('Front and back'), findsOneWidget);
-    expect(find.byKey(const Key('verify.openProfile')), findsOneWidget);
+    expect(find.byKey(const Key('verify.later')), findsOneWidget);
+    // Owner decision 16 Nov 2026: why we check, before asking.
+    expect(find.byKey(const Key('verify.why')), findsOneWidget);
+    expect(find.byKey(const Key('verify.neededFor')), findsNothing);
+  });
+
+  testWidgets('opened from a closed place: says why, and Later goes back to that tab', (WidgetTester tester) async {
+    final GoRouter router = await _pump(
+      tester,
+      location: AuthRoutes.verifyFor(ProfileRoutes.ratings),
+      repository: FakeAuthRepository(),
+      session: testUnverifiedSession,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(const Key('verify.neededFor')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('verify.later')));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(router.routerDelegate.currentConfiguration.uri.path, AppTab.profile.path);
   });
 }

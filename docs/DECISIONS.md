@@ -98,6 +98,31 @@ what is kept. **The lawyer is to confirm** the list of kept records
 - The privacy policy and the verification consent changed version
   (2026-11-16): functions and app are deployed together.
 
+## Before the ID check: look around first (owner, 16 Nov 2026)
+
+Owner instruction (16 Nov 2026): remove every App Review risk. A reviewer
+(or a parent) who makes a new account cannot pass the ID check, so "Profile
+only until verified" (spec section 3) was a dead end (guideline 2.1). This
+**supersedes "Profile only"** for unverified, pending and rejected accounts:
+
+- **Open:** the five tabs (Carpools shows the parent's own list, empty;
+  Chats explains that chat opens after the check), the home address and
+  pin, driving schools, children and driver details (the verification
+  steps), notifications and their settings, privacy, settings, About.
+- **Needs the ID check** (child safety: anything with another family):
+  finding, starting, joining or opening a carpool, invite links (their
+  screen explains), runs and driving, chats, parents nearby, handover
+  adults and the emergency contact, ratings, family links, the yearly
+  check, phone change, Settle up and the wallet.
+- Opening one of those shows the verification screen: why we check (other
+  families' children ride with you), what is needed, "Get verified" and
+  "Later" (back to the tab). A card on Home, Carpools and Chats says the
+  same. No dead end.
+- One line for app and server: `needsVerification` in
+  `lib/router/session_redirect.dart`; the server refuses the same actions
+  with "not-verified" (`functions/test/verification_scope.test.ts`).
+- Suspended accounts still see only the suspension screen.
+
 ## Owner updates (14 Nov 2026, 12:30)
 
 - **Lawyer:** confirmed everything open is OK: the new retention periods (photos while the

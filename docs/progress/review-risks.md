@@ -28,3 +28,38 @@ and plan to be no risk at all." The coordinator said "go". Base: main
 10. `tool/check_ios_app.py` stops the prod build for a listed SDK with no
     privacy manifest.
 11. Audit, submission kit, open items.
+
+## Progress
+
+Items 1 to 4: commits a17d709, e7b20ac, f8411a0, 5f1af39 (see their
+messages). A previous builder stopped while starting item 5; nothing of it
+was left uncommitted, so item 5 was done from scratch.
+
+### 5. Look around before the ID check (done)
+
+What was blocked: every place but Profile, Notifications and the
+verification screen redirected an unverified, pending or rejected account
+to the verification screen (`sessionRedirect`), whose only way out was
+"Open my profile". The server already refused everything that involves
+another family with "not-verified" (carpools, chat, nearby, runs, schedule,
+handover adults, emergency contact, ratings, family, phone change, Settle
+up, wallet) and allowed the parent's own things (home, map settings,
+driving schools, places, school search, notifications, privacy,
+verification). So the line was moved in the app only, to match the server:
+
+- `lib/router/session_redirect.dart`: `needsVerification(location)` (one
+  list) and `laterTarget(from)`. Tabs and own pages open; closed places go
+  to `/verify-account?from=<place>`.
+- `VerifyAccountScreen`: "Why we check every parent" (child safety), "This
+  part needs a verified account" when opened from a closed place, "Later"
+  back to that tab (was "Open my profile").
+- `VerifyPromptCard` on Home, Carpools and Chats (gallery too); the Chats
+  tab explains instead of showing an error, and hides requests/settings.
+- Server: no rule or function changed; `functions/test/verification_scope.test.ts`
+  pins both sides of the line (3 tests).
+- ARB: 10 new strings, Arabic and English. DECISIONS.md and spec section 3
+  updated (supersedes "Profile only").
+- Tests: Functions run here; Flutter tests written, not run here
+  (`test/auth/auth_logic_test.dart`, `test/auth/signup_screens_test.dart`,
+  `test/onboarding/verify_prompt_card_test.dart`, one-line and screenshot
+  entries).

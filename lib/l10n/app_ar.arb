@@ -10338,5 +10338,45 @@
   "analyticsAskNo": "لا، شكرًا",
   "@analyticsAskNo": {
     "description": "Button: do not share usage statistics (one line)"
+  },
+  "verifyLater": "لاحقًا",
+  "@verifyLater": {
+    "description": "Verification screen button: go back and look around (one line)"
+  },
+  "verifyWhyTitle": "لماذا نتحقق من كل ولي أمر",
+  "@verifyWhyTitle": {
+    "description": "Verification screen: heading of the child-safety explanation (one line)"
+  },
+  "verifyWhyBody": "في هذا التطبيق يوصّل الأهالي أطفال عائلات أخرى. لذلك قبل أن تنضم إلى مشوار أو تبدأه أو تقود أو تراسل أو ترى أهالي قريبين منك، يراجع فريقنا بطاقتك وصورة سيلفي. يمكنك أن تتصفح التطبيق أولًا.",
+  "@verifyWhyBody": {
+    "description": "Verification screen: why the ID check is needed (child safety)"
+  },
+  "verifyNeededFor": "هذا الجزء يحتاج حسابًا موثّقًا.",
+  "@verifyNeededFor": {
+    "description": "Verification screen: shown when the parent opened something that needs the ID check"
+  },
+  "verifyCardTitle": "وثّق حسابك",
+  "@verifyCardTitle": {
+    "description": "Card on Home, Carpools and Chats before verification (title, one line)"
+  },
+  "verifyCardBody": "تصفح الآن. الانضمام إلى المشاوير والقيادة والمحادثات تُفتح بعد مراجعة بطاقتك.",
+  "@verifyCardBody": {
+    "description": "Card body before verification"
+  },
+  "verifyCardAction": "لماذا وكيف",
+  "@verifyCardAction": {
+    "description": "Card button: open the verification screen (one line)"
+  },
+  "verifyCardPendingTitle": "نراجع بطاقتك",
+  "@verifyCardPendingTitle": {
+    "description": "Card title while the ID check is pending (one line)"
+  },
+  "verifyCardPendingBody": "تُفتح المشاوير والمحادثات عند الموافقة. سنخبرك.",
+  "@verifyCardPendingBody": {
+    "description": "Card body while the ID check is pending"
+  },
+  "verifyCardPendingAction": "عرض الحالة",
+  "@verifyCardPendingAction": {
+    "description": "Card button while pending: open the verification status (one line)"
   }
 }

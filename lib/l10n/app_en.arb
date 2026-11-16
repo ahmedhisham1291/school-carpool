@@ -2314,5 +2314,15 @@
   "analyticsAskTitle": "Help improve the app?",
   "analyticsAskBody": "Optional: share anonymous usage statistics (screens and features only; no names, numbers or places). You can change this any time in Settings.",
   "analyticsAskYes": "Share",
-  "analyticsAskNo": "No thanks"
+  "analyticsAskNo": "No thanks",
+  "verifyLater": "Later",
+  "verifyWhyTitle": "Why we check every parent",
+  "verifyWhyBody": "Parents here drive other families' children. So before you join or start a carpool, drive, chat or see parents near you, our team checks your ID and a selfie. You can look around first.",
+  "verifyNeededFor": "This part needs a verified account.",
+  "verifyCardTitle": "Verify your account",
+  "verifyCardBody": "Look around now. Joining, driving and chat open after a quick ID check.",
+  "verifyCardAction": "Why and how",
+  "verifyCardPendingTitle": "Checking your ID",
+  "verifyCardPendingBody": "Carpools and chat open when they are approved. We will let you know.",
+  "verifyCardPendingAction": "See status"
 }
