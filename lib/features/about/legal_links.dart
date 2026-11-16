@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 /// the links site of the flavor's project.
 ///
 /// Values come from `--dart-define` (never from the repository):
-///   LEGAL_SITE_URL  for example https://<project>-links.web.app
+///   LEGAL_SITE_URL  for example `https://PROJECT-links.web.app`
 ///   SUPPORT_EMAIL   the address the owner reads
 /// Empty or malformed values read as "not set": the About screen then shows
 /// the documents inside the app and no contact row, never a broken link.
