@@ -8343,11 +8343,11 @@
   "@deleteNowBody": {
     "description": "Card body"
   },
-  "deleteYearTitle": "يبقى سنة بلا اسمك",
+  "deleteYearTitle": "يبقى بلا اسمك",
   "@deleteYearTitle": {
-    "description": "Card title"
+    "description": "Delete account step 1: group title for records kept after deletion without the parent's name. One line."
   },
-  "deleteYearBody": "ملخصات المشاوير المشتركة مع أسر أخرى (تظهر بحرف واحد)، وسجل موافقاتك.",
+  "deleteYearBody": "ملخصات المشاوير المشتركة مع أسر أخرى (تظهر بحرف واحد): سنة. وسجل موافقاتك (النسخة والتاريخ وطريقة الموافقة) إثباتًا لها: 3 سنوات.",
   "@deleteYearBody": {
     "description": "Delete account: what stays for a while (no money in the app)"
   },
@@ -10711,5 +10711,9 @@
   "termsUpdatedPrivacy": "الخصوصية",
   "@termsUpdatedPrivacy": {
     "description": "Tertiary button on the updated-terms screen: opens Privacy (export, delete account). One line."
+  },
+  "keepThreeYearsAfterClosure": "ما دام مفتوحًا و3 سنوات بعده",
+  "@keepThreeYearsAfterClosure": {
+    "description": "Retention label (privacy screen): the proof of consent is kept while the account is open and 3 years after it closes (R1). One line."
   }
 }

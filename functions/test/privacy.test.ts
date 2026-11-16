@@ -19,6 +19,8 @@ import {
   EVIDENCE_TARGETS,
   PURGE_STEPS,
   PURGE_TARGETS,
+  CONSENT_TARGETS,
+  consentSteps,
   evidenceSteps,
   nextWorkAt,
   purgeSteps,
@@ -58,6 +60,8 @@ import { accessReason, selfieArchivePath, thumbOwner, thumbPath } from "../src/p
 import { consentViews, needsAdmin, withdrawEffect } from "../src/privacy/requests";
 import {
   AFTER_CLOSURE_DAYS,
+  CONSENT_AFTER_CLOSURE_DAYS,
+  consentPurgeAt,
   DELETED_WITH_ACCOUNT,
   KEPT_AFTER_DELETION,
   SAFETY_HOLD_DAYS,
@@ -521,7 +525,7 @@ describe("account deletion", () => {
   });
 
   it("every collection in firestore.rules is deleted at once, purged after a year, or kept for a stated reason", () => {
-    const covered = new Set([...IMMEDIATE_TARGETS, ...EVIDENCE_TARGETS, ...PURGE_TARGETS].map((t) => t.collection));
+    const covered = new Set([...IMMEDIATE_TARGETS, ...EVIDENCE_TARGETS, ...PURGE_TARGETS, ...CONSENT_TARGETS].map((t) => t.collection));
     const found = rulesCollections().filter((c) => !c.includes("/") || c.startsWith("users/"));
     assert.ok(found.length > 40, `parsed ${found.length} collections`);
     const missing = found.filter((c) => !covered.has(c) && NOT_DELETED[c] === undefined);
@@ -596,6 +600,7 @@ describe("account deletion", () => {
     assert.equal(res.held, false);
     assert.equal(res.evidenceAtMs, NOW, "photos go with the account");
     assert.equal(res.purgeAtMs, NOW + 365 * DAY_MS, "only the kept records wait a year");
+    assert.equal(res.consentsPurgeAtMs, NOW + 3 * 365 * DAY_MS, "R1: the proof of consent waits 3 years");
     assert.deepEqual(r.ran.slice(0, 6), ["flow:trips", "flow:carpools", "flow:anonymise", "flow:chat", "flow:trust", "flow:identity"]);
     assert.ok(r.ran.includes("homes/u1"));
     // F46: the address leaves the place counts before the home is deleted.
@@ -622,9 +627,10 @@ describe("account deletion", () => {
     assert.equal(c.evidenceDoneAtMs, NOW);
     assert.equal(c.purgedAtMs, null);
     assert.equal(nextWorkAt(c), NOW + 365 * DAY_MS, "next: the kept records, a year later");
-    // Kept for a year: the proof of consent and the parent's part of shared trips.
+    // Kept: the parent's part of shared trips (1 year) and the proof of consent (3 years, R1).
     assert.ok(!r.ran.includes("users/u1/consents") && !r.ran.includes("purge:trips"));
-    assert.deepEqual(PURGE_TARGETS.map((t) => t.collection), ["users/consents"]);
+    assert.deepEqual(PURGE_TARGETS.map((t) => t.collection), []);
+    assert.deepEqual(CONSENT_TARGETS.map((t) => t.collection), ["users/consents"]);
     assert.deepEqual([...PURGE_STEPS], ["trips"]);
     assert.ok(!(PURGE_STEPS as readonly string[]).includes("stream"), "chat messages no longer wait a year (the chat step deletes them)");
     assert.equal(SAFETY_HOLD_DAYS, 30);
@@ -706,8 +712,9 @@ describe("account deletion", () => {
     assert.ok(r.ran.includes("faceRefs/u1/"), "the failed photo delete is retried");
     assert.ok(!r.ran.includes("selfieArchive/u1/"), "what already went is not run twice");
     assert.ok(r.ran.includes("purge:trips"));
-    assert.ok(r.ran.includes("users/u1/consents"));
+    assert.ok(!r.ran.includes("users/u1/consents"), "R1: the proof of consent stays 3 years");
     assert.equal(r.closedMap.get("u1")?.purgedAtMs, later);
+    assert.equal(nextWorkAt(r.closedMap.get("u1")!), NOW + 3 * 365 * DAY_MS);
   });
 
   it("the kept records (consents, the parent's part of trips) are not purged before the year is over", async () => {
@@ -718,6 +725,31 @@ describe("account deletion", () => {
     assert.equal(immediateSteps().length, IMMEDIATE_TARGETS.length + 9); // 9 flow steps besides "records" (F46 added "places")
     assert.equal(evidenceSteps().length, EVIDENCE_TARGETS.length + 1);
     assert.equal(purgeSteps().length, PURGE_TARGETS.length + 1);
+    assert.deepEqual(consentSteps(), ["ctarget:0"]);
+  });
+
+  it("R1: the proof of consent is deleted 3 years after closure, not before, and only after the 1-year purge", async () => {
+    const r = new FakeRunner();
+    const c0 = { ...newClosedAccount("u1", "ABCD2345", false, NOW), evidenceDoneAtMs: NOW };
+    assert.equal(c0.consentsPurgeAtMs, consentPurgeAt(NOW));
+    assert.equal(CONSENT_AFTER_CLOSURE_DAYS, 3 * 365);
+    assert.equal(rule("consents").days, 3 * 365);
+    assert.ok(KEPT_AFTER_DELETION.some((k) => k.what === "users/{uid}/consents" && k.why.includes("3 years")));
+    // One year: the trips purge runs, the consents stay.
+    const year = await continueDeletion(r, c0, NOW + 366 * DAY_MS, () => undefined);
+    assert.equal(year.purged, true);
+    assert.equal(year.consentsPurged, false);
+    assert.ok(!r.ran.includes("users/u1/consents"));
+    let c = r.closedMap.get("u1")!;
+    assert.equal(nextWorkAt(c), NOW + 3 * 365 * DAY_MS);
+    // Day 3 * 365 - 1: still kept.
+    assert.equal((await continueDeletion(r, c, NOW + (3 * 365 - 1) * DAY_MS, () => undefined)).consentsPurged, false);
+    c = r.closedMap.get("u1")!;
+    // Three years: deleted, nothing left to do.
+    const done = await continueDeletion(r, c, NOW + 3 * 365 * DAY_MS, () => undefined);
+    assert.equal(done.consentsPurged, true);
+    assert.ok(r.ran.includes("users/u1/consents"));
+    assert.equal(nextWorkAt(r.closedMap.get("u1")!), null);
   });
 });
 
@@ -891,7 +923,8 @@ describe("retention job", () => {
       reportError: (e) => reported.push(e),
     });
     assert.equal(report.tasks.closedAccounts.deleted, 1, "held evidence deleted, then the kept records purged after a year");
-    assert.ok(runner.ran.includes("users/u1/consents"));
+    assert.ok(runner.ran.includes("purge:trips"));
+    assert.ok(!runner.ran.includes("users/u1/consents"), "R1: the proof of consent stays 3 years");
     assert.ok(runner.ran.includes("faceRefs/u1/"));
     assert.deepEqual(report.tasks.routeArchives, { deleted: 0, failed: 1 });
     assert.deepEqual(report.tasks.chats, { deleted: 1, failed: 1 });

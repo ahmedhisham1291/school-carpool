@@ -86,7 +86,8 @@ what is kept. **The lawyer is to confirm** the list of kept records
 - **Kept, minimised and detached from the profile** (no name, phone,
   address, photo or ID number): run summaries shared with other families
   (the parent as an initial; their part anonymised 1 year after closure),
-  the consent records (1 year), Settle up records (1 year, an initial),
+  the consent records (1 year; **3 years since R1, 16 Nov 2026**, see
+  "Legal changes R1-R15" below), Settle up records (1 year, an initial),
   transfer records (5 years), reports about the parent, the admin audit
   log (2 years), the keyed ID hash on the ban list (banned parents only),
   the reserved parent ID.
@@ -515,3 +516,16 @@ acknowledgement at create/join; every money feature off (see the owner
 decision above).
 
 - Research answers available (docs/legal/answers.md), pending owner/lawyer confirmation.
+
+## Legal changes R1-R15 (owner, 16 Nov 2026): "implement everything"
+
+The owner approved every recommended change of docs/legal/answers.md
+(R1-R15) through the coordinator (Arabic: "yes of course, implement
+everything"). Built on branch `legal-changes` (docs/progress/legal-changes.md).
+Where an item replaces an earlier decision, it says so.
+
+- **R1 - proof of consent 3 years after closure** (was 1 year):
+  `CONSENT_AFTER_CLOSURE_DAYS` in `functions/src/privacy/retention.ts`; the
+  run summaries and Settle up records keep their 1 year. Reason: the
+  limitation periods (misdemeanours 3 years, tort claims 3 years from
+  knowledge; answers.md 1.6).

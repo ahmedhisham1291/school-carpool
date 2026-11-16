@@ -52,6 +52,11 @@ enum Keep {
   /// Kept while the account is open and 1 year after it closes.
   yearAfterClosure,
 
+  /// Kept while the account is open and 3 years after it closes (the
+  /// proof of consent: CONSENT_AFTER_CLOSURE_DAYS on the server, R1 in
+  /// docs/legal/answers.md).
+  threeYearsAfterClosure,
+
   /// Deleted within 24 hours of each run.
   oneDay,
 
@@ -86,7 +91,9 @@ Keep keepOf(DataType t) => switch (t) {
   // is open, and 1 year after).
   // Owner decision 16 Nov 2026 (App Review 5.1.1(v)): ID photos, selfies
   // and the face reference go with the account (Keep.untilDeletion).
-  DataType.consents || DataType.trips || DataType.settleUp => Keep.yearAfterClosure,
+  DataType.trips || DataType.settleUp => Keep.yearAfterClosure,
+  // Proof of consent: 3 years after closure (owner decision 16 Nov 2026, R1).
+  DataType.consents => Keep.threeYearsAfterClosure,
   DataType.liveLocation => Keep.oneDay,
   DataType.routeArchive => Keep.yearAfterRun,
   DataType.chat => Keep.yearAfterChat,

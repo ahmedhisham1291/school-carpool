@@ -73,6 +73,12 @@ class LegalPagesTest(unittest.TestCase):
                          "mailto:help@schoolcarpool.org", "180 days", "explicit consent", "parent or guardian"):
                 self.assertIn(must, privacy)
             self.assertNotIn("30 days", privacy.replace("up to 30 days", ""))
+            # R1 (owner, 16 Nov 2026): proof of consent 3 years after closure.
+            self.assertIn("then 3 years after it closes, as proof of consent", privacy)
+            self.assertIn("ثم 3 سنوات بعد إغلاقه", privacy)
+            deletion = (out / "delete-account.html").read_text(encoding="utf-8")
+            self.assertIn("as proof of consent: 3 years after deletion", deletion)
+            self.assertNotIn("as proof of consent: 1 year", deletion)
             terms = (out / "terms.html").read_text(encoding="utf-8")
             for must in ("Arabic text prevails", "النص العربي", "Law No. 87 of 2018", "gross negligence", "compulsory insurance"):
                 self.assertIn(must, terms)

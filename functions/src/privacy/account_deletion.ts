@@ -1,4 +1,4 @@
-import { evidencePurgeAt, purgeAfterClosure } from "./retention";
+import { consentPurgeAt, evidencePurgeAt, purgeAfterClosure } from "./retention";
 
 /**
  * Account deletion (spec section 7, Prompt 12; owner decision 16 Nov 2026,
@@ -25,7 +25,7 @@ import { evidencePurgeAt, purgeAfterClosure } from "./retention";
  * KEPT, minimised and detached from the profile (no name, phone, address,
  * photo or ID number): run summaries shared with other families (the
  * parent as an initial; their part anonymised 1 year after closure), the
- * consent records (proof of consent, 1 year), Settle up records for the
+ * consent records (proof of consent, 3 years: R1), Settle up records for the
  * other parent (an initial; 1 year), transfer records
  * (TRANSFER_RECORD_YEARS), reports about the parent, the admin audit log,
  * the keyed national-ID hash on the ban list (banned parents only) and the
@@ -112,7 +112,7 @@ export const IMMEDIATE_TARGETS: ReadonlyArray<{ collection: string; target: Targ
   { collection: "storage:deviceChecks", target: { kind: "storage", prefix: "deviceChecks/{uid}/" } },
   { collection: "storage:selfieChecks", target: { kind: "storage", prefix: "selfieChecks/{uid}/" } },
   { collection: "storage:exports", target: { kind: "storage", prefix: "exports/{uid}/" } },
-  // Last: the user record (its consents subcollection, the proof of consent, stays 1 year).
+  // Last: the user record (its consents subcollection, the proof of consent, stays 3 years).
   { collection: "users", target: { kind: "doc", path: "users/{uid}" } },
 ];
 
@@ -130,8 +130,18 @@ export const EVIDENCE_TARGETS: ReadonlyArray<{ collection: string; target: Targe
   { collection: "verifications", target: { kind: "where", collection: "verifications", field: "uid" } },
 ];
 
-/** Deleted 1 YEAR after closure by retentionDaily: the proof of consent. */
-export const PURGE_TARGETS: ReadonlyArray<{ collection: string; target: Target }> = [
+/**
+ * Deleted 1 YEAR after closure by retentionDaily (with the purge steps
+ * below). Empty since R1: the proof of consent moved to CONSENT_TARGETS. An
+ * older "ptarget:0" step name is treated as done (the consent phase runs it).
+ */
+export const PURGE_TARGETS: ReadonlyArray<{ collection: string; target: Target }> = [];
+
+/**
+ * Deleted 3 YEARS after closure by retentionDaily (owner decision 16 Nov
+ * 2026, R1; CONSENT_AFTER_CLOSURE_DAYS): the proof of consent.
+ */
+export const CONSENT_TARGETS: ReadonlyArray<{ collection: string; target: Target }> = [
   { collection: "users/consents", target: { kind: "subcollection", path: "users/{uid}/consents" } },
 ];
 
@@ -272,8 +282,11 @@ export interface ClosedAccount {
   /** When the evidence (photos, case records, routes) goes: at closure, or 30 days later under a hold. */
   evidenceAtMs: number;
   evidenceDoneAtMs: number | null;
-  /** When the kept records end (consents; the parent's part of trips): closure + 1 year. */
+  /** When the kept records end (the parent's part of trips): closure + 1 year. */
   purgeAtMs: number;
+  /** When the proof of consent ends: closure + 3 years (R1). */
+  consentsPurgeAtMs: number;
+  consentsPurgedAtMs: number | null;
   banned: boolean;
   /** Steps still to do (retried by retentionDaily). */
   failed: string[];
@@ -289,6 +302,8 @@ export function newClosedAccount(uid: string, parentId: string, banned: boolean,
     evidenceAtMs: evidencePurgeAt(nowMs, hold),
     evidenceDoneAtMs: null,
     purgeAtMs: purgeAfterClosure(nowMs),
+    consentsPurgeAtMs: consentPurgeAt(nowMs),
+    consentsPurgedAtMs: null,
     banned,
     failed: [],
     purgedAtMs: null,
@@ -298,7 +313,8 @@ export function newClosedAccount(uid: string, parentId: string, banned: boolean,
 /** The next time retentionDaily has work on this account (null: all done). */
 export function nextWorkAt(c: ClosedAccount): number | null {
   if (c.evidenceDoneAtMs === null) return c.evidenceAtMs;
-  return c.purgedAtMs === null ? c.purgeAtMs : null;
+  if (c.purgedAtMs === null) return c.purgeAtMs;
+  return c.consentsPurgedAtMs === null ? c.consentsPurgeAtMs : null;
 }
 
 /**
@@ -353,6 +369,7 @@ async function runStep(runner: DeletionRunner, uid: string, name: string, nowMs:
   else if (kind === "target") await runner.runTarget(uid, IMMEDIATE_TARGETS[Number(id)].target);
   else if (kind === "purge" && (PURGE_STEPS as readonly string[]).includes(id)) await runner.runPurgeStep(uid, id as PurgeStep);
   else if (kind === "ptarget" && PURGE_TARGETS[Number(id)]) await runner.runTarget(uid, PURGE_TARGETS[Number(id)].target);
+  else if (kind === "ctarget" && CONSENT_TARGETS[Number(id)]) await runner.runTarget(uid, CONSENT_TARGETS[Number(id)].target);
   else if (kind === "evidence" && (EVIDENCE_STEPS as readonly string[]).includes(id)) await runner.runPurgeStep(uid, id as EvidenceStep);
   else if (kind === "etarget" && EVIDENCE_TARGETS[Number(id)]) await runner.runTarget(uid, EVIDENCE_TARGETS[Number(id)].target);
   // An unknown name (written by an older version) is done: the phases below run every current step again.
@@ -381,7 +398,7 @@ export async function deleteAccount(
   uid: string,
   nowMs: number,
   onError: (step: string, error: unknown) => void,
-): Promise<{ closed: true; failed: number; held: boolean; evidenceAtMs: number; purgeAtMs: number }> {
+): Promise<{ closed: true; failed: number; held: boolean; evidenceAtMs: number; purgeAtMs: number; consentsPurgeAtMs: number }> {
   const facts = await runner.facts(uid);
   const early = deletionRefusal({ ...facts, wallet: null });
   if (early) throw new DeletionError(early);
@@ -420,7 +437,14 @@ export async function deleteAccount(
   const failed = await runSteps(runner, uid, steps, nowMs, onError);
   const evidenceDoneAtMs = !closed.hold && !failed.some(isEvidenceStep) ? nowMs : null;
   await runner.saveClosed({ ...closed, failed, evidenceDoneAtMs });
-  return { closed: true, failed: failed.length, held: closed.hold, evidenceAtMs: closed.evidenceAtMs, purgeAtMs: closed.purgeAtMs };
+  return {
+    closed: true,
+    failed: failed.length,
+    held: closed.hold,
+    evidenceAtMs: closed.evidenceAtMs,
+    purgeAtMs: closed.purgeAtMs,
+    consentsPurgeAtMs: closed.consentsPurgeAtMs,
+  };
 }
 
 /** The evidence steps: photos, face reference, case records, archived routes. */
@@ -428,11 +452,16 @@ export function evidenceSteps(): string[] {
   return [...EVIDENCE_TARGETS.map((_, i) => `etarget:${i}`), ...EVIDENCE_STEPS.map((s) => `evidence:${s}`)];
 }
 
+/** The consent steps (3 years after closure, R1): the proof of consent. */
+export function consentSteps(): string[] {
+  return CONSENT_TARGETS.map((_, i) => `ctarget:${i}`);
+}
+
 function isEvidenceStep(name: string): boolean {
   return name.startsWith("etarget:") || name.startsWith("evidence:");
 }
 
-/** Every purge step (1 year after closure): consents and the parent's part of trips. */
+/** Every purge step (1 year after closure): the parent's part of trips. */
 export function purgeSteps(): string[] {
   return [...PURGE_TARGETS.map((_, i) => `ptarget:${i}`), ...PURGE_STEPS.map((s) => `purge:${s}`)];
 }
@@ -448,7 +477,7 @@ export async function continueDeletion(
   c: ClosedAccount,
   nowMs: number,
   onError: (step: string, error: unknown) => void,
-): Promise<{ failed: string[]; purged: boolean; evidenceDeleted: boolean }> {
+): Promise<{ failed: string[]; purged: boolean; evidenceDeleted: boolean; consentsPurged: boolean }> {
   let failed = c.failed.length > 0 ? await runSteps(runner, c.uid, c.failed, nowMs, onError) : [];
   let evidenceDoneAtMs = c.evidenceDoneAtMs;
   if (evidenceDoneAtMs === null && c.evidenceAtMs <= nowMs) {
@@ -462,8 +491,18 @@ export async function continueDeletion(
     failed = await runSteps(runner, c.uid, purgeSteps(), nowMs, onError);
     if (failed.length === 0) purgedAtMs = nowMs;
   }
-  await runner.saveClosed({ ...c, failed, evidenceDoneAtMs, purgedAtMs });
-  return { failed, purged: purgedAtMs !== null && c.purgedAtMs === null, evidenceDeleted: evidenceDoneAtMs !== null && c.evidenceDoneAtMs === null };
+  let consentsPurgedAtMs = c.consentsPurgedAtMs;
+  if (consentsPurgedAtMs === null && purgedAtMs !== null && c.consentsPurgeAtMs <= nowMs && failed.length === 0) {
+    failed = await runSteps(runner, c.uid, consentSteps(), nowMs, onError);
+    if (failed.length === 0) consentsPurgedAtMs = nowMs;
+  }
+  await runner.saveClosed({ ...c, failed, evidenceDoneAtMs, purgedAtMs, consentsPurgedAtMs });
+  return {
+    failed,
+    purged: purgedAtMs !== null && c.purgedAtMs === null,
+    evidenceDeleted: evidenceDoneAtMs !== null && c.evidenceDoneAtMs === null,
+    consentsPurged: consentsPurgedAtMs !== null && c.consentsPurgedAtMs === null,
+  };
 }
 
 export class DeletionError extends Error {

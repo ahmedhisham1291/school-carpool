@@ -98,7 +98,7 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
 
   // Closed accounts: retry failed steps; delete held evidence (photos,
   // case records, routes) when its 30 days end; purge the kept records
-  // (consents, the parent's part of trips) after 1 year.
+  // (the parent's part of trips) after 1 year, the proof of consent after 3 years (R1).
   await task("closedAccounts", async () => {
     let deleted = 0;
     let failed = 0;
@@ -107,7 +107,7 @@ export async function runRetention(deps: RetentionDeps): Promise<RetentionReport
         report.failures.push(`account:${c.uid}:${step}`);
         deps.reportError(error);
       });
-      if (r.purged || r.evidenceDeleted) deleted += 1;
+      if (r.purged || r.evidenceDeleted || r.consentsPurged) deleted += 1;
       if (r.failed.length > 0) failed += 1;
     }
     return { deleted, failed };

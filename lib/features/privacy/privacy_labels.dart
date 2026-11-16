@@ -63,6 +63,7 @@ String dataTypeBody(AppLocalizations l10n, DataType t) => switch (t) {
 String keepLabel(AppLocalizations l10n, Keep k) => switch (k) {
   Keep.untilDeletion => l10n.keepUntilDeletion,
   Keep.yearAfterClosure => l10n.keepYearAfterClosure,
+  Keep.threeYearsAfterClosure => l10n.keepThreeYearsAfterClosure,
   Keep.oneDay => l10n.keepOneDay,
   Keep.yearAfterRun => l10n.keepYearAfterRun,
   Keep.yearAfterChat => l10n.keepYearAfterChat,

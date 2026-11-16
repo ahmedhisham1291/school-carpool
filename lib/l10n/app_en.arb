@@ -1865,8 +1865,8 @@
   "deleteAccountDone": "Your account was deleted",
   "deleteNowTitle": "Deleted now",
   "deleteNowBody": "Your account, ID photos and selfies, your face-check photo, children, car, home address, your chat messages, phones, routes of runs you drove, ratings and family links.",
-  "deleteYearTitle": "Kept 1 year, without your name",
-  "deleteYearBody": "Run summaries shared with other families (you show as one letter) and your consent records.",
+  "deleteYearTitle": "Kept without your name",
+  "deleteYearBody": "Run summaries shared with other families (you show as one letter): 1 year. Your consent records (version, date and how you agreed), as proof: 3 years.",
   "deleteKeptTitle": "Kept after that",
   "deleteKeptBody": "Transfer records as the law requires, reports about you, the admins' log, and your ID's coded entry on the ban list if you were banned.",
   "deleteExportHint": "Download your data first if you want a copy.",
@@ -2406,5 +2406,6 @@
   "incidentStepCloseBody": "Close the incident after the root cause is fixed. The record stays in the register.",
   "incidentConfirm": "Record",
   "termsUpdatedBody": "We updated the terms and privacy policy and added a separate consent to storage abroad. Read and accept them to continue. You can download your data or delete your account in Privacy.",
-  "termsUpdatedPrivacy": "Privacy"
+  "termsUpdatedPrivacy": "Privacy",
+  "keepThreeYearsAfterClosure": "While open, plus 3 years"
 }

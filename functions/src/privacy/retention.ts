@@ -24,6 +24,18 @@ export const YEAR_DAYS = 365;
  */
 export const AFTER_CLOSURE_DAYS = YEAR_DAYS;
 /**
+ * The proof of consent (users/{uid}/consents) is kept 3 years after the
+ * account closes (owner decision 16 Nov 2026, recommended change R1 in
+ * docs/legal/answers.md 1.6): misdemeanours under Law 151 of 2020 lapse
+ * after 3 years (Criminal Procedure Code Art. 15), tort claims 3 years from
+ * knowledge (Civil Code Art. 172), and Decree 816/2025 Art. 2 asks the
+ * controller to be able to prove every consent. The records hold no name,
+ * phone or ID number (type, version, times, method; a keyed hash of the
+ * typed name for the sensitive-data consents, R3).
+ */
+export const CONSENT_RECORD_YEARS = 3;
+export const CONSENT_AFTER_CLOSURE_DAYS = CONSENT_RECORD_YEARS * YEAR_DAYS;
+/**
  * Safety hold (owner decision 16 Nov 2026): when an open report or rating
  * flag about the parent exists at deletion, the evidence (photos, face
  * reference, case records, routes of runs they drove) waits this long so
@@ -130,7 +142,7 @@ export type DataTypeId = (typeof DATA_TYPES)[number];
 
 export const RETENTION: readonly RetentionRule[] = [
   { id: "account", where: "users/{uid}, parentIds (ID reserved forever, not personal), Firebase Auth", days: 0, from: "accountClosed", enforcedBy: ["accountDeletion"] },
-  { id: "consents", where: "users/{uid}/consents", days: AFTER_CLOSURE_DAYS, from: "accountClosed", enforcedBy: ["retentionDaily"] },
+  { id: "consents", where: "users/{uid}/consents", days: CONSENT_AFTER_CLOSURE_DAYS, from: "accountClosed", enforcedBy: ["retentionDaily"] },
   {
     id: "idPhotos",
     // With the account; at most SAFETY_HOLD_DAYS later when an open report about the parent exists.
@@ -193,7 +205,7 @@ export const KEPT_AFTER_DELETION = [
   { what: "closedAccounts/{uid}", why: "the purge date and the deletion report (no name, phone or ID)" },
   { what: "settleUps", why: "payment records between two parents stay for the other parent while either account is active + 1 year; the deleted parent shows as an initial" },
   { what: "trips", why: "run summaries shared with other families: the deleted parent is an initial at once; their part is anonymised 1 year after closure" },
-  { what: "users/{uid}/consents", why: "proof of consent (document version and time, no name), 1 year after closure" },
+  { what: "users/{uid}/consents", why: "proof of consent (document version, time and method, no name), 3 years after closure" },
   { what: "evidence under a safety hold", why: "only when an open report about the parent exists at deletion: photos, face reference, case records and routes wait at most 30 days, then are deleted" },
 ] as const;
 
@@ -224,6 +236,11 @@ export function evidencePurgeAt(closedAtMs: number, hold: boolean): number {
 /** When a kept record that waits for the account's closure is deleted. */
 export function purgeAfterClosure(closedAtMs: number, days = AFTER_CLOSURE_DAYS): number {
   return closedAtMs + days * DAY_MS;
+}
+
+/** When the proof of consent of a closed account is deleted (3 years, R1). */
+export function consentPurgeAt(closedAtMs: number): number {
+  return closedAtMs + CONSENT_AFTER_CLOSURE_DAYS * DAY_MS;
 }
 
 /** When a run's archived route is deleted. */
