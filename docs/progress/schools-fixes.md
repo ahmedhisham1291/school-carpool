@@ -58,3 +58,10 @@ the go for the owner.
 No network to Overpass, HDX, geoBoundaries, Overture or PyPI; no Flutter
 SDK. Python tests (116) and Functions tests run here; Flutter widget tests
 written, not run; shellcheck not installed (`bash -n` only).
+
+## Validator (16 Nov 2026)
+
+PASS after fixes B1-B6 (docs/reviews/schools-fixes.md): common names merge
+only at the same site; decisions.csv `separate` and un-merge on the next
+load; COD-AB 2024+ field names; smallest holding area wins; no-area address
+reaches the pin step. Open: N1-N8.
