@@ -137,6 +137,7 @@ final Map<String, (String, SessionState)> _screens = <String, (String, SessionSt
   'email': (AuthRoutes.email, testEmailStageSession),
   'terms': (AuthRoutes.terms, testTermsStageSession),
   'verify account': (AuthRoutes.verifyAccount, testUnverifiedSession),
+  'verify needed': ('/verify-account?from=/carpools/search', testUnverifiedSession),
   'verify pending': (
     AuthRoutes.verifyAccount,
     _withStatus(AccountStatus.pending, const VerificationSummary(caseId: 'c1', status: ReviewStatus.pending)),
@@ -566,7 +567,9 @@ void main() {
           l10n.emailChange,
           l10n.actionSignInAgain,
           l10n.termsAcceptButton,
-          l10n.verifyOpenProfile,
+          l10n.verifyLater,
+          l10n.verifyCardAction,
+          l10n.verifyCardPendingAction,
           l10n.profileSignOut,
           l10n.actionContinue,
         ];
@@ -721,7 +724,9 @@ void main() {
           l10n.emailChange,
           l10n.actionSignInAgain,
           l10n.termsAcceptButton,
-          l10n.verifyOpenProfile,
+          l10n.verifyLater,
+          l10n.verifyCardAction,
+          l10n.verifyCardPendingAction,
           l10n.profileSignOut,
         ];
         return Scaffold(

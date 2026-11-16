@@ -37,9 +37,50 @@ PURPOSE_KEYS = (
     "NSCameraUsageDescription",
     "NSPhotoLibraryUsageDescription",
     "NSLocationWhenInUseUsageDescription",
-    "NSLocationAlwaysAndWhenInUseUsageDescription",
     "NSFaceIDUsageDescription",
 )
+
+
+PODFILE = """platform :ios, '15.0'
+target 'Runner' do
+  use_frameworks!
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+  end
+end
+"""
+
+
+class NoAlwaysLocationTest(unittest.TestCase):
+    """16 Nov 2026 (guideline 5.1.1): the app never asks for Always location."""
+
+    def test_no_always_purpose_text_and_old_key_removed(self):
+        for key in ("NSLocationAlwaysAndWhenInUseUsageDescription", "NSLocationAlwaysUsageDescription"):
+            self.assertNotIn(key, patch_native.PERMISSION_TEXTS)
+            self.assertIn(key, patch_native.REMOVED_INFO_KEYS)
+        self.assertIn("NSLocationWhenInUseUsageDescription", patch_native.PERMISSION_TEXTS)
+
+    def test_geolocator_is_built_without_its_always_request(self):
+        out = patch_native.geolocator_bypass(PODFILE)
+        self.assertIn("BYPASS_PERMISSION_LOCATION_ALWAYS=1", out)
+        self.assertIn("if target.name == 'geolocator_apple'", out)
+        self.assertLess(out.index("flutter_additional_ios_build_settings(target)"), out.index("geolocator_apple"))
+        self.assertLess(out.index("geolocator_apple"), out.rindex("end\nend"))
+        self.assertEqual(patch_native.geolocator_bypass(out), out, "idempotent")
+
+    def test_podfile_without_the_flutter_hook_is_left_alone(self):
+        text = "platform :ios, '15.0'\n"
+        self.assertEqual(patch_native.geolocator_bypass(text), text)
+
+    def test_our_plugin_never_asks_for_always(self):
+        swift = (patch_native.ROOT / "packages" / "run_recovery" / "ios" / "Classes" / "RunRecoveryPlugin.swift").read_text(encoding="utf-8")
+        code = "\n".join(line for line in swift.splitlines() if not line.strip().startswith("//"))
+        for call in ("requestAlwaysAuthorization", "startMonitoringSignificantLocationChanges", "requestWhenInUseAuthorization"):
+            self.assertNotIn(call, code)
 
 
 class FlavorTest(unittest.TestCase):
@@ -115,7 +156,8 @@ class PurposeStringsTest(unittest.TestCase):
 
     def test_no_permission_we_do_not_use(self):
         for key in ("NSContactsUsageDescription", "NSMicrophoneUsageDescription", "NSUserTrackingUsageDescription",
-                    "NSMotionUsageDescription", "NSBluetoothAlwaysUsageDescription", "NSCalendarsUsageDescription"):
+                    "NSMotionUsageDescription", "NSBluetoothAlwaysUsageDescription", "NSCalendarsUsageDescription",
+                    "NSLocationAlwaysAndWhenInUseUsageDescription", "NSLocationAlwaysUsageDescription"):
             self.assertNotIn(key, patch_native.PERMISSION_TEXTS)
             for lang in ("ar", "en"):
                 self.assertNotIn(key, self.strings(lang)[1])

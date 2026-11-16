@@ -43,10 +43,10 @@ workflows:
     environment:
       <<: *env_versions
       # Pinned, not `latest` (App Review audit): Apple requires Xcode 26 or
-      # later for uploads, and an app built with the iOS 27 SDK (Xcode 27)
-      # must use the UIScene life cycle or it fails to launch. Our Runner is
-      # a classic app-delegate app (tool/patch_native.py, run recovery), so
-      # stay on Xcode 26 until that is migrated (docs/apple-review/audit.md).
+      # later for uploads. The Runner uses the UIScene life cycle since 16
+      # Nov 2026 (tool/patch_native.py), which the iOS 27 SDK requires; stay
+      # on a tested Xcode and move to 27 on purpose, after one staging build
+      # and docs/test-iphone.md (docs/apple-review/audit.md).
       xcode: 26.4
       ios_signing:
         distribution_type: app_store
@@ -59,6 +59,10 @@ workflows:
         # Prompt 13 uses the free geolocator plugin (docs/testflight.md).
         - staging_defines
       vars:
+        # No "Always" location: geolocator is built without that request
+        # (Swift Package Manager builds read this; CocoaPods builds get it
+        # from the Podfile, tool/patch_native.py).
+        BYPASS_PERMISSION_LOCATION_ALWAYS: "1"
         APP_STORE_APPLE_ID: "6834802195"
     cache: *cache
     # Owner (14 Nov 2026, 500 free macOS minutes): no build on pushes to
@@ -122,6 +126,10 @@ workflows:
         # INVITE_LINK_DOMAIN (optional).
         - prod_defines
       vars:
+        # No "Always" location: geolocator is built without that request
+        # (Swift Package Manager builds read this; CocoaPods builds get it
+        # from the Podfile, tool/patch_native.py).
+        BYPASS_PERMISSION_LOCATION_ALWAYS: "1"
         # The prod app's Apple ID from App Store Connect; keep the quotes.
         APP_STORE_APPLE_ID: "0000000000"
     cache: *cache
@@ -178,10 +186,10 @@ workflows:
     environment:
       <<: *env_versions
       # Pinned, not `latest` (App Review audit): Apple requires Xcode 26 or
-      # later for uploads, and an app built with the iOS 27 SDK (Xcode 27)
-      # must use the UIScene life cycle or it fails to launch. Our Runner is
-      # a classic app-delegate app (tool/patch_native.py, run recovery), so
-      # stay on Xcode 26 until that is migrated (docs/apple-review/audit.md).
+      # later for uploads. The Runner uses the UIScene life cycle since 16
+      # Nov 2026 (tool/patch_native.py), which the iOS 27 SDK requires; stay
+      # on a tested Xcode and move to 27 on purpose, after one staging build
+      # and docs/test-iphone.md (docs/apple-review/audit.md).
       xcode: 26.4
       ios_signing:
         distribution_type: app_store
@@ -190,6 +198,10 @@ workflows:
         # SENTRY_DSN_APP_DEV, MAPS_API_KEY_IOS (Prompt 5; the dev project's key)
         - dev_defines
       vars:
+        # No "Always" location: geolocator is built without that request
+        # (Swift Package Manager builds read this; CocoaPods builds get it
+        # from the Podfile, tool/patch_native.py).
+        BYPASS_PERMISSION_LOCATION_ALWAYS: "1"
         APP_STORE_APPLE_ID: "0000000000"
     cache: *cache
     scripts:

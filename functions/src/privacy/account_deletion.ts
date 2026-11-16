@@ -1,23 +1,35 @@
-import { purgeAfterClosure } from "./retention";
+import { evidencePurgeAt, purgeAfterClosure } from "./retention";
 
 /**
- * Account deletion (spec section 7, Prompt 12; owner decision 14 Nov 2026).
+ * Account deletion (spec section 7, Prompt 12; owner decision 16 Nov 2026,
+ * which replaces "photos kept 1 year after close": App Review guideline
+ * 5.1.1(v) and Apple's "Offering account deletion in your app": delete
+ * the account and the data with it, keep only what the law requires, and
+ * tell the parent what is kept).
  *
- * At once: the parent leaves every carpool (an admin hands the carpool to
- * the next member), live runs stop, the Stream user is cut off, and every
- * record about the parent is deleted (targets below), then the user record
- * and the Firebase Auth user.
+ * AT ONCE (deleteMyAccount): the parent leaves every carpool, live runs
+ * stop, the chat user and every message the parent wrote are deleted
+ * (private chats and group chats), and every record about the parent goes
+ * (IMMEDIATE_TARGETS: home address and pin, children, car, devices, push
+ * tokens, ...), then the user record and the Firebase Auth user. In the
+ * same call, unless a safety hold applies, the EVIDENCE goes too: ID
+ * photos, selfies, school IDs, licences, the driver photo, the face
+ * reference, their thumbnails, the verification case records and the
+ * archived routes of the runs the parent drove.
  *
- * Kept for 1 year after closure, admin-only with a logged reason, then
- * purged by retentionDaily: the photos (ID, selfies, school IDs, licences,
- * driver photo; private bucket, KMS key), the verification case records,
- * the run summaries the parent drove and their archived routes, the
- * consent records, and the parent's chat messages on Stream.
+ * SAFETY HOLD (only when an open report or rating flag about the parent
+ * exists at deletion): the evidence above waits SAFETY_HOLD_DAYS (30), so
+ * the admins can finish that case, then retentionDaily deletes it whatever
+ * the case's state. Everything else still goes at once.
  *
- * Kept after that: the keyed national-ID hash on the ban list (banned
- * parents only), open reports, the transfer records (as long as the law
- * requires: TRANSFER_RECORD_YEARS, confirmed by the lawyer), the admin
- * audit log and the reserved parent ID.
+ * KEPT, minimised and detached from the profile (no name, phone, address,
+ * photo or ID number): run summaries shared with other families (the
+ * parent as an initial; their part anonymised 1 year after closure), the
+ * consent records (proof of consent, 1 year), Settle up records for the
+ * other parent (an initial; 1 year), transfer records
+ * (TRANSFER_RECORD_YEARS), reports about the parent, the admin audit log,
+ * the keyed national-ID hash on the ban list (banned parents only) and the
+ * reserved parent ID.
  *
  * The wallet must be empty and settled first. Every step runs on its own;
  * a failed step is recorded in closedAccounts/{uid} and retried by
@@ -100,18 +112,26 @@ export const IMMEDIATE_TARGETS: ReadonlyArray<{ collection: string; target: Targ
   { collection: "storage:deviceChecks", target: { kind: "storage", prefix: "deviceChecks/{uid}/" } },
   { collection: "storage:selfieChecks", target: { kind: "storage", prefix: "selfieChecks/{uid}/" } },
   { collection: "storage:exports", target: { kind: "storage", prefix: "exports/{uid}/" } },
-  // Last: the user record (its consents subcollection stays until the purge).
+  // Last: the user record (its consents subcollection, the proof of consent, stays 1 year).
   { collection: "users", target: { kind: "doc", path: "users/{uid}" } },
 ];
 
-/** Deleted 1 YEAR after closure (owner decision), by retentionDaily. */
-export const PURGE_TARGETS: ReadonlyArray<{ collection: string; target: Target }> = [
+/**
+ * EVIDENCE: deleted with the account, in the same call (owner decision 16
+ * Nov 2026), or SAFETY_HOLD_DAYS later when an open report about the
+ * parent exists. Never later than that.
+ */
+export const EVIDENCE_TARGETS: ReadonlyArray<{ collection: string; target: Target }> = [
   { collection: "storage:verification", target: { kind: "storage", prefix: "verification/{uid}/" } },
   { collection: "storage:faceRefs", target: { kind: "storage", prefix: "faceRefs/{uid}/" } },
   { collection: "storage:driverPhotos", target: { kind: "storage", prefix: "driverPhotos/{uid}/" } },
   { collection: "storage:selfieArchive", target: { kind: "storage", prefix: "selfieArchive/{uid}/" } },
   { collection: "storage:thumbs", target: { kind: "storage", prefix: "thumbs/{uid}/" } },
   { collection: "verifications", target: { kind: "where", collection: "verifications", field: "uid" } },
+];
+
+/** Deleted 1 YEAR after closure by retentionDaily: the proof of consent. */
+export const PURGE_TARGETS: ReadonlyArray<{ collection: string; target: Target }> = [
   { collection: "users/consents", target: { kind: "subcollection", path: "users/{uid}/consents" } },
 ];
 
@@ -122,7 +142,7 @@ export const PURGE_TARGETS: ReadonlyArray<{ collection: string; target: Target }
 export const NOT_DELETED: Readonly<Record<string, string>> = {
   bannedIds: "ban list: keyed national-ID hash (kept, spec section 7)",
   nationalIds: "released by the identity step (the claim on the ID number is deleted)",
-  reports: "open reports are kept; handled ones lose their message copy after 1 year",
+  reports: "reports about or by the parent are kept (safety); handled ones lose their message copy after 1 year",
   moderations: "admin decisions (part of the audit trail)",
   auditLog: "admin actions, 2 years",
   transfers: "transfer records, as long as the law requires (TRANSFER_RECORD_YEARS: 5, confirmed by the lawyer and the owner)",
@@ -151,8 +171,8 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   schedule: "runs stay for the group with initials only; future runs are released; deleted with the closed carpool",
   scheduleEvents: "events, 30-day TTL",
   notificationEvents: "outbox, 30-day TTL",
-  chatChannels: "the chat's record; a private chat ends and is deleted 1 year later",
-  verifications: "purged 1 year after closure",
+  chatChannels: "the chat's record; the parent's own messages are deleted at once (chat step); a private chat ends and what the other parent wrote is deleted 1 year later",
+  verifications: "deleted with the account (evidence step; at most 30 days later under a safety hold)",
   trips: "kept while any participant's account is active + 1 year (owner, 14 Nov 2026 13:29): the parent's children become initials at once; 1 year after closure the parent's part is anonymised (purge step trips), and a trip goes when every participant's year is over",
   tripStops: "exact stops of one run, deleted 1 day after the run",
   tripChecks: "selfie-check state of one run (no image)",
@@ -162,7 +182,7 @@ export const NOT_DELETED: Readonly<Record<string, string>> = {
   closedAccounts: "the deletion report and purge date (no name, phone or ID)",
   privacyRequests: "proof that each request was answered, 3 years",
   securityAlerts: "admin alerts, 1 year after handled",
-  routeArchives: "purged 1 year after the run (and with the account's purge step)",
+  routeArchives: "purged 1 year after the run; the routes of a deleted driver go with the account (evidence step)",
   retentionRuns: "job reports (counts only)",
 };
 
@@ -199,13 +219,15 @@ export const SUBCOLLECTIONS: Readonly<Record<string, string>> = {
  */
 export const FLOW_STEPS = ["trips", "carpools", "anonymise", "chat", "trust", "identity", "wallet", "places", "records", "auth"] as const;
 export type FlowStep = (typeof FLOW_STEPS)[number];
-/** routes: the parent's archived routes (files and records); stream: the Stream user and messages. */
+/** routes: the archived routes (files and records) of the runs the parent drove. */
+export const EVIDENCE_STEPS = ["routes"] as const;
+export type EvidenceStep = (typeof EVIDENCE_STEPS)[number];
 /**
  * trips (owner answer 14 Nov 2026 13:29): the trips the parent drove are
  * deleted only when no other participant's data is still kept; otherwise
  * the parent's part is anonymised (trip_retention.ts).
  */
-export const PURGE_STEPS = ["trips", "routes", "stream"] as const;
+export const PURGE_STEPS = ["trips"] as const;
 export type PurgeStep = (typeof PURGE_STEPS)[number];
 
 export interface DeletionFacts {
@@ -214,6 +236,14 @@ export interface DeletionFacts {
   wallet: { balance: number; pending: number } | null;
   /** The parent is driving a run right now. */
   drivingNow: boolean;
+}
+
+/** What the runner reads about the account before deleting it. */
+export interface AccountFacts extends Omit<DeletionFacts, "wallet"> {
+  parentId: string;
+  banned: boolean;
+  /** An open report or rating flag about this parent exists: the evidence waits (safety hold). */
+  openCase: boolean;
 }
 
 export type DeletionRefusal = "wallet-not-empty" | "wallet-pending" | "wallet-unavailable" | "driving-now" | "no-account";
@@ -236,6 +266,12 @@ export interface ClosedAccount {
   uid: string;
   parentId: string;
   closedAtMs: number;
+  /** A safety hold applied at deletion (an open report about the parent). */
+  hold: boolean;
+  /** When the evidence (photos, case records, routes) goes: at closure, or 30 days later under a hold. */
+  evidenceAtMs: number;
+  evidenceDoneAtMs: number | null;
+  /** When the kept records end (consents; the parent's part of trips): closure + 1 year. */
   purgeAtMs: number;
   banned: boolean;
   /** Steps still to do (retried by retentionDaily). */
@@ -243,8 +279,25 @@ export interface ClosedAccount {
   purgedAtMs: number | null;
 }
 
-export function newClosedAccount(uid: string, parentId: string, banned: boolean, nowMs: number): ClosedAccount {
-  return { uid, parentId, closedAtMs: nowMs, purgeAtMs: purgeAfterClosure(nowMs), banned, failed: [], purgedAtMs: null };
+export function newClosedAccount(uid: string, parentId: string, banned: boolean, nowMs: number, hold = false): ClosedAccount {
+  return {
+    uid,
+    parentId,
+    closedAtMs: nowMs,
+    hold,
+    evidenceAtMs: evidencePurgeAt(nowMs, hold),
+    evidenceDoneAtMs: null,
+    purgeAtMs: purgeAfterClosure(nowMs),
+    banned,
+    failed: [],
+    purgedAtMs: null,
+  };
+}
+
+/** The next time retentionDaily has work on this account (null: all done). */
+export function nextWorkAt(c: ClosedAccount): number | null {
+  if (c.evidenceDoneAtMs === null) return c.evidenceAtMs;
+  return c.purgedAtMs === null ? c.purgeAtMs : null;
 }
 
 /**
@@ -263,7 +316,7 @@ export const CLOSING_REASON = "accountClosing";
 
 export interface DeletionRunner {
   /** The account facts without the wallet (read after the lock). */
-  facts(uid: string): Promise<Omit<DeletionFacts, "wallet"> & { parentId: string; banned: boolean }>;
+  facts(uid: string): Promise<AccountFacts>;
   /**
    * Closes the wallet to money FIRST: frozen with reason accountClosing in
    * our copy (startTransfer reads it in its transaction, so no transfer to
@@ -280,7 +333,7 @@ export interface DeletionRunner {
   /** One flow step (carpools, chat ...). Throws on failure. */
   runFlowStep(uid: string, step: FlowStep, nowMs: number): Promise<void>;
   runTarget(uid: string, target: Target): Promise<number>;
-  runPurgeStep(uid: string, step: PurgeStep): Promise<void>;
+  runPurgeStep(uid: string, step: PurgeStep | EvidenceStep): Promise<void>;
 }
 
 /** Every step of the immediate deletion, as names (stored when one fails). */
@@ -297,8 +350,11 @@ async function runStep(runner: DeletionRunner, uid: string, name: string, nowMs:
   const [kind, id] = name.split(":");
   if (kind === "flow") await runner.runFlowStep(uid, id as FlowStep, nowMs);
   else if (kind === "target") await runner.runTarget(uid, IMMEDIATE_TARGETS[Number(id)].target);
-  else if (kind === "purge") await runner.runPurgeStep(uid, id as PurgeStep);
-  else if (kind === "ptarget") await runner.runTarget(uid, PURGE_TARGETS[Number(id)].target);
+  else if (kind === "purge" && (PURGE_STEPS as readonly string[]).includes(id)) await runner.runPurgeStep(uid, id as PurgeStep);
+  else if (kind === "ptarget" && PURGE_TARGETS[Number(id)]) await runner.runTarget(uid, PURGE_TARGETS[Number(id)].target);
+  else if (kind === "evidence" && (EVIDENCE_STEPS as readonly string[]).includes(id)) await runner.runPurgeStep(uid, id as EvidenceStep);
+  else if (kind === "etarget" && EVIDENCE_TARGETS[Number(id)]) await runner.runTarget(uid, EVIDENCE_TARGETS[Number(id)].target);
+  // An unknown name (written by an older version) is done: the phases below run every current step again.
 }
 
 /**
@@ -324,7 +380,7 @@ export async function deleteAccount(
   uid: string,
   nowMs: number,
   onError: (step: string, error: unknown) => void,
-): Promise<{ closed: true; failed: number; purgeAtMs: number }> {
+): Promise<{ closed: true; failed: number; held: boolean; evidenceAtMs: number; purgeAtMs: number }> {
   const facts = await runner.facts(uid);
   const early = deletionRefusal({ ...facts, wallet: null });
   if (early) throw new DeletionError(early);
@@ -356,32 +412,57 @@ export async function deleteAccount(
     }
   }
   // Recorded FIRST: if anything below fails, the daily job finishes it.
-  const closed = newClosedAccount(uid, facts.parentId, facts.banned, nowMs);
-  const steps = immediateSteps();
+  const closed = newClosedAccount(uid, facts.parentId, facts.banned, nowMs, facts.openCase);
+  // No hold: the photos, case records and routes go in this same call.
+  const steps = closed.hold ? immediateSteps() : [...immediateSteps(), ...evidenceSteps()];
   await runner.saveClosed({ ...closed, failed: steps });
   const failed = await runSteps(runner, uid, steps, nowMs, onError);
-  await runner.saveClosed({ ...closed, failed });
-  return { closed: true, failed: failed.length, purgeAtMs: closed.purgeAtMs };
+  const evidenceDoneAtMs = !closed.hold && !failed.some(isEvidenceStep) ? nowMs : null;
+  await runner.saveClosed({ ...closed, failed, evidenceDoneAtMs });
+  return { closed: true, failed: failed.length, held: closed.hold, evidenceAtMs: closed.evidenceAtMs, purgeAtMs: closed.purgeAtMs };
 }
 
-/** Every purge step (1 year after closure). */
+/** The evidence steps: photos, face reference, case records, archived routes. */
+export function evidenceSteps(): string[] {
+  return [...EVIDENCE_TARGETS.map((_, i) => `etarget:${i}`), ...EVIDENCE_STEPS.map((s) => `evidence:${s}`)];
+}
+
+function isEvidenceStep(name: string): boolean {
+  return name.startsWith("etarget:") || name.startsWith("evidence:");
+}
+
+/** Every purge step (1 year after closure): consents and the parent's part of trips. */
 export function purgeSteps(): string[] {
   return [...PURGE_TARGETS.map((_, i) => `ptarget:${i}`), ...PURGE_STEPS.map((s) => `purge:${s}`)];
 }
 
 /**
- * retentionDaily: retries failed immediate steps, and purges accounts
- * whose year is over. Returns what still fails (reported).
+ * retentionDaily: retries failed steps, deletes the evidence when its
+ * date came (the end of a safety hold; also every account closed under
+ * the older 1-year rule), and purges the kept records of accounts whose
+ * year is over. Returns what still fails (reported).
  */
-export async function continueDeletion(runner: DeletionRunner, c: ClosedAccount, nowMs: number, onError: (step: string, error: unknown) => void): Promise<{ failed: string[]; purged: boolean }> {
+export async function continueDeletion(
+  runner: DeletionRunner,
+  c: ClosedAccount,
+  nowMs: number,
+  onError: (step: string, error: unknown) => void,
+): Promise<{ failed: string[]; purged: boolean; evidenceDeleted: boolean }> {
   let failed = c.failed.length > 0 ? await runSteps(runner, c.uid, c.failed, nowMs, onError) : [];
+  let evidenceDoneAtMs = c.evidenceDoneAtMs;
+  if (evidenceDoneAtMs === null && c.evidenceAtMs <= nowMs) {
+    // Evidence steps already in the list were tried at deletion and again
+    // just above; otherwise the evidence was waiting (hold) and runs now.
+    if (!c.failed.some(isEvidenceStep)) failed = [...failed, ...(await runSteps(runner, c.uid, evidenceSteps(), nowMs, onError))];
+    if (!failed.some(isEvidenceStep)) evidenceDoneAtMs = nowMs;
+  }
   let purgedAtMs = c.purgedAtMs;
-  if (purgedAtMs === null && c.purgeAtMs <= nowMs && failed.length === 0) {
+  if (purgedAtMs === null && evidenceDoneAtMs !== null && c.purgeAtMs <= nowMs && failed.length === 0) {
     failed = await runSteps(runner, c.uid, purgeSteps(), nowMs, onError);
     if (failed.length === 0) purgedAtMs = nowMs;
   }
-  await runner.saveClosed({ ...c, failed, purgedAtMs });
-  return { failed, purged: purgedAtMs !== null && c.purgedAtMs === null };
+  await runner.saveClosed({ ...c, failed, evidenceDoneAtMs, purgedAtMs });
+  return { failed, purged: purgedAtMs !== null && c.purgedAtMs === null, evidenceDeleted: evidenceDoneAtMs !== null && c.evidenceDoneAtMs === null };
 }
 
 export class DeletionError extends Error {

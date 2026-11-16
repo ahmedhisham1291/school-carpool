@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 enum VerificationFailureKind {
@@ -27,11 +28,16 @@ enum VerificationFailureKind {
 /// our functions send (functions/src/verification/submission.ts) or from
 /// Storage and the camera.
 class VerificationFailure implements Exception {
-  const VerificationFailure(this.kind, {this.missing = const <String>[]});
+  const VerificationFailure(this.kind, {this.demo, this.missing = const <String>[]});
 
   factory VerificationFailure.from(Object error) {
     if (error is VerificationFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return VerificationFailure(VerificationFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
@@ -79,13 +85,18 @@ class VerificationFailure implements Exception {
 
   final VerificationFailureKind kind;
 
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
+
   /// Upload names the server did not find (missingUpload).
   final List<String> missing;
 
   bool get isOffline => kind == VerificationFailureKind.offline;
 
   /// What to tell the parent, including what to do.
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     VerificationFailureKind.invalidDetails => l10n.verifyErrorDetails,
     VerificationFailureKind.invalidNationalId => l10n.idNumberErrorInvalid,
     VerificationFailureKind.idExpired => l10n.idExpiryErrorPast,

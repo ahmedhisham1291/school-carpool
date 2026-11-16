@@ -3,7 +3,9 @@
 Owner decision (DECISIONS.md "Data retention and collection", 14 Nov 2026):
 screens and features used are collected with Google Analytics for Firebase,
 with **no names, phone numbers, IDs, message text or coordinates**. On by
-default; the parent switches it off in Settings or on the privacy screen
+default **off** (owner decision 16 Nov 2026, App Review guideline 5.1.1(ii)):
+a card on Home asks once ("Help improve the app?" Share / No thanks) and
+nothing is collected before a yes; the parent switches it in Settings or on the privacy screen
 (stored on the phone, recorded on the server as an "analytics" consent).
 Crashes go to Sentry (scrubbed), not to Analytics.
 
@@ -39,7 +41,6 @@ listener on the go_router delegate (`routerProvider`), once per change.
 | `account_deleted` | Account deleted | none |
 | `app_lock_changed` | App lock switched | `enabled` (0/1) |
 | `device_signed_out` | A phone signed out from the list | `all` (0/1) |
-| `always_location` | A driver answers the optional "Always" step (Prompt 13) | `granted` (0/1); never a location |
 | `settle_up_created` | A settle-up record is created (F45) | `kind` (request, paid), `purpose` (contribution, fuel, other); never the amount, a name, the note or an InstaPay address |
 | `settle_up_action` | A step on a settle-up record | `step` (paid, received, not-received, cancel, decline, report); never the amount |
 | `settle_up_address` | The parent saves or removes their own InstaPay address | `step` (saved, removed); never the address |

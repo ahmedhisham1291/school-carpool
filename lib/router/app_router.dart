@@ -175,16 +175,17 @@ abstract final class SettleUpRoutes {
   static String record(String id) => '$home/r/$id';
 }
 
-/// Screens under the Home tab (Prompt 5). Verified parents only (the
-/// session redirect keeps everyone else on Profile).
+/// Screens under the Home tab (Prompt 5). Parents nearby needs a verified
+/// account (the session redirect opens the verification screen).
 abstract final class HomeRoutes {
   static const String nearbySegment = 'nearby';
   static const String nearby = '/home/$nearbySegment';
 }
 
-/// Screens under the Carpools tab (Prompt 6) and invite links. Verified
-/// parents only, except the invite link, which explains that the parent
-/// must be verified first (F31).
+/// Screens under the Carpools tab (Prompt 6) and invite links. The tab
+/// itself is open to everyone signed up; every screen under it needs a
+/// verified account, except the invite link, which explains that the
+/// parent must be verified first (F31).
 abstract final class CarpoolRoutes {
   static const String searchSegment = 'search';
   static const String createSegment = 'new';
@@ -259,7 +260,8 @@ abstract final class AppRoutes {
 /// [showDevTools] is true (dev flavor).
 ///
 /// With a [session], every navigation goes through [sessionRedirect]
-/// (sign-up steps, Profile-only access until verified). Without one (some
+/// (sign-up steps; until verified, only what involves another family is
+/// closed). Without one (some
 /// widget tests and screenshots) there is no gate.
 ///
 /// [onInviteLink] gets the code of every invite link the router sees, so a
@@ -315,7 +317,8 @@ GoRouter buildAppRouter({
       ),
       GoRoute(
         path: AuthRoutes.verifyAccount,
-        builder: (BuildContext context, GoRouterState state) => const VerifyAccountScreen(),
+        builder: (BuildContext context, GoRouterState state) =>
+            VerifyAccountScreen(from: state.uri.queryParameters['from']),
       ),
       GoRoute(
         path: AuthRoutes.verifySubmit,

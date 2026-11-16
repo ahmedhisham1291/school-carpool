@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/verification/verification_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
@@ -651,11 +652,16 @@ enum CarpoolFailureKind {
 
 /// Why a carpool call failed, from `details.reason` (functions/src/carpools).
 class CarpoolFailure implements Exception {
-  const CarpoolFailure(this.kind);
+  const CarpoolFailure(this.kind, {this.demo});
 
   factory CarpoolFailure.from(Object error) {
     if (error is CarpoolFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return CarpoolFailure(CarpoolFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
@@ -705,10 +711,15 @@ class CarpoolFailure implements Exception {
 
   final CarpoolFailureKind kind;
 
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
+
   bool get isOffline => kind == CarpoolFailureKind.offline;
 
   /// One short sentence that says what happened and how to fix it.
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     CarpoolFailureKind.offline => l10n.errorOfflineShort,
     CarpoolFailureKind.rateLimited => l10n.carpoolErrorTooMany,
     CarpoolFailureKind.notVerified => l10n.mapErrorNotVerified,

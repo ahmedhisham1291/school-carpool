@@ -12,7 +12,10 @@ import 'package:school_carpool/l10n/l10n.dart';
 
 /// What a driver needs before a run (owner decision, docs/DECISIONS.md
 /// "Location tracking on iPhone", option 1: block driving only, never the
-/// whole app, App Store guideline 5.1.1).
+/// whole app, App Store guideline 5.1.1). Location only: notifications are
+/// never required (guidelines 4.5.4 and 5.1.2(i); owner decision 16 Nov
+/// 2026). A driver with notifications off sees one warning that can be
+/// skipped ([warnNotificationsOff]).
 enum GateItem {
   /// Location Services on the phone.
   service,
@@ -22,17 +25,17 @@ enum GateItem {
 
   /// Precise Location (iOS 14 and later; Android "precise").
   precise,
-
-  /// Notifications allowed ("Run still on" and the run's alerts).
-  notifications;
-
-  bool get isLocation => this != GateItem.notifications;
 }
 
 /// One check of everything in [GateItem].
 @immutable
 class DrivingCheck {
-  const DrivingCheck({this.missing = const <GateItem>{}, this.locationNotAsked = false, this.notificationsNotAsked = false});
+  const DrivingCheck({
+    this.missing = const <GateItem>{},
+    this.locationNotAsked = false,
+    this.notificationsOff = false,
+    this.notificationsNotAsked = false,
+  });
 
   static const DrivingCheck ready = DrivingCheck();
 
@@ -41,17 +44,22 @@ class DrivingCheck {
 
   /// The system prompt was never shown: ask in the app first.
   final bool locationNotAsked;
+
+  /// Notifications are not allowed. Never blocks anything: the driver gets
+  /// a warning before a run and may go on.
+  final bool notificationsOff;
   final bool notificationsNotAsked;
 
+  /// The driver may start a run: every location item is fine.
   bool get isReady => missing.isEmpty;
 
-  /// Location only (the home banner ignores notifications).
-  bool get locationReady => !missing.any((GateItem i) => i.isLocation);
+  /// Same as [isReady] (the gate is location only).
+  bool get locationReady => isReady;
 
   bool get anyNotAsked => locationNotAsked || notificationsNotAsked;
 
-  List<GateItem> items({required bool locationOnly}) =>
-      GateItem.values.where((GateItem i) => missing.contains(i) && (!locationOnly || i.isLocation)).toList();
+  /// What is missing, in [GateItem] order.
+  List<GateItem> get items => GateItem.values.where(missing.contains).toList();
 }
 
 abstract interface class DrivingReadiness {
@@ -137,13 +145,11 @@ Future<DrivingCheck> checkWith(GeoSource source, NotificationStatus notification
     missing.add(GateItem.precise);
   }
   final NotificationAccess access = await _or(notifications.status, NotificationAccess.denied);
-  if (access != NotificationAccess.allowed) {
-    missing.add(GateItem.notifications);
-  }
   return DrivingCheck(
     missing: missing,
     // iOS answers "denied" before the parent was ever asked.
     locationNotAsked: !granted && (permission == LocationPermission.denied || permission == LocationPermission.unableToDetermine),
+    notificationsOff: access != NotificationAccess.allowed,
     notificationsNotAsked: access == NotificationAccess.notAsked,
   );
 }
@@ -226,36 +232,82 @@ final Provider<DrivingReadiness> drivingReadinessProvider = Provider<DrivingRead
 });
 
 /// Before a run: true when the driver may start. Asks the system prompts
-/// that were never shown first, then shows the blocking steps for what is
-/// still missing. The rest of the app stays open.
+/// that were never shown first, then shows the blocking steps for the
+/// location items still missing. Notifications never block: when they are
+/// off the driver sees [warnNotificationsOff] once and may go on. The rest
+/// of the app stays open.
 Future<bool> ensureReadyToDrive(BuildContext context, WidgetRef ref) async {
   final DrivingReadiness readiness = ref.read(drivingReadinessProvider);
   DrivingCheck check = await readiness.check();
-  if (check.isReady) {
-    return true;
-  }
   if (check.anyNotAsked) {
     check = await readiness.requestNotAsked();
-    if (check.isReady) {
-      return true;
-    }
   }
   if (!context.mounted) {
     return false;
   }
-  return showLocationSteps(context, blocking: true);
+  if (!check.isReady) {
+    if (!await showLocationSteps(context, blocking: true)) {
+      return false;
+    }
+    check = await readiness.check();
+    if (!context.mounted) {
+      return false;
+    }
+  }
+  if (!check.notificationsOff) {
+    return true;
+  }
+  return warnNotificationsOff(context, readiness);
+}
+
+/// "You may miss alerts": shown once per run start when notifications are
+/// off. "Start anyway" goes on (true); "Open Settings" opens this app's
+/// settings and starts nothing (false: the driver taps Start run again
+/// after coming back); closing it starts nothing.
+///
+/// States: nothing loads, so no loading, empty, error or offline state.
+Future<bool> warnNotificationsOff(BuildContext context, DrivingReadiness readiness) async {
+  final bool? go = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      final AppLocalizations l10n = dialogContext.l10n;
+      return AlertDialog(
+        key: const Key('gate.notifWarning'),
+        icon: const ExcludeSemantics(child: Icon(Icons.notifications_off_outlined)),
+        title: Semantics(header: true, child: OneLineText(l10n.gateNotifWarnTitle, scaleDown: true)),
+        content: Text(l10n.gateNotifWarnBody),
+        actionsOverflowButtonSpacing: AppSpacing.s8,
+        actions: <Widget>[
+          AppButton(
+            key: const Key('gate.notifWarning.settings'),
+            label: l10n.locationOpenSettings,
+            variant: AppButtonVariant.tertiary,
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+          ),
+          AppButton(
+            key: const Key('gate.notifWarning.continue'),
+            label: l10n.gateNotifWarnContinue,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+          ),
+        ],
+      );
+    },
+  );
+  if (go == false) {
+    await readiness.openSettings(serviceOff: false);
+  }
+  return go ?? false;
 }
 
 /// Opens the steps full screen. [blocking]: the driving gate (closes with
 /// true once all pass). Otherwise the home banner's steps (never blocks).
-/// [locationOnly] (default: not blocking): only Location Services,
-/// permission and Precise Location count; used by the banner and during a
-/// run (notifications are required only before a run starts).
-Future<bool> showLocationSteps(BuildContext context, {required bool blocking, bool? locationOnly}) async {
+/// Only Location Services, permission and Precise Location count.
+/// [running]: location went away during a run (title "Turn on location").
+Future<bool> showLocationSteps(BuildContext context, {required bool blocking, bool running = false}) async {
   final bool? ok = await Navigator.of(context).push<bool>(
     MaterialPageRoute<bool>(
       fullscreenDialog: true,
-      builder: (BuildContext _) => LocationStepsScreen(blocking: blocking, locationOnly: locationOnly ?? !blocking),
+      builder: (BuildContext _) => LocationStepsScreen(blocking: blocking, running: running),
     ),
   );
   return ok ?? false;
@@ -270,10 +322,10 @@ Future<bool> showLocationSteps(BuildContext context, {required bool blocking, bo
 /// shows (it closes); an error in a check counts as missing (the steps
 /// still help); offline does not apply (all checks are on the phone).
 class LocationStepsScreen extends ConsumerStatefulWidget {
-  const LocationStepsScreen({required this.blocking, required this.locationOnly, super.key});
+  const LocationStepsScreen({required this.blocking, this.running = false, super.key});
 
   final bool blocking;
-  final bool locationOnly;
+  final bool running;
 
   @override
   ConsumerState<LocationStepsScreen> createState() => _LocationStepsScreenState();
@@ -300,9 +352,9 @@ class _LocationStepsScreenState extends ConsumerState<LocationStepsScreen> {
     super.dispose();
   }
 
-  List<GateItem> get _items => _check?.items(locationOnly: widget.locationOnly) ?? const <GateItem>[];
+  List<GateItem> get _items => _check?.items ?? const <GateItem>[];
 
-  bool _done(DrivingCheck check) => widget.locationOnly ? check.locationReady : check.isReady;
+  bool _done(DrivingCheck check) => check.isReady;
 
   Future<void> _recheck() async {
     final DrivingCheck check = await ref.read(drivingReadinessProvider).check();
@@ -346,7 +398,7 @@ class _LocationStepsScreenState extends ConsumerState<LocationStepsScreen> {
           tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
           onPressed: () => Navigator.of(context).pop(false),
         ),
-        title: AppBarTitle(widget.locationOnly ? l10n.gateLocationTitle : l10n.gateTitle),
+        title: AppBarTitle(widget.blocking && !widget.running ? l10n.gateTitle : l10n.gateLocationTitle),
       ),
       body: SafeArea(
         top: false,
@@ -414,11 +466,6 @@ class _ItemCard extends StatelessWidget {
         l10n.gatePreciseTitle,
         Icons.gps_fixed_rounded,
         <String>[l10n.gateOpenStep, l10n.gateLocationStep, l10n.gatePreciseStep],
-      ),
-      GateItem.notifications => (
-        l10n.gateNotificationsTitle,
-        Icons.notifications_off_outlined,
-        <String>[l10n.gateOpenStep, l10n.gateNotificationsStep1, l10n.gateNotificationsStep2],
       ),
     };
     return AppCard(

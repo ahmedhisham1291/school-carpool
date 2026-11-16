@@ -10,9 +10,13 @@
  *   REVIEW_PHONE=<test number> REVIEW_CODE=<6 digits> \
  *   npm --prefix functions run review-access -- on <days 1-30> <superAdminUid>
  *
- * A second demo phone (the other parent of the demo carpool) is optional:
- * add REVIEW_PHONE_2=<another test number> REVIEW_CODE_2=<another 6 digits>.
- * Then seed the demo data: scripts/review_demo.ts.
+ * A second demo phone (the other parent of the demo carpool): add
+ * REVIEW_PHONE_2=<another test number> REVIEW_CODE_2=<another 6 digits>.
+ * With both numbers, `on` then (re)seeds the demo accounts and data by
+ * itself (scripts/review_demo_lib.ts, the same as `review-demo -- seed`)
+ * and lists them (`review-demo -- status`). With one number it stops and
+ * prints the one thing left to do. While the window is open the scheduled
+ * function reviewDemoDaily keeps the demo runs planned and confirmed.
  *
  *   GCLOUD_PROJECT=<project> npm --prefix functions run review-access -- off <superAdminUid>
  *
@@ -22,11 +26,13 @@
  * account in prod). Logged in the admin audit log.
  */
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { FirestoreListsStore } from "../src/admin_panel/store";
 import { toEgyptE164 } from "../src/auth/phone";
 import { CODE_PATTERN, REVIEW_ACCESS_MAX_DAYS, reviewAccessFor } from "../src/auth/otp_flow";
 import { REVIEW_ACCESS_DOC, weakCode } from "../src/auth/review_access";
+import { printReviewDemoStatus, seedReviewDemo, SeedRefused } from "./review_demo_lib";
 
 function refuse(reason: string): never {
   console.error(`review-access: refusing to run: ${reason}`);
@@ -74,8 +80,25 @@ async function main(): Promise<void> {
   await lists.audit({ actorUid, action: "auth.reviewAccess.on", target: REVIEW_ACCESS_DOC, reasonCode: "appReview", ip: null, details: { days, phones: 1 + extra.length } });
   await ref.set({ ...reviewAccessFor(key, phone, code, expiresAtMs), extra, updatedAt: new Date() });
   console.log(`review access is on for ${days} days for ${1 + extra.length} demo phone(s) (numbers and codes not shown)`);
-  // Turning the access on again starts with no listed demo account: the seed lists them.
-  console.log("Now run `review-demo -- seed` (again): it lists the demo accounts for this window and renews their exemption.");
+  // Turning the access on again starts with no listed demo account: the
+  // seed lists them and renews their exemption for this window.
+  if (!rawPhone2) {
+    console.log("TO DO: the demo carpool needs two demo parents. Run `on` again with REVIEW_PHONE_2 and REVIEW_CODE_2 added; it then seeds the demo data by itself.");
+    return;
+  }
+  console.log("seeding the demo accounts and data (the same as `review-demo -- seed`) ...");
+  try {
+    await seedReviewDemo({ db, auth: getAuth(), lists, actorUid, projectId, key, phoneA: phone, phoneB: toEgyptE164(rawPhone2) as string });
+  } catch (error) {
+    if (error instanceof SeedRefused) {
+      console.error(`review-access: the access is on, but the demo seed refused: ${error.message}`);
+      console.error("TO DO: fix that, then run `review-demo -- seed` (or `on` again).");
+      process.exit(1);
+    }
+    throw error;
+  }
+  await printReviewDemoStatus(db);
+  console.log("The demo runs are kept planned and confirmed every evening (reviewDemoDaily) until the access ends.");
 }
 
 main().catch((error: unknown) => {

@@ -73,7 +73,7 @@ void main() {
 
     setUp(() {
       store = InMemorySettingsStore();
-      native = FakeRecoveryNative(supported: true, status: RecoveryAuthorization.always);
+      native = FakeRecoveryNative(supported: true);
       trips = FakeTripRepository(preparation: const TripPreparation(tripId: 'k1_2026-11-16_am', selfieRequired: false, active: true));
       tracker = FakeLocationTracker();
       notified = 0;
@@ -145,25 +145,6 @@ void main() {
       expect(await s.recover('uid-1'), RecoveryOutcome.failed);
       expect(notified, 0);
     });
-
-    test('the optional Always step: iPhone, While Using, once per install', () async {
-      native.status = RecoveryAuthorization.whenInUse;
-      native.afterRequest = RecoveryAuthorization.always;
-      final RunRecoveryService s = service();
-      expect(await s.shouldOfferAlways(), isTrue);
-      expect(await s.requestAlways(), isTrue);
-      expect(await s.shouldOfferAlways(), isFalse, reason: 'asked once');
-      store = InMemorySettingsStore();
-      native = FakeRecoveryNative(supported: true, status: RecoveryAuthorization.whenInUse);
-      final RunRecoveryService declined = service();
-      await declined.declineAlways();
-      expect(await declined.shouldOfferAlways(), isFalse);
-      store = InMemorySettingsStore();
-      native = FakeRecoveryNative(status: RecoveryAuthorization.whenInUse);
-      expect(await service().shouldOfferAlways(), isFalse, reason: 'not an iPhone');
-      native = FakeRecoveryNative(supported: true, status: RecoveryAuthorization.always);
-      expect(await service().shouldOfferAlways(), isFalse, reason: 'already Always');
-    });
   });
 
   group('launcher', () {
@@ -198,11 +179,8 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (MethodCall call) async {
         calls.add(call.method);
         return switch (call.method) {
-          'authorization' => 'whenInUse',
-          'requestAlways' => 'always',
           'startRun' => true,
           'stopRun' => true,
-          'launchedForLocation' => true,
           _ => null,
         };
       });
@@ -211,18 +189,15 @@ void main() {
 
     test('iPhone: every call goes to the native side', () async {
       final RunRecovery r = RunRecovery(isIos: true);
-      expect(await r.authorization(), RecoveryAuthorization.whenInUse);
-      expect(await r.requestAlways(), RecoveryAuthorization.always);
       expect(await r.startRun(), isTrue);
       await r.stopRun();
-      expect(await r.launchedForLocation(), isTrue);
-      expect(calls, <String>['authorization', 'requestAlways', 'startRun', 'stopRun', 'launchedForLocation']);
+      // The plugin has no permission call at all ("Always" is never asked).
+      expect(calls, <String>['startRun', 'stopRun']);
     });
 
     test('Android and the web: nothing is called, answers say unsupported', () async {
       final RunRecovery r = RunRecovery(isIos: false);
       expect(r.supported, isFalse);
-      expect(await r.authorization(), RecoveryAuthorization.unsupported);
       expect(await r.startRun(), isFalse);
       expect(calls, isEmpty);
     });

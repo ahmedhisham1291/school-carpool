@@ -89,8 +89,8 @@ No one can see groups, chat or other parents until their account is verified.
 
 | State | Meaning | Access |
 | --- | --- | --- |
-| Unverified | Registered, documents not yet submitted | Profile only |
-| Pending | Documents submitted, under review | Profile only |
+| Unverified | Registered, documents not yet submitted | Look around; nothing with another family (DECISIONS.md, 16 Nov 2026) |
+| Pending | Documents submitted, under review | Look around; nothing with another family (DECISIONS.md, 16 Nov 2026) |
 | Verified | Identity and school confirmed | Full app |
 | Rejected | Check failed, reason shown | Can resubmit |
 | Suspended | Removed by admin or after reports | None |

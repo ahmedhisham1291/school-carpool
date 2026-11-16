@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:school_carpool/design/bidi.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 
 /// Wallet (Prompt 11B: F43, F44, F25). The app only shows what the wallet
@@ -410,11 +411,16 @@ enum WalletFailureKind {
 }
 
 class WalletFailure implements Exception {
-  const WalletFailure(this.kind, {this.amount});
+  const WalletFailure(this.kind, {this.demo, this.amount});
 
   factory WalletFailure.from(Object error) {
     if (error is WalletFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return WalletFailure(WalletFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
@@ -453,6 +459,9 @@ class WalletFailure implements Exception {
 
   final WalletFailureKind kind;
 
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
+
   /// The limit, what is left today, or the smallest amount (piastres).
   final int? amount;
 
@@ -463,7 +472,9 @@ class WalletFailure implements Exception {
   bool get outcomeUnknown => kind == WalletFailureKind.offline || kind == WalletFailureKind.unavailable || kind == WalletFailureKind.unknown;
 
   /// One short sentence that says what happened and what to do.
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     WalletFailureKind.offline => l10n.errorOfflineShort,
     WalletFailureKind.notVerified => l10n.walletErrorNotVerified,
     WalletFailureKind.suspended => l10n.walletErrorSuspended,

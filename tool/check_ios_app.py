@@ -20,13 +20,15 @@ PURPOSE_KEYS = (
     "NSCameraUsageDescription",
     "NSPhotoLibraryUsageDescription",
     "NSLocationWhenInUseUsageDescription",
-    "NSLocationAlwaysAndWhenInUseUsageDescription",
     "NSFaceIDUsageDescription",
 )
 # Permissions the app never asks for: a key here means a plugin or a
 # template added something we would have to justify to App Review.
 UNUSED_KEYS = (
     "NSUserTrackingUsageDescription",
+    # "Always" location is never asked (16 Nov 2026, guideline 5.1.1).
+    "NSLocationAlwaysAndWhenInUseUsageDescription",
+    "NSLocationAlwaysUsageDescription",
     "NSContactsUsageDescription",
     "NSMicrophoneUsageDescription",
     "NSMotionUsageDescription",
@@ -42,21 +44,153 @@ REQUIRED_API_TYPES = {
     "NSPrivacyAccessedAPICategorySystemBootTime",
     "NSPrivacyAccessedAPICategoryDiskSpace",
 }
-# Frameworks on Apple's "commonly used SDKs" list that this app links
-# (https://developer.apple.com/support/third-party-SDK-requirements):
-# each must carry its own privacy manifest.
-LISTED_SDKS = (
-    "Flutter", "FirebaseCore", "FirebaseAuth", "FirebaseFirestore", "FirebaseMessaging", "FirebaseInstallations",
-    "FirebaseCoreInternal", "FirebaseCoreExtension", "GoogleUtilities", "GoogleDataTransport", "nanopb", "FBLPromises",
-    "GTMSessionFetcher", "abseil", "grpcpp", "BoringSSL-GRPC", "leveldb", "geolocator_apple", "image_picker_ios",
-    "path_provider_foundation", "shared_preferences_foundation", "url_launcher_ios", "flutter_local_notifications",
-    "connectivity_plus", "device_info_plus", "package_info_plus",
+# Apple's list of commonly used third-party SDKs that must ship their own
+# privacy manifest (https://developer.apple.com/support/third-party-SDK-requirements,
+# read 16 Nov 2026: 86 names; "any version of a listed SDK, as well as any
+# SDKs that repackage those on the list, are included"). Each name maps to
+# the framework or bundle names it has inside Runner.app (CocoaPods module
+# names; Flutter plugins are named after the plugin package, and the
+# *_foundation / *_darwin plugins repackage the listed *_ios ones).
+APPLE_LISTED_SDKS: dict[str, tuple[str, ...]] = {
+    "Abseil": ("absl", "abseil"),
+    "AFNetworking": ("AFNetworking",),
+    "Alamofire": ("Alamofire",),
+    "AppAuth": ("AppAuth",),
+    "BoringSSL / openssl_grpc": ("openssl_grpc", "BoringSSL-GRPC", "BoringSSL"),
+    "Capacitor": ("Capacitor",),
+    "Charts": ("Charts", "DGCharts"),
+    "connectivity_plus": ("connectivity_plus",),
+    "Cordova": ("Cordova",),
+    "device_info_plus": ("device_info_plus",),
+    "DKImagePickerController": ("DKImagePickerController",),
+    "DKPhotoGallery": ("DKPhotoGallery",),
+    "FBAEMKit": ("FBAEMKit",),
+    "FBLPromises": ("FBLPromises",),
+    "FBSDKCoreKit": ("FBSDKCoreKit",),
+    "FBSDKCoreKit_Basics": ("FBSDKCoreKit_Basics",),
+    "FBSDKLoginKit": ("FBSDKLoginKit",),
+    "FBSDKShareKit": ("FBSDKShareKit",),
+    "file_picker": ("file_picker",),
+    "FirebaseABTesting": ("FirebaseABTesting",),
+    "FirebaseAuth": ("FirebaseAuth",),
+    "FirebaseCore": ("FirebaseCore",),
+    "FirebaseCoreDiagnostics": ("FirebaseCoreDiagnostics",),
+    "FirebaseCoreExtension": ("FirebaseCoreExtension",),
+    "FirebaseCoreInternal": ("FirebaseCoreInternal",),
+    "FirebaseCrashlytics": ("FirebaseCrashlytics",),
+    "FirebaseDynamicLinks": ("FirebaseDynamicLinks",),
+    "FirebaseFirestore": ("FirebaseFirestore", "FirebaseFirestoreInternal"),
+    "FirebaseInstallations": ("FirebaseInstallations",),
+    "FirebaseMessaging": ("FirebaseMessaging",),
+    "FirebaseRemoteConfig": ("FirebaseRemoteConfig",),
+    "Flutter": ("Flutter",),
+    "flutter_inappwebview": ("flutter_inappwebview", "flutter_inappwebview_ios"),
+    "flutter_local_notifications": ("flutter_local_notifications",),
+    "fluttertoast": ("fluttertoast",),
+    "FMDB": ("FMDB",),
+    "geolocator_apple": ("geolocator_apple",),
+    "GoogleDataTransport": ("GoogleDataTransport",),
+    "GoogleSignIn": ("GoogleSignIn",),
+    "GoogleToolboxForMac": ("GoogleToolboxForMac",),
+    "GoogleUtilities": ("GoogleUtilities",),
+    "grpcpp": ("grpcpp",),
+    "GTMAppAuth": ("GTMAppAuth",),
+    "GTMSessionFetcher": ("GTMSessionFetcher",),
+    "hermes": ("hermes",),
+    "image_picker_ios": ("image_picker_ios",),
+    "IQKeyboardManager": ("IQKeyboardManager",),
+    "IQKeyboardManagerSwift": ("IQKeyboardManagerSwift",),
+    "Kingfisher": ("Kingfisher",),
+    "leveldb": ("leveldb",),
+    "Lottie": ("Lottie",),
+    "MBProgressHUD": ("MBProgressHUD",),
+    "nanopb": ("nanopb",),
+    "OneSignal": ("OneSignal", "OneSignalFramework"),
+    "OneSignalCore": ("OneSignalCore",),
+    "OneSignalExtension": ("OneSignalExtension",),
+    "OneSignalOutcomes": ("OneSignalOutcomes",),
+    "OpenSSL": ("OpenSSL",),
+    "OrderedSet": ("OrderedSet",),
+    "package_info": ("package_info",),
+    "package_info_plus": ("package_info_plus",),
+    "path_provider": ("path_provider", "path_provider_foundation"),
+    "path_provider_ios": ("path_provider_ios",),
+    "Promises": ("Promises",),
+    "Protobuf": ("Protobuf",),
+    "Reachability": ("Reachability",),
+    "RealmSwift": ("RealmSwift",),
+    "RxCocoa": ("RxCocoa",),
+    "RxRelay": ("RxRelay",),
+    "RxSwift": ("RxSwift",),
+    "SDWebImage": ("SDWebImage",),
+    "share_plus": ("share_plus",),
+    "shared_preferences_ios": ("shared_preferences_ios", "shared_preferences_foundation"),
+    "SnapKit": ("SnapKit",),
+    "sqflite": ("sqflite", "sqflite_darwin"),
+    "Starscream": ("Starscream",),
+    "SVProgressHUD": ("SVProgressHUD",),
+    "SwiftyGif": ("SwiftyGif",),
+    "SwiftyJSON": ("SwiftyJSON",),
+    "Toast": ("Toast",),
+    "UnityFramework": ("UnityFramework",),
+    "url_launcher": ("url_launcher",),
+    "url_launcher_ios": ("url_launcher_ios",),
+    "video_player_avfoundation": ("video_player_avfoundation",),
+    "wakelock": ("wakelock", "wakelock_plus"),
+    "webview_flutter_wkwebview": ("webview_flutter_wkwebview",),
+}
+
+# The listed SDKs this app links today (pubspec.lock, 16 Nov 2026; the
+# audit lists them with versions). Not used by the check, which looks at
+# whatever the built app contains; kept so a test notices a new one.
+EXPECTED_LISTED_SDKS = (
+    "Flutter", "FirebaseCore", "FirebaseCoreInternal", "FirebaseCoreExtension", "FirebaseInstallations",
+    "FirebaseAuth", "FirebaseFirestore", "FirebaseMessaging", "GoogleUtilities", "GoogleDataTransport",
+    "nanopb", "FBLPromises", "Promises", "GTMSessionFetcher", "Abseil", "grpcpp", "BoringSSL / openssl_grpc",
+    "leveldb", "connectivity_plus", "device_info_plus", "flutter_local_notifications", "geolocator_apple",
+    "image_picker_ios", "package_info_plus", "path_provider", "shared_preferences_ios", "url_launcher_ios",
 )
+
+
+def listed_sdks_without_manifest(app: Path) -> list[str]:
+    """Each listed SDK in the app whose framework (or its resource bundle) has no PrivacyInfo.xcprivacy."""
+    frameworks = app / "Frameworks"
+    present = {p.name[: -len(".framework")]: p for p in frameworks.glob("*.framework")} if frameworks.is_dir() else {}
+    root_bundles = {p.name: p for p in app.glob("*.bundle")}
+    missing: list[str] = []
+    for sdk, names in APPLE_LISTED_SDKS.items():
+        for name in names:
+            framework = present.get(name)
+            if framework is None:
+                continue
+            if list(framework.rglob("PrivacyInfo.xcprivacy")):
+                continue
+            # Some SDKs put the manifest in a bundle next to the app's own files.
+            bundles = [b for n, b in root_bundles.items() if n.lower() == f"{name.lower()}.bundle" or n.lower().startswith(f"{name.lower()}_")]
+            if any(list(b.rglob("PrivacyInfo.xcprivacy")) for b in bundles):
+                continue
+            missing.append(f"{sdk} ({name}.framework)")
+    return missing
 
 
 def load(path: Path) -> dict:
     with path.open("rb") as f:
         return plistlib.load(f)
+
+
+def scene_life_cycle_problem(info: dict) -> str | None:
+    """None when the scene manifest names Flutter's scene delegate (or the app's subclass)."""
+    sdk = str(info.get("DTSDKName", "")) or "an unknown SDK"
+    manifest = info.get("UIApplicationSceneManifest")
+    if not isinstance(manifest, dict):
+        return f"no UIScene life cycle (UIApplicationSceneManifest missing, built with {sdk}): run tool/patch_native.py"
+    try:
+        delegate = manifest["UISceneConfigurations"]["UIWindowSceneSessionRoleApplication"][0]["UISceneDelegateClassName"]
+    except (KeyError, IndexError, TypeError):
+        delegate = ""
+    if delegate != "FlutterSceneDelegate" and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*\.SceneDelegate", str(delegate)):
+        return f"UIScene manifest names {delegate!r}, not FlutterSceneDelegate or <module>.SceneDelegate"
+    return None
 
 
 def check(app: Path, flavor: str) -> tuple[list[str], list[str]]:
@@ -94,11 +228,12 @@ def check(app: Path, flavor: str) -> tuple[list[str], list[str]]:
         problems.append(f"UIDeviceFamily is {info.get('UIDeviceFamily')}, expected [1] (iPhone only)")
     if info.get("GOOGLE_ANALYTICS_ADID_COLLECTION_ENABLED") is not False:
         problems.append("GOOGLE_ANALYTICS_ADID_COLLECTION_ENABLED must be false (no IDFA, no tracking prompt)")
-    if "UIApplicationSceneManifest" not in info:
-        sdk = str(info.get("DTSDKName", ""))
-        match = re.search(r"(\d+)", sdk)
-        if match and int(match.group(1)) >= 27:
-            problems.append(f"built with {sdk} without the UIScene life cycle: the app fails to launch (build with Xcode 26)")
+    # UIScene life cycle (16 Nov 2026, tool/patch_native.py): required by
+    # the iOS 27 SDK (an app without it does not launch: guideline 2.1(a)),
+    # and what we ship on every SDK.
+    scene_problem = scene_life_cycle_problem(info)
+    if scene_problem:
+        problems.append(scene_problem)
     if not (info.get("CFBundleIcons") or info.get("CFBundleIconFiles")) or not (app / "Assets.car").is_file():
         problems.append("no app icon in the bundle")
     for lang in ("ar", "en"):
@@ -116,13 +251,12 @@ def check(app: Path, flavor: str) -> tuple[list[str], list[str]]:
         for missing in sorted(REQUIRED_API_TYPES - declared):
             problems.append(f"the privacy manifest does not declare {missing}")
 
-    frameworks = app / "Frameworks"
-    if frameworks.is_dir():
-        present = {p.name[: -len(".framework")]: p for p in frameworks.glob("*.framework")}
-        for sdk in LISTED_SDKS:
-            path = present.get(sdk)
-            if path is not None and not list(path.rglob("PrivacyInfo.xcprivacy")):
-                warnings.append(f"{sdk}.framework has no privacy manifest inside it (check its resource bundle in the app, or update the package)")
+    # Apple's commonly used SDKs need their own privacy manifest, or App
+    # Store Connect refuses the upload (ITMS-91061). A store build stops
+    # here; staging and dev only warn, so testers still get a build.
+    for sdk in listed_sdks_without_manifest(app):
+        text = f"{sdk} is on Apple's commonly used SDK list and has no privacy manifest: update the package (ITMS-91061)"
+        (problems if flavor == "prod" else warnings).append(text)
     for bundle in app.glob("*.bundle"):
         inner = bundle / "PrivacyInfo.xcprivacy"
         if inner.is_file() and load(inner).get("NSPrivacyTracking") is True:

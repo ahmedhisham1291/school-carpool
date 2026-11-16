@@ -1,0 +1,194 @@
+# Remove the remaining App Review risks (branch review-risks, 16 Nov 2026)
+
+Owner instruction (16 Nov 2026): "All risks you're seeing, update the code
+and plan to be no risk at all." The coordinator said "go". Base: main
+495b1e8. Apple's rules were read again on developer.apple.com on 16 Nov
+2026 (guideline numbers are in docs/apple-review/audit.md).
+
+## Plan (one commit per item)
+
+1. Notifications never block a run (4.5.4, 5.1.2(i)): a warning that can
+   be skipped. `lib/features/trips/location_gate.dart`, tests.
+2. No "Always" location: remove the optional screen, the request in
+   `packages/run_recovery`, the purpose string; keep While-Using +
+   background mode + recovery by marker.
+3. Account deletion (5.1.1(v)): photos, face reference, 1:1 chat
+   messages, home address and pin, devices and tokens deleted promptly;
+   only minimised records kept. `functions/src/privacy/`, public pages.
+4. Usage statistics off until the parent says yes (5.1.1(ii)).
+5. A new, unverified account can look around; the ID check is asked only
+   where another family is involved, with an explanation and "Later".
+6. "This demo account can't do that" instead of the generic error.
+7. `review-access -- on` seeds the demo data; a scheduled function keeps
+   the demo runs fresh during the window.
+8. UIScene life cycle for the iOS Runner; `configure_xcode.rb` safe with
+   synchronized folders.
+9. Branch `chat-review-safe`: Firestore chat with a word filter, and the
+   public pages follow the active chat provider.
+10. `tool/check_ios_app.py` stops the prod build for a listed SDK with no
+    privacy manifest.
+11. Audit, submission kit, open items.
+
+## Progress
+
+Items 1 to 4: commits a17d709, e7b20ac, f8411a0, 5f1af39 (see their
+messages). A previous builder stopped while starting item 5; nothing of it
+was left uncommitted, so item 5 was done from scratch.
+
+### 5. Look around before the ID check (done)
+
+What was blocked: every place but Profile, Notifications and the
+verification screen redirected an unverified, pending or rejected account
+to the verification screen (`sessionRedirect`), whose only way out was
+"Open my profile". The server already refused everything that involves
+another family with "not-verified" (carpools, chat, nearby, runs, schedule,
+handover adults, emergency contact, ratings, family, phone change, Settle
+up, wallet) and allowed the parent's own things (home, map settings,
+driving schools, places, school search, notifications, privacy,
+verification). So the line was moved in the app only, to match the server:
+
+- `lib/router/session_redirect.dart`: `needsVerification(location)` (one
+  list) and `laterTarget(from)`. Tabs and own pages open; closed places go
+  to `/verify-account?from=<place>`.
+- `VerifyAccountScreen`: "Why we check every parent" (child safety), "This
+  part needs a verified account" when opened from a closed place, "Later"
+  back to that tab (was "Open my profile").
+- `VerifyPromptCard` on Home, Carpools and Chats (gallery too); the Chats
+  tab explains instead of showing an error, and hides requests/settings.
+- Server: no rule or function changed; `functions/test/verification_scope.test.ts`
+  pins both sides of the line (3 tests).
+- ARB: 10 new strings, Arabic and English. DECISIONS.md and spec section 3
+  updated (supersedes "Profile only").
+- Tests: Functions run here; Flutter tests written, not run here
+  (`test/auth/auth_logic_test.dart`, `test/auth/signup_screens_test.dart`,
+  `test/onboarding/verify_prompt_card_test.dart`, one-line and screenshot
+  entries).
+
+### 6. "This demo account can't do that" (done)
+
+- `lib/features/auth/demo_refusal.dart`: `demoRefusalOf(error)` reads the
+  server reasons `demo-account` and `demo-closed`
+  (`functions/src/privacy/device_gate.ts`); `demoRefusalText` gives the
+  sentence.
+- All 13 parent-app failure types (auth, verification, address, trips,
+  wallet, chat, notifications, maps, carpools, trust, other school,
+  privacy, Settle up) carry an optional `demo` and their `message` asks
+  `demoRefusalText` first, so every snackbar and inline error that used
+  the generic text now says "This demo account can't do that. It works
+  only with the demo school and carpool." / "This demo account has ended.
+  You can delete it in Profile > Privacy." (Arabic and English).
+- Not covered: full-screen error views that show no message (a list that
+  fails to load). Inside the window a demo parent's lists load; after it,
+  everything but Delete account is refused on purpose.
+- Test: `test/auth/demo_refusal_test.dart` (written, not run here).
+
+### 7. Demo data seeded by `review-access -- on`, runs kept fresh (done)
+
+- `functions/scripts/review_demo_lib.ts`: the seed and the status, shared.
+  `review-demo -- seed|status` use it unchanged in behaviour; status also
+  shows each demo parent's public parent ID (never a number).
+- `review-access -- on` with both demo numbers seeds (or re-seeds) and
+  lists the demo accounts, the carpool and today's runs; with one number
+  it prints one clear "TO DO"; a seed refusal leaves the access on and
+  prints what to fix.
+- `reviewDemoDaily` (18:30 Cairo, `src/auth/review_demo_job.ts`) calls
+  `refreshReviewDemoRuns` (`src/auth/review_demo_refresh.ts`): only while
+  review access is open and every listed account is a demo account in its
+  window; only `review-demo-carpool` at the demo school; plans this week
+  and the next (2 calls) and confirms at most 20 of the driver's runs,
+  through planWeek/confirmRun. Tests: `functions/test/review_demo_refresh.test.ts`
+  (5, run here). Cost: one Cloud Scheduler job (docs/COSTS.md).
+- Not run here: the scripts against a real project (they compile; the
+  Firestore writes are the same code as before, moved).
+
+### 8. UIScene life cycle for the Runner (done, not built here)
+
+- Read 16 Nov 2026: Flutter's "UIScene adoption" guide
+  (docs.flutter.dev/release/breaking-changes/uiscenedelegate): UIScene is
+  the default from Flutter 3.41, apps built with Xcode 27 (iOS 27 SDK)
+  without it fail to launch; a custom AppDelegate must conform to
+  `FlutterImplicitEngineDelegate` and register plugins in
+  `didInitializeImplicitFlutterEngine`; the Info.plist scene manifest
+  names `FlutterSceneDelegate` (or `$(PRODUCT_MODULE_NAME).SceneDelegate`).
+  GitHub raw files could not be opened from this workspace; Flutter's own
+  integration test `ios_add2app_uiscene` (googlesource mirror) shows the
+  same shape. Our tests model the 3.50 template as the earlier builder
+  recorded it (SceneDelegate subclass + `$(PRODUCT_MODULE_NAME).SceneDelegate`).
+- `tool/patch_native.py`: `SCENE_APP_DELEGATE` replaces the classic one;
+  the template's SceneDelegate is kept (an old emptied one is restored);
+  the manifest is added or fixed; Maps key and notification delegate
+  still go into didFinishLaunching. Run recovery no longer needs a
+  background relaunch (item 2).
+- `tool/check_ios_app.py`: every build must have the scene manifest with a
+  Flutter scene delegate.
+- `tool/ios/configure_xcode.rb`: idempotent (saves only when something
+  changed), never adds PrivacyInfo.xcprivacy or InfoPlist.strings twice,
+  and with an Xcode synchronized Runner folder adds nothing, takes our files
+  out of exception sets and drops an old duplicate reference.
+  `tool/test_configure_xcode.py` runs the real script against a stub of the
+  `xcodeproj` gem (`tool/ios/xcodeproj_stub`; the gem cannot be installed
+  here).
+- Xcode stays pinned at 26.4 (codemagic.yaml comments updated).
+- Run here: `python3 -m unittest discover -s tool -p 'test_*.py'`.
+  Not run: a real `flutter create` + build; the first Codemagic staging
+  build and docs/test-iphone.md T1-T6 on a real iPhone are the real test
+  (launch, push tap, universal link, background run, resume after close).
+
+### 10. Prod build stops for a listed SDK without a privacy manifest (done)
+
+- Apple's list (developer.apple.com/support/third-party-SDK-requirements,
+  read 16 Nov 2026, 86 names) is `APPLE_LISTED_SDKS` in
+  `tool/check_ios_app.py`, with the framework names each takes in the app
+  (CocoaPods module names, repackaged plugins such as
+  path_provider_foundation and shared_preferences_foundation).
+- A listed SDK in Runner.app without PrivacyInfo.xcprivacy (in its
+  framework, or a `<name>_*.bundle` at the app root) is a PROBLEM for
+  `--flavor prod` (the `ios-prod` workflow stops) and a WARNING on staging.
+  Tracking declared by any bundle stays a problem everywhere.
+- The audit lists the listed SDKs we link with the versions locked in
+  `pubspec.lock`; native pod versions are what the plugins pin (read
+  `ios/Podfile.lock` after a build).
+- Tests: `tool/test_check_ios_app.py` (run here). Not run: on a real built
+  app (first Codemagic build).
+
+### 11. Audit, submission kit, open items, DECISIONS (done)
+
+- `docs/apple-review/audit.md`: RISK 13 -> 3 in sections 1 to 13 (the
+  three left are not code: device crashes, the reviewer's reading of
+  children's data, data-source credits); new section 14, "What code cannot
+  make zero-risk" (reviewer judgement, Individual vs Organization account
+  5.1.1(ix), lawyer confirmation, device testing); SDK table (item 10).
+- `docs/apple-review/submission-kit.md`: review notes (new account looks
+  around, notifications optional, never Always, deletion, statistics
+  opt-in, demo refusal), privacy answers (analytics only after yes),
+  answers to likely rejections, demo steps (item 7).
+- `docs/app-review-notes.md`, `docs/open-items.md` (A15, A18 new, B11
+  decided, C2, D3, D3b, D5, D35 done, D37, D39, D40 new), `docs/DECISIONS.md`
+  ("App Review risks (owner, 16 Nov 2026)": notifications not required, no
+  Always, prompt deletion superseding the 1-year rule with the lawyer to
+  confirm, analytics opt-in; old lines marked superseded).
+- Small fix found while auditing: the phones list said "Android" for a
+  parent's own non-iPhone device (2.3.10 wording); now "Other phone" /
+  "هاتف آخر" (test updated, written, not run here).
+
+### 9. Branch `chat-review-safe` (done, separate worktree)
+
+`/home/claude/wt-chat-review-safe`, from `origin/improve-b-firestore-chat`
+(0cdcfcd): merge of main 495b1e8 (82ecb6f, three conflicts), then 3667dd8:
+admin-editable Arabic and English word filter in `config/chatModeration`
+applied by the server to every text message at send, report and block
+verified, and the public privacy page, in-app privacy text and App Store
+privacy answers following `CHAT_PROVIDER` in `functions/.env.<env>`.
+Notes: docs/progress/chat-review-safe.md on that branch. It does not
+contain this branch: merge `review-risks` into main first, then main into
+`chat-review-safe` (expect conflicts in the privacy page, open items, the
+audit, the kit and the ARB files).
+
+## Tests (whole branch)
+
+- Run here: Functions `node --test` (881 pass; the workspace's stub
+  typings make `tsc` print the same 164 typing errors as main), tool
+  tests `python3 -m unittest discover -s tool -p 'test_*.py'` (66 pass,
+  including the Ruby script against the xcodeproj stub), `ruby -c`.
+- Written, not run here: every Flutter test, analyzer and golden; rules
+  tests (no rule changed on this branch); any iOS build.

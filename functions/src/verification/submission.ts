@@ -49,12 +49,12 @@ export class VerificationError extends Error {
  * record"; Law 151). Must match lib/features/auth/legal_documents.dart.
  */
 export const VERIFICATION_CONSENT_VERSIONS = {
-  // Prompt 12: photos are now kept while the account is active and 1 year
-  // after it closes (DECISIONS.md, data retention), so the consent text and
-  // its version changed.
-  id: "2026-11-14",
-  face: "2026-11-14",
-  childData: "2026-11-14",
+  // 16 Nov 2026: photos are kept while the account is active and deleted
+  // with it (DECISIONS.md, "Data after account deletion"), so the consent
+  // text and its version changed.
+  id: "2026-11-16",
+  face: "2026-11-16",
+  childData: "2026-11-16",
 } as const;
 
 export type VerificationConsent = keyof typeof VERIFICATION_CONSENT_VERSIONS;

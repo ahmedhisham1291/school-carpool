@@ -1414,21 +1414,20 @@ asked to tell that person.
 
 Prompt 13 (owner decision, docs/DECISIONS.md "Location tracking on
 iPhone"): the free `geolocator` plugin, "While Using the App" with Precise
-Location to start a run. "Always" is only offered once to drivers as an
-optional step for run recovery (owner, 13:44; `packages/run_recovery`).
-The patch also makes the iOS app a classic app-delegate app (no UIScene)
-so a background relaunch for location runs Dart (Prompt 13 review).
+Location to start a run. The app never asks for "Always" (owner, 16 Nov
+2026, App Review guideline 5.1.1): no "Always" purpose text, geolocator is
+built with `BYPASS_PERMISSION_LOCATION_ALWAYS=1` (Podfile block written by
+the patch; the same variable in codemagic.yaml for Swift Package Manager
+builds) and `packages/run_recovery` only keeps a background activity
+session during a run.
 
 - `UIBackgroundModes`: `location` and `remote-notification` only.
 - Permission texts in Arabic and English (`tool/ios/<lang>.lproj/InfoPlist.strings`):
-  `NSLocationWhenInUseUsageDescription` and
-  `NSLocationAlwaysAndWhenInUseUsageDescription` (the optional "Always"
-  step for run recovery).
+  `NSLocationWhenInUseUsageDescription` only.
 - The blue location indicator shows while a run tracks with the app in
   the background. Swiping the app away stops tracking on iPhone; the server
   pushes the driver "Run still on" after 2 minutes and tells the parents.
-  With "Always", the run usually resumes by itself within a few minutes
-  after the car moves (to be confirmed on a device: docs/test-iphone.md T6).
+  The run resumes when the driver opens the app again (docs/test-iphone.md T5).
 - App Store review: docs/app-review-notes.md.
 
 ### 20.5 Licence: none needed
@@ -1454,8 +1453,8 @@ Prompt 13; DECISIONS.md says how to bring it back. If an old
 4. On your iPhone: Carpool > Week plan > today's run > **Start run**. Allow
    location **While Using the App** (Precise on) and notifications when
    asked; if something is off, the "Before you drive" steps show what to
-   change. The first time, the optional "Resume runs by itself" screen
-   offers "Always" (either answer works). Lock the phone and walk or drive
+   change. With notifications off a warning shows; "Start anyway" starts
+   the run. Lock the phone and walk or drive
    a little.
 5. On the second device: Carpools > the carpool > **Today** > the driver
    card (or Week plan > the run > **Follow run**). The car moves on the

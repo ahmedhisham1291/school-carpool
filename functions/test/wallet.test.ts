@@ -762,7 +762,7 @@ function deletionOver(w: World, onLocked: () => Promise<void> = async () => unde
   const ran: string[] = [];
   return {
     ran,
-    facts: async () => ({ exists: true, drivingNow: false, parentId: "ALYZ2345", banned: false }),
+    facts: async () => ({ exists: true, drivingNow: false, parentId: "ALYZ2345", banned: false, openCase: false }),
     lockWallet: async (uid, nowMs) => {
       const wal = await w.store.wallet(uid);
       if (!wal) return null;

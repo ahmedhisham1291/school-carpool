@@ -6,12 +6,14 @@ import 'package:school_carpool/design/tokens/tokens.dart';
 import 'package:school_carpool/features/carpools/carpool_models.dart';
 import 'package:school_carpool/features/carpools/carpool_repository.dart';
 import 'package:school_carpool/features/carpools/carpool_widgets.dart';
+import 'package:school_carpool/features/onboarding/verify_prompt_card.dart';
 import 'package:school_carpool/l10n/l10n.dart';
 import 'package:school_carpool/router/app_router.dart';
 
 /// Carpools tab (spec section 10): my carpools (approved and requested),
 /// then Find, Start and "Looking for one". An invite that arrived before
-/// verification waits here with an "Open invite" card.
+/// verification waits here with an "Open invite" card. Before the ID check
+/// the tab is open (an empty list) with a card that explains the check.
 ///
 /// States: loading (skeleton cards), empty (no carpools: "Find a carpool"),
 /// error and offline (retry).
@@ -58,6 +60,9 @@ class CarpoolsScreen extends ConsumerWidget {
         key: const Key('carpools.list'),
         padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.s32),
         children: <Widget>[
+          // Owner decision 16 Nov 2026: Find, Start and Looking open the
+          // verification screen (with Later) until the parent is verified.
+          VerifyPromptCard(from: AppTab.carpools.path),
           if (pendingInvite != null)
             Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.screenGutter, AppSpacing.s16, AppSpacing.screenGutter, 0),

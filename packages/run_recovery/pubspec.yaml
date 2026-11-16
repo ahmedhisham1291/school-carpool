@@ -1,7 +1,7 @@
 name: run_recovery
 description: >-
-  School Carpool's own iPhone run recovery (significant location changes and
-  a background activity session during a run). Local plugin, not published.
+  School Carpool's own iPhone run recovery (a background activity session
+  during a run; no "Always" permission). Local plugin, not published.
 version: 0.1.0
 publish_to: none
 

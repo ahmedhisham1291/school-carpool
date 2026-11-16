@@ -205,7 +205,7 @@ void main() {
       expect(sessionRedirect(const SessionSignedOut(), '/c/ABCDEFGH23'), AuthRoutes.welcome);
       expect(sessionRedirect(testEmailStageSession, '/c/ABCDEFGH23'), AuthRoutes.email);
       // The carpool screens themselves stay verified-only.
-      expect(sessionRedirect(testUnverifiedSession, '/carpools/k1'), AuthRoutes.verifyAccount);
+      expect(sessionRedirect(testUnverifiedSession, '/carpools/k1'), AuthRoutes.verifyFor('/carpools/k1'));
     });
 
     test('routes for Join and for a match', () {

@@ -14,6 +14,7 @@ import 'package:school_carpool/features/auth/auth_failure.dart';
 import 'package:school_carpool/features/auth/install_id.dart';
 import 'package:school_carpool/features/auth/phone_number.dart';
 import 'package:school_carpool/features/auth/session.dart';
+import 'package:school_carpool/features/chat/chats_screen.dart';
 import 'package:school_carpool/router/app_router.dart';
 import 'package:school_carpool/router/session_redirect.dart';
 
@@ -171,18 +172,66 @@ void main() {
       expect(sessionRedirect(_signedIn(_account(termsAccepted: false)), AuthRoutes.terms), isNull);
     });
 
-    test('unverified, pending and rejected: verification screen and Profile only', () {
+    test('unverified, pending and rejected: look around; another family needs the check (16 Nov 2026)', () {
       for (final AccountStatus status in <AccountStatus>[
         AccountStatus.unverified,
         AccountStatus.pending,
         AccountStatus.rejected,
       ]) {
         final SessionState session = _signedIn(_account(status: status));
+        // Right after sign-up: the explanation first (it has Later).
         expect(sessionRedirect(session, AuthRoutes.terms), AuthRoutes.verifyAccount);
-        expect(sessionRedirect(session, AppTab.home.path), AuthRoutes.verifyAccount);
-        expect(sessionRedirect(session, AppTab.chats.path), AuthRoutes.verifyAccount);
         expect(sessionRedirect(session, AuthRoutes.verifyAccount), isNull);
-        expect(sessionRedirect(session, AppTab.profile.path), isNull);
+        // The five tabs and the parent's own pages stay open.
+        for (final AppTab tab in AppTab.values) {
+          expect(sessionRedirect(session, tab.path), isNull, reason: '$status ${tab.path}');
+        }
+        for (final String own in <String>[
+          ProfileRoutes.homeLocation,
+          ProfileRoutes.drivingSchools,
+          ProfileRoutes.children,
+          ProfileRoutes.driving,
+          ProfileRoutes.about,
+          ProfileRoutes.notifications,
+          PrivacyRoutes.privacy,
+          PrivacyRoutes.delete,
+        ]) {
+          expect(sessionRedirect(session, own), isNull, reason: '$status $own');
+        }
+        // Another family: the explanation, remembering where the parent was.
+        for (final String closed in <String>[
+          HomeRoutes.nearby,
+          CarpoolRoutes.search,
+          CarpoolRoutes.create,
+          CarpoolRoutes.looking,
+          CarpoolRoutes.detail('k1'),
+          CarpoolRoutes.drive('k1', 'r1'),
+          ChatRoutes.requests,
+          '/chats/messaging/abc',
+          ProfileRoutes.handover,
+          '${ProfileRoutes.handover}/child-1',
+          ProfileRoutes.emergencyContact,
+          ProfileRoutes.ratings,
+          ProfileRoutes.family,
+          ProfileRoutes.wallet,
+          SettleUpRoutes.home,
+          SettleUpRoutes.address,
+        ]) {
+          expect(sessionRedirect(session, closed), AuthRoutes.verifyFor(closed), reason: '$status $closed');
+        }
+      }
+    });
+
+    test('Later goes back to the tab the parent came from', () {
+      expect(laterTarget(null), AppRoutes.initial);
+      expect(laterTarget(CarpoolRoutes.search), AppTab.carpools.path);
+      expect(laterTarget(HomeRoutes.nearby), AppTab.home.path);
+      expect(laterTarget('/chats/messaging/abc'), AppTab.chats.path);
+      expect(laterTarget(ProfileRoutes.ratings), AppTab.profile.path);
+      expect(laterTarget('/somewhere'), AppRoutes.initial);
+      // Never back into a closed place: the tab roots are open.
+      for (final AppTab tab in AppTab.values) {
+        expect(needsVerification(laterTarget(tab.path)), isFalse);
       }
     });
 

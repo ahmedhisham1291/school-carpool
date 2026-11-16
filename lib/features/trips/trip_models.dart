@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/maps/geo.dart';
 import 'package:school_carpool/features/schedule/schedule_models.dart';
 import 'package:school_carpool/l10n/l10n.dart';
@@ -388,11 +389,16 @@ enum TripFailureKind {
 
 /// Every trip call throws this. [message] says what happened and how to fix it.
 class TripFailure implements Exception {
-  const TripFailure(this.kind);
+  const TripFailure(this.kind, {this.demo});
 
   factory TripFailure.from(Object error) {
     if (error is TripFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return TripFailure(TripFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
@@ -428,9 +434,14 @@ class TripFailure implements Exception {
 
   final TripFailureKind kind;
 
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
+
   bool get isOffline => kind == TripFailureKind.offline;
 
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     TripFailureKind.offline => l10n.errorOfflineShort,
     TripFailureKind.rateLimited => l10n.tripErrorTooMany,
     TripFailureKind.notVerified => l10n.mapErrorNotVerified,

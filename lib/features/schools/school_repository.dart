@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_carpool/admin/data/admin_models.dart' show GeoPin;
+import 'package:school_carpool/features/auth/demo_refusal.dart';
 import 'package:school_carpool/features/auth/session.dart';
 import 'package:school_carpool/features/schools/school_models.dart';
 import 'package:school_carpool/firebase/firebase_setup.dart';
@@ -12,11 +13,16 @@ enum OtherSchoolFailureKind { invalidName, invalidPin, tooMany, suspended, offli
 /// Why "Other" could not be saved, from `details.reason`
 /// (functions/src/schools/other.ts).
 class OtherSchoolFailure implements Exception {
-  const OtherSchoolFailure(this.kind);
+  const OtherSchoolFailure(this.kind, {this.demo});
 
   factory OtherSchoolFailure.from(Object error) {
     if (error is OtherSchoolFailure) {
       return error;
+    }
+    // App Review demo parents: a friendly sentence, not the generic error.
+    final DemoRefusal? demo = demoRefusalOf(error);
+    if (demo != null) {
+      return OtherSchoolFailure(OtherSchoolFailureKind.unknown, demo: demo);
     }
     if (error is FirebaseFunctionsException) {
       final Object? details = error.details;
@@ -37,9 +43,14 @@ class OtherSchoolFailure implements Exception {
 
   final OtherSchoolFailureKind kind;
 
+  /// Set when the server refused an App Review demo parent.
+  final DemoRefusal? demo;
+
   bool get isOffline => kind == OtherSchoolFailureKind.offline;
 
-  String message(AppLocalizations l10n) => switch (kind) {
+  String message(AppLocalizations l10n) => demoRefusalText(l10n, demo) ?? _kindMessage(l10n);
+
+  String _kindMessage(AppLocalizations l10n) => switch (kind) {
     OtherSchoolFailureKind.invalidName => l10n.otherSchoolNameError,
     OtherSchoolFailureKind.invalidPin => l10n.otherSchoolPinErrorOutside,
     OtherSchoolFailureKind.tooMany => l10n.otherSchoolTooMany,
