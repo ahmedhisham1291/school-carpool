@@ -391,15 +391,51 @@ if [ -z "$(find_key "${FB_IOS_KEY_NAME}")" ]; then
   # Check and the rules protect the backend.
   create_key --display-name="${FB_IOS_KEY_NAME}" "${FB_IOS_TARGETS[@]}"
 fi
+# Reading a key string can fail with ACCESS_TOKEN_TYPE_UNSUPPORTED when
+# Cloud Shell's sign-in was renewed; try gcloud, then the REST API, and
+# never stop the whole setup for it.
+key_string() { # $1 = key resource name; prints the key or nothing
+  local k=""
+  k="$(gcloud services api-keys get-key-string "$1" --format='value(keyString)' 2>/dev/null || true)"
+  if [ -z "${k}" ]; then
+    k="$(curl -fsS -H "Authorization: Bearer $(gcloud auth print-access-token 2>/dev/null)" \
+      "https://apikeys.googleapis.com/v2/$1/keyString" 2>/dev/null \
+      | python3 -c 'import json,sys; print(json.load(sys.stdin).get("keyString",""))' 2>/dev/null || true)"
+  fi
+  printf '%s' "${k}"
+}
+# The iOS apiKey already in the committed Firebase options (kept if the
+# key string cannot be read now).
+committed_ios_key() {
+  python3 - lib/firebase/firebase_options_staging.dart <<'PY' 2>/dev/null || true
+import re, sys
+t = open(sys.argv[1]).read()
+m = re.search(r"static const FirebaseOptions ios = FirebaseOptions\((.*?)\);", t, re.S)
+k = re.search(r"apiKey: '([^']+)'", m.group(1)) if m else None
+print(k.group(1) if k else "", end="")
+PY
+}
 FB_IOS_KEY_RES="$(find_key "${FB_IOS_KEY_NAME}")"
 FB_IOS_KEY=""
 if [ -n "${FB_IOS_KEY_RES}" ]; then
-  FB_IOS_KEY="$(gcloud services api-keys get-key-string "${FB_IOS_KEY_RES}" --format='value(keyString)')"
-  ok "Firebase iOS key: only the Firebase APIs the app uses (goes into the app's Firebase options)"
+  FB_IOS_KEY="$(key_string "${FB_IOS_KEY_RES}")"
+  if [ -z "${FB_IOS_KEY}" ]; then
+    FB_IOS_KEY="$(committed_ios_key)"
+    if [ -n "${FB_IOS_KEY}" ]; then
+      ok "Firebase iOS key: could not be read now (Google sign-in token); kept the key already in the app's Firebase options"
+    else
+      todo "Firebase iOS key: could not be read. Close Cloud Shell, open it again and run this script again."
+    fi
+  else
+    ok "Firebase iOS key: only the Firebase APIs the app uses (goes into the app's Firebase options)"
+  fi
 else
   todo "Firebase iOS key: ${GCP}/apis/credentials?project=${PROJECT} > Create credentials > API key > name '${FB_IOS_KEY_NAME}' > API restrictions: Identity Toolkit, Token Service, Cloud Firestore, Cloud Storage for Firebase, Firebase Installations, FCM Registration, Firebase App Check, Firebase Management > Save, then run this again. Without it the iPhone app cannot sign in."
 fi
-MAPS_IOS_KEY="$(gcloud services api-keys get-key-string "${IOS_KEY_RES}" --format='value(keyString)')"
+MAPS_IOS_KEY="$(key_string "${IOS_KEY_RES}")"
+if [ -z "${MAPS_IOS_KEY}" ]; then
+  MAPS_IOS_KEY="(could not be read now; copy it from ${GCP}/apis/credentials?project=${PROJECT} > '${IOS_KEY_NAME}' > Show key)"
+fi
 if [ -z "$(find_key "${SERVER_KEY_NAME}")" ]; then
   # No application restriction is possible for Cloud Functions (SETUP 15.2).
   create_key --display-name="${SERVER_KEY_NAME}" \
