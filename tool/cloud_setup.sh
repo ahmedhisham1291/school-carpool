@@ -21,6 +21,8 @@
 #                   download (Wikimedia's User-Agent policy asks for one;
 #                   default: the <admin-email> argument)
 #   SKIP_SCHOOLS_FETCH=1  do not download the OpenStreetMap and Wikidata schools lists
+#   SKIP_OSM_FETCH=1  skip only the slow OpenStreetMap downloads (public servers);
+#                     ADM2 areas, Wikidata and Overture still download
 #                   (the last download, if any, is used; a download newer
 #                   than 7 days is never repeated)
 #
@@ -831,8 +833,15 @@ mkdir -p "${SCHOOLS_OUT}"
 if [ "${SKIP_SCHOOLS_FETCH:-}" = "1" ]; then
   ok "OpenStreetMap download skipped (SKIP_SCHOOLS_FETCH=1); the last download is used if there is one"
 else
-  run_step python3 tools/import_schools/fetch_osm_schools.py --max-age-days 7
-  if [ "${STEP_RC}" -eq 0 ]; then
+  if [ "${SKIP_OSM_FETCH:-}" = "1" ]; then
+    STEP_RC=9
+    ok "OpenStreetMap schools and places download skipped (SKIP_OSM_FETCH=1); the last downloads are used. ADM2 areas, Wikidata and Overture still run."
+  else
+    run_step python3 tools/import_schools/fetch_osm_schools.py --max-age-days 7
+  fi
+  if [ "${STEP_RC}" -eq 9 ]; then
+    :
+  elif [ "${STEP_RC}" -eq 0 ]; then
     ok "OpenStreetMap schools downloaded $(sed -n 's/^- Downloaded: //p' data/schools/osm/fetch_report.md 2>/dev/null | head -1); boundaries: $(sed -n 's/^- Governorate boundaries: //p' data/schools/osm/fetch_report.md 2>/dev/null | head -1)"
     ok "OpenStreetMap per governorate: $(sed -n 's/^Summary: //p' data/schools/osm/fetch_report.md 2>/dev/null | head -1)"
     if grep -q 'NO data' data/schools/osm/fetch_report.md 2>/dev/null; then
@@ -845,8 +854,14 @@ else
   # the governorate and named neighbourhoods, from the Overpass server that
   # just answered.
   OSM_SERVER="$(sed -n 's/^- Server: \(https:[^ ,]*\).*/\1/p' data/schools/osm/fetch_report.md 2>/dev/null | head -1)"
-  run_step python3 tools/import_schools/fetch_osm_places.py --max-age-days 7 ${OSM_SERVER:+--prefer "${OSM_SERVER}"}
-  if [ "${STEP_RC}" -eq 0 ]; then
+  if [ "${SKIP_OSM_FETCH:-}" = "1" ]; then
+    STEP_RC=9
+  else
+    run_step python3 tools/import_schools/fetch_osm_places.py --max-age-days 7 ${OSM_SERVER:+--prefer "${OSM_SERVER}"}
+  fi
+  if [ "${STEP_RC}" -eq 9 ]; then
+    :
+  elif [ "${STEP_RC}" -eq 0 ]; then
     ok "OpenStreetMap places: $(sed -n 's/^- Boundaries per admin_level: //p' data/schools/places/fetch_report.md 2>/dev/null | head -1)"
     ok "OpenStreetMap places per governorate: $(sed -n 's/^Summary: //p' data/schools/places/fetch_report.md 2>/dev/null | head -1)"
   else
