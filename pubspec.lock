@@ -365,10 +365,10 @@ packages:
     dependency: "direct main"
     description:
       name: firebase_analytics
-      sha256: "4184afc17c5749a1dc008289e582cdc07ea213d03f681f00454aed834db34357"
+      sha256: "164920117bfad80b20f9578bd392585453ba760d7b2e67d3f09325bc566b1417"
       url: "https://pub.dev"
     source: hosted
-    version: "13.0.1"
+    version: "13.1.0"
   firebase_analytics_platform_interface:
     dependency: transitive
     description:
